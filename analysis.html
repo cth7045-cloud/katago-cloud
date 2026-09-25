@@ -364,7 +364,7 @@ function komi() { const v = parseFloat($("komi").value); return Number.isFinite(
 // ------------------------------------------------------------------ navigation / actions
 function goTo(node) {
   if (!node) return;
-  cur = node; selectedPv = null; hover = null;
+  cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   requestLive(); schedule();
 }
 function step(k) { let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n); }
@@ -796,6 +796,9 @@ function sizeCanvasDevice(cv, devicePx) {
 }
 const boardCv = $("board"), miniCv = $("mini");
 let boardG = null, boardCtx = null, miniG = null, miniCtx = null, hover = null, selectedPv = null;
+// Invisible touch "cursor": set by a long press, it stays where the finger left it, like a mouse resting on the board.
+// Any new touch or click anywhere on the page removes it (a new long press on the board sets it again).
+let touchCursor = null;   // [x, y] board point
 
 function drawMain() {
   if (!boardCtx) return;
@@ -823,11 +826,13 @@ function hoverAt(pt) {  // pt: anything with clientX/clientY
   const next = hoverFor(boardPoint(pt));
   if ((next && next.move) !== (hover && hover.move)) { hover = next; schedule(); }
 }
-// Invisible touch "cursor": set by a long press, it stays where the finger left it, like a mouse resting on the board.
-let touchCursor = null;   // [x, y] board point
 boardCv.addEventListener("mousemove", ev => { touchCursor = null; hoverAt(ev); });
 boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
 boardCv.addEventListener("contextmenu", ev => ev.preventDefault());   // long-press must not open a menu
+function clearCursor() { if (touchCursor || hover) { touchCursor = null; hover = null; schedule(); } }
+// Capture phase on the whole document, so it runs before any other handler (buttons, table, tree, outside the board).
+document.addEventListener("touchstart", () => { if (touchCursor) clearCursor(); }, {capture: true, passive: true});
+document.addEventListener("mousedown", () => { if (touchCursor) clearCursor(); }, true);
 
 // Mouse wheel = previous / next move, like YZY (panels that scroll keep their own wheel).
 let wheelAcc = 0, wheelAt = 0;
