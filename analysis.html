@@ -84,6 +84,25 @@ tr.sel td { background: #cfe3ff; }
 .mini-box { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
 #mini { display: block; }
 
+/* game-record import window */
+#kifuDlg { width: min(760px, calc(100vw - 16px)); max-height: 82dvh; padding: 0; border: 1px solid #9a9a9a; border-radius: 6px;
+  background: var(--bar); color: var(--bar-text); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+#kifuDlg[open] { display: flex; flex-direction: column; }
+#kifuDlg::backdrop { background: rgba(0,0,0,.35); }
+.dlg-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--bar-line); flex-wrap: wrap; }
+.dlg-row .spacer { flex: 1; }
+#foxName { flex: 1 1 160px; min-width: 0; }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 4px 0 0 4px; }
+.seg button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+.muted { color: #777; }
+.dlg-msg { padding: 6px 10px; min-height: 28px; color: #555; }
+.dlg-msg.bad { color: #c62828; }
+.dlg-list { overflow: auto; min-height: 0; flex: 1 1 auto; background: #fff; border-top: 1px solid var(--bar-line); }
+.dlg-list td { line-height: 30px; white-space: nowrap; }
+.dlg-list tbody tr:hover td { background: #e6f0ff; }
+
 /* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
 @media (orientation: portrait) {
   body { grid-template-rows: auto auto minmax(0, 1fr); }
@@ -118,6 +137,7 @@ tr.sel td { background: #cfe3ff; }
     </div>
   </details>
   <button id="newGame">신규대국</button>
+  <button id="kifuOpen">기보 불러오기</button>
   <label class="check">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
   <label class="check"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check"><input type="checkbox" id="showCands" checked> 후보수보기</label>
@@ -125,6 +145,25 @@ tr.sel td { background: #cfe3ff; }
   <span class="status"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
   <input type="file" id="fileInput" accept=".sgf,application/x-go-sgf" hidden>
 </header>
+
+<dialog id="kifuDlg" aria-label="기보 불러오기">
+  <div class="dlg-row">
+    <span class="seg"><button id="srcFox" class="on">한큐바둑</button><button id="srcTygem">타이젬</button></span>
+    <span class="spacer"></span>
+    <button id="kifuClose">닫기</button>
+  </div>
+  <form class="dlg-row" id="foxForm">
+    <input type="text" id="foxName" placeholder="한큐바둑 닉네임" autocomplete="off" enterkeyhint="search">
+    <button type="submit">검색</button>
+    <span class="muted">최근 대국 약 100판</span>
+  </form>
+  <div class="dlg-row" id="tygemNav" hidden>
+    <span>타이젬 프로 기보</span><span class="spacer"></span>
+    <button id="tyPrev">&lt; 최근</button><span id="tyPage">1쪽</span><button id="tyNext">이전 &gt;</button>
+  </div>
+  <div class="dlg-msg" id="kifuMsg"></div>
+  <div class="dlg-list"><table><thead id="kifuHead"></thead><tbody id="kifuRows"></tbody></table></div>
+</dialog>
 
 <div class="main">
   <aside class="left">
@@ -407,7 +446,7 @@ function expandPoints(vals) {
   }
   return out;
 }
-function loadSgf(text) {
+function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main line only, like YZY
   const t = parseSgf(text), first = t.nodes[0] || {};
   if (first.SZ && parseInt(first.SZ[0], 10) !== 19) throw new Error("19줄 기보만 지원합니다");
   const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, (first.PL || ["B"])[0] === "W" ? "W" : "B");
@@ -422,7 +461,7 @@ function loadSgf(text) {
       if (!next) { skipped++; return; }
       next.comment = (p.C || [""])[0]; node = next;
     }
-    for (const v of tr.vars) build(v, 0, node);
+    for (const v of mainLineOnly ? tr.vars.slice(0, 1) : tr.vars) build(v, 0, node);
   }
   build(t, 1, newRoot);
   root = newRoot; clearAnalysis(root);
@@ -465,6 +504,70 @@ $("pasteSgf").onclick = async () => {
   let text = ""; try { text = await navigator.clipboard.readText(); } catch { text = prompt("SGF 내용을 붙여넣으세요") || ""; }
   if (text.trim()) try { loadSgf(text); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; }
 };
+
+// ------------------------------------------------------------------ 기보 불러오기 (한큐바둑 / 타이젬, through the kgv server)
+// Neither site allows browser requests, so the web service backend fetches them; it accepts this screen's GPU token.
+const KIFU_API = "https://oufxjpnahaqmlbacrdds.supabase.co/functions/v1/kgv/api/kifu";
+let kifuSrc = "fox", kifuList = [], tyPage = 1, kifuBusy = 0;
+const escHtml = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+async function kifuGet(path) {
+  const r = await fetch(KIFU_API + path, {headers: {"x-kgv-token": token}});
+  let body = {}; try { body = await r.json(); } catch { /* not json */ }
+  if (!r.ok) throw new Error(body.error || `요청 실패 (${r.status})`);
+  return body;
+}
+function kifuMsg(text, bad = false) { $("kifuMsg").textContent = text; $("kifuMsg").classList.toggle("bad", bad); }
+function showKifuList(games) {
+  kifuList = games;
+  $("kifuHead").innerHTML = kifuSrc === "fox" ? "<tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr>"
+    : "<tr><th>날짜</th><th>기전</th><th>흑</th><th>백</th><th>결과</th></tr>";
+  $("kifuRows").innerHTML = games.map((g, i) => kifuSrc === "fox"
+    ? `<tr data-i="${i}"><td>${escHtml(g.date)}</td><td>${escHtml(g.black)}</td><td>${escHtml(g.white)}</td><td>${escHtml(g.result)}</td><td>${g.moves}</td></tr>`
+    : `<tr data-i="${i}"><td>${escHtml(g.date)}</td><td>${escHtml(g.title)}</td><td>${escHtml(g.black)}</td><td>${escHtml(g.white)}</td><td>${escHtml(g.result)}</td></tr>`).join("");
+}
+async function kifuRun(label, work) {  // latest request wins; older answers are dropped
+  const n = ++kifuBusy; kifuMsg(label);
+  try { const r = await work(); if (n === kifuBusy) return r; } catch (err) { if (n === kifuBusy) kifuMsg(err.message, true); }
+  return null;
+}
+function setKifuSrc(src) {
+  kifuSrc = src; kifuBusy++;
+  $("srcFox").classList.toggle("on", src === "fox"); $("srcTygem").classList.toggle("on", src === "tygem");
+  $("foxForm").hidden = src !== "fox"; $("tygemNav").hidden = src !== "tygem";
+  showKifuList([]); kifuMsg(src === "fox" ? "닉네임을 입력하고 검색하세요." : "");
+  if (src === "tygem") loadTygem(tyPage);
+}
+async function loadTygem(page) {
+  tyPage = Math.max(1, page); $("tyPage").textContent = tyPage + "쪽"; $("tyPrev").disabled = tyPage === 1;
+  const r = await kifuRun("불러오는 중…", () => kifuGet(`/tygem/list?page=${tyPage}`));
+  if (r) { showKifuList(r.games); kifuMsg(r.games.length ? "대국을 누르면 불러옵니다." : "이 쪽에는 기보가 없습니다."); }
+}
+$("kifuOpen").onclick = () => {
+  try { $("foxName").value ||= localStorage.getItem("kgv.foxName") || ""; } catch { /* storage blocked */ }
+  $("kifuDlg").showModal();
+  if (!kifuList.length) setKifuSrc(kifuSrc);
+};
+$("kifuClose").onclick = () => $("kifuDlg").close();
+$("kifuDlg").addEventListener("click", ev => { if (ev.target === $("kifuDlg")) $("kifuDlg").close(); });   // backdrop
+$("srcFox").onclick = () => setKifuSrc("fox");
+$("srcTygem").onclick = () => setKifuSrc("tygem");
+$("tyPrev").onclick = () => loadTygem(tyPage - 1);
+$("tyNext").onclick = () => loadTygem(tyPage + 1);
+$("foxForm").onsubmit = async ev => {
+  ev.preventDefault();
+  const name = $("foxName").value.trim(); if (!name) return;
+  try { localStorage.setItem("kgv.foxName", name); } catch { /* storage blocked */ }
+  const r = await kifuRun("찾는 중…", () => kifuGet(`/fox/user?name=${encodeURIComponent(name)}`));
+  if (r) { showKifuList(r.games); kifuMsg(r.games.length ? `${r.user.name} (${r.user.dan}) · ${r.games.length}판 · 대국을 누르면 불러옵니다.` : `${r.user.name}: 공개된 대국이 없습니다.`); }
+};
+$("kifuRows").addEventListener("click", async ev => {
+  const tr = ev.target.closest("tr"); const g = tr && kifuList[+tr.dataset.i]; if (!g) return;
+  const r = await kifuRun("기보 받는 중…", () => kifuGet(`/${kifuSrc}/game?id=${encodeURIComponent(g.id)}`));
+  if (!r) return;
+  try { loadSgf(r.sgf, kifuSrc === "fox"); } catch (err) { kifuMsg("SGF 오류: " + err.message, true); return; }
+  if (!root.comment) { root.comment = `흑 ${g.black}  vs  백 ${g.white}\n${g.result}${g.title ? " · " + g.title : ""} · ${g.date}`; schedule(); }
+  $("kifuDlg").close();
+});
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
 function candidates(node) {
