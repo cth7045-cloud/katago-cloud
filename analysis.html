@@ -852,8 +852,8 @@ document.querySelector(".main").addEventListener("wheel", ev => {
 // One-finger board touches are handled here entirely (preventDefault): otherwise the browser turns a
 // long press into its own gesture (menu / selection / right-click) and cancels the touch.
 // A real fingertip spreads when pressed firmly and the touch point jumps 10-20px, so movement never cancels
-// the long press (holding 350ms is enough), and a tap may wobble up to TAP_MOVE.
-const LONG_PRESS_MS = 350, TAP_MOVE = 24, TWO_FINGER_STEP = 28;
+// the long press (holding 200ms is enough), and a tap may wobble up to TAP_MOVE.
+const LONG_PRESS_MS = 200, TAP_MOVE = 24, TWO_FINGER_STEP = 28;
 let tg = null;
 const touchMid = ts => { let x = 0, y = 0; for (const t of ts) { x += t.clientX; y += t.clientY; } return [x / ts.length, y / ts.length]; };
 const mainEl = document.querySelector(".main");
