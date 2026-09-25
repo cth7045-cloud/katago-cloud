@@ -78,8 +78,10 @@
           <tbody id="offerRows"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
         </table>
       </div>
-      <div class="row" style="margin-top:14px">
-        <div class="grow small muted" id="pickInfo">GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.</div>
+      <div class="small muted" id="pickHint" style="margin-top:14px">GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.</div>
+      <!-- moved under the chosen row while a GPU is picked -->
+      <div class="row hidden" id="pickBar">
+        <div class="grow small muted" id="pickInfo"></div>
         <button class="primary" id="startButton" disabled>이 GPU로 시작</button>
       </div>
       <div class="error" id="startError"></div>
@@ -156,8 +158,8 @@ async function enter() {
 async function refresh() {
   const [{ data: p }, { data: s }, { data: l }] = await Promise.all([
     sb.from("profiles").select("*").single(),
-    sb.from("gpu_sessions").select("*").order("created_at", { ascending: false }).limit(1),
-    sb.from("ledger").select("*").order("created_at", { ascending: false }).limit(30),
+    sb.from("gpu_sessions").select("*").order("created_at", { ascending: false }).limit(30),
+    sb.from("ledger").select("*").is("session_id", null).order("created_at", { ascending: false }).limit(30),   // top-ups etc.
   ]);
   if (!p) return;
   profile = p;
@@ -166,7 +168,14 @@ async function refresh() {
   $("adminLink").classList.toggle("hidden", !p.is_admin);
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
-  $("ledgerRows").innerHTML = (l || []).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(r.note || r.kind)}</td>` +
+  // GPU use: one line per session (its per-minute charges add up to charged_krw)
+  const uses = (s || []).filter((x) => x.charged_krw > 0 || ACTIVE.includes(x.status)).map((x) => {
+    const start = x.instance_created_at || x.created_at, live = ACTIVE.includes(x.status);
+    const min = Math.max(0, Math.round((new Date(live ? Date.now() : x.stopped_at || start) - new Date(start)) / 60000));
+    return { created_at: start, amount_krw: -x.charged_krw || 0, note: `GPU 사용 ${min}분 (${x.gpu_name || "GPU"})${live ? " · 사용 중" : ""}` };
+  });
+  const rows = [...uses, ...(l || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 30);
+  $("ledgerRows").innerHTML = rows.map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(r.note || r.kind)}</td>` +
     `<td class="num" style="color:${r.amount_krw < 0 ? "var(--bad)" : "var(--good)"}">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("")
     || `<tr><td colspan="3" class="muted">아직 내역이 없습니다.</td></tr>`;
 }
@@ -206,8 +215,8 @@ $("stopButton").onclick = async () => {
 
 // ------------------------------------------------------------------ offers / start
 async function loadOffers() {
+  picked = null; updatePick();   // takes the start bar out of the table before the rows are replaced
   $("offerRows").innerHTML = `<tr><td colspan="7" class="muted">불러오는 중…</td></tr>`;
-  picked = null; updatePick();
   try {
     const r = await api("/offers");
     offers = r.offers;
@@ -228,14 +237,18 @@ $("offerRows").onclick = (ev) => {
   const tr = ev.target.closest("tr.pick"); if (!tr) return;
   picked = offers[+tr.dataset.i];
   document.querySelectorAll("#offerRows tr").forEach((r) => r.classList.toggle("sel", r === tr));
-  updatePick();
+  const row = document.createElement("tr"); row.className = "pick-bar"; row.innerHTML = `<td colspan="7"></td>`;
+  tr.after(row); updatePick(row.firstChild);
 };
-function updatePick() {
+function updatePick(cell) {
+  const bar = $("pickBar");
+  if (cell) { const old = bar.closest("tr"); cell.append(bar); if (old) old.remove(); }
+  if (!picked) { const old = bar.closest("tr"); $("pickHint").after(bar); if (old) old.remove(); }
+  bar.classList.toggle("hidden", !picked); $("pickHint").classList.toggle("hidden", !!picked);
   $("startButton").disabled = !picked;
-  $("pickInfo").textContent = picked ? `${picked.gpu} (${picked.region}) · 시간당 ${won(picked.priceKrw)} · 최대 ${$("hours").value}시간이면 최대 약 ${won(picked.priceKrw * Number($("hours").value))}`
-    : "GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.";
+  if (picked) $("pickInfo").textContent = `시간당 ${won(picked.priceKrw)} · 최대 ${$("hours").value}시간이면 최대 약 ${won(picked.priceKrw * Number($("hours").value))}`;
 }
-$("hours").onchange = updatePick;
+$("hours").onchange = () => updatePick();
 $("startButton").onclick = async () => {
   if (!picked) return;
   const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, 1분 단위로 잔액에서 차감됩니다.\n준비(3~6분) 시간도 요금에 포함됩니다.\n\n시작할까요?`;

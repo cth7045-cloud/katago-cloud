@@ -84,22 +84,25 @@ tr.sel td { background: #cfe3ff; }
 .mini-box { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
 #mini { display: block; }
 
-/* phones / tablets in portrait: one scrolling column */
-@media (max-width: 999px) {
-  body { display: block; height: auto; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
-  .menubar { position: sticky; top: 0; z-index: 20; }
+/* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
+@media (orientation: portrait) {
+  body { grid-template-rows: auto auto minmax(0, 1fr); }
   .main { display: flex; flex-direction: column; }
-  .center { order: 1; padding: 4px 0; }
+  .center { order: 1; }
   .left { order: 2; }
-  .right { order: 3; }
-  #capBox { flex: none; height: 96px; }
-  #statBox { flex: none; height: 78px; }
-  #graphBox { flex: none; height: 150px; }
-  .comment { flex: none; min-height: 0; max-height: 200px; }
-  .engine-status { font-size: 14px; }
-  #treeBox, .mini-box { display: none; }
-  .table-box { height: auto; max-height: 260px; }
-  .toolbar { position: sticky; bottom: 0; z-index: 20; }
+  #capBox, #graphBox, .comment, .engine-status, .right { display: none; }
+  #statBox { flex: none; height: 72px; }
+  .toolbar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-content: start;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); overflow-y: auto; border-top: 0; background: transparent; }
+  .toolbar button, .toolbar input { min-height: 42px; padding: 2px; width: 100%; }
+  .toolbar .sep { display: none; }
+  /* rows: moves | analysis | move number & marks | editing */
+  #first { order: 1; } #back10 { order: 2; } #back { order: 3; } #fwd { order: 4; } #fwd10 { order: 5; } #last { order: 6; }
+  #analyze, #autoAnalyze, #autoPlay, #goMove, #promote, #resetBoard, #deleteNode { grid-column: span 2; }
+  #analyze { order: 7; } #autoAnalyze { order: 8; } #autoPlay { order: 9; }
+  #moveNo { order: 10; } #goMove { order: 11; } #pass { order: 12; } #nums { order: 13; } #coords { order: 14; }
+  #promote { order: 15; } #resetBoard { order: 16; } #deleteNode { order: 17; }
+  .toolbar .error { order: 18; grid-column: 1 / -1; color: #ff8a80; }
 }
 </style>
 </head>
@@ -948,9 +951,11 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // ------------------------------------------------------------------ layout & render loop
 function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }
 function layout() {
-  const wide = matchMedia("(min-width: 1000px)").matches;
   const [bw, bh] = fitBox($("boardBox"));
-  const side = wide ? Math.min(bw, bh) : Math.min(document.documentElement.clientWidth, 800);
+  // portrait: as wide as the screen, leaving room for the win-rate bar and two rows of buttons
+  const side = matchMedia("(orientation: portrait)").matches
+    ? Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight - $("statBox").offsetHeight - 110)
+    : Math.min(bw, bh);
   const k = dpr();
   boardG = geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
   boardCtx = sizeCanvasDevice(boardCv, boardG.size);
@@ -962,15 +967,18 @@ function layout() {
     miniG = geometry(Math.floor(Math.max(60, Math.min(mw - 8, mh - 12)) * k), false, k); miniCtx = sizeCanvasDevice(miniCv, miniG.size);
   } else miniCtx = null;
   snapToPixels(boardCv); if (miniCtx) snapToPixels(miniCv);
-  schedule();
+  render();   // right away: resizing cleared the canvases, drawing a frame later shows them blank (flicker)
 }
 window.addEventListener("scroll", () => requestAnimationFrame(() => snapToPixels(boardCv)), {passive: true});
 let pending = false;
 function schedule() {
   if (pending) return; pending = true;
-  requestAnimationFrame(() => { pending = false; drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); });
+  requestAnimationFrame(() => { pending = false; render(); });
 }
-new ResizeObserver(layout).observe(document.body);
+function render() { drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
+// Re-lay out only when the window really changes; text/table updates must not clear the canvases.
+let lastSize = "";
+new ResizeObserver(() => { const s = `${innerWidth}x${innerHeight}x${dpr()}`; if (s !== lastSize) { lastSize = s; layout(); } }).observe(document.documentElement);
 document.fonts && document.fonts.ready.then(schedule);
 layout(); connect();
 </script>
