@@ -810,13 +810,17 @@ function boardPoint(ev) {
 }
 function placeAt(pt) { const p = boardPoint(pt); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c); }
 boardCv.addEventListener("click", placeAt);   // mouse; touches on the board are handled below
-function hoverAt(pt) {  // pt: anything with clientX/clientY (mouse event or touch)
-  const p = boardPoint(pt);
+function hoverFor(p) {  // the variation preview for the candidate at board point p (or null)
   const mv = p && $("showCands").checked ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
-  const next = mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
+  return mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
+}
+function hoverAt(pt) {  // pt: anything with clientX/clientY
+  const next = hoverFor(boardPoint(pt));
   if ((next && next.move) !== (hover && hover.move)) { hover = next; schedule(); }
 }
-boardCv.addEventListener("mousemove", hoverAt);
+// Invisible touch "cursor": set by a long press, it stays where the finger left it, like a mouse resting on the board.
+let touchCursor = null;   // [x, y] board point
+boardCv.addEventListener("mousemove", ev => { touchCursor = null; hoverAt(ev); });
 boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
 boardCv.addEventListener("contextmenu", ev => ev.preventDefault());   // long-press must not open a menu
 
@@ -832,7 +836,8 @@ document.querySelector(".main").addEventListener("wheel", ev => {
   while (Math.abs(wheelAcc) >= 60) { step(Math.sign(wheelAcc)); wheelAcc -= 60 * Math.sign(wheelAcc); }
 }, {passive: false});
 
-// Touch: 1 finger long-press + slide on the board = mouse hover (variation preview), short tap = play,
+// Touch: 1 finger long-press (+ slide) on the board = put the invisible cursor there; it stays after lifting,
+// so the preview of the candidate under it stays too. Short tap = play.
 // 2 fingers up/down = wheel (previous / next move), quick 3-finger tap = one move back.
 // One-finger board touches are handled here entirely (preventDefault): otherwise the browser turns a
 // long press into its own gesture (menu / selection / right-click) and cancels the touch.
@@ -840,6 +845,7 @@ const LONG_PRESS_MS = 350, TAP_MOVE = 12, TWO_FINGER_STEP = 28;
 let tg = null;
 const touchMid = ts => { let x = 0, y = 0; for (const t of ts) { x += t.clientX; y += t.clientY; } return [x / ts.length, y / ts.length]; };
 const mainEl = document.querySelector(".main");
+function moveCursor(pt) { const p = boardPoint(pt); if (p && (!touchCursor || p[0] !== touchCursor[0] || p[1] !== touchCursor[1])) { touchCursor = p; schedule(); } }
 mainEl.addEventListener("touchstart", ev => {
   if (tg && tg.timer) clearTimeout(tg.timer);
   const n = ev.touches.length, [x, y] = touchMid(ev.touches);
@@ -847,16 +853,16 @@ mainEl.addEventListener("touchstart", ev => {
         board: n === 1 && ev.target === boardCv, last: {clientX: x, clientY: y}};
   if (tg.board) {
     ev.preventDefault();
-    const g = tg; g.timer = setTimeout(() => { g.timer = 0; g.hover = true; hoverAt(g.last); }, LONG_PRESS_MS);
+    const g = tg; g.timer = setTimeout(() => { g.timer = 0; g.hover = true; moveCursor(g.last); try { navigator.vibrate && navigator.vibrate(15); } catch { /* no vibration */ } }, LONG_PRESS_MS);
   }
-  if (n >= 2) { ev.preventDefault(); if (hover) { hover = null; schedule(); } }   // no pinch zoom / panel scroll
+  if (n >= 2) ev.preventDefault();   // no pinch zoom / panel scroll
 }, {passive: false});
 mainEl.addEventListener("touchmove", ev => {
   if (!tg) return;
   const [x, y] = touchMid(ev.touches);
   tg.last = {clientX: x, clientY: y};
   if (Math.hypot(x - tg.x0, y - tg.y0) > TAP_MOVE) { tg.moved = true; if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; } }
-  if (tg.board) { ev.preventDefault(); if (tg.hover) hoverAt(tg.last); return; }
+  if (tg.board) { ev.preventDefault(); if (tg.hover) moveCursor(tg.last); return; }
   if (tg.n === 2 && ev.touches.length === 2) {
     ev.preventDefault();
     tg.acc += y - tg.lastY; tg.lastY = y;   // fingers down = next move
@@ -868,13 +874,12 @@ mainEl.addEventListener("touchend", ev => {
   if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; }
   if (tg.board) {
     ev.preventDefault();
-    if (tg.hover) { if (hover) { hover = null; schedule(); } }
-    else if (!tg.moved) placeAt(tg.last);   // short tap = play, like a click
+    if (!tg.hover && !tg.moved) placeAt(tg.last);   // short tap = play; after a long press the cursor just stays
   }
   if (tg.n === 3 && !tg.moved && ev.touches.length === 0 && performance.now() - tg.t0 < 400) step(-1);
   if (ev.touches.length === 0) tg = null;
 }, {passive: false});
-mainEl.addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(tg.timer); tg = null; if (hover) { hover = null; schedule(); } });
+mainEl.addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(tg.timer); tg = null; });
 
 // ------------------------------------------------------------------ left panels (LizzieFrame.drawCaptured / drawMoveStatistics)
 const capCv = $("cap"), statCv = $("stat");
@@ -1113,7 +1118,7 @@ function schedule() {
   if (pending) return; pending = true;
   requestAnimationFrame(() => { pending = false; render(); });
 }
-function render() { drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
+function render() { if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
 // Re-lay out only when the window really changes; text/table updates must not clear the canvases.
 let lastSize = "";
 new ResizeObserver(() => { const s = `${innerWidth}x${innerHeight}x${dpr()}`; if (s !== lastSize) { lastSize = s; layout(); } }).observe(document.documentElement);
