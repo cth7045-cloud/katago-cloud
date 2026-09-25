@@ -1,0 +1,18 @@
+KataGoVast web analysis screen - third-party material
+
+The analysis screen (remote/webui.html) reproduces the look of LizzieYzy Next
+(board texture, stones, background, candidate-move drawing rules, win-rate
+panels) so it looks the same as the desktop program.
+
+* board.png, black0.png, white0.png, background.jpg
+  From LizzieYzy Next (lizzie-yzy2.5.3-shaded.jar, assets/), https://github.com/wimi321/lizzieyzy-next
+  Licensed under the GNU General Public License v3.0.
+* The drawing rules in webui.html (margins, line widths, candidate colors and
+  text layout, stone shadows/highlights, win-rate bar, graph, variation tree)
+  were ported from LizzieYzy Next's BoardRenderer.java, GlassEffectRenderer.java,
+  LizzieFrame.java, WinrateGraph.java and VariationTree.java (GPL-3.0).
+  Therefore remote/webui.html is distributed under the GNU GPL v3.0 as well.
+  The full license text is in LICENSE-GPL-3.0.txt next to this file.
+* OpenSans-Semibold.ttf
+  Open Sans, Copyright Google Inc., Apache License 2.0
+  (bundled with LizzieYzy Next as its win-rate font).

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KataGo 클라우드 관리</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="bar">
+    <h1>관리자</h1>
+    <a href="index.html">내 화면</a>
+    <button id="reload">새로고침</button>
+  </header>
+  <div class="error" id="err"></div>
+
+  <div class="card">
+    <h2>잔액 충전 · 차감</h2>
+    <form id="topupForm" class="row">
+      <label class="field grow">회원 이메일<input id="tEmail" type="email" required></label>
+      <label class="field">금액(원, 차감은 -)<input id="tAmount" type="number" step="1000" required style="width:150px"></label>
+      <label class="field grow">메모<input id="tNote" maxlength="100" placeholder="예: 계좌이체 1만원"></label>
+      <button class="primary" type="submit" style="align-self:end">적용</button>
+    </form>
+    <p class="muted small" id="settingsLine"></p>
+  </div>
+
+  <div class="card">
+    <h2>실행 중이거나 최근 GPU</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>회원</th><th>상태</th><th>GPU</th><th class="num">시간당</th><th class="num">Vast $/h</th><th class="num">차감</th><th>시작</th><th>메모</th><th></th></tr></thead>
+      <tbody id="sessionRows"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>회원</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>이메일</th><th>닉네임</th><th class="num">잔액</th><th>가입</th></tr></thead>
+      <tbody id="memberRows"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>최근 입출금</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>시각</th><th>회원</th><th>종류</th><th>내용</th><th class="num">금액</th></tr></thead>
+      <tbody id="ledgerRows"></tbody>
+    </table></div>
+  </div>
+</main>
+<script type="module">
+import { $, api, esc, sb, toast, when, won } from "./app.js";
+
+const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
+let emails = {};
+
+async function load() {
+  $("err").textContent = "";
+  try {
+    const d = await api("/admin/overview");
+    emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
+    const s = d.settings;
+    $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
+    $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.email)}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
+      `<td>${esc(m.nickname || "")}</td><td class="num">${won(m.balance_krw)}</td><td>${when(m.created_at)}</td></tr>`).join("");
+    $("sessionRows").innerHTML = d.sessions.slice(0, 40).map((x) => {
+      const live = ACTIVE.includes(x.status);
+      const pill = live ? (x.status === "ready" ? "good" : "warn") : (x.status === "failed" ? "bad" : "");
+      const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
+                    !live && x.verified_stop === false ? "삭제 미확인!" : ""].filter(Boolean).join(" · ");
+      return `<tr><td>${esc(emails[x.user_id] || "?")}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
+        `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${won(x.charged_krw)}</td>` +
+        `<td>${when(x.created_at)}</td><td class="small">${esc(note)}</td>` +
+        `<td>${live ? `<button data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
+    }).join("") || `<tr><td colspan="9" class="muted">없음</td></tr>`;
+    $("ledgerRows").innerHTML = d.ledger.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(emails[r.user_id] || "?")}</td>` +
+      `<td>${esc(r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("");
+  } catch (e) {
+    $("err").textContent = e.message;
+  }
+}
+
+$("topupForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const email = $("tEmail").value.trim().toLowerCase(), amount = Number($("tAmount").value);
+  if (!confirm(`${email} 회원에게 ${amount > 0 ? "+" : ""}${won(amount)} 적용할까요?`)) return;
+  try {
+    const r = await api("/admin/topup", { email, amount, note: $("tNote").value.trim() || undefined });
+    toast(`적용했습니다. 새 잔액 ${won(r.balance_krw)}`);
+    $("tAmount").value = ""; $("tNote").value = "";
+    load();
+  } catch (e) { toast(e.message, true); }
+};
+$("sessionRows").onclick = async (ev) => {
+  const id = ev.target.dataset?.stop; if (!id) return;
+  if (!confirm("이 GPU를 강제로 종료(삭제)할까요?")) return;
+  ev.target.disabled = true;
+  try { const r = await api("/admin/stop", { session_id: id }); toast(r.stopped ? "삭제를 확인했습니다." : "삭제 요청을 보냈습니다. 1분 점검이 계속 확인합니다."); }
+  catch (e) { toast(e.message, true); }
+  load();
+};
+$("reload").onclick = load;
+
+const { data } = await sb.auth.getSession();
+if (!data.session) location.href = "index.html"; else { load(); setInterval(load, 15000); }
+</script>
+</body>
+</html>

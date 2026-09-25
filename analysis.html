@@ -1,0 +1,961 @@
+<!doctype html>
+<!--
+  KataGoVast web analysis screen.
+  Look and drawing rules ported from LizzieYzy Next (https://github.com/wimi321/lizzieyzy-next):
+  BoardRenderer, GlassEffectRenderer, LizzieFrame, WinrateGraph, VariationTree.
+  This file is therefore licensed under the GNU General Public License v3.0.
+  See webassets/NOTICE.txt.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KataGo 분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bar: #f0f0f0; --bar-line: #c9c9c9; --bar-text: #1a1a1a;
+  --btn: #eef3fb; --btn-line: #9db2d3; --btn-text: #1a2a44; --btn-on: #cfe0fb;
+  --btn-pink: #fdeef2; --btn-pink-line: #e3a9b9;
+  --ui-font: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font: 13px/1.35 var(--ui-font); color: var(--bar-text); overflow: hidden;
+  background: rgb(38, 38, 42) url("assets/background.jpg") repeat;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100dvh; -webkit-text-size-adjust: 100%; }
+button, select, input { font: inherit; color: var(--btn-text); }
+button { background: var(--btn); border: 1px solid var(--btn-line); border-radius: 4px; padding: 3px 12px; min-height: 28px; white-space: nowrap; cursor: pointer; }
+button:hover { background: #e2ebf8; }
+button.on { background: var(--btn-on); border-color: #5f8fd6; }
+button.pink { background: var(--btn-pink); border-color: var(--btn-pink-line); }
+select, input[type=number], input[type=text] { background: #fff; border: 1px solid #b9b9b9; border-radius: 3px; padding: 2px 5px; min-height: 26px; }
+input[type=number] { width: 62px; }
+label.check { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+
+/* Swing-like light bars (top / bottom) */
+.menubar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: var(--bar); border-bottom: 1px solid var(--bar-line);
+  overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.menubar > * { flex: none; }
+.menubar .spacer { flex: 1 1 auto; }
+.status { display: inline-flex; align-items: center; gap: 6px; color: #555; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #d33; }
+.dot.on { background: #2e9d4a; }
+details.menu { position: relative; }
+details.menu > summary { list-style: none; cursor: pointer; padding: 3px 12px; border-radius: 3px; }
+details.menu > summary::-webkit-details-marker { display: none; }
+details.menu[open] > summary, details.menu > summary:hover { background: #dde6f3; }
+details.menu .items { position: fixed; z-index: 30; margin-top: 4px; background: #fbfbfb; border: 1px solid #b9b9b9; padding: 3px; display: grid; min-width: 170px; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+details.menu .items button { border: 0; background: transparent; text-align: left; border-radius: 2px; }
+details.menu .items button:hover { background: #dde6f3; }
+.toolbar { display: flex; gap: 4px; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); background: var(--bar); border-top: 1px solid var(--bar-line);
+  overflow-x: auto; align-items: center; scrollbar-width: thin; }
+.toolbar > * { flex: none; }
+.toolbar .sep { width: 10px; }
+#moveNo { width: 62px; text-align: center; }
+.error { color: #c62828; padding-left: 6px; }
+
+/* main area: left panels | board | right panels (drawn over the wallpaper like YZY) */
+.main { display: grid; grid-template-columns: 24% minmax(0, 1fr) 24%; min-height: 0; gap: 0; }
+.left, .right { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.cv-box { position: relative; min-height: 0; }
+.cv-box > canvas { position: absolute; inset: 0; display: block; }
+#capBox { flex: 0 0 12.5%; min-height: 86px; }
+#statBox { flex: 0 0 10%; min-height: 70px; }
+#graphBox { flex: 1 1 auto; min-height: 110px; cursor: pointer; }
+.comment { flex: 0 0 33%; min-height: 120px; margin: 4px 0 0; background: rgba(0,0,0,.78); border-radius: 12px 12px 0 0; color: #fff; display: flex; flex-direction: column; }
+.tabs { display: flex; gap: 22px; padding: 10px 22px 0; font-size: 14px; }
+.tabs span { padding-bottom: 5px; color: #9a9a9a; }
+.tabs span.on { color: #fff; border-bottom: 2px solid #4b8bf5; }
+#comment { flex: 1; overflow: auto; padding: 10px 12px; white-space: pre-wrap; font-size: 17px; line-height: 1.55; }
+.engine-status { padding: 2px 2px 4px; color: #fff; font-size: 18px; line-height: 1.5; text-shadow: 0 1px 2px #000; }
+.engine-status div { background: rgba(0,0,0,.45); display: inline-block; padding: 0 3px; }
+.center { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#board { display: block; touch-action: manipulation; }
+#treeBox { flex: 0 0 26%; min-height: 90px; overflow: auto; background: rgba(0,0,0,.51); position: relative; }
+#tree { display: block; }
+.table-box { flex: 0 0 auto; height: 22%; min-height: 110px; overflow: auto; background: #fff; border-top: 1px solid #555; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; color: #000; }
+th { position: sticky; top: 0; background: #eaeaea; font-weight: 400; padding: 2px 3px; border: 1px solid #d0d0d0; border-top: 0; }
+td { text-align: center; padding: 0 3px; border-right: 1px solid #e3e3e3; cursor: pointer; line-height: 20px; }
+tr.sel td { background: #cfe3ff; }
+.mini-box { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
+#mini { display: block; }
+
+/* phones / tablets in portrait: one scrolling column */
+@media (max-width: 999px) {
+  body { display: block; height: auto; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
+  .menubar { position: sticky; top: 0; z-index: 20; }
+  .main { display: flex; flex-direction: column; }
+  .center { order: 1; padding: 4px 0; }
+  .left { order: 2; }
+  .right { order: 3; }
+  #capBox { flex: none; height: 96px; }
+  #statBox { flex: none; height: 78px; }
+  #graphBox { flex: none; height: 150px; }
+  .comment { flex: none; min-height: 0; max-height: 200px; }
+  .engine-status { font-size: 14px; }
+  #treeBox, .mini-box { display: none; }
+  .table-box { height: auto; max-height: 260px; }
+  .toolbar { position: sticky; bottom: 0; z-index: 20; }
+}
+</style>
+</head>
+<body>
+<header class="menubar">
+  <details class="menu" id="fileMenu">
+    <summary>파일</summary>
+    <div class="items">
+      <button id="openSgf">SGF 열기…</button>
+      <button id="saveSgf">SGF 저장</button>
+      <button id="copySgf">SGF 복사</button>
+      <button id="pasteSgf">SGF 붙여넣기</button>
+    </div>
+  </details>
+  <button id="newGame">신규대국</button>
+  <label class="check">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
+  <label class="check">탐색 <select id="visits">
+    <option value="1000">1,000</option><option value="5000" selected>5,000</option><option value="20000">20,000</option>
+  </select></label>
+  <label class="check"><input type="checkbox" id="showOwner"> 형세</label>
+  <label class="check"><input type="checkbox" id="showCands" checked> 후보수보기</label>
+  <span class="spacer"></span>
+  <span class="status"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
+  <input type="file" id="fileInput" accept=".sgf,application/x-go-sgf" hidden>
+</header>
+
+<div class="main">
+  <aside class="left">
+    <div class="cv-box" id="capBox"><canvas id="cap"></canvas></div>
+    <div class="cv-box" id="statBox"><canvas id="stat"></canvas></div>
+    <div class="cv-box" id="graphBox"><canvas id="graph" aria-label="승률 그래프"></canvas></div>
+    <div class="comment">
+      <div class="tabs"><span class="on">댓글</span><span>문제 수</span></div>
+      <div id="comment"></div>
+    </div>
+    <div class="engine-status"><div id="engineName">KataGo</div><br><div id="hint">생각 멈춤 · 단축키=Space</div></div>
+  </aside>
+
+  <section class="center" id="boardBox"><canvas id="board" aria-label="바둑판"></canvas></section>
+
+  <aside class="right">
+    <div id="treeBox"><canvas id="tree" aria-label="변화도"></canvas></div>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>순서</th><th>승률</th><th>비짓</th><th>비중</th><th>리드</th></tr></thead>
+        <tbody id="candRows"></tbody>
+      </table>
+    </div>
+    <div class="mini-box" id="miniBox"><canvas id="mini" aria-label="변화 미리보기"></canvas></div>
+  </aside>
+</div>
+
+<footer class="toolbar">
+  <button id="analyze">▶ 분석 시작</button>
+  <button id="autoAnalyze">자동분석</button>
+  <span class="sep"></span>
+  <button id="first" title="처음 (Home)">|&lt;</button>
+  <button id="back10" title="10수 뒤로">&lt;&lt;</button>
+  <button id="back" title="이전 (←)">&lt;</button>
+  <input type="text" id="moveNo" inputmode="numeric" aria-label="수 번호">
+  <button id="goMove">수순 이동</button>
+  <button id="fwd" title="다음 (→)">&gt;</button>
+  <button id="fwd10" title="10수 앞으로">&gt;&gt;</button>
+  <button id="last" title="끝 (End)">&gt;|</button>
+  <button id="autoPlay">자동착수</button>
+  <span class="sep"></span>
+  <button id="pass">패스</button>
+  <button id="promote">주 변화로 지정</button>
+  <button id="nums">수순</button>
+  <button id="coords" class="on">좌표</button>
+  <button id="resetBoard" class="pink">바둑판초기화</button>
+  <button id="deleteNode" class="pink">지우기</button>
+  <span class="error" id="err"></span>
+</footer>
+
+<script>
+"use strict";
+const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", AUTO_VISITS = 400;
+const UI_FONT = getComputedStyle(document.documentElement).getPropertyValue("--ui-font").trim();
+const WR_FONT = "'Open Sans', " + UI_FONT;   // YZY: fonts/OpenSans-Semibold.ttf
+const WR_WEIGHT = 600;
+const $ = id => document.getElementById(id);
+const idx = (x, y) => y * N + x;
+const gtp = (x, y) => LETTERS[x] + (N - y);
+const parseGtp = s => { if (!s || s === "pass") return null; const x = LETTERS.indexOf(s[0]), y = N - parseInt(s.slice(1), 10); return (x >= 0 && y >= 0 && y < N) ? [x, y] : null; };
+const other = c => c === "B" ? "W" : "B";
+const T = Math.trunc;
+
+// ------------------------------------------------------------------ game tree
+function makeRoot(setup = {B: [], W: []}, toPlay = "B") {
+  const grid = new Int8Array(N * N), num = new Int16Array(N * N);
+  for (const [x, y] of setup.B) grid[idx(x, y)] = 1;
+  for (const [x, y] of setup.W) grid[idx(x, y)] = 2;
+  return {parent: null, children: [], move: null, grid, num, caps: {B: 0, W: 0}, ko: -1, toPlay, depth: 0, setup, analysis: null, comment: ""};
+}
+function neighbors(i) { const x = i % N, y = (i / N) | 0, out = []; if (x > 0) out.push(i - 1); if (x < N - 1) out.push(i + 1); if (y > 0) out.push(i - N); if (y < N - 1) out.push(i + N); return out; }
+function groupAt(grid, i) {
+  const color = grid[i], stones = [i], seen = new Set([i]); let libs = 0; const libSeen = new Set();
+  for (let k = 0; k < stones.length; k++) for (const j of neighbors(stones[k])) {
+    if (grid[j] === 0) { if (!libSeen.has(j)) { libSeen.add(j); libs++; } }
+    else if (grid[j] === color && !seen.has(j)) { seen.add(j); stones.push(j); }
+  }
+  return {stones, libs};
+}
+// Returns {grid, captured[], ko} or null when illegal (occupied, suicide, ko).
+function placeOn(grid, ko, color, x, y) {
+  const i = idx(x, y);
+  if (grid[i] !== 0 || i === ko) return null;
+  const g = grid.slice(), me = color === "B" ? 1 : 2; g[i] = me;
+  let captured = [];
+  for (const j of neighbors(i)) if (g[j] === 3 - me) { const grp = groupAt(g, j); if (grp.libs === 0) { for (const s of grp.stones) g[s] = 0; captured = captured.concat(grp.stones); } }
+  const own = groupAt(g, i);
+  if (own.libs === 0) return null;
+  const newKo = (captured.length === 1 && own.stones.length === 1 && own.libs === 1) ? captured[0] : -1;
+  return {grid: g, captured, ko: newKo};
+}
+function play(node, color, xy) {  // xy null = pass
+  const same = node.children.find(c => c.move.c === color && (xy ? (c.move.x === xy[0] && c.move.y === xy[1]) : c.move.pass));
+  if (same) return same;
+  let child;
+  if (!xy) {
+    child = {grid: node.grid, num: node.num, caps: {...node.caps}, ko: -1, move: {c: color, pass: true}};
+  } else {
+    const r = placeOn(node.grid, node.ko, color, xy[0], xy[1]);
+    if (!r) return null;
+    const num = node.num.slice(); for (const s of r.captured) num[s] = 0; num[idx(xy[0], xy[1])] = node.depth + 1;
+    const caps = {...node.caps}; caps[color] += r.captured.length;
+    child = {grid: r.grid, num, caps, ko: r.ko, move: {c: color, x: xy[0], y: xy[1]}};
+  }
+  Object.assign(child, {parent: node, children: [], toPlay: other(color), depth: node.depth + 1, analysis: null, comment: ""});
+  node.children.push(child);
+  return child;
+}
+function pathTo(node) { const p = []; for (let n = node; n; n = n.parent) p.push(n); return p.reverse(); }
+function lineThrough(node) { const p = pathTo(node); let n = node; while (n.children.length) { n = n.children[0]; p.push(n); } return p; }
+function movesOf(node) { return pathTo(node).slice(1).map(n => [n.move.c, n.move.pass ? "pass" : gtp(n.move.x, n.move.y)]); }
+
+let root = makeRoot(), cur = root;
+
+// ------------------------------------------------------------------ engine connection
+const hashParams = new URLSearchParams(location.hash.slice(1));
+const token = hashParams.get("t") || "";
+// When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
+const remoteGpu = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(hashParams.get("u") || "") ? hashParams.get("u") : "";
+let ws = null, qn = 0, liveId = null, autoId = null, autoLine = [], autoDone = 0;
+let analyzing = false, autoPlayColor = null, modelName = "", engineVersion = "";
+const queries = new Map();  // id -> {node} or {line}
+
+function connect() {
+  if (!token) { $("conn").textContent = "주소에 접속 토큰이 없습니다"; return; }
+  const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
+  ws = new WebSocket(base + "/ws?t=" + encodeURIComponent(token));
+  ws.onopen = () => {
+    $("dot").classList.add("on"); $("conn").textContent = "GPU 연결됨"; $("err").textContent = "";
+    send({id: "ver", action: "query_version"}); ping();
+    if (analyzing) requestLive();
+  };
+  ws.onclose = () => { $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중"; setTimeout(connect, 2000); };
+  ws.onmessage = ev => onMessage(JSON.parse(ev.data));
+}
+function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
+function ping() { send({action: "ping", t: performance.now()}); }
+setInterval(ping, 5000);
+
+function baseQuery() {
+  return {rules: "korean", komi: komi(), boardXSize: N, boardYSize: N, initialPlayer: root.toPlay,
+          initialStones: [...root.setup.B.map(([x, y]) => ["B", gtp(x, y)]), ...root.setup.W.map(([x, y]) => ["W", gtp(x, y)])],
+          includeOwnership: $("showOwner").checked};
+}
+function requestLive() {
+  if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
+  if (!analyzing) return;
+  liveId = "q" + (++qn);
+  queries.set(liveId, {node: cur});
+  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: parseInt($("visits").value, 10), reportDuringSearchEvery: 0.3});
+}
+function store(node, msg, id) {
+  const old = node.analysis;
+  if (!old || node.aid === id || msg.rootInfo.visits >= old.rootInfo.visits) { node.analysis = msg; node.aid = id; }
+}
+function onMessage(msg) {
+  if ("pong" in msg) {
+    if (msg.model) modelName = msg.model;
+    $("conn").textContent = `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms`; updateEngineName(); return;
+  }
+  if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
+  if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; return; }
+  const q = queries.get(msg.id);
+  if (!q || !msg.rootInfo) return;
+  if (q.line) {  // auto analysis: one response per turn
+    const node = q.line[msg.turnNumber];
+    if (node) store(node, msg, msg.id);
+    autoDone++; $("autoAnalyze").textContent = `자동분석 ${autoDone}/${q.line.length}`;
+    if (autoDone >= q.line.length) stopAuto();
+  } else {
+    store(q.node, msg, msg.id);
+    if (!msg.isDuringSearch && q.node === cur && autoPlayColor === cur.toPlay) setTimeout(() => autoMove(msg), 150);
+  }
+  schedule();
+}
+function autoMove(msg) {
+  if (autoPlayColor !== cur.toPlay || cur.analysis !== msg) return;
+  const best = candidates(cur)[0];
+  if (best) goTo(play(cur, cur.toPlay, parseGtp(best.move)));
+}
+function startAuto() {
+  autoLine = lineThrough(cur); autoDone = 0; autoId = "a" + (++qn);
+  queries.set(autoId, {line: autoLine});
+  send({...baseQuery(), includeOwnership: false, id: autoId, moves: movesOf(autoLine[autoLine.length - 1]),
+        analyzeTurns: autoLine.map((_, i) => i), maxVisits: AUTO_VISITS});
+  $("autoAnalyze").classList.add("on"); $("autoAnalyze").textContent = `자동분석 0/${autoLine.length}`;
+}
+function stopAuto() {
+  if (autoId && autoDone < autoLine.length) send({id: "t" + (++qn), action: "terminate", terminateId: autoId});
+  queries.delete(autoId); autoId = null;
+  $("autoAnalyze").classList.remove("on"); $("autoAnalyze").textContent = "자동분석";
+}
+function engineLabel() { return ["KataGo" + (engineVersion ? " " + engineVersion : ""), modelName].filter(Boolean).join(" · "); }
+function updateEngineName() { $("engineName").textContent = engineLabel(); }
+function komi() { const v = parseFloat($("komi").value); return Number.isFinite(v) ? v : 6.5; }
+
+// ------------------------------------------------------------------ navigation / actions
+function goTo(node) {
+  if (!node) return;
+  cur = node; selectedPv = null; hover = null;
+  requestLive(); schedule();
+}
+function step(k) { let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n); }
+function toEnd() { const l = lineThrough(cur); goTo(l[l.length - 1]); }
+function clearAnalysis(n) { n.analysis = null; n.children.forEach(clearAnalysis); }
+
+$("analyze").onclick = () => {
+  analyzing = !analyzing;
+  $("analyze").classList.toggle("on", analyzing); $("analyze").textContent = analyzing ? "■ 분석 정지" : "▶ 분석 시작";
+  $("hint").textContent = analyzing ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
+  requestLive(); schedule();
+};
+$("autoAnalyze").onclick = () => autoId ? stopAuto() : startAuto();
+$("first").onclick = () => goTo(root);
+$("back10").onclick = () => step(-10);
+$("back").onclick = () => step(-1);
+$("fwd").onclick = () => step(1);
+$("fwd10").onclick = () => step(10);
+$("last").onclick = toEnd;
+$("goMove").onclick = () => { const t = parseInt($("moveNo").value, 10); if (!Number.isFinite(t)) return; const l = lineThrough(cur); goTo(l[Math.max(0, Math.min(l.length - 1, t))]); };
+$("moveNo").addEventListener("keydown", e => { if (e.key === "Enter") $("goMove").click(); });
+$("pass").onclick = () => goTo(play(cur, cur.toPlay, null));
+$("autoPlay").onclick = () => {
+  autoPlayColor = autoPlayColor ? null : cur.toPlay;
+  $("autoPlay").classList.toggle("on", !!autoPlayColor);
+  $("autoPlay").textContent = autoPlayColor ? `자동착수 (${autoPlayColor === "B" ? "흑" : "백"})` : "자동착수";
+  if (autoPlayColor && !analyzing) $("analyze").click();
+  else if (autoPlayColor && cur.analysis && !cur.analysis.isDuringSearch) autoMove(cur.analysis);
+};
+$("promote").onclick = () => { for (let n = cur; n.parent; n = n.parent) { const s = n.parent.children; s.splice(s.indexOf(n), 1); s.unshift(n); } schedule(); };
+$("nums").onclick = () => { $("nums").classList.toggle("on"); schedule(); };
+$("coords").onclick = () => { $("coords").classList.toggle("on"); layout(); };
+$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { root = makeRoot(); goTo(root); } };
+$("newGame").onclick = () => { if (confirm("새 대국을 시작할까요? (현재 기보는 사라집니다)")) { root = makeRoot(); goTo(root); } };
+$("deleteNode").onclick = () => { if (!cur.parent) return; const p = cur.parent; p.children.splice(p.children.indexOf(cur), 1); goTo(p); };
+$("komi").onchange = () => { clearAnalysis(root); requestLive(); schedule(); };  // old results used the old komi
+$("visits").onchange = requestLive;
+$("showOwner").onchange = () => { requestLive(); schedule(); };
+$("showCands").onchange = schedule;
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea")) return;
+  if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
+  else if (e.key === "Home") goTo(root); else if (e.key === "End") toEnd();
+  else if (e.key === " ") $("analyze").click(); else return;
+  e.preventDefault();
+});
+
+// ------------------------------------------------------------------ SGF
+function parseSgf(text) {
+  let i = 0;
+  const skip = () => { while (i < text.length && /\s/.test(text[i])) i++; };
+  function props() {
+    const p = {}; skip();
+    while (i < text.length && /[A-Za-z]/.test(text[i])) {
+      let id = ""; while (/[A-Za-z]/.test(text[i])) id += text[i++];
+      id = id.replace(/[a-z]/g, ""); skip();
+      const vals = [];
+      while (text[i] === "[") { i++; let v = ""; while (i < text.length && text[i] !== "]") { if (text[i] === "\\") i++; v += text[i++]; } i++; vals.push(v); skip(); }
+      p[id] = (p[id] || []).concat(vals); skip();
+    }
+    return p;
+  }
+  function tree() {
+    i++; skip(); const nodes = [], vars = [];
+    while (text[i] === ";") { i++; nodes.push(props()); skip(); }
+    while (text[i] === "(") { vars.push(tree()); skip(); }
+    i++; return {nodes, vars};
+  }
+  i = text.indexOf("("); if (i < 0) throw new Error("SGF 형식이 아닙니다");
+  return tree();
+}
+const sgfXY = v => (!v || v === "tt") ? null : [v.charCodeAt(0) - 97, v.charCodeAt(1) - 97];
+function expandPoints(vals) {
+  const out = [];
+  for (const v of vals || []) {
+    if (v.includes(":")) { const [a, b] = v.split(":").map(sgfXY); for (let x = a[0]; x <= b[0]; x++) for (let y = a[1]; y <= b[1]; y++) out.push([x, y]); }
+    else { const p = sgfXY(v); if (p) out.push(p); }
+  }
+  return out;
+}
+function loadSgf(text) {
+  const t = parseSgf(text), first = t.nodes[0] || {};
+  if (first.SZ && parseInt(first.SZ[0], 10) !== 19) throw new Error("19줄 기보만 지원합니다");
+  const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, (first.PL || ["B"])[0] === "W" ? "W" : "B");
+  newRoot.comment = (first.C || [""])[0];
+  if (first.KM) $("komi").value = parseFloat(first.KM[0]) || 6.5;
+  let skipped = 0;
+  function build(tr, start, node) {
+    for (let k = start; k < tr.nodes.length; k++) {
+      const p = tr.nodes[k], color = p.B ? "B" : p.W ? "W" : null;
+      if (!color) continue;
+      const next = play(node, color, sgfXY(p[color][0]));
+      if (!next) { skipped++; return; }
+      next.comment = (p.C || [""])[0]; node = next;
+    }
+    for (const v of tr.vars) build(v, 0, node);
+  }
+  build(t, 1, newRoot);
+  root = newRoot; clearAnalysis(root);
+  goTo(root);
+  $("err").textContent = skipped ? `둘 수 없는 수 ${skipped}개를 건너뛰었습니다` : "";
+}
+function toSgf() {
+  const c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
+  const esc = s => s.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
+  let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[19]RU[Korean]KM[${komi()}]`;
+  if (root.setup.B.length) head += "AB" + root.setup.B.map(([x, y]) => `[${c(x, y)}]`).join("");
+  if (root.setup.W.length) head += "AW" + root.setup.W.map(([x, y]) => `[${c(x, y)}]`).join("");
+  if (root.toPlay === "W") head += "PL[W]";
+  if (root.comment) head += `C[${esc(root.comment)}]`;
+  const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + (n.comment ? `C[${esc(n.comment)}]` : "");
+  const body = n => {
+    let s = "";
+    while (true) {
+      if (n.children.length === 0) return s;
+      if (n.children.length > 1) return s + n.children.map(ch => "(" + nodeText(ch) + body(ch) + ")").join("");
+      n = n.children[0]; s += nodeText(n);
+    }
+  };
+  return head + body(root) + ")";
+}
+async function readSgfFile(file) {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder("utf-8", {fatal: true}).decode(buf); } catch { return new TextDecoder("euc-kr").decode(buf); }
+}
+$("openSgf").onclick = () => { $("fileMenu").open = false; $("fileInput").click(); };
+$("fileInput").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; } e.target.value = ""; };
+$("saveSgf").onclick = () => {
+  $("fileMenu").open = false;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toSgf()], {type: "application/x-go-sgf"}));
+  a.download = `katago-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "")}.sgf`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("copySgf").onclick = async () => { $("fileMenu").open = false; try { await navigator.clipboard.writeText(toSgf()); $("err").textContent = "SGF를 복사했습니다"; } catch { $("err").textContent = "클립보드에 쓸 수 없습니다"; } };
+$("pasteSgf").onclick = async () => {
+  $("fileMenu").open = false;
+  let text = ""; try { text = await navigator.clipboard.readText(); } catch { text = prompt("SGF 내용을 붙여넣으세요") || ""; }
+  if (text.trim()) try { loadSgf(text); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; }
+};
+
+// ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
+function candidates(node) {
+  const a = node.analysis; if (!a || !a.moveInfos) return [];
+  return a.moveInfos.filter(m => m.visits > 0).sort((p, q) => p.order - q.order);
+}
+const moverWr = (node, wrBlack) => (node.toPlay === "B" ? wrBlack : 1 - wrBlack) * 100;
+const moverLead = (node, leadBlack) => node.toPlay === "B" ? leadBlack : -leadBlack;
+function nodeStats(node) {  // YZY BoardData winrate/scoreMean = first candidate, side to move
+  const c = candidates(node)[0], a = node.analysis;
+  if (!a) return null;
+  const wrB = c ? c.winrate : a.rootInfo.winrate, leadB = c ? c.scoreLead : a.rootInfo.scoreLead;
+  return {wr: moverWr(node, wrB), score: moverLead(node, leadB), blackWr: wrB * 100, blackLead: leadB, visits: a.rootInfo.visits, stdev: a.rootInfo.scoreStdev || 0};
+}
+function playoutsString(p) {  // Utils.getPlayoutsString
+  if (p >= 10000000) return Math.round(p / 100000) / 10 + "m";
+  if (p >= 9950) return Math.round(p / 1000) + "k";
+  if (p >= 1000) return (Math.round(p / 100) / 10) + "k";
+  return String(p);
+}
+function javaDouble(v) { const r = Math.round(v * 10) / 10; return (Object.is(r, -0) ? 0 : r).toFixed(1); }  // String.valueOf(round(x*10)/10.0)
+
+// ------------------------------------------------------------------ Java2D-like text helpers
+function fitFont(ctx, family, weight, text, maxH, maxW) {
+  ctx.font = `${weight} 100px ${family}`;
+  const w100 = ctx.measureText(text).width || 1;
+  const size = Math.max(1, Math.min(maxH, Math.round(100 * maxW / w100)));
+  ctx.font = `${weight} ${size}px ${family}`;
+  const m = ctx.measureText(text);
+  const asc = m.fontBoundingBoxAscent ?? size * .9, desc = m.fontBoundingBoxDescent ?? size * .22;
+  return {size, w: m.width, h: Math.round(asc) - Math.round(desc)};
+}
+// BoardRenderer.drawString: centered on (x, y); aboveOrBelow -1 top / 0 center / 1 bottom
+function jString(ctx, family, weight, text, x, y, maxH, maxW, color, above = 0) {
+  const f = fitFont(ctx, family, weight, text, maxH, maxW);
+  const off = above === -1 ? f.h / 2 : above === 1 ? -f.h / 2 : 0;
+  ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillText(text, x - f.w / 2, y + f.h / 2 + off);
+}
+// BoardRenderer.drawStringFor3row: y is the baseline
+function j3row(ctx, family, weight, text, x, baseline, maxH, maxW, color) {
+  const f = fitFont(ctx, family, weight, text, maxH, maxW);
+  ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillText(text, x - f.w / 2, baseline);
+}
+function hsb(h, s, v) {  // java.awt.Color.HSBtoRGB
+  const i = Math.floor((h - Math.floor(h)) * 6), f = (h - Math.floor(h)) * 6 - i, p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+  const [r, g, b] = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
+  return [T(r * 255 + .5), T(g * 255 + .5), T(b * 255 + .5)];
+}
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a / 255})`;
+
+// ------------------------------------------------------------------ images (YZY theme assets, with YZY's own fallbacks)
+const IMG = {};
+for (const [k, src] of [["board", "assets/board.png"], ["black", "assets/black0.png"], ["white", "assets/white0.png"]]) {
+  const im = new Image(); im.onload = () => { IMG[k] = im; boardPattern = null; schedule(); }; im.src = src;
+}
+let boardPattern = null;
+function woodPaint(ctx) {
+  if (!IMG.board) return "rgb(217,152,77)";   // Theme.createSolidFallbackImage
+  if (!boardPattern) boardPattern = ctx.createPattern(IMG.board, "repeat");
+  return boardPattern;
+}
+
+// ------------------------------------------------------------------ board renderer (BoardRenderer.java)
+function geometry(avail0, bigMargin) {  // calculatePixelMargins + setupSizeParameters
+  const ratio = bigMargin ? 0.055 : 0.03;
+  let bw = Math.floor(avail0) + 1, margin, avail;
+  do { bw--; margin = T(ratio * bw); avail = bw - 2 * margin; } while (bw > 40 && (avail - 1) % (N - 1) !== 0);
+  const sq = T((avail - 1) / (N - 1));
+  return {size: bw, margin, avail, sq, r: sq < 4 ? 1 : T(sq / 2) - 1};
+}
+function fillCircle(ctx, cx, cy, r) { ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r + .5, 0, Math.PI * 2); ctx.fill(); }
+function strokeCircle(ctx, cx, cy, r, width) { ctx.lineWidth = width; ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r, 0, Math.PI * 2); ctx.stroke(); }
+function drawGoban(ctx, G, coords) {
+  const {size, margin: m, avail, sq, r} = G;
+  ctx.fillStyle = woodPaint(ctx); ctx.fillRect(0, 0, size, size);
+  // GlassEffectRenderer.drawBoardLightGradient + drawBoardInnerShadow
+  let gr = ctx.createLinearGradient(0, 0, size, size); gr.addColorStop(0, "rgba(255,255,230,.098)"); gr.addColorStop(1, "rgba(0,0,20,.098)");
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, size, size);
+  const d = Math.max(T(size / 80), 4);
+  const edge = (x0, y0, x1, y1, c0, c1, rx, ry, rw, rh) => { const g = ctx.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, c0); g.addColorStop(1, c1); ctx.fillStyle = g; ctx.fillRect(rx, ry, rw, rh); };
+  edge(0, 0, 0, d, "rgba(0,0,0,.118)", "rgba(0,0,0,0)", 0, 0, size, d);
+  edge(0, 0, d, 0, "rgba(0,0,0,.078)", "rgba(0,0,0,0)", 0, 0, d, size);
+  edge(0, size - d, 0, size, "rgba(0,0,0,0)", "rgba(0,0,0,.078)", 0, size - d, size, d);
+  edge(size - d, 0, size, 0, "rgba(0,0,0,0)", "rgba(0,0,0,.059)", size - d, 0, d, size);
+  // grid: thicker border lines
+  ctx.fillStyle = "#000";
+  const border = Math.max(size > 560 ? 2 : 1, avail / 481), normal = Math.max(1, avail / 750);
+  for (let i = 0; i < N; i++) {
+    const w = Math.round(i === 0 || i === N - 1 ? border : normal), o = T((w - 1) / 2);
+    ctx.fillRect(m, m + sq * i - o, avail, w);
+    ctx.fillRect(m + sq * i - o, m, w, avail);
+  }
+  const star = T(T(0.015 * size) / 2);
+  for (const a of [3, 9, 15]) for (const b of [3, 9, 15]) fillCircle(ctx, m + sq * a, m + sq * b, star);
+  if (coords) for (let i = 0; i < N; i++) {
+    const mh = T(r * 4 / 5);
+    jString(ctx, UI_FONT, 400, LETTERS[i], m + sq * i + .5, T(m * 4 / 10), mh, r, "#000");
+    jString(ctx, UI_FONT, 400, LETTERS[i], m + sq * i + .5, size - T(m * 4 / 10), mh, r, "#000");
+    jString(ctx, UI_FONT, 400, String(N - i), T(m * 4 / 10), m + sq * i + .5, mh, r, "#000");
+    jString(ctx, UI_FONT, 400, String(N - i), size - T(m * 4 / 10), m + sq * i + .5, mh, r, "#000");
+  }
+}
+function drawShadow(ctx, cx, cy, r) {  // drawShadowCache, shadow-size 85
+  const R = T(r * 85 / 100), ss = Math.max(1, T(R * 0.2)), far = Math.max(1, T(R * 0.17)), ao = Math.max(1, T(R * 0.25));
+  const X = cx + .5, Y = cy + .5;
+  const radial = (x, y, rad, stops) => { const g = ctx.createRadialGradient(x, y, 0, x, y, rad); for (const [f, c] of stops) g.addColorStop(f, c); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rad + .5, 0, Math.PI * 2); ctx.fill(); };
+  radial(X + T(ao / 2), Y + T(ao / 2), r + ss + ao, [[0, "rgba(0,0,0,0)"], [.5, "rgba(0,0,0,0)"], [.8, "rgba(0,0,0,.118)"], [1, "rgba(0,0,0,0)"]]);
+  radial(X, Y, r + ss, [[0, "rgba(50,50,50,.627)"], [.3, "rgba(50,50,50,.627)"], [1, "rgba(0,0,0,0)"]]);
+  radial(X + ss, Y + ss, r + far, [[0, "rgba(0,0,0,.588)"], [.5, "rgba(0,0,0,.588)"], [1, "rgba(0,0,0,0)"]]);
+}
+function drawStone(ctx, cx, cy, r, color) {  // image stone + GlassEffectRenderer.drawStoneHighlight
+  const img = color === 1 ? IMG.black : IMG.white, size = 2 * r + 1;
+  if (img) { ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, cx - r, cy - r, size, size); }
+  else {  // Theme.createStoneFallback
+    ctx.fillStyle = color === 1 ? "rgb(30,30,30)" : "rgb(245,245,245)"; fillCircle(ctx, cx, cy, r);
+    ctx.strokeStyle = color === 1 ? "rgba(0,0,0,.7)" : "rgba(180,180,180,.86)"; strokeCircle(ctx, cx, cy, r, 1);
+  }
+  const X = cx, Y = cy, black = color === 1;
+  let g = ctx.createRadialGradient(X - r * .3, Y - r * .3, 0, X - r * .3, Y - r * .3, r * .6);
+  g.addColorStop(0, `rgba(255,255,255,${(black ? 70 : 180) / 255})`); g.addColorStop(.6, `rgba(255,255,255,${(black ? 20 : 60) / 255})`); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X + .0, Y + .0, r, 0, Math.PI * 2); ctx.fill();
+  g = ctx.createRadialGradient(X, Y, 0, X, Y, r);
+  g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(.85, "rgba(255,255,255,0)"); g.addColorStop(.95, `rgba(255,255,255,${(black ? 25 : 50) / 255})`); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, r, 0, Math.PI * 2); ctx.fill();
+}
+function drawPolygonSmall(ctx, cx, cy, r) {  // red last-move triangle in the top-left corner of a stone
+  ctx.fillStyle = "#ff0000"; ctx.beginPath();
+  ctx.moveTo(cx - T(r * 16 / 15), cy - T(r * 16 / 15)); ctx.lineTo(cx - T(r * 16 / 15), cy - T(r * 4 / 11)); ctx.lineTo(cx - T(r * 4 / 11), cy - T(r * 16 / 15));
+  ctx.closePath(); ctx.fill();
+}
+// PV played out from node: new stones with their PV numbers (captures applied)
+function pvBoard(node, pv) {
+  let grid = node.grid, ko = node.ko, color = node.toPlay; const nums = new Int16Array(N * N);
+  for (let k = 0; k < pv.length; k++) {
+    const xy = parseGtp(pv[k]);
+    if (xy) { const r = placeOn(grid, ko, color, xy[0], xy[1]); if (!r) break; grid = r.grid; ko = r.ko; for (const s of r.captured) nums[s] = 0; nums[idx(xy[0], xy[1])] = k + 1; }
+    color = other(color);
+  }
+  return {grid, nums};
+}
+/* o: {coords, candidates, branch (pv array or null), hover ([x,y] or null), numbers, ownership} */
+function renderBoard(ctx, G, node, o) {
+  const {margin: m, sq, r} = G;
+  const P = i => [m + sq * (i % N), m + sq * ((i / N) | 0)];
+  drawGoban(ctx, G, o.coords);
+  const a = node.analysis;
+  if (o.ownership && a && a.ownership) for (let i = 0; i < N * N; i++) {
+    const v = a.ownership[i]; if (Math.abs(v) < .15) continue;
+    const [cx, cy] = P(i), s = Math.round(sq * .42 * Math.min(1, Math.abs(v)));
+    ctx.fillStyle = v > 0 ? `rgba(0,0,0,${.25 + .5 * Math.abs(v)})` : `rgba(255,255,255,${.3 + .55 * Math.abs(v)})`;
+    ctx.fillRect(cx + .5 - s / 2, cy + .5 - s / 2, s, s);
+  }
+  // stones (shadows first, like the separate shadow layer)
+  const branch = o.branch ? pvBoard(node, o.branch) : null;
+  const shown = [];
+  for (let i = 0; i < N * N; i++) {
+    if (node.grid[i]) shown.push([i, node.grid[i]]);
+    else if (branch && branch.grid[i] && branch.nums[i]) shown.push([i, branch.grid[i]]);
+  }
+  for (const [i] of shown) { const [cx, cy] = P(i); drawShadow(ctx, cx, cy, r); }
+  for (const [i, c] of shown) { const [cx, cy] = P(i); drawStone(ctx, cx, cy, r, c); }
+  // move numbers / last move marker (drawMoveNumbers)
+  const hoverI = o.hover ? idx(o.hover[0], o.hover[1]) : -1;
+  if (branch) {
+    let lastN = 0, lastI = -1;
+    for (let i = 0; i < N * N; i++) if (branch.nums[i] > lastN && !node.grid[i]) { lastN = branch.nums[i]; lastI = i; }
+    for (let i = 0; i < N * N; i++) {
+      const n = branch.nums[i]; if (!n || node.grid[i] || (i === hoverI && n === 1)) continue;
+      const [cx, cy] = P(i);
+      if (i === lastI) drawPolygonSmall(ctx, cx, cy, r);
+      jString(ctx, UI_FONT, 400, String(n), cx + .5, cy + .5, r * 1.4, n >= 100 ? r * 1.85 : r * 1.4, branch.grid[i] === 1 ? "#fff" : "#000");
+    }
+  } else if (o.numbers) {
+    const lastI = node.move && !node.move.pass ? idx(node.move.x, node.move.y) : -1;
+    for (let i = 0; i < N * N; i++) {
+      const n = node.num[i]; if (!n || !node.grid[i]) continue;
+      const [cx, cy] = P(i);
+      if (i === lastI) drawPolygonSmall(ctx, cx, cy, r);
+      jString(ctx, UI_FONT, 400, String(n), cx + .5, cy + .5, r * 1.4, n >= 100 ? r * 1.85 : r * 1.4, node.grid[i] === 1 ? "#fff" : "#000");
+    }
+  } else if (node.move && !node.move.pass) {  // stone-indicator-type 1: circle in the opposite color
+    const [cx, cy] = P(idx(node.move.x, node.move.y)), rad = Math.round(sq * .22);
+    ctx.strokeStyle = node.move.c === "W" ? "#000" : "#fff"; strokeCircle(ctx, cx, cy, rad, rad / 5);
+  }
+  if (o.candidates) drawSuggestions(ctx, G, node, branch ? hoverI : -1, branch);
+}
+// BoardRenderer.drawLeelazSuggestions (limit 10, colour by visit ratio, cyan best + blue ring, 3 text rows)
+function drawSuggestions(ctx, G, node, hoverI, branch) {
+  const {margin: m, sq, r, avail} = G;
+  const list = candidates(node); if (!list.length) return;
+  const maxP = Math.max(...list.map(c => c.visits));
+  const blackToPlay = node.toPlay === "B";
+  for (let k = list.length - 1; k >= 0; k--) {
+    const mv = list[k], xy = parseGtp(mv.move); if (!xy) continue;
+    const i = idx(xy[0], xy[1]); if (node.grid[i]) continue;
+    const isMouseOver = i === hoverI, isBest = k === 0;
+    if (mv.order + 1 > 10 && !isMouseOver) continue;              // limit-max-suggestion 10
+    if (branch && !isMouseOver) continue;                           // while previewing, only the hovered move keeps its text
+    const cx = m + sq * xy[0], cy = m + sq * xy[1];
+    const pct = mv.visits / maxP, alphaRatio = Math.max(0, Math.log(pct) / 5 + 1), alpha = T(32 + 208 * alphaRatio);
+    const hue = isBest ? 0.5 : (1 / 3) * Math.pow(pct, 1 / 2);
+    const col = hsb(hue, 1, .85);
+    const orderLabel = (text, dx, dy) => {  // drawStringForOrder: orange box, black digit
+      const f = fitFont(ctx, WR_FONT, WR_WEIGHT, text, sq * .36, sq * .39);
+      const x1 = Math.round(cx + sq * .43) + dx + .5 - f.w / 2, y1 = Math.round(cy - sq * .358) + dy + .5;
+      ctx.fillStyle = "rgb(255,200,0)"; ctx.fillRect(x1, y1 - f.h, f.w, f.h + Math.max(1, T(f.h / 12)));
+      ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillText(text, x1, y1);
+    };
+    if (!branch) {
+      if (isBest) orderLabel("1", 1, -1);
+      ctx.save(); if (pct < 0.05) ctx.globalAlpha = .8; ctx.fillStyle = woodPaint(ctx); fillCircle(ctx, cx, cy, r + 1); ctx.restore();
+      ctx.fillStyle = rgba(col, alpha); fillCircle(ctx, cx, cy, r + 1);
+      if (isBest) { ctx.strokeStyle = "rgb(0,0,255)"; strokeCircle(ctx, cx, cy, r + 2, (r + 2) / 15); }
+      else { ctx.strokeStyle = `rgba(0,0,0,${T(48 + 48 * alphaRatio) / 255})`; strokeCircle(ctx, cx, cy, r + 1, (r + 1) / 26.5); }
+    }
+    if (mv.order > 0 && mv.order < 9) orderLabel(String(mv.order + 1), 0, 0);
+    if (isMouseOver && branch) { ctx.strokeStyle = "#f00"; strokeCircle(ctx, cx, cy, r + 1, (r + 1) / 11); }
+    const textColor = branch ? (blackToPlay ? "#fff" : "#000") : "#000";
+    const wr = Math.round(moverWr(node, mv.winrate) * 10) / 10;
+    const narrow = wr < 10;
+    j3row(ctx, WR_FONT, WR_WEIGHT, wr.toFixed(1), cx + .5, cy - Math.round(sq * (narrow ? .127 : .125)), sq * (narrow ? .36 : .35), sq * .67, textColor);
+    j3row(ctx, UI_FONT, 400, playoutsString(mv.visits), cx + .5, cy + Math.round(sq * .18), sq * .34, mv.visits < 1000 ? r * 1.3 : r * 1.8, textColor);
+    j3row(ctx, WR_FONT, WR_WEIGHT, javaDouble(moverLead(node, mv.scoreLead)), cx + .5, cy + Math.round(sq * .435), avail * .273 / (N - 1), r * 1.6, textColor);
+  }
+}
+
+// ------------------------------------------------------------------ canvases
+const dpr = () => window.devicePixelRatio || 1;
+function sizeCanvas(cv, w, h) { const k = dpr(); cv.style.width = w + "px"; cv.style.height = h + "px"; cv.width = Math.round(w * k); cv.height = Math.round(h * k); const ctx = cv.getContext("2d"); ctx.setTransform(k, 0, 0, k, 0, 0); boardPattern = null; return ctx; }
+const boardCv = $("board"), miniCv = $("mini");
+let boardG = null, boardCtx = null, miniG = null, miniCtx = null, hover = null, selectedPv = null;
+
+function drawMain() {
+  if (!boardCtx) return;
+  boardCtx.clearRect(0, 0, boardG.size, boardG.size);
+  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: $("showCands").checked,
+    branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").classList.contains("on"), ownership: $("showOwner").checked});
+}
+function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
+  if (!miniCtx) return;
+  const pv = (hover && hover.pv) || selectedPv || ((candidates(cur)[0] || {}).pv) || null;
+  renderBoard(miniCtx, miniG, cur, {coords: false, candidates: false, branch: pv, hover: null, numbers: false, ownership: false});
+}
+function boardPoint(ev) {
+  const rect = boardCv.getBoundingClientRect(), {margin: m, sq} = boardG;
+  const x = Math.round((ev.clientX - rect.left - m - .5) / sq), y = Math.round((ev.clientY - rect.top - m - .5) / sq);
+  return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
+}
+boardCv.addEventListener("click", ev => { const p = boardPoint(ev); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c); });
+boardCv.addEventListener("mousemove", ev => {
+  const p = boardPoint(ev);
+  const mv = p && $("showCands").checked ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
+  const next = mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
+  if ((next && next.move) !== (hover && hover.move)) { hover = next; schedule(); }
+});
+boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
+
+// ------------------------------------------------------------------ left panels (LizzieFrame.drawCaptured / drawMoveStatistics)
+const capCv = $("cap"), statCv = $("stat");
+let capCtx, statCtx, capW, capH, statW, statH;
+function panelFont(ctx, size) { ctx.font = `400 ${T(size)}px ${UI_FONT}`; }
+function drawCaptured() {
+  if (!capCtx) return;
+  const g = capCtx, W = capW, H = capH;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "rgba(0,0,0,.51)"; g.fillRect(0, 0, W, H);
+  g.fillRect(T(W / 2) - 1, 3, 1, H - 4);
+  let diam = T(Math.min(T(W / 2), H) / 3); const small = T(diam / 2);
+  let bd, wd; if (cur.toPlay === "B") { wd = small; bd = T(small * 3 / 2); } else { bd = small; wd = T(small * 3 / 2); }
+  diam = T(diam * 3 / 2); bd = T(bd * 3 / 2); wd = T(wd * 3 / 2);
+  g.fillStyle = "#000"; g.beginPath(); g.ellipse(T(W / 4) - T(bd / 2) + bd / 2, T((diam - bd) / 2) + bd / 2, bd / 2, bd / 2, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#fff"; g.beginPath(); g.ellipse(T(W * 3 / 4) - T(wd / 2) + wd / 2, T((diam - wd) / 2) + wd / 2, wd / 2, wd / 2, 0, 0, Math.PI * 2); g.fill();
+  const sd = T(H / 4) < 10 ? T(H / 4) : 10;
+  g.fillStyle = analyzing ? "#00ff00" : "#ff0000"; g.beginPath(); g.ellipse(T(W / 2) - 1, T(H * 7 / 26) + T((diam - sd) / 2) + sd / 2, sd / 2, sd / 2, 0, 0, Math.PI * 2); g.fill();
+  jString(g, UI_FONT, 400, "사석:" + cur.caps.B, T(W / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#fff");
+  jString(g, UI_FONT, 400, "사석:" + cur.caps.W, T(W * 3 / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#fff");
+  panelFont(g, Math.max(11, H * .18)); g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  g.fillText(String(komi()), T(W / 2) - 1, T(H * 7 / 8));
+  g.fillText("한국(일본)룰", T(W / 2) - 1, T(H * 3 / 10));
+}
+function drawStatistics() {
+  if (!statCtx) return;
+  const g = statCtx; let x = 0, y = 0, W = statW, H = statH;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "rgba(0,0,0,.51)"; g.fillRect(0, 0, W, H); g.fillRect(1, 1, W - 2, 1);
+  x += 2; y += 2; W -= 4; H -= 4;
+  const curS = nodeStats(cur), prev = cur.parent;
+  let lastWR = 50, lastScore = 0, validLast = false;
+  const pS = prev && nodeStats(prev);
+  if (pS) { lastWR = pS.wr; lastScore = pS.score; validLast = true; }
+  else if (prev && prev.parent && nodeStats(prev.parent)) { const q = nodeStats(prev.parent); lastWR = 100 - q.wr; lastScore = -q.score; validLast = true; }
+  const valid = !!curS;
+  const curWR = valid ? curS.wr : 100 - lastWR, curScore = valid ? curS.score : -lastScore;
+  const blackWR = cur.toPlay === "B" ? curWR : 100 - curWR, whiteWR = 100 - blackWR;
+  // "Black lead: x  마지막 수(#n): ±w% ±s포인트"
+  let text = "";
+  if (valid) text += "Black lead:" + (cur.toPlay === "B" ? curS.score : -curS.score).toFixed(1);
+  const wrD = validLast ? 100 - lastWR - curWR : 0, scD = validLast ? (-lastScore) - curScore : 0;
+  let rank = 0;
+  if (prev && cur.move && !cur.move.pass) { const k = candidates(prev).findIndex(c => c.move === gtp(cur.move.x, cur.move.y)); rank = k >= 0 ? k + 1 : 0; }
+  text += " 마지막 수" + (rank > 0 ? `(#${rank})` : "(#  )") + ": " + (wrD > 0 ? "+" : "-") + Math.abs(wrD).toFixed(1) + "%";
+  text += " " + (scD > 0 ? "+" : "-") + Math.abs(scD).toFixed(1) + "포인트";
+  { const f = fitFont(g, UI_FONT, 400, text, T(H / 4), W * 20 / 21); g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillText(text, x, y + T(H * 17 / 20) + f.h / 2); }
+  if (valid || validLast) {
+    const maxW = W, bW = T(blackWR * maxW / 100), wW = T(whiteWR * maxW / 100), barY = y + T(H / 3), barX = x, barH = T(H / 3);
+    g.fillStyle = "#fff"; g.fillRect(barX + bW, barY, wW, barH);
+    g.fillStyle = "#000"; g.fillRect(barX, barY, bW, barH);
+    if (valid && validLast) {  // change-of-winrate arrow
+      const gain = 100 - lastWR - curWR, blackLast = cur.toPlay === "B" ? 100 - lastWR : lastWR;
+      const lastX = barX + T(blackLast * maxW / 100), posW = barX + bW, dX = Math.min(posW, lastX), dW = Math.abs(posW - lastX);
+      if (dW > 0) {
+        const big = barH > 30, isGain = gain >= 0, c = isGain ? "#00ff00" : "#ff0000";
+        const rightTri = cur.toPlay === "B" ? !isGain : isGain;
+        g.strokeStyle = c; g.fillStyle = c; g.lineWidth = big ? 2 : 1;
+        g.beginPath();
+        if (rightTri) {
+          if (dW > 3) { g.moveTo(dX, barY + .5); g.lineTo(dX + dW - 3, barY + .5); g.stroke(); }
+          const ts = Math.max(dX, dX + dW - (big ? 7 : 5)); g.beginPath(); g.moveTo(ts, barY + 1 - (big ? 5 : 3)); g.lineTo(ts, barY + 1 + (big ? 5 : 3)); g.lineTo(dX + dW, barY); g.fill();
+        } else {
+          const e = dX + dW - 1; if (dW > 3) { g.moveTo(dX + 2, barY + .5); g.lineTo(e, barY + .5); g.stroke(); }
+          const ts = Math.min(e + 1, dX + (big ? 7 : 5)); g.beginPath(); g.moveTo(ts, barY + 1 - (big ? 5 : 3)); g.lineTo(ts, barY + 1 + (big ? 5 : 3)); g.lineTo(dX, barY + 1); g.fill();
+        }
+        if (dW > (big ? 7 : 5)) { g.fillStyle = "#808080"; g.fillRect(lastX, barY, 1, barH); }
+      }
+    }
+    panelFont(g, Math.min(maxW * .63, H) * .24);
+    const m = g.measureText("0"), fh = Math.round(m.fontBoundingBoxAscent ?? 10) - Math.round(m.fontBoundingBoxDescent ?? 3);
+    const base = y + barH - T((barH - fh) / 2);
+    g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    const sB = blackWR.toFixed(1) + "%", sW = whiteWR.toFixed(1) + "%", mvn = String(cur.depth);
+    g.fillText(sB, barX + 4, base);
+    g.fillText(sW, barX + maxW - g.measureText(sW).width - 4, base);
+    const wM = g.measureText(mvn).width;
+    if (maxW > 2 * wM + g.measureText(sB).width + g.measureText(sW).width) g.fillText(mvn, barX + (maxW - wM) / 2, base);
+    g.strokeStyle = "#808080"; g.lineWidth = 1; g.setLineDash([4, 4]);
+    for (let i = 1; i <= 3; i++) { const lx = barX + T(i * T(maxW / 4)) + .5; g.beginPath(); g.moveTo(lx, barY); g.lineTo(lx, barY + barH); g.stroke(); }
+    g.setLineDash([]);
+  } else {
+    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(String(cur.depth), x + W / 2, y + H / 6);
+  }
+}
+
+// ------------------------------------------------------------------ win-rate graph (WinrateGraph.java, normal mode)
+const graphCv = $("graph"); let graphCtx, graphW = 280, graphH = 150;
+const WR_LINE = "rgb(100,180,255)", WR_MISS = "rgb(0,0,178)", SCORE_LINE = "rgb(255,0,255)";
+function drawGraph() {
+  if (!graphCtx) return;
+  const g = graphCtx; let posx = 0, posy = 0, width = graphW, height = graphH;
+  g.clearRect(0, 0, width, height);
+  g.fillStyle = "rgba(22,25,29,.647)"; g.fillRect(0, 0, width, height);
+  posy += 2; width -= 6; height -= 4;
+  g.strokeStyle = "rgba(255,255,255,.282)"; g.lineWidth = 1; g.setLineDash([4, 4]);
+  for (let i = 1; i <= 3; i++) { const yy = posy + height - T(height * (i * 25) / 100) + .5; g.beginPath(); g.moveTo(posx, yy); g.lineTo(posx + width, yy); g.stroke(); }
+  g.setLineDash([]);
+  const line = lineThrough(cur);
+  let numMoves = line.length - 1; if (numMoves < 1) return;
+  if (numMoves < 50) numMoves = 50;
+  width = T(width * .98);
+  const X = k => posx + T(k * width / numMoves), Yw = wr => posy + height - T(wr * height / 100);
+  const pts = line.map((node, k) => { const s = nodeStats(node); return s ? {k, wr: s.blackWr, lead: s.blackLead, node} : null; }).filter(Boolean);
+  let maxScore = 15; for (const p of pts) maxScore = Math.max(maxScore, Math.abs(p.lead));
+  // score lead (black perspective), 1.0 px
+  g.strokeStyle = SCORE_LINE; g.lineWidth = 1;
+  for (let j = 1; j < pts.length; j++) { const a = pts[j - 1], b = pts[j]; if (b.k - a.k >= 25) continue;
+    g.beginPath(); g.moveTo(X(a.k), posy + height / 2 - T(a.lead * height / 2 / maxScore)); g.lineTo(X(b.k), posy + height / 2 - T(b.lead * height / 2 / maxScore)); g.stroke(); }
+  // win rate (black perspective), 1.7 px; gaps drawn dashed in the miss colour
+  g.lineWidth = 1.7;
+  for (let j = 1; j < pts.length; j++) { const a = pts[j - 1], b = pts[j]; if (b.k - a.k >= 25) continue;
+    const gap = b.k - a.k > 1; g.strokeStyle = gap ? WR_MISS : WR_LINE; g.setLineDash(gap ? [4, 4] : []);
+    g.beginPath(); g.moveTo(X(a.k), Yw(a.wr)); g.lineTo(X(b.k), Yw(b.wr)); g.stroke(); }
+  g.setLineDash([]);
+  // current move: dot + value
+  const cs = nodeStats(cur);
+  if (cs) {
+    const cx = X(cur.depth), cy = Math.max(posy + 3, Math.min(posy + height - 3, Yw(cs.blackWr)));
+    g.fillStyle = WR_LINE; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
+    g.font = `700 16px ${UI_FONT}`; g.fillStyle = cur.toPlay === "B" ? WR_LINE : "#fff"; g.textBaseline = "alphabetic";
+    const s = cs.blackWr.toFixed(1), sw = g.measureText(s).width;
+    const tx = Math.min(Math.max(cx - sw / 2, 0), graphW - sw);
+    const ty = cs.blackWr > 50 ? (cs.blackWr > 90 ? cy + 18 : cy - 6) : (cs.blackWr < 10 ? cy - 6 : cy + 18);
+    g.fillText(s, tx, ty);
+  }
+  // current move marker (red dot with light halo) on the 50% line
+  const mx = X(cur.depth), my = posy + T(height / 2);
+  g.fillStyle = "rgba(255,250,240,.88)"; g.beginPath(); g.arc(mx, my, 6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "rgb(244,67,72)"; g.beginPath(); g.arc(mx, my, 4, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = "rgba(112,24,28,.9)"; g.lineWidth = 1; g.beginPath(); g.arc(mx, my, 4, 0, Math.PI * 2); g.stroke();
+}
+graphCv.addEventListener("click", ev => {
+  const rect = graphCv.getBoundingClientRect(), line = lineThrough(cur), numMoves = Math.max(50, line.length - 1);
+  const k = Math.round((ev.clientX - rect.left) / (T((graphW - 6) * .98)) * numMoves); goTo(line[Math.max(0, Math.min(line.length - 1, k))]);
+});
+
+// ------------------------------------------------------------------ variation tree (VariationTree.java)
+const treeCv = $("tree"), XS = 20, YS = 20, DOT = 11, CENTER = 5;
+const BLUNDER_T = [-24, -12, -6, -3, -1, 3, 100];
+const BLUNDER_C = [[155, 25, 150], [208, 16, 19], [200, 140, 50], [180, 180, 0], [140, 202, 34], [0, 220, 0], [0, 230, 230]];
+function blunderColor(node) {
+  const a = node.parent && nodeStats(node.parent), b = nodeStats(node);
+  if (!a || !b || !node.move) return "#fff";
+  const diff = (100 - b.wr) - a.wr;   // mover's win-rate change
+  const k = BLUNDER_T.findIndex(t => t >= diff);
+  return k >= 0 ? `rgb(${BLUNDER_C[k].join(",")})` : "#fff";
+}
+let treeHits = [];
+function drawTree() {
+  const box = $("treeBox"); if (getComputedStyle(box).display === "none") return;
+  const cells = []; let maxLane = 0, maxDepth = 0;
+  const stack = [[root, 0]];
+  while (stack.length) {
+    const [nd, lane] = stack.pop(); cells.push([nd, lane]); maxDepth = Math.max(maxDepth, nd.depth);
+    for (let k = nd.children.length - 1; k >= 1; k--) { maxLane++; stack.push([nd.children[k], maxLane]); }
+    if (nd.children[0]) stack.push([nd.children[0], lane]);
+  }
+  const trunk = new Set(lineThrough(cur));
+  const W = Math.max(box.clientWidth, (maxLane + 1) * XS + 30), H = Math.max(box.clientHeight, (maxDepth + 1) * YS + 30);
+  const g = sizeCanvas(treeCv, W, H);
+  const lanes = new Map(cells);
+  const pos = n => [10 + lanes.get(n) * XS, 10 + n.depth * YS];
+  treeHits = [];
+  for (const [nd] of cells) if (nd.parent) {  // lines
+    const [x, y] = pos(nd), [px, py] = pos(nd.parent);
+    g.strokeStyle = trunk.has(nd) ? "#fff" : "rgb(103,103,103)"; g.lineWidth = 1; g.beginPath();
+    if (x === px) { g.moveTo(x + 5.5, py + DOT); g.lineTo(x + 5.5, y); }
+    else { g.moveTo(px + 5.5 + 5, py + 5.5); g.lineTo(x + 5.5 - XS + 5, py + 5.5); g.lineTo(x + 5.5, y + 5.5); }
+    g.stroke();
+  }
+  for (const [nd] of cells) {
+    const [x, y] = pos(nd); treeHits.push({node: nd, x: x + 5.5, y: y + 5.5});
+    if (!nd.parent) {
+      g.fillStyle = "#fff"; g.fillRect(x, y, DOT, DOT); g.strokeStyle = "#000"; g.strokeRect(x - .5, y - .5, DOT + 1, DOT + 1);
+      if (nd === cur) { g.fillStyle = "#f00"; g.fillRect(x + 2, y + 2, DOT - 4, DOT - 4); }
+      continue;
+    }
+    g.fillStyle = blunderColor(nd); g.beginPath(); g.arc(x + 5.5, y + 5.5, DOT / 2, 0, Math.PI * 2); g.fill();
+    if (!trunk.has(nd)) { g.fillStyle = "rgba(0,0,0,.153)"; g.fill(); }
+    if (nd === cur) { g.fillStyle = "#000"; g.beginPath(); g.arc(x + 5.5, y + 5.5, CENTER / 2, 0, Math.PI * 2); g.fill(); }
+  }
+  const [cx, cy] = pos(cur);
+  if (cy < box.scrollTop + 20 || cy > box.scrollTop + box.clientHeight - 30) box.scrollTop = cy - box.clientHeight / 2;
+  if (cx < box.scrollLeft + 20 || cx > box.scrollLeft + box.clientWidth - 30) box.scrollLeft = cx - box.clientWidth / 2;
+}
+treeCv.addEventListener("click", ev => {
+  const rect = treeCv.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  const hit = treeHits.find(h => Math.abs(h.x - x) < 9 && Math.abs(h.y - y) < 9); if (hit) goTo(hit.node);
+});
+
+// ------------------------------------------------------------------ table, comment
+function drawSide() {
+  $("moveNo").value = cur.depth;
+  const cands = candidates(cur), total = cands.reduce((s, c) => s + c.visits, 0) || 1;
+  const selMove = selectedPv && selectedPv[0];
+  $("candRows").innerHTML = cands.map((c, k) =>
+    `<tr data-k="${k}"${c.move === selMove ? ' class="sel"' : ""}><td>${k + 1}</td><td>${moverWr(cur, c.winrate).toFixed(1)}</td><td>${c.visits}</td><td>${(c.visits / total * 100).toFixed(1)}</td><td>${moverLead(cur, c.scoreLead).toFixed(1)}</td></tr>`).join("");
+  const s = nodeStats(cur);
+  let text = "";
+  if (s) {  // append-winrate-to-comment: shown for the player who made the last move
+    const who = cur.toPlay === "B" ? "백" : "흑";
+    text = `${who} 승률: ${(100 - s.wr).toFixed(1)}%\n리드: ${(-s.score).toFixed(1)}   표준편차: ${s.stdev.toFixed(1)}\n(${engineLabel().replace(/ /g, "")} / ${s.visits} 방문)\n덤: ${komi()}`;
+  }
+  $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
+}
+$("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) { selectedPv = c.pv || null; schedule(); } });
+$("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) goTo(play(cur, cur.toPlay, parseGtp(c.move))); });
+
+// ------------------------------------------------------------------ layout & render loop
+function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }
+function layout() {
+  const wide = matchMedia("(min-width: 1000px)").matches;
+  const [bw, bh] = fitBox($("boardBox"));
+  const side = wide ? Math.min(bw, bh) : Math.min(document.documentElement.clientWidth, 800);
+  boardG = geometry(side, $("coords").classList.contains("on"));
+  boardCtx = sizeCanvas(boardCv, boardG.size, boardG.size);
+  [capW, capH] = fitBox($("capBox")); capCtx = sizeCanvas(capCv, capW, capH);
+  [statW, statH] = fitBox($("statBox")); statCtx = sizeCanvas(statCv, statW, statH);
+  [graphW, graphH] = fitBox($("graphBox")); graphCtx = sizeCanvas(graphCv, graphW, graphH);
+  if (getComputedStyle($("miniBox")).display !== "none") {
+    const [mw, mh] = fitBox($("miniBox"));
+    miniG = geometry(Math.max(60, Math.min(mw - 8, mh - 12)), false); miniCtx = sizeCanvas(miniCv, miniG.size, miniG.size);
+  } else miniCtx = null;
+  schedule();
+}
+let pending = false;
+function schedule() {
+  if (pending) return; pending = true;
+  requestAnimationFrame(() => { pending = false; drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); });
+}
+new ResizeObserver(layout).observe(document.body);
+document.fonts && document.fonts.ready.then(schedule);
+layout(); connect();
+</script>
+</body>
+</html>

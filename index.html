@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KataGo 클라우드</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <!-- logged out -->
+  <section id="authView" class="auth hidden">
+    <h1 style="font-size:26px;margin:0 0 6px">KataGo 클라우드</h1>
+    <p class="muted" style="margin:0 0 20px">내 전용 GPU로 KataGo를 돌려 폰·태블릿·PC 어디서나 분석합니다.</p>
+    <div class="card">
+      <div class="tabs"><button id="tabLogin" class="on">로그인</button><button id="tabSignup">회원가입</button></div>
+      <form id="authForm" class="stack">
+        <label class="field hidden" id="nickField">닉네임<input id="nickname" autocomplete="nickname" maxlength="30"></label>
+        <label class="field">이메일<input id="email" type="email" autocomplete="email" required></label>
+        <label class="field">비밀번호<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+        <button class="primary" id="authButton" type="submit">로그인</button>
+        <div class="error" id="authError"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- logged in -->
+  <section id="appView" class="hidden">
+    <header class="bar">
+      <h1>KataGo 클라우드</h1>
+      <a href="admin.html" id="adminLink" class="hidden">관리자</a>
+      <span class="muted small" id="who"></span>
+      <button id="logout">로그아웃</button>
+    </header>
+
+    <div class="card row">
+      <div class="grow">
+        <div class="muted small">내 잔액</div>
+        <div class="big" id="balance">-</div>
+      </div>
+      <div class="muted small" style="max-width:360px">충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.</div>
+    </div>
+
+    <!-- running session -->
+    <div class="card hidden" id="sessionCard">
+      <div class="row">
+        <h2 class="grow" style="margin:0" id="sessionTitle">내 GPU</h2>
+        <span class="pill" id="sessionPill"></span>
+      </div>
+      <div class="steps">
+        <div class="step" id="step1">1. GPU 빌리기·부팅</div>
+        <div class="step" id="step2">2. KataGo 설치·검증</div>
+        <div class="step" id="step3">3. 분석 준비 완료</div>
+      </div>
+      <div class="muted small" id="sessionProgress"></div>
+      <div class="row" style="margin-top:12px">
+        <div class="grow small" id="sessionMeta"></div>
+        <a class="btn primary hidden" id="openAnalysis" target="_blank" rel="noopener">분석 화면 열기</a>
+        <button class="danger" id="stopButton">GPU 종료</button>
+      </div>
+      <div class="error" id="sessionError"></div>
+    </div>
+
+    <!-- start a session -->
+    <div class="card" id="startCard">
+      <div class="row" style="margin-bottom:10px">
+        <h2 class="grow" style="margin:0">GPU 시작</h2>
+        <button id="refreshOffers">목록 새로고침</button>
+      </div>
+      <div class="row" style="margin-bottom:12px">
+        <label class="field">모델<select id="model"></select></label>
+        <label class="field">최대 사용 시간<select id="hours"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>6</option></select></label>
+        <label class="field">무입력 자동 종료<select id="idle"><option value="5">5분</option><option value="10" selected>10분</option></select></label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>지역</th><th>GPU</th><th class="num">VRAM</th><th class="num">시간당</th><th class="num hide-sm">CPU</th><th class="num hide-sm">신뢰도</th><th class="hide-sm">위치</th></tr></thead>
+          <tbody id="offerRows"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="grow small muted" id="pickInfo">GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.</div>
+        <button class="primary" id="startButton" disabled>이 GPU로 시작</button>
+      </div>
+      <div class="error" id="startError"></div>
+    </div>
+
+    <div class="card">
+      <h2>사용 내역</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>시각</th><th>내용</th><th class="num">금액</th></tr></thead>
+          <tbody id="ledgerRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { $, api, esc, sb, toast, when, won } from "./app.js";
+
+const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
+let mode = "login", profile = null, session = null, offers = [], picked = null, pollTimer = null;
+
+// ------------------------------------------------------------------ auth
+function setMode(m) {
+  mode = m;
+  $("tabLogin").classList.toggle("on", m === "login"); $("tabSignup").classList.toggle("on", m === "signup");
+  $("nickField").classList.toggle("hidden", m === "login");
+  $("authButton").textContent = m === "login" ? "로그인" : "회원가입";
+  $("password").autocomplete = m === "login" ? "current-password" : "new-password";
+  $("authError").textContent = "";
+}
+$("tabLogin").onclick = () => setMode("login");
+$("tabSignup").onclick = () => setMode("signup");
+$("authForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("authButton").disabled = true; $("authError").textContent = "";
+  const email = $("email").value.trim().toLowerCase(), password = $("password").value;
+  try {
+    if (mode === "signup") {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { nickname: $("nickname").value.trim() } } });
+      if (error) throw error;
+      if (!data.session) { $("authError").textContent = "가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인하세요."; return; }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+  } catch (err) {
+    const msg = String(err.message || err);
+    $("authError").textContent = /Invalid login/i.test(msg) ? "이메일 또는 비밀번호가 맞지 않습니다."
+      : /already registered/i.test(msg) ? "이미 가입된 이메일입니다." : /Email not confirmed/i.test(msg) ? "가입 확인 메일의 링크를 먼저 눌러 주세요."
+      : /Password should be/i.test(msg) ? "비밀번호는 8자 이상으로 정해 주세요." : msg;
+  } finally { $("authButton").disabled = false; }
+};
+$("logout").onclick = () => sb.auth.signOut();
+let entered = false;
+sb.auth.onAuthStateChange((_event, s) => {
+  if (s && !entered) { entered = true; setTimeout(enter, 0); }   // INITIAL_SESSION / SIGNED_IN
+  else if (!s) leave();                                            // no session / SIGNED_OUT
+});
+
+function leave() {
+  entered = false; clearInterval(pollTimer); profile = null;
+  $("appView").classList.add("hidden"); $("authView").classList.remove("hidden");
+}
+async function enter() {
+  $("authView").classList.add("hidden"); $("appView").classList.remove("hidden");
+  await refresh();
+  loadOffers();
+  clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
+}
+
+// ------------------------------------------------------------------ data
+async function refresh() {
+  const [{ data: p }, { data: s }, { data: l }] = await Promise.all([
+    sb.from("profiles").select("*").single(),
+    sb.from("gpu_sessions").select("*").order("created_at", { ascending: false }).limit(1),
+    sb.from("ledger").select("*").order("created_at", { ascending: false }).limit(30),
+  ]);
+  if (!p) return;
+  profile = p;
+  $("balance").textContent = won(p.balance_krw);
+  $("who").textContent = p.nickname || p.email;
+  $("adminLink").classList.toggle("hidden", !p.is_admin);
+  session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
+  showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
+  $("ledgerRows").innerHTML = (l || []).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(r.note || r.kind)}</td>` +
+    `<td class="num" style="color:${r.amount_krw < 0 ? "var(--bad)" : "var(--good)"}">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("")
+    || `<tr><td colspan="3" class="muted">아직 내역이 없습니다.</td></tr>`;
+}
+const recent = (s) => Date.now() - new Date(s.stopped_at || s.created_at).getTime() < 10 * 60_000;
+
+function showSession(s) {
+  $("sessionCard").classList.toggle("hidden", !s);
+  $("startCard").classList.toggle("hidden", !!session);
+  if (!s) return;
+  const st = s.status, ready = st === "ready", live = ACTIVE.includes(st);
+  $("sessionTitle").textContent = `${s.gpu_name || "GPU"} · ${s.region || ""} · ${s.model_name || ""}`;
+  const pill = { creating: ["대여 중", "warn"], booting: ["부팅 중", "warn"], setup: ["설치 중", "warn"], ready: ["사용 가능", "good"],
+                 stopping: ["종료 중", "warn"], stopped: ["종료됨", ""], failed: ["실패", "bad"] }[st] || [st, ""];
+  $("sessionPill").textContent = pill[0]; $("sessionPill").className = "pill " + pill[1];
+  const stage = ["creating", "booting"].includes(st) ? 1 : st === "setup" ? 2 : ready ? 3 : 0;
+  [1, 2, 3].forEach((n) => { $("step" + n).className = "step" + (n < stage || (ready && n === 3) ? " done" : n === stage ? " on" : ""); });
+  $("sessionProgress").textContent = live ? (s.progress || "") : (s.stop_reason ? `종료 사유: ${s.stop_reason}` : "");
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at).getTime()) / 60000));
+  $("sessionMeta").innerHTML = `시간당 <b>${won(s.price_krw_per_hour)}</b> · ${live ? `${minutes}분 경과 · ` : ""}지금까지 <b>${won(s.charged_krw)}</b>` +
+    (s.tuning?.visitsPerSecond ? ` · 초당 약 ${Math.round(s.tuning.visitsPerSecond)}번 탐색` : "");
+  const open = $("openAnalysis");
+  open.classList.toggle("hidden", !(ready && s.web_url && s.web_token));
+  if (ready && s.web_url) open.href = `analysis.html#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`;
+  $("stopButton").classList.toggle("hidden", !live || st === "stopping");
+  $("sessionError").textContent = s.error && s.error !== "offer gone" ? s.error : "";
+}
+
+$("stopButton").onclick = async () => {
+  if (!confirm("GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
+  $("stopButton").disabled = true;
+  try {
+    const r = await api("/stop", {});
+    toast(r.stopped ? "GPU를 삭제했습니다. 요금 차감이 멈췄습니다." : "삭제 요청을 보냈습니다. 확인되는 대로 차감이 멈춥니다.");
+  } catch (err) { toast(err.message, true); }
+  finally { $("stopButton").disabled = false; refresh(); }
+};
+
+// ------------------------------------------------------------------ offers / start
+async function loadOffers() {
+  $("offerRows").innerHTML = `<tr><td colspan="7" class="muted">불러오는 중…</td></tr>`;
+  picked = null; updatePick();
+  try {
+    const r = await api("/offers");
+    offers = r.offers;
+    const sel = $("model"), keep = sel.value;
+    sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+    sel.value = keep || "transformer-large";
+    if (!sel.value) sel.selectedIndex = 0;
+    $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td>${esc(o.region)}</td><td>${esc(o.gpu)}</td>` +
+      `<td class="num">${o.vramGb}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td><td class="num hide-sm">${o.cpuCores}</td>` +
+      `<td class="num hide-sm">${(o.reliability * 100).toFixed(1)}%</td><td class="hide-sm muted">${esc(o.geolocation)}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="muted">지금 빌릴 수 있는 GPU가 없습니다.</td></tr>`;
+  } catch (err) {
+    $("offerRows").innerHTML = `<tr><td colspan="7" class="error">${esc(err.message)}</td></tr>`;
+  }
+}
+$("refreshOffers").onclick = loadOffers;
+$("offerRows").onclick = (ev) => {
+  const tr = ev.target.closest("tr.pick"); if (!tr) return;
+  picked = offers[+tr.dataset.i];
+  document.querySelectorAll("#offerRows tr").forEach((r) => r.classList.toggle("sel", r === tr));
+  updatePick();
+};
+function updatePick() {
+  $("startButton").disabled = !picked;
+  $("pickInfo").textContent = picked ? `${picked.gpu} (${picked.region}) · 시간당 ${won(picked.priceKrw)} · 최대 ${$("hours").value}시간이면 최대 약 ${won(picked.priceKrw * Number($("hours").value))}`
+    : "GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.";
+}
+$("hours").onchange = updatePick;
+$("startButton").onclick = async () => {
+  if (!picked) return;
+  const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, 1분 단위로 잔액에서 차감됩니다.\n준비(3~6분) 시간도 요금에 포함됩니다.\n\n시작할까요?`;
+  if (!confirm(msg)) return;
+  $("startButton").disabled = true; $("startError").textContent = "";
+  try {
+    await api("/start", { offer_id: picked.id, seen_price_usd: picked.price, model_id: $("model").value,
+                          max_hours: Number($("hours").value), idle_minutes: Number($("idle").value) });
+    toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
+    await refresh();
+  } catch (err) {
+    $("startError").textContent = err.message;
+    if (/빌려 갔|가격이 올랐/.test(err.message)) loadOffers();
+  } finally { $("startButton").disabled = !picked; }
+};
+
+setMode("login");
+</script>
+</body>
+</html>
