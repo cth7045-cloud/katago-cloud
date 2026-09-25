@@ -808,11 +808,8 @@ function boardPoint(ev) {
   const x = Math.round(((ev.clientX - rect.left) * s - m - .5) / sq), y = Math.round(((ev.clientY - rect.top) * s - m - .5) / sq);
   return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
 }
-let suppressClick = false;   // the click that ends a touch long-press must not place a stone
-boardCv.addEventListener("click", ev => {
-  if (suppressClick) { suppressClick = false; return; }
-  const p = boardPoint(ev); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c);
-});
+function placeAt(pt) { const p = boardPoint(pt); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c); }
+boardCv.addEventListener("click", placeAt);   // mouse; touches on the board are handled below
 function hoverAt(pt) {  // pt: anything with clientX/clientY (mouse event or touch)
   const p = boardPoint(pt);
   const mv = p && $("showCands").checked ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
@@ -835,42 +832,49 @@ document.querySelector(".main").addEventListener("wheel", ev => {
   while (Math.abs(wheelAcc) >= 60) { step(Math.sign(wheelAcc)); wheelAcc -= 60 * Math.sign(wheelAcc); }
 }, {passive: false});
 
-// Touch: 1 finger long-press + slide on the board = mouse hover (variation preview),
+// Touch: 1 finger long-press + slide on the board = mouse hover (variation preview), short tap = play,
 // 2 fingers up/down = wheel (previous / next move), quick 3-finger tap = one move back.
+// One-finger board touches are handled here entirely (preventDefault): otherwise the browser turns a
+// long press into its own gesture (menu / selection / right-click) and cancels the touch.
 const LONG_PRESS_MS = 350, TAP_MOVE = 12, TWO_FINGER_STEP = 28;
 let tg = null;
 const touchMid = ts => { let x = 0, y = 0; for (const t of ts) { x += t.clientX; y += t.clientY; } return [x / ts.length, y / ts.length]; };
-document.querySelector(".main").addEventListener("touchstart", ev => {
+const mainEl = document.querySelector(".main");
+mainEl.addEventListener("touchstart", ev => {
   if (tg && tg.timer) clearTimeout(tg.timer);
   const n = ev.touches.length, [x, y] = touchMid(ev.touches);
-  tg = {n, x0: x, y0: y, lastY: y, t0: performance.now(), moved: false, hover: false, acc: 0, timer: 0};
-  if (n === 1 && ev.target === boardCv) {
-    tg.timer = setTimeout(() => { tg.timer = 0; tg.hover = true; hoverAt(ev.touches[0]); }, LONG_PRESS_MS);
+  tg = {n, x0: x, y0: y, lastY: y, t0: performance.now(), moved: false, hover: false, acc: 0, timer: 0,
+        board: n === 1 && ev.target === boardCv, last: {clientX: x, clientY: y}};
+  if (tg.board) {
+    ev.preventDefault();
+    const g = tg; g.timer = setTimeout(() => { g.timer = 0; g.hover = true; hoverAt(g.last); }, LONG_PRESS_MS);
   }
-  if (n >= 2) ev.preventDefault();   // no pinch zoom / panel scroll during our gestures
+  if (n >= 2) { ev.preventDefault(); if (hover) { hover = null; schedule(); } }   // no pinch zoom / panel scroll
 }, {passive: false});
-document.querySelector(".main").addEventListener("touchmove", ev => {
+mainEl.addEventListener("touchmove", ev => {
   if (!tg) return;
   const [x, y] = touchMid(ev.touches);
+  tg.last = {clientX: x, clientY: y};
   if (Math.hypot(x - tg.x0, y - tg.y0) > TAP_MOVE) { tg.moved = true; if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; } }
-  if (tg.hover) { ev.preventDefault(); hoverAt(ev.touches[0]); return; }
+  if (tg.board) { ev.preventDefault(); if (tg.hover) hoverAt(tg.last); return; }
   if (tg.n === 2 && ev.touches.length === 2) {
     ev.preventDefault();
-    tg.acc += tg.lastY - y; tg.lastY = y;   // fingers up = next move (like wheel down)
+    tg.acc += y - tg.lastY; tg.lastY = y;   // fingers down = next move
     while (Math.abs(tg.acc) >= TWO_FINGER_STEP) { step(Math.sign(tg.acc)); tg.acc -= TWO_FINGER_STEP * Math.sign(tg.acc); }
   }
 }, {passive: false});
-document.querySelector(".main").addEventListener("touchend", ev => {
+mainEl.addEventListener("touchend", ev => {
   if (!tg) return;
   if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; }
-  if (tg.hover) {
-    ev.preventDefault(); suppressClick = true; setTimeout(() => { suppressClick = false; }, 600);
-    if (hover) { hover = null; schedule(); }
+  if (tg.board) {
+    ev.preventDefault();
+    if (tg.hover) { if (hover) { hover = null; schedule(); } }
+    else if (!tg.moved) placeAt(tg.last);   // short tap = play, like a click
   }
   if (tg.n === 3 && !tg.moved && ev.touches.length === 0 && performance.now() - tg.t0 < 400) step(-1);
   if (ev.touches.length === 0) tg = null;
 }, {passive: false});
-document.querySelector(".main").addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(tg.timer); tg = null; if (hover) { hover = null; schedule(); } });
+mainEl.addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(tg.timer); tg = null; if (hover) { hover = null; schedule(); } });
 
 // ------------------------------------------------------------------ left panels (LizzieFrame.drawCaptured / drawMoveStatistics)
 const capCv = $("cap"), statCv = $("stat");
