@@ -73,7 +73,8 @@ details.menu .items button:hover { background: #dde6f3; }
 .engine-status { padding: 2px 2px 4px; color: #fff; font-size: 18px; line-height: 1.5; text-shadow: 0 1px 2px #000; }
 .engine-status div { background: rgba(0,0,0,.45); display: inline-block; padding: 0 3px; }
 .center { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
-#board { display: block; touch-action: manipulation; }
+#board { display: block; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.main { touch-action: pan-x pan-y; }   /* two-finger gestures instead of pinch zoom */
 #treeBox { flex: 0 0 26%; min-height: 90px; overflow: auto; background: rgba(0,0,0,.51); position: relative; }
 #tree { display: block; }
 .table-box { flex: 0 0 auto; height: 22%; min-height: 110px; overflow: auto; background: #fff; border-top: 1px solid #555; }
@@ -92,10 +93,6 @@ tr.sel td { background: #cfe3ff; }
 .dlg-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--bar-line); flex-wrap: wrap; }
 .dlg-row .spacer { flex: 1; }
 #foxName { flex: 1 1 160px; min-width: 0; }
-.seg { display: inline-flex; }
-.seg button { border-radius: 0; }
-.seg button:first-child { border-radius: 4px 0 0 4px; }
-.seg button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
 .muted { color: #777; }
 .dlg-msg { padding: 6px 10px; min-height: 28px; color: #555; }
 .dlg-msg.bad { color: #c62828; }
@@ -148,7 +145,7 @@ tr.sel td { background: #cfe3ff; }
 
 <dialog id="kifuDlg" aria-label="기보 불러오기">
   <div class="dlg-row">
-    <span class="seg"><button id="srcFox" class="on">한큐바둑</button><button id="srcTygem">타이젬</button></span>
+    <b>한큐바둑 기보</b>
     <span class="spacer"></span>
     <button id="kifuClose">닫기</button>
   </div>
@@ -157,12 +154,8 @@ tr.sel td { background: #cfe3ff; }
     <button type="submit">검색</button>
     <span class="muted">최근 대국 약 100판</span>
   </form>
-  <div class="dlg-row" id="tygemNav" hidden>
-    <span>타이젬 프로 기보</span><span class="spacer"></span>
-    <button id="tyPrev">&lt; 최근</button><span id="tyPage">1쪽</span><button id="tyNext">이전 &gt;</button>
-  </div>
   <div class="dlg-msg" id="kifuMsg"></div>
-  <div class="dlg-list"><table><thead id="kifuHead"></thead><tbody id="kifuRows"></tbody></table></div>
+  <div class="dlg-list"><table><thead><tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr></thead><tbody id="kifuRows"></tbody></table></div>
 </dialog>
 
 <div class="main">
@@ -505,10 +498,10 @@ $("pasteSgf").onclick = async () => {
   if (text.trim()) try { loadSgf(text); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; }
 };
 
-// ------------------------------------------------------------------ 기보 불러오기 (한큐바둑 / 타이젬, through the kgv server)
-// Neither site allows browser requests, so the web service backend fetches them; it accepts this screen's GPU token.
+// ------------------------------------------------------------------ 기보 불러오기 (한큐바둑, through the kgv server)
+// Fox does not allow browser requests, so the web service backend fetches them; it accepts this screen's GPU token.
 const KIFU_API = "https://oufxjpnahaqmlbacrdds.supabase.co/functions/v1/kgv/api/kifu";
-let kifuSrc = "fox", kifuList = [], tyPage = 1, kifuBusy = 0;
+let kifuList = [], kifuBusy = 0;
 const escHtml = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 async function kifuGet(path) {
   const r = await fetch(KIFU_API + path, {headers: {"x-kgv-token": token}});
@@ -519,40 +512,21 @@ async function kifuGet(path) {
 function kifuMsg(text, bad = false) { $("kifuMsg").textContent = text; $("kifuMsg").classList.toggle("bad", bad); }
 function showKifuList(games) {
   kifuList = games;
-  $("kifuHead").innerHTML = kifuSrc === "fox" ? "<tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr>"
-    : "<tr><th>날짜</th><th>기전</th><th>흑</th><th>백</th><th>결과</th></tr>";
-  $("kifuRows").innerHTML = games.map((g, i) => kifuSrc === "fox"
-    ? `<tr data-i="${i}"><td>${escHtml(g.date)}</td><td>${escHtml(g.black)}</td><td>${escHtml(g.white)}</td><td>${escHtml(g.result)}</td><td>${g.moves}</td></tr>`
-    : `<tr data-i="${i}"><td>${escHtml(g.date)}</td><td>${escHtml(g.title)}</td><td>${escHtml(g.black)}</td><td>${escHtml(g.white)}</td><td>${escHtml(g.result)}</td></tr>`).join("");
+  $("kifuRows").innerHTML = games.map((g, i) =>
+    `<tr data-i="${i}"><td>${escHtml(g.date)}</td><td>${escHtml(g.black)}</td><td>${escHtml(g.white)}</td><td>${escHtml(g.result)}</td><td>${g.moves}</td></tr>`).join("");
 }
 async function kifuRun(label, work) {  // latest request wins; older answers are dropped
   const n = ++kifuBusy; kifuMsg(label);
   try { const r = await work(); if (n === kifuBusy) return r; } catch (err) { if (n === kifuBusy) kifuMsg(err.message, true); }
   return null;
 }
-function setKifuSrc(src) {
-  kifuSrc = src; kifuBusy++;
-  $("srcFox").classList.toggle("on", src === "fox"); $("srcTygem").classList.toggle("on", src === "tygem");
-  $("foxForm").hidden = src !== "fox"; $("tygemNav").hidden = src !== "tygem";
-  showKifuList([]); kifuMsg(src === "fox" ? "닉네임을 입력하고 검색하세요." : "");
-  if (src === "tygem") loadTygem(tyPage);
-}
-async function loadTygem(page) {
-  tyPage = Math.max(1, page); $("tyPage").textContent = tyPage + "쪽"; $("tyPrev").disabled = tyPage === 1;
-  const r = await kifuRun("불러오는 중…", () => kifuGet(`/tygem/list?page=${tyPage}`));
-  if (r) { showKifuList(r.games); kifuMsg(r.games.length ? "대국을 누르면 불러옵니다." : "이 쪽에는 기보가 없습니다."); }
-}
 $("kifuOpen").onclick = () => {
   try { $("foxName").value ||= localStorage.getItem("kgv.foxName") || ""; } catch { /* storage blocked */ }
+  if (!kifuList.length) kifuMsg("닉네임을 입력하고 검색하세요.");
   $("kifuDlg").showModal();
-  if (!kifuList.length) setKifuSrc(kifuSrc);
 };
 $("kifuClose").onclick = () => $("kifuDlg").close();
 $("kifuDlg").addEventListener("click", ev => { if (ev.target === $("kifuDlg")) $("kifuDlg").close(); });   // backdrop
-$("srcFox").onclick = () => setKifuSrc("fox");
-$("srcTygem").onclick = () => setKifuSrc("tygem");
-$("tyPrev").onclick = () => loadTygem(tyPage - 1);
-$("tyNext").onclick = () => loadTygem(tyPage + 1);
 $("foxForm").onsubmit = async ev => {
   ev.preventDefault();
   const name = $("foxName").value.trim(); if (!name) return;
@@ -562,10 +536,11 @@ $("foxForm").onsubmit = async ev => {
 };
 $("kifuRows").addEventListener("click", async ev => {
   const tr = ev.target.closest("tr"); const g = tr && kifuList[+tr.dataset.i]; if (!g) return;
-  const r = await kifuRun("기보 받는 중…", () => kifuGet(`/${kifuSrc}/game?id=${encodeURIComponent(g.id)}`));
+  const r = await kifuRun("기보 받는 중…", () => kifuGet(`/fox/game?id=${encodeURIComponent(g.id)}`));
   if (!r) return;
-  try { loadSgf(r.sgf, kifuSrc === "fox"); } catch (err) { kifuMsg("SGF 오류: " + err.message, true); return; }
-  if (!root.comment) { root.comment = `흑 ${g.black}  vs  백 ${g.white}\n${g.result}${g.title ? " · " + g.title : ""} · ${g.date}`; schedule(); }
+  try { loadSgf(r.sgf, true); } catch (err) { kifuMsg("SGF 오류: " + err.message, true); return; }
+  if (!root.comment) { root.comment = `흑 ${g.black}  vs  백 ${g.white}
+${g.result} · ${g.date}`; schedule(); }
   $("kifuDlg").close();
 });
 
@@ -833,14 +808,69 @@ function boardPoint(ev) {
   const x = Math.round(((ev.clientX - rect.left) * s - m - .5) / sq), y = Math.round(((ev.clientY - rect.top) * s - m - .5) / sq);
   return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
 }
-boardCv.addEventListener("click", ev => { const p = boardPoint(ev); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c); });
-boardCv.addEventListener("mousemove", ev => {
-  const p = boardPoint(ev);
+let suppressClick = false;   // the click that ends a touch long-press must not place a stone
+boardCv.addEventListener("click", ev => {
+  if (suppressClick) { suppressClick = false; return; }
+  const p = boardPoint(ev); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c);
+});
+function hoverAt(pt) {  // pt: anything with clientX/clientY (mouse event or touch)
+  const p = boardPoint(pt);
   const mv = p && $("showCands").checked ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
   const next = mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
   if ((next && next.move) !== (hover && hover.move)) { hover = next; schedule(); }
-});
+}
+boardCv.addEventListener("mousemove", hoverAt);
 boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
+boardCv.addEventListener("contextmenu", ev => ev.preventDefault());   // long-press must not open a menu
+
+// Mouse wheel = previous / next move, like YZY (panels that scroll keep their own wheel).
+let wheelAcc = 0, wheelAt = 0;
+document.querySelector(".main").addEventListener("wheel", ev => {
+  if (ev.ctrlKey || ev.target.closest("#treeBox, .table-box, #comment")) return;
+  ev.preventDefault();
+  const dy = ev.deltaMode === 1 ? ev.deltaY * 40 : ev.deltaY;
+  if (Math.abs(dy) >= 50) { step(Math.sign(dy)); return; }        // a mouse notch = one move
+  if (performance.now() - wheelAt > 300) wheelAcc = 0;              // touchpad: small deltas add up
+  wheelAt = performance.now(); wheelAcc += dy;
+  while (Math.abs(wheelAcc) >= 60) { step(Math.sign(wheelAcc)); wheelAcc -= 60 * Math.sign(wheelAcc); }
+}, {passive: false});
+
+// Touch: 1 finger long-press + slide on the board = mouse hover (variation preview),
+// 2 fingers up/down = wheel (previous / next move), quick 3-finger tap = one move back.
+const LONG_PRESS_MS = 350, TAP_MOVE = 12, TWO_FINGER_STEP = 28;
+let tg = null;
+const touchMid = ts => { let x = 0, y = 0; for (const t of ts) { x += t.clientX; y += t.clientY; } return [x / ts.length, y / ts.length]; };
+document.querySelector(".main").addEventListener("touchstart", ev => {
+  if (tg && tg.timer) clearTimeout(tg.timer);
+  const n = ev.touches.length, [x, y] = touchMid(ev.touches);
+  tg = {n, x0: x, y0: y, lastY: y, t0: performance.now(), moved: false, hover: false, acc: 0, timer: 0};
+  if (n === 1 && ev.target === boardCv) {
+    tg.timer = setTimeout(() => { tg.timer = 0; tg.hover = true; hoverAt(ev.touches[0]); }, LONG_PRESS_MS);
+  }
+  if (n >= 2) ev.preventDefault();   // no pinch zoom / panel scroll during our gestures
+}, {passive: false});
+document.querySelector(".main").addEventListener("touchmove", ev => {
+  if (!tg) return;
+  const [x, y] = touchMid(ev.touches);
+  if (Math.hypot(x - tg.x0, y - tg.y0) > TAP_MOVE) { tg.moved = true; if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; } }
+  if (tg.hover) { ev.preventDefault(); hoverAt(ev.touches[0]); return; }
+  if (tg.n === 2 && ev.touches.length === 2) {
+    ev.preventDefault();
+    tg.acc += tg.lastY - y; tg.lastY = y;   // fingers up = next move (like wheel down)
+    while (Math.abs(tg.acc) >= TWO_FINGER_STEP) { step(Math.sign(tg.acc)); tg.acc -= TWO_FINGER_STEP * Math.sign(tg.acc); }
+  }
+}, {passive: false});
+document.querySelector(".main").addEventListener("touchend", ev => {
+  if (!tg) return;
+  if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; }
+  if (tg.hover) {
+    ev.preventDefault(); suppressClick = true; setTimeout(() => { suppressClick = false; }, 600);
+    if (hover) { hover = null; schedule(); }
+  }
+  if (tg.n === 3 && !tg.moved && ev.touches.length === 0 && performance.now() - tg.t0 < 400) step(-1);
+  if (ev.touches.length === 0) tg = null;
+}, {passive: false});
+document.querySelector(".main").addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(tg.timer); tg = null; if (hover) { hover = null; schedule(); } });
 
 // ------------------------------------------------------------------ left panels (LizzieFrame.drawCaptured / drawMoveStatistics)
 const capCv = $("cap"), statCv = $("stat");
@@ -1001,7 +1031,8 @@ function drawTree() {
     if (nd.children[0]) stack.push([nd.children[0], lane]);
   }
   const trunk = new Set(lineThrough(cur));
-  const W = Math.max(box.clientWidth, (maxLane + 1) * XS + 30), H = Math.max(box.clientHeight, (maxDepth + 1) * YS + 30);
+  // Content size only: sizing to the box made scrollbars appear/disappear every frame (flicker).
+  const W = (maxLane + 1) * XS + 20, H = (maxDepth + 1) * YS + 20;
   const g = sizeCanvas(treeCv, W, H);
   const lanes = new Map(cells);
   const pos = n => [10 + lanes.get(n) * XS, 10 + n.depth * YS];
