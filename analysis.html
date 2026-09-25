@@ -116,9 +116,6 @@ tr.sel td { background: #cfe3ff; }
   </details>
   <button id="newGame">신규대국</button>
   <label class="check">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
-  <label class="check">탐색 <select id="visits">
-    <option value="1000">1,000</option><option value="5000" selected>5,000</option><option value="20000">20,000</option>
-  </select></label>
   <label class="check"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check"><input type="checkbox" id="showCands" checked> 후보수보기</label>
   <span class="spacer"></span>
@@ -177,7 +174,7 @@ tr.sel td { background: #cfe3ff; }
 
 <script>
 "use strict";
-const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", AUTO_VISITS = 400;
+const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", AUTO_VISITS = 400, AUTOPLAY_VISITS = 2000, UNLIMITED_VISITS = 1000000000;
 const UI_FONT = getComputedStyle(document.documentElement).getPropertyValue("--ui-font").trim();
 const WR_FONT = "'Open Sans', " + UI_FONT;   // YZY: fonts/OpenSans-Semibold.ttf
 const WR_WEIGHT = 600;
@@ -274,7 +271,10 @@ function requestLive() {
   if (!analyzing) return;
   liveId = "q" + (++qn);
   queries.set(liveId, {node: cur});
-  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: parseInt($("visits").value, 10), reportDuringSearchEvery: 0.3});
+  // No visit limit: analysis runs until the member stops it or moves (like YZY pondering).
+  // Auto-play needs a finished search to pick its move, so only that case gets a limit.
+  const visits = autoPlayColor === cur.toPlay ? AUTOPLAY_VISITS : UNLIMITED_VISITS;
+  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: visits, reportDuringSearchEvery: 0.3});
 }
 function store(node, msg, id) {
   const old = node.analysis;
@@ -352,7 +352,7 @@ $("autoPlay").onclick = () => {
   $("autoPlay").classList.toggle("on", !!autoPlayColor);
   $("autoPlay").textContent = autoPlayColor ? `자동착수 (${autoPlayColor === "B" ? "흑" : "백"})` : "자동착수";
   if (autoPlayColor && !analyzing) $("analyze").click();
-  else if (autoPlayColor && cur.analysis && !cur.analysis.isDuringSearch) autoMove(cur.analysis);
+  else requestLive();   // re-ask with the auto-play limit (or unlimited again when switched off)
 };
 $("promote").onclick = () => { for (let n = cur; n.parent; n = n.parent) { const s = n.parent.children; s.splice(s.indexOf(n), 1); s.unshift(n); } schedule(); };
 $("nums").onclick = () => { $("nums").classList.toggle("on"); schedule(); };
@@ -361,7 +361,6 @@ $("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? 
 $("newGame").onclick = () => { if (confirm("새 대국을 시작할까요? (현재 기보는 사라집니다)")) { root = makeRoot(); goTo(root); } };
 $("deleteNode").onclick = () => { if (!cur.parent) return; const p = cur.parent; p.children.splice(p.children.indexOf(cur), 1); goTo(p); };
 $("komi").onchange = () => { clearAnalysis(root); requestLive(); schedule(); };  // old results used the old komi
-$("visits").onchange = requestLive;
 $("showOwner").onchange = () => { requestLive(); schedule(); };
 $("showCands").onchange = schedule;
 document.addEventListener("keydown", e => {
@@ -528,17 +527,20 @@ function woodPaint(ctx) {
 }
 
 // ------------------------------------------------------------------ board renderer (BoardRenderer.java)
-function geometry(avail0, bigMargin) {  // calculatePixelMargins + setupSizeParameters
+// Like YZY (which draws in physical pixels, Utils: g.scale(1/javaScaleFactor)), the boards are
+// laid out in device pixels so every line and stone edge lands on a whole screen pixel.
+// k = device pixels per CSS pixel; line widths scale with it like Java's HiDPI strokes.
+function geometry(avail0, bigMargin, k = 1) {  // calculatePixelMargins + setupSizeParameters
   const ratio = bigMargin ? 0.055 : 0.03;
   let bw = Math.floor(avail0) + 1, margin, avail;
   do { bw--; margin = T(ratio * bw); avail = bw - 2 * margin; } while (bw > 40 && (avail - 1) % (N - 1) !== 0);
   const sq = T((avail - 1) / (N - 1));
-  return {size: bw, margin, avail, sq, r: sq < 4 ? 1 : T(sq / 2) - 1};
+  return {size: bw, margin, avail, sq, r: sq < 4 ? 1 : T(sq / 2) - 1, k};
 }
 function fillCircle(ctx, cx, cy, r) { ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r + .5, 0, Math.PI * 2); ctx.fill(); }
 function strokeCircle(ctx, cx, cy, r, width) { ctx.lineWidth = width; ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r, 0, Math.PI * 2); ctx.stroke(); }
 function drawGoban(ctx, G, coords) {
-  const {size, margin: m, avail, sq, r} = G;
+  const {size, margin: m, avail, sq, r, k} = G;
   ctx.fillStyle = woodPaint(ctx); ctx.fillRect(0, 0, size, size);
   // GlassEffectRenderer.drawBoardLightGradient + drawBoardInnerShadow
   let gr = ctx.createLinearGradient(0, 0, size, size); gr.addColorStop(0, "rgba(255,255,230,.098)"); gr.addColorStop(1, "rgba(0,0,20,.098)");
@@ -551,7 +553,7 @@ function drawGoban(ctx, G, coords) {
   edge(size - d, 0, size, 0, "rgba(0,0,0,0)", "rgba(0,0,0,.059)", size - d, 0, d, size);
   // grid: thicker border lines
   ctx.fillStyle = "#000";
-  const border = Math.max(size > 560 ? 2 : 1, avail / 481), normal = Math.max(1, avail / 750);
+  const border = Math.max((size / k > 560 ? 2 : 1) * k, avail / 481), normal = Math.max(k, avail / 750);
   for (let i = 0; i < N; i++) {
     const w = Math.round(i === 0 || i === N - 1 ? border : normal), o = T((w - 1) / 2);
     ctx.fillRect(m, m + sq * i - o, avail, w);
@@ -694,6 +696,18 @@ function drawSuggestions(ctx, G, node, hoverI, branch) {
 // ------------------------------------------------------------------ canvases
 const dpr = () => window.devicePixelRatio || 1;
 function sizeCanvas(cv, w, h) { const k = dpr(); cv.style.width = w + "px"; cv.style.height = h + "px"; cv.width = Math.round(w * k); cv.height = Math.round(h * k); const ctx = cv.getContext("2d"); ctx.setTransform(k, 0, 0, k, 0, 0); boardPattern = null; return ctx; }
+// A 1:1 canvas is only sharp when it also starts on a whole screen pixel: nudge it by the fraction.
+function snapToPixels(cv) {
+  const k = dpr(); cv.style.transform = "";
+  const r = cv.getBoundingClientRect();
+  const dx = (Math.round(r.left * k) - r.left * k) / k, dy = (Math.round(r.top * k) - r.top * k) / k;
+  if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) cv.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+// Boards: the canvas holds exactly `devicePx` pixels and is drawn 1:1 (no scaling blur).
+function sizeCanvasDevice(cv, devicePx) {
+  const k = dpr(); cv.width = cv.height = devicePx; cv.style.width = cv.style.height = devicePx / k + "px";
+  const ctx = cv.getContext("2d"); ctx.setTransform(1, 0, 0, 1, 0, 0); boardPattern = null; return ctx;
+}
 const boardCv = $("board"), miniCv = $("mini");
 let boardG = null, boardCtx = null, miniG = null, miniCtx = null, hover = null, selectedPv = null;
 
@@ -709,8 +723,8 @@ function drawMini() {  // SubBoardRenderer: variation of the selected / best mov
   renderBoard(miniCtx, miniG, cur, {coords: false, candidates: false, branch: pv, hover: null, numbers: false, ownership: false});
 }
 function boardPoint(ev) {
-  const rect = boardCv.getBoundingClientRect(), {margin: m, sq} = boardG;
-  const x = Math.round((ev.clientX - rect.left - m - .5) / sq), y = Math.round((ev.clientY - rect.top - m - .5) / sq);
+  const rect = boardCv.getBoundingClientRect(), {margin: m, sq} = boardG, s = boardCv.width / rect.width;  // CSS -> device px
+  const x = Math.round(((ev.clientX - rect.left) * s - m - .5) / sq), y = Math.round(((ev.clientY - rect.top) * s - m - .5) / sq);
   return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
 }
 boardCv.addEventListener("click", ev => { const p = boardPoint(ev); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c); });
@@ -937,17 +951,20 @@ function layout() {
   const wide = matchMedia("(min-width: 1000px)").matches;
   const [bw, bh] = fitBox($("boardBox"));
   const side = wide ? Math.min(bw, bh) : Math.min(document.documentElement.clientWidth, 800);
-  boardG = geometry(side, $("coords").classList.contains("on"));
-  boardCtx = sizeCanvas(boardCv, boardG.size, boardG.size);
+  const k = dpr();
+  boardG = geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
+  boardCtx = sizeCanvasDevice(boardCv, boardG.size);
   [capW, capH] = fitBox($("capBox")); capCtx = sizeCanvas(capCv, capW, capH);
   [statW, statH] = fitBox($("statBox")); statCtx = sizeCanvas(statCv, statW, statH);
   [graphW, graphH] = fitBox($("graphBox")); graphCtx = sizeCanvas(graphCv, graphW, graphH);
   if (getComputedStyle($("miniBox")).display !== "none") {
     const [mw, mh] = fitBox($("miniBox"));
-    miniG = geometry(Math.max(60, Math.min(mw - 8, mh - 12)), false); miniCtx = sizeCanvas(miniCv, miniG.size, miniG.size);
+    miniG = geometry(Math.floor(Math.max(60, Math.min(mw - 8, mh - 12)) * k), false, k); miniCtx = sizeCanvasDevice(miniCv, miniG.size);
   } else miniCtx = null;
+  snapToPixels(boardCv); if (miniCtx) snapToPixels(miniCv);
   schedule();
 }
+window.addEventListener("scroll", () => requestAnimationFrame(() => snapToPixels(boardCv)), {passive: true});
 let pending = false;
 function schedule() {
   if (pending) return; pending = true;
