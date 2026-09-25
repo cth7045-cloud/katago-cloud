@@ -139,6 +139,7 @@ tr.sel td { background: #cfe3ff; }
   <label class="check"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check"><input type="checkbox" id="showCands" checked> 후보수보기</label>
   <span class="spacer"></span>
+  <span class="status" id="vps"></span>
   <span class="status"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
   <input type="file" id="fileInput" accept=".sgf,application/x-go-sgf" hidden>
 </header>
@@ -331,6 +332,10 @@ function onMessage(msg) {
     if (autoDone >= q.line.length) stopAuto();
   } else {
     store(q.node, msg, msg.id);
+    // visits/s like YZY's title bar: measured from this query's first report so network delay drops out
+    const now = performance.now(), v = msg.rootInfo.visits;
+    if (q.t0 == null) { q.t0 = now; q.v0 = v; }
+    else if (now - q.t0 > 200) $("vps").textContent = `${Math.round((v - q.v0) * 1000 / (now - q.t0))} visits/s`;
     if (!msg.isDuringSearch && q.node === cur && autoPlayColor === cur.toPlay) setTimeout(() => autoMove(msg), 150);
   }
   schedule();
