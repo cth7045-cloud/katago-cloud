@@ -841,7 +841,9 @@ document.querySelector(".main").addEventListener("wheel", ev => {
 // 2 fingers up/down = wheel (previous / next move), quick 3-finger tap = one move back.
 // One-finger board touches are handled here entirely (preventDefault): otherwise the browser turns a
 // long press into its own gesture (menu / selection / right-click) and cancels the touch.
-const LONG_PRESS_MS = 350, TAP_MOVE = 12, TWO_FINGER_STEP = 28;
+// A real fingertip spreads when pressed firmly and the touch point jumps 10-20px, so movement never cancels
+// the long press (holding 350ms is enough), and a tap may wobble up to TAP_MOVE.
+const LONG_PRESS_MS = 350, TAP_MOVE = 24, TWO_FINGER_STEP = 28;
 let tg = null;
 const touchMid = ts => { let x = 0, y = 0; for (const t of ts) { x += t.clientX; y += t.clientY; } return [x / ts.length, y / ts.length]; };
 const mainEl = document.querySelector(".main");
@@ -853,7 +855,7 @@ mainEl.addEventListener("touchstart", ev => {
         board: n === 1 && ev.target === boardCv, last: {clientX: x, clientY: y}};
   if (tg.board) {
     ev.preventDefault();
-    const g = tg; g.timer = setTimeout(() => { g.timer = 0; g.hover = true; moveCursor(g.last); try { navigator.vibrate && navigator.vibrate(15); } catch { /* no vibration */ } }, LONG_PRESS_MS);
+    const g = tg; g.timer = setTimeout(() => { g.timer = 0; g.hover = true; moveCursor(g.last); }, LONG_PRESS_MS);
   }
   if (n >= 2) ev.preventDefault();   // no pinch zoom / panel scroll
 }, {passive: false});
@@ -861,7 +863,7 @@ mainEl.addEventListener("touchmove", ev => {
   if (!tg) return;
   const [x, y] = touchMid(ev.touches);
   tg.last = {clientX: x, clientY: y};
-  if (Math.hypot(x - tg.x0, y - tg.y0) > TAP_MOVE) { tg.moved = true; if (tg.timer) { clearTimeout(tg.timer); tg.timer = 0; } }
+  if (Math.hypot(x - tg.x0, y - tg.y0) > TAP_MOVE) tg.moved = true;
   if (tg.board) { ev.preventDefault(); if (tg.hover) moveCursor(tg.last); return; }
   if (tg.n === 2 && ev.touches.length === 2) {
     ev.preventDefault();

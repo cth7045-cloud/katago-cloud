@@ -198,7 +198,7 @@ function showSession(s) {
     (s.tuning?.visitsPerSecond ? ` · 초당 약 ${Math.round(s.tuning.visitsPerSecond)}번 탐색` : "");
   const open = $("openAnalysis");
   open.classList.toggle("hidden", !(ready && s.web_url && s.web_token));
-  if (ready && s.web_url) open.href = `analysis.html#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`;
+  if (ready && s.web_url) open.href = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`;
   $("stopButton").classList.toggle("hidden", !live || st === "stopping");
   $("sessionError").textContent = s.error && s.error !== "offer gone" ? s.error : "";
 }
