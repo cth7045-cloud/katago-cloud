@@ -59,8 +59,46 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 .mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
 .mark::before { left: 0; background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
 .mark::after { left: 8px; background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
+/* 빠름 / 보통 / 정밀 next to 자동분석 and 기력 평가 (one shared setting) */
+.lvl { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
+div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
+div.lvl button:hover { background: rgba(255, 255, 255, .7); }
+div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
+#menuBody section > .lvl { margin: 0 0 6px 48px; }
+/* landscape: no buttons beside 자동분석 / 기력 평가 — pressing them asks for the level instead (portrait keeps them in the menu) */
+.toolbar #autoLevel, .menubar #strengthLevel { display: none; }
+.level-pop { position: fixed; z-index: 40; display: grid; gap: 2px; min-width: 230px; padding: 6px; background: var(--panel); border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(23, 26, 34, .06), 0 20px 40px -12px rgba(23, 26, 34, .28); animation: arrive .2s var(--ease); }
+.level-pop p { margin: 4px 10px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.level-pop button { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 40px; padding: 0 12px;
+  border-radius: 10px; background: transparent; box-shadow: none; }
+.level-pop button span { color: var(--muted); font-size: 12px; font-weight: 500; }
+.level-pop button:hover { background: var(--soft); }
+.level-pop button.on { background: var(--cyan-soft); color: var(--blue-deep); }
+#menuBody section > .lvl::before { display: none; }
+/* which stones a board click puts down: black only / white only / alternate
+   (top bar in landscape, a row of the menu sheet in portrait — the name shows only there) */
+#placeRow { display: inline-flex; align-items: center; }
+#placeRow > span { display: none; }
+#menuBody #placeRow { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='10' cy='13' r='6'/><path d='M19 3v6M16 6h6'/></svg>"); }
+#menuBody #placeRow > span { display: inline; }
+#menuBody section > #placeRow { display: flex; width: 100%; gap: 14px; min-height: 48px; padding: 0 12px; border-radius: 14px;
+  color: var(--ink); font-size: 15px; font-weight: 600; }
+#menuBody #placeRow .stone-seg { margin-left: auto; }
+.stone-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
+.stone-seg button { width: 36px; min-height: 28px; height: 28px; padding: 0; border-radius: 999px; background: transparent; display: grid; place-items: center; }
+.stone-seg button:hover { background: rgba(255, 255, 255, .7); }
+.stone-seg button.on { background: var(--panel); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
+.stone-seg i { position: relative; display: block; width: 16px; height: 16px; border-radius: 50%; }
+.stone-seg i.b, .stone-seg i.bw::before { background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
+.stone-seg i.w, .stone-seg i.bw::after { background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .2); }
+.stone-seg i.bw { width: 23px; border-radius: 0; }
+.stone-seg i.bw::before, .stone-seg i.bw::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
+.stone-seg i.bw::before { left: 0; }
+.stone-seg i.bw::after { left: 7px; }
 .status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .status:not(:empty) { background: var(--soft); border-radius: 999px; padding: 5px 12px; }
+.status:empty { display: none; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
 .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(31, 157, 85, .16); }
 details.menu { position: relative; }
@@ -123,8 +161,6 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #coords { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='7'/><path d='M12 2v4M12 18v4M2 12h4M18 12h4'/></svg>"); }
 #menuBody #promote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20V8M7 13l5-5 5 5M5 4h14'/></svg>"); }
 #menuBody #deleteNode { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'/></svg>"); }
-#menuBody #autoVisitsLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 14l4-4M3.5 18a9 9 0 1 1 17 0'/></svg>"); }
-#menuBody #placeLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='10' cy='13' r='6'/><path d='M19 3v6M16 6h6'/></svg>"); }
 #barLabel, #graphLabel { display: none; }   /* portrait menu only (the landscape screen always shows both) */
 #menuBody #barLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='9' width='18' height='6' rx='1'/><path d='M12 9v6'/></svg>"); }
 #menuBody #graphLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 3v18h18'/><path d='M7 14l4-4 3 3 5-6'/></svg>"); }
@@ -300,10 +336,18 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="newGame">AI대국</button>
   <button id="kifuOpen">기보 불러오기</button>
   <button id="strengthOpen">기력 평가</button>
+  <div class="lvl" id="strengthLevel" role="group" aria-label="기력 평가 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
   <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
   <label class="check" id="komiLabel">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
   <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check" id="candsLabel"><input type="checkbox" id="showCands" checked> 후보수보기</label>
+  <div id="placeRow"><span>돌 놓기</span>
+    <div class="stone-seg" id="placeSeg" role="group" aria-label="놓을 돌">
+      <button data-c="B" title="흑돌만 놓기" aria-pressed="false"><i class="b"></i></button>
+      <button data-c="W" title="백돌만 놓기" aria-pressed="false"><i class="w"></i></button>
+      <button data-c="" title="흑백 번갈아 놓기" aria-pressed="true" class="on"><i class="bw"></i></button>
+    </div>
+  </div>
   <label class="check" id="barLabel"><input type="checkbox" id="showBar" checked> 승률 막대</label>
   <label class="check" id="graphLabel"><input type="checkbox" id="showGraph"> 승률 그래프</label>
   <span class="spacer"></span>
@@ -360,12 +404,13 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="sp-top">
     <h2>기력 평가</h2>
     <span class="spacer"></span>
+    <button id="strengthRedo" disabled title="지금 세기로 모든 수를 다시 분석해 평가합니다">재평가</button>
     <button id="strengthClose">닫기</button>
   </div>
   <div class="sp-sub">분석된 주 변화(main-line)를 기반으로 하며 검토 참고용으로만 사용됩니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
-  <div class="sp-note">이 평가는 YZY(LizzieYzy Next)의 XGBoost 기력 모델로 계산합니다. 수마다 KataGo 500 visits로 분석한 결과를 쓰며, 공식 기력이 아니라 검토 참고용입니다.</div>
+  <div class="sp-note">이 평가는 YZY(LizzieYzy Next)의 XGBoost 기력 모델로 계산합니다. 수마다 KataGo로 분석한 결과(빠름 250 · 보통 500 · 정밀 1000 visits)를 씁니다. 모델이 500 visits 분석으로 학습돼 '보통'이 가장 정확합니다. 공식 기력이 아니라 검토 참고용입니다.</div>
 </dialog>
 
 <div class="main">
@@ -397,7 +442,7 @@ button.primary:hover { background: var(--blue-deep); }
 <footer class="toolbar">
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
-  <label class="check" id="autoVisitsLabel">세기 <select id="autoVisits"><option value="200">빠름</option><option value="400" selected>보통</option><option value="1000">정밀</option></select></label>
+  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
   <span class="sep"></span>
   <button id="first" title="처음 (Home)">|&lt;</button>
   <button id="back10" title="10수 뒤로">&lt;&lt;</button>
@@ -409,7 +454,6 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="last" title="끝 (End)">&gt;|</button>
   <span class="sep"></span>
   <button id="pass">패스</button>
-  <label class="check" id="placeLabel">돌 놓기 <select id="placeMode"><option value="">번갈아</option><option value="B">흑만</option><option value="W">백만</option></select></label>
   <button id="promote">주 변화로 지정</button>
   <button id="nums">수순</button>
   <button id="coords" class="on">좌표</button>
@@ -419,6 +463,13 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="menuOpen" aria-haspopup="dialog">☰ 메뉴</button>
 </footer>
 
+<div class="level-pop" id="levelPop" role="menu" hidden>
+  <p id="levelPopTitle"></p>
+  <button data-l="fast" role="menuitem"><b>빠름</b><span>한 수 250 visits</span></button>
+  <button data-l="normal" role="menuitem"><b>보통</b><span>한 수 500 visits</span></button>
+  <button data-l="precise" role="menuitem"><b>정밀</b><span>한 수 1000 visits</span></button>
+</div>
+
 <dialog id="menuDlg" class="sheet" aria-label="메뉴">
   <div class="sheet-head"><b>메뉴</b><button id="menuClose">닫기</button></div>
   <div id="menuBody"></div>
@@ -426,7 +477,7 @@ button.primary:hover { background: var(--blue-deep); }
 
 <script>
 "use strict";
-const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", AUTO_VISITS = 400, UNLIMITED_VISITS = 1000000000;
+const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", UNLIMITED_VISITS = 1000000000;
 const UI_FONT = getComputedStyle(document.documentElement).getPropertyValue("--ui-font").trim();
 const WR_FONT = "'Open Sans', " + UI_FONT;   // YZY: fonts/OpenSans-Semibold.ttf
 const WR_WEIGHT = 600;
@@ -580,8 +631,8 @@ function onMessage(msg) {
     if (node) store(node, msg, msg.id);
     if (q.strength) strengthStep(q);
     else {
-      autoDone++; $("autoAnalyze").textContent = `자동분석 ${autoDone}/${q.line.length}`;
-      if (autoDone >= q.line.length) stopAuto();
+      autoDone++;
+      if (autoDone >= q.todo) stopAuto(); else autoButton();
     }
   } else {
     store(q.node, msg, msg.id);
@@ -592,17 +643,64 @@ function onMessage(msg) {
   }
   schedule();
 }
-function startAuto() {
-  autoLine = lineThrough(cur); autoDone = 0; autoId = "a" + (++qn);
-  queries.set(autoId, {line: autoLine});
+// 빠름 / 보통 / 정밀: one setting for 자동분석 and 기력 평가 (보통 = the 500 visits the strength model was trained on).
+// Each skips the moves already analysed at least that deep, so what one of them did, the other does not redo.
+const LEVELS = {fast: 250, normal: 500, precise: 1000};
+let level = "normal";
+try { const v = localStorage.getItem("kgv.level"); if (LEVELS[v]) level = v; } catch { /* storage blocked */ }
+const levelVisits = () => LEVELS[level];
+const analysed = n => !!(n.analysis && n.analysis.rootInfo && n.analysis.rootInfo.visits >= levelVisits());
+function levelButtons() {
+  document.querySelectorAll(".lvl button").forEach(b => { const on = b.dataset.l === level; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+}
+function setLevel(l) {
+  level = l; try { localStorage.setItem("kgv.level", level); } catch { /* storage blocked */ }
+  levelButtons(); if (!autoId) autoButton(); schedule();
+}
+document.querySelectorAll(".lvl").forEach(g => g.addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setLevel(b.dataset.l); }));
+// Landscape: pressing 자동분석 / 기력 평가 opens a small list of levels; picking one sets it and starts.
+const isPortrait = () => matchMedia("(orientation: portrait)").matches;
+let popFor = null, popRun = null;
+function levelPop(btn, title, run) {
+  const pop = $("levelPop");
+  if (!pop.hidden && popFor === btn) { pop.hidden = true; return; }   // pressing the same button again closes it
+  popFor = btn; popRun = run; $("levelPopTitle").textContent = title;
+  pop.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.l === level));
+  pop.hidden = false;
+  const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  pop.style.top = (r.bottom + 6 + h < innerHeight ? r.bottom + 6 : r.top - 6 - h) + "px";   // below, or above the bottom bar
+}
+$("levelPop").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  setLevel(b.dataset.l); $("levelPop").hidden = true; popRun && popRun();
+});
+document.addEventListener("pointerdown", ev => {
+  if (!$("levelPop").hidden && !$("levelPop").contains(ev.target) && !(popFor && popFor.contains(ev.target))) $("levelPop").hidden = true;
+});
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") $("levelPop").hidden = true; });
+window.addEventListener("resize", () => { $("levelPop").hidden = true; });
+levelButtons();
+function autoButton() {   // 자동분석 n/N while running, 재분석 once the whole line is analysed at this level
+  const q = autoId && queries.get(autoId);
+  $("autoAnalyze").classList.toggle("on", !!q);
+  $("autoAnalyze").textContent = q ? `자동분석 ${autoDone}/${q.todo}` : lineThrough(cur).every(analysed) ? "재분석" : "자동분석";
+}
+function startAuto(again = false) {
+  autoLine = lineThrough(cur);
+  const turns = autoLine.map((_, i) => i).filter(i => again || !analysed(autoLine[i]));
+  if (!turns.length) return;
+  autoDone = 0; autoId = "a" + (++qn);
+  if (again) for (const i of turns) autoLine[i].aid = autoId;   // 재분석: the new results replace the old ones
+  queries.set(autoId, {line: autoLine, todo: turns.length});
   send({...baseQuery(), includeOwnership: false, id: autoId, moves: movesOf(autoLine[autoLine.length - 1]),
-        analyzeTurns: autoLine.map((_, i) => i), maxVisits: +$("autoVisits").value || AUTO_VISITS});
-  $("autoAnalyze").classList.add("on"); $("autoAnalyze").textContent = `자동분석 0/${autoLine.length}`;
+        analyzeTurns: turns, maxVisits: levelVisits()});
+  autoButton();
 }
 function stopAuto() {
-  if (autoId && autoDone < autoLine.length) send({id: "t" + (++qn), action: "terminate", terminateId: autoId});
-  queries.delete(autoId); autoId = null;
-  $("autoAnalyze").classList.remove("on"); $("autoAnalyze").textContent = "자동분석";
+  const q = autoId && queries.get(autoId);
+  if (q && autoDone < q.todo) send({id: "t" + (++qn), action: "terminate", terminateId: autoId});
+  queries.delete(autoId); autoId = null; autoButton();
 }
 function engineLabel() { return ["KataGo" + (engineVersion ? " " + engineVersion : ""), modelName].filter(Boolean).join(" · "); }
 function updateEngineName() { $("engineName").textContent = engineLabel(); }
@@ -626,7 +724,12 @@ function setAnalyzing(on) {
   $("hint").textContent = on ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
 }
 $("analyze").onclick = () => { setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
-$("autoAnalyze").onclick = () => autoId ? stopAuto() : startAuto();
+const runAuto = () => startAuto(lineThrough(cur).every(analysed));   // everything analysed at this level = 재분석
+$("autoAnalyze").onclick = () => {
+  if (autoId) return stopAuto();
+  if (isPortrait()) return runAuto();
+  levelPop($("autoAnalyze"), lineThrough(cur).every(analysed) ? "재분석 세기" : "자동분석 세기", runAuto);
+};
 $("first").onclick = () => goTo(root);
 $("back10").onclick = () => step(-10);
 $("back").onclick = () => step(-1);
@@ -944,6 +1047,8 @@ async function readSgfFile(file) {
   const buf = await file.arrayBuffer();
   try { return new TextDecoder("utf-8", {fatal: true}).decode(buf); } catch { return new TextDecoder("euc-kr").decode(buf); }
 }
+document.addEventListener("pointerdown", ev => { if ($("fileMenu").open && !$("fileMenu").contains(ev.target)) $("fileMenu").open = false; });
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") $("fileMenu").open = false; });
 $("openSgf").onclick = () => { $("fileMenu").open = false; $("fileInput").click(); };
 $("fileInput").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; } e.target.value = ""; };
 $("saveSgf").onclick = () => {
@@ -1007,7 +1112,6 @@ $("kifuRows").addEventListener("click", async ev => {
 
 // ------------------------------------------------------------------ 기력 평가 (YZY PlayerStrengthEstimator, assets/strength.js)
 // Works where assets/ has strength.js and the models (the website); the GPU's own page only serves the board images.
-const STRENGTH_VISITS = 500;   // YZY's current model was trained on 500-visit analyses (xgb-distill-v500-m210)
 let strengthLib = null, strengthModels = null, strengthId = null;
 function strengthMsg(text, bad = false) { $("strengthMsg").textContent = text; $("strengthMsg").classList.toggle("bad", bad); }
 function strengthPosition(node) {   // YZY BoardData/MoveData view: every value from the side to move
@@ -1022,8 +1126,8 @@ function stopStrength() {
 }
 // The estimate keeps running with its window closed; the button shows how far it is.
 function strengthButton(q) { $("strengthOpen").textContent = q ? `기력 평가 ${q.done}/${q.todo}` : "기력 평가"; $("strengthOpen").classList.toggle("on", !!q); }
-async function openStrength() {
-  $("strengthDlg").showModal();
+async function openStrength(again = false) {
+  if (!$("strengthDlg").open) $("strengthDlg").showModal();
   if (!strengthModels) {
     strengthMsg("평가 모델을 불러오는 중…");
     try {
@@ -1036,17 +1140,18 @@ async function openStrength() {
   if (strengthId) return;   // still analysing: the progress message is up to date
   const line = lineThrough(root);
   if (line.length < 2) { $("strengthCards").innerHTML = ""; strengthMsg("기보에 수가 없습니다. 기보를 열거나 수를 둔 뒤 다시 누르세요."); return; }
-  const turns = line.map((_, i) => i).filter(i => !(line[i].analysis && line[i].analysis.rootInfo.visits >= STRENGTH_VISITS));
+  const turns = line.map((_, i) => i).filter(i => again || !analysed(line[i]));
   if (!turns.length) return renderStrength();
   strengthId = "s" + (++qn);
+  if (again) for (const i of turns) line[i].aid = strengthId;   // 재평가: the new results replace the old ones
   const q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now()};
   queries.set(strengthId, q);
   if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
-             analyzeTurns: turns, maxVisits: STRENGTH_VISITS})) {
+             analyzeTurns: turns, maxVisits: levelVisits()})) {
     queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
   }
-  $("strengthCards").innerHTML = ""; strengthButton(q);
-  strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${STRENGTH_VISITS} visits) · 창을 닫아도 계속 분석합니다`);
+  $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true;
+  strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
 }
 function strengthStep(q) {
   if (q.line[0] !== root) { stopStrength(); strengthMsg("다른 기보를 열어 분석을 멈췄습니다. 다시 누르면 지금 기보로 평가합니다."); return; }
@@ -1069,7 +1174,7 @@ function renderStrength() {
     $("strengthCards").innerHTML = "";
     strengthMsg(`분석된 수가 ${r.overall.sampleCount}수뿐이라 평가할 수 없습니다. 최소 ${strengthLib.MIN_REPORT_SAMPLES}수가 필요합니다.`, true); return;
   }
-  strengthMsg("");
+  strengthMsg(""); $("strengthRedo").disabled = !!strengthId;   // a result is up: it can be evaluated again
   const conf = {high: "높음", medium: "중간", low: "낮음"};
   const bar = (fill, loss = false) => `<div class="sp-bar${loss ? " loss" : ""}"><i style="width:${Math.round(Math.max(0, Math.min(1, fill)) * 100)}%"></i></div>`;
   const pct = v => Math.round(v * 100) + "%";
@@ -1093,8 +1198,12 @@ function renderStrength() {
   $("strengthCards").innerHTML = (r.black.sampleCount ? card(r.black, "흑기력", "black", "black0.png") : "") +
                                  (r.white.sampleCount ? card(r.white, "백기력", "white", "white0.png") : "");
 }
-$("strengthOpen").onclick = openStrength;
+$("strengthOpen").onclick = () => {
+  if (strengthId || isPortrait()) return openStrength();   // running: just show how far it is
+  levelPop($("strengthOpen"), "기력 평가 세기", () => openStrength());
+};
 $("strengthClose").onclick = () => $("strengthDlg").close();
+$("strengthRedo").onclick = () => openStrength(true);
 $("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strengthDlg")) $("strengthDlg").close(); });   // backdrop
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
@@ -1366,7 +1475,13 @@ function boardPoint(ev) {
 }
 function placeAt(pt) {
   const p = boardPoint(pt); if (!p) return; hover = null;
-  if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, $("placeMode").value || cur.toPlay, p); if (c) goTo(c); }
+  if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c); }
+let placeColor = "";   // "" = alternate, "B" / "W" = only that colour (life-and-death, set positions)
+$("placeSeg").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  placeColor = b.dataset.c;
+  $("placeSeg").querySelectorAll("button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+});
 boardCv.addEventListener("click", placeAt);   // mouse; touches on the board are handled below
 function hoverFor(p) {  // the variation preview for the candidate at board point p (or null)
   const mv = p && candsShown() ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
@@ -1643,6 +1758,7 @@ treeCv.addEventListener("click", ev => {
 // ------------------------------------------------------------------ table, comment
 function drawSide() {
   $("moveNo").value = cur.depth;
+  if (!autoId) autoButton();
   const cands = candsShown() ? candidates(cur) : [], total = cands.reduce((s, c) => s + c.visits, 0) || 1;
   const selMove = selectedPv && selectedPv[0];
   $("candRows").innerHTML = cands.map((c, k) =>
@@ -1687,8 +1803,8 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
 // and they go back to the bars in landscape.
 const MENU = [["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen"]],
-              ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeLabel"]],
-              ["분석", ["autoAnalyze", "autoVisitsLabel", "strengthOpen"]],
+              ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
+              ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
               ["편집", ["promote", "deleteNode", "resetBoard"]]];
 const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
@@ -1710,7 +1826,7 @@ $("menuOpen").onclick = () => $("menuDlg").showModal();
 $("menuClose").onclick = () => $("menuDlg").close();
 $("menuDlg").addEventListener("click", ev => { if (ev.target === $("menuDlg")) $("menuDlg").close(); });   // backdrop
 // an action closes the sheet (its own handler has already run); switches and inputs keep it open
-$("menuBody").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && b.id !== "nums" && b.id !== "coords") $("menuDlg").close(); });
+$("menuBody").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && b.id !== "nums" && b.id !== "coords" && !b.closest(".lvl, .stone-seg")) $("menuDlg").close(); });
 
 // ------------------------------------------------------------------ layout & render loop
 function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }
