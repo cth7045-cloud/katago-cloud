@@ -125,7 +125,10 @@ async function load() {
         `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td>${when(x.created_at)}</td><td class="small">${esc(note)}</td>` +
-        `<td>${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
+        `<td style="white-space:nowrap">${x.status === "ready" && x.web_url && x.web_token && !mine
+          // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing)
+          ? `<a class="btn" target="_blank" rel="noopener" href="analysis.html?v=${Date.now()}#u=${encodeURIComponent(x.web_url)}&t=${encodeURIComponent(x.web_token)}&view=1">화면 보기</a> ` : ""}` +
+        `${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
     }).join("") || `<tr><td colspan="11" class="muted">없음</td></tr>`;
     // sessions before 2026-09-27 wrote one usage row per minute: show one row per rental like the new ones.
     // A usage row belongs to the member's session running at that time (a member has one GPU at a time).

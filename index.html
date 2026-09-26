@@ -358,7 +358,7 @@ $("startButton").onclick = async () => {
   if (!confirm(msg)) return;
   $("startButton").disabled = true; $("startError").textContent = "";
   try {
-    await api("/start", { offer_id: picked.id, seen_price_usd: picked.price, model_id: $("model").value });
+    await api("/start", { offer_id: picked.id, machine_id: picked.machineId, seen_price_usd: picked.price, model_id: $("model").value });
     toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
     await refresh();
   } catch (err) {

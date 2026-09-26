@@ -176,9 +176,12 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 .cv-box > canvas { position: absolute; inset: 0; display: block; }
 #capBox { flex: 0 0 11%; min-height: 80px; }
 #statBox { flex: 0 0 10%; min-height: 70px; }
-#graphBox { flex: 1 1 auto; min-height: 110px; cursor: pointer; }
-.comment { flex: 0 0 30%; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
-.comment { flex: 1 1 auto; }
+#graphBox { flex: 1 1 0; min-height: 90px; cursor: pointer; }
+/* game info takes the height it needs (on a short tablet screen it used to share it with the graph and cut its own
+   last lines, with no scrollbar to show it); the graph gets the rest, and a long move comment scrolls inside */
+.comment { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }   /* too short: the comment scrolls */
+#gameInfo, .engine-line { flex: none; }
+.comment #comment { flex: 1 1 auto; min-height: 0; }
 #gameInfo { padding: 14px 18px 10px; display: grid; gap: 4px; border-bottom: 1px solid var(--line); }
 .gi-row { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 15px; }
 .gi-row b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -590,7 +593,27 @@ function lost() {
   clearTimeout(retryTimer); retryTimer = setTimeout(connect, 2000);
   if (recheckGpu) recheckGpu();   // the GPU's address may have changed (tunnel restarted)
 }
-function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
+// #view=1: an admin watching a member's screen (admin page "화면 보기"). Nothing goes to the GPU but pings — no board
+// changes, no searches, and no activity, so watching never keeps the member's GPU alive — and every input is blocked.
+const viewOnly = hashParams.get("view") === "1";
+if (viewOnly) {
+  const block = (e) => { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); };
+  for (const type of ["pointerdown", "pointerup", "pointermove", "mousedown", "mouseup", "mousemove", "click", "dblclick", "contextmenu",
+                      "touchstart", "touchmove", "touchend", "wheel", "keydown", "keyup", "keypress", "input", "change", "submit", "dragstart", "drop"]) {
+    addEventListener(type, block, {capture: true, passive: false});
+  }
+  const tag = document.createElement("div");
+  tag.textContent = "관리자 보기 · 조작할 수 없습니다";
+  tag.style.cssText = "position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9999;padding:6px 14px;border-radius:999px;" +
+    "background:rgba(20,24,34,.78);color:#fff;font-size:13px;pointer-events:none";
+  document.body.appendChild(tag);
+  document.title = "보기 전용 · " + document.title;
+}
+function send(obj) {
+  if (viewOnly && obj.action !== "ping") return false;
+  if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; }
+  return false;
+}
 function ping() { send({action: "ping", t: performance.now()}); }
 setInterval(() => {   // pings every 5 s; no answer (or no open) for 12 s = a dead connection
   if (ws && performance.now() - heardAt > 12000) return lost();
@@ -1779,8 +1802,9 @@ function drawTree() {
     if (nd === cur) { g.fillStyle = "#000"; g.beginPath(); g.arc(x + 5.5, y + 5.5, CENTER / 2, 0, Math.PI * 2); g.fill(); }
   }
   const [cx, cy] = pos(cur);
-  if (cy < box.scrollTop + 20 || cy > box.scrollTop + box.clientHeight - 30) box.scrollTop = cy - box.clientHeight / 2;
-  if (cx < box.scrollLeft + 20 || cx > box.scrollLeft + box.clientWidth - 30) box.scrollLeft = cx - box.clientWidth / 2;
+  // whole rows/lanes only: centring exactly left a half-cut dot at the edge (tablet report 2026-09-27)
+  if (cy < box.scrollTop + 20 || cy > box.scrollTop + box.clientHeight - 30) box.scrollTop = Math.round((cy - box.clientHeight / 2) / YS) * YS + 2;
+  if (cx < box.scrollLeft + 20 || cx > box.scrollLeft + box.clientWidth - 30) box.scrollLeft = Math.round((cx - box.clientWidth / 2) / XS) * XS + 2;
 }
 treeCv.addEventListener("click", ev => {
   const rect = treeCv.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
@@ -1898,6 +1922,13 @@ const sizeObserver = new ResizeObserver(() => {
   if (s !== lastSize) { lastSize = s; layout(); }
 });
 [document.documentElement, ...bars].forEach(el => sizeObserver.observe(el));
+// The graph takes the height the game-info card leaves, which changes with the record (names, result, comment):
+// refit only the graph, or its old canvas is cut off or leaves a gap.
+new ResizeObserver(() => {
+  if (!graphCtx) return;
+  const [w, h] = fitBox($("graphBox"));
+  if (w !== graphW || h !== graphH) { [graphW, graphH] = [w, h]; graphCtx = sizeCanvas(graphCv, graphW, graphH); drawGraph(); }
+}).observe($("graphBox"));
 // Portrait: the win-rate bar and graph under the board are switched in the menu (remembered on this device).
 function applyPanels() {
   document.body.classList.toggle("bar-off", !$("showBar").checked);
