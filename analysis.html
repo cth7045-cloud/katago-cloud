@@ -543,7 +543,8 @@ let root = makeRoot(), cur = root;
 const hashParams = new URLSearchParams(location.hash.slice(1));
 const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
-const remoteGpu = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(hashParams.get("u") || "") ? hashParams.get("u") : "";
+const GPU_URL = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+let remoteGpu = GPU_URL.test(hashParams.get("u") || "") ? hashParams.get("u") : "";   // changes if the GPU's tunnel restarts (watchGpu)
 let ws = null, qn = 0, liveId = null, autoId = null, autoLine = [], autoDone = 0;
 // One account = one board: every device of the member joins the same board through the GPU's bridge.
 let bridgeSync = false, synced = false, applyingRemote = false, lastSgf = null, pubTimer = 0;
@@ -562,25 +563,48 @@ async function openWithoutGpu() {
     site = sb; $("conn").textContent = "GPU 없음 · 관리자 보기";
   } catch { location.replace("./"); }   // members open this screen from their running GPU
 }
+let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message of any kind from the GPU
 function connect() {
   if (!token) { openWithoutGpu(); return; }
+  clearTimeout(retryTimer);
   const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
-  ws = new WebSocket(base + "/ws?t=" + encodeURIComponent(token));
-  ws.onopen = () => {
+  const sock = new WebSocket(base + "/ws?t=" + encodeURIComponent(token));
+  ws = sock; heardAt = performance.now();
+  sock.onopen = () => {
     synced = false;   // until the bridge says which board this device joins
     $("dot").classList.add("on"); $("conn").textContent = "GPU 연결됨"; $("err").textContent = "";
     send({id: "ver", action: "query_version"}); ping();
     if (analyzing) requestLive();
   };
-  ws.onclose = () => {
-    $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중"; setTimeout(connect, 2000);
-    if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '기력 평가'를 눌러 이어서 분석하세요.", true); }
-  };
-  ws.onmessage = ev => onMessage(JSON.parse(ev.data));
+  sock.onclose = () => { if (ws === sock) lost(); };
+  sock.onmessage = ev => { heardAt = performance.now(); onMessage(JSON.parse(ev.data)); };
+}
+// The connection is gone, or silent: a phone waking up or switching Wi-Fi/LTE can leave a socket that looks open
+// but never delivers again, and the browser may take minutes to notice. Drop it and connect again.
+function lost() {
+  const old = ws; ws = null;
+  if (old) { old.onopen = old.onclose = old.onmessage = null; try { old.close(); } catch { /* already closed */ } }
+  $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중";
+  if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '기력 평가'를 눌러 이어서 분석하세요.", true); }
+  if (autoId) { queries.delete(autoId); autoId = null; autoButton(); }   // its search ended with the old connection
+  clearTimeout(retryTimer); retryTimer = setTimeout(connect, 2000);
+  if (recheckGpu) recheckGpu();   // the GPU's address may have changed (tunnel restarted)
 }
 function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
 function ping() { send({action: "ping", t: performance.now()}); }
-setInterval(ping, 5000);
+setInterval(() => {   // pings every 5 s; no answer (or no open) for 12 s = a dead connection
+  if (ws && performance.now() - heardAt > 12000) return lost();
+  ping();
+}, 5000);
+function checkNow() {   // back on screen / back online: find out at once instead of waiting for the next ping
+  if (!token) return;
+  if (!ws) { connect(); return; }
+  if (ws.readyState !== 1) return;
+  const asked = performance.now(); ping();
+  setTimeout(() => { if (ws && ws.readyState === 1 && heardAt < asked) lost(); }, 4000);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkNow(); });
+addEventListener("online", checkNow);
 
 function baseQuery() {
   return {rules: "korean", komi: komi(), boardXSize: N, boardYSize: N, initialPlayer: root.toPlay,
@@ -593,7 +617,13 @@ function requestLive() {
   liveId = "q" + (++qn);
   queries.set(liveId, {node: cur});
   // No visit limit: analysis runs until the member stops it or moves (like YZY pondering); AI moves use it too.
-  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.3, ...(bridgeSync ? {live: true} : {})});
+  // priority: KataGo serves queued positions first-come, so without it a new live query waited behind every
+  // queued 자동분석 / 기력 평가 turn and the main board looked stopped; higher priority goes to the next free thread.
+  // firstReportDuringSearchAfter (in KataGo's source, not its docs): the first candidates come after 0.05 s
+  // instead of waiting a whole 0.3 s report period, which was most of the delay after each move.
+  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.3,
+        firstReportDuringSearchAfter: 0.05, priority: 10,
+        ...(bridgeSync ? {live: true} : {})});
 }
 function store(node, msg, id) {
   const old = node.analysis;
@@ -1126,7 +1156,9 @@ function stopStrength() {
 }
 // The estimate keeps running with its window closed; the button shows how far it is.
 function strengthButton(q) { $("strengthOpen").textContent = q ? `기력 평가 ${q.done}/${q.todo}` : "기력 평가"; $("strengthOpen").classList.toggle("on", !!q); }
+const STRENGTH_DONE = "기력 평가가 끝났습니다. '기력 평가'를 누르면 결과를 볼 수 있습니다.";
 async function openStrength(again = false) {
+  if ($("err").textContent === STRENGTH_DONE) $("err").textContent = "";   // the result is being looked at (or redone)
   if (!$("strengthDlg").open) $("strengthDlg").showModal();
   if (!strengthModels) {
     strengthMsg("평가 모델을 불러오는 중…");
@@ -1161,7 +1193,7 @@ function strengthStep(q) {
   strengthButton(q);
   if (q.done >= q.todo) {
     queries.delete(strengthId); strengthId = null; strengthButton(); renderStrength();
-    if (!$("strengthDlg").open) $("err").textContent = "기력 평가가 끝났습니다. '기력 평가'를 누르면 결과를 볼 수 있습니다.";
+    if (!$("strengthDlg").open) $("err").textContent = STRENGTH_DONE;
   }
 }
 function renderStrength() {
@@ -1792,7 +1824,7 @@ function drawGameInfo() {
   const hc = +$("handicap").value;
   const meta = [game && "<b>AI 대국 중</b>", i.RE && `<b>${escHtml(resultText(i.RE))}</b>`, i.DT && escHtml(i.DT), hc ? `접바둑 ${hc}점` : "", `덤 ${komi()}`, "한국룰"].filter(Boolean).join(" · ");
   const html = row("b", i.PB || "흑", i.BR) + row("w", i.PW || "백", i.WR) +
-    `<div class="gi-meta">${named ? meta : "기보를 열면 대국자와 결과가 표시됩니다 · " + meta}</div>`;
+    `<div class="gi-meta">${named || i.RE || i.DT ? meta : "기보를 열면 대국자와 결과가 표시됩니다 · " + meta}</div>`;
   if ($("gameInfo").innerHTML !== html) $("gameInfo").innerHTML = html;
 }
 $("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) { selectedPv = c.pv || null; schedule(); } });
@@ -1884,9 +1916,14 @@ async function watchGpu() {
   if (!token || /\.trycloudflare\.com$/.test(location.hostname)) return;
   let site; try { site = await import("./app.js"); } catch { return; }
   async function tick() {
-    const {data: s} = await site.sb.from("gpu_sessions").select("status,charged_krw,instance_created_at,created_at")
+    const {data: s} = await site.sb.from("gpu_sessions").select("status,charged_krw,instance_created_at,created_at,web_url")
       .eq("web_token", token).limit(1).maybeSingle();
     if (!s) { $("gpuMeter").hidden = true; return; }   // not logged in on this browser, or not this member's GPU
+    if (GPU_URL.test(s.web_url || "") && s.web_url !== remoteGpu) {   // the GPU restarted its tunnel: follow the new address
+      remoteGpu = s.web_url;
+      history.replaceState(null, "", `#u=${encodeURIComponent(remoteGpu)}&t=${encodeURIComponent(token)}`);
+      if (ws) lost(); connect();
+    }
     const live = LIVE.includes(s.status);
     const min = Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at)) / 60000));
     $("gpuUse").textContent = live ? `${min}분 · ${site.won(s.charged_krw)}` : `GPU 종료됨 · ${site.won(s.charged_krw)}`;
@@ -1902,6 +1939,8 @@ async function watchGpu() {
     } catch (err) { $("err").textContent = err.message; }
     $("gpuStop").disabled = false; tick();
   };
+  let checkedAt = 0;   // while reconnecting every 2 s, ask the website at most every 10 s
+  recheckGpu = () => { if (Date.now() - checkedAt > 10000) { checkedAt = Date.now(); tick().catch(() => {}); } };
   tick().catch(() => {}); setInterval(() => tick().catch(() => {}), 30000);
 }
 document.fonts && document.fonts.ready.then(schedule);

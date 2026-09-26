@@ -78,7 +78,8 @@ tr.sel:has(+ tr.pick-bar) td { border-bottom-color: transparent; }
 .bar .wrap { display: flex; align-items: center; gap: 10px; min-height: 60px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 750; letter-spacing: -.02em; font-size: 18px; margin: 0 auto 0 0; color: var(--ink); }
 a.brand:hover { text-decoration: none; opacity: .75; }
-.bar a:not(.brand) { font-weight: 600; padding: 6px 10px; border-radius: 999px; transition: background-color .2s; }
+.bar a:not(.brand) { font-weight: 600; padding: 6px 10px; border-radius: 999px; transition: background-color .2s; white-space: nowrap; }
+.bar .brand, .bar button { white-space: nowrap; }
 .bar a:not(.brand):hover { background: var(--soft); text-decoration: none; }
 .bar a.on { background: var(--cyan-soft); }
 .mark { position: relative; width: 26px; height: 18px; flex: none; }
@@ -116,6 +117,7 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 .how li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; }
 .how b { display: block; font-size: 19px; letter-spacing: -.02em; margin-bottom: 4px; }
 .how p { margin: 0; color: var(--muted); }
+.how p.how-more { margin-top: 40px; font-weight: 600; }
 .move { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 18px; }
 .move.black { background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); color: #fff; }
 .move.white { background: radial-gradient(circle at 35% 30%, #fff, #dfe2e9 85%); color: var(--ink); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
@@ -193,4 +195,10 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   .steps { grid-template-columns: 1fr; }
   .hide-sm { display: none; }
   .who { display: none; }
+  /* top bar on a phone: the two stones stay as the home link, the name gives its room to the links */
+  #startCard th, #offerRows td { padding-left: 4px; padding-right: 4px; font-size: 13px; }   /* 지역·GPU·VRAM·시간당·성능/$ fit a phone */
+  #offerRows td:first-child { white-space: normal; overflow-wrap: normal; }   /* "싱가포르/동남아" breaks after the slash */   /* "싱가포르/동남아" breaks after the slash instead of pushing 성능/$ off screen */
+  #appView .bar .wrap { gap: 2px; }
+  #appView .bar .brand { font-size: 0; gap: 0; }
+  #appView .bar a:not(.brand), #appView .bar button.quiet { padding: 6px 8px; font-size: 14px; }
 }

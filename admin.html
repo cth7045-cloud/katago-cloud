@@ -24,7 +24,7 @@
       <h2>잔액 충전·차감</h2>
       <form id="topupForm" class="admin-form">
         <label class="field">회원 이메일<input id="tEmail" type="email" required></label>
-        <label class="field">금액(원, 차감은 -)<input id="tAmount" type="number" step="1000" required></label>
+        <label class="field">금액(원, 차감은 -)<input id="tAmount" type="number" step="1" required></label>
         <label class="field">메모<input id="tNote" maxlength="100" placeholder="예: 계좌이체 1만원"></label>
         <button class="primary" type="submit">적용</button>
       </form>
@@ -32,9 +32,22 @@
     </div>
 
     <div class="panel">
+      <h2>요금 설정</h2>
+      <form id="priceForm" class="admin-form">
+        <label class="field">환율 (원/$, Vast 크레딧 살 때 실제 환율)<input id="pRate" type="number" step="0.01" min="500" max="5000" required></label>
+        <label class="field">회원 가격 배율 (원가의 몇 배)<input id="pMarkup" type="number" step="0.001" min="1" max="5" required></label>
+        <p class="muted small" id="pExample" style="margin:0; align-self:center"></p>
+        <button class="primary" type="submit">저장</button>
+      </form>
+      <p class="muted small">회원 시간당 요금 = Vast 가격 × 환율 × 배율(10원 단위 올림). 저장한 뒤 새로 켜는 GPU부터 적용되고, 사용 중인 GPU는 시작할 때의 요금 그대로입니다. 관리자는 항상 원가(배율 1)입니다.</p>
+    </div>
+
+    <div class="panel">
       <h2>실행 중이거나 최근 GPU</h2>
+      <p class="muted small" id="costLine"></p>
       <div class="table-wrap"><table>
-        <thead><tr><th>회원</th><th>상태</th><th>GPU</th><th class="num">시간당</th><th class="num">Vast $/h</th><th class="num">차감</th><th>시작</th><th>메모</th><th></th></tr></thead>
+        <thead><tr><th>회원</th><th>상태</th><th>GPU</th><th class="num">시간당</th><th class="num">Vast $/h</th><th class="num">차감</th>
+          <th class="num" title="Vast가 실제로 청구한 금액(GPU·디스크·다운로드·업로드) × 환율. 10분마다 갱신, 최근 3일 세션만">실제 원가</th><th class="num">차익</th><th>시작</th><th>메모</th><th></th></tr></thead>
         <tbody id="sessionRows"></tbody>
       </table></div>
     </div>
@@ -84,25 +97,58 @@ async function load() {
       `<td><button class="danger" data-purge="${f.id}" data-email="${esc(f.email)}">영구 삭제</button></td></tr>`).join("")
       || `<tr><td colspan="6" class="muted">없음</td></tr>`;
     const s = d.settings;
-    $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간 · 관리자는 Vast 잔액으로 원가 사용`;
+    if (!priceDirty) { $("pRate").value = Number(s.usd_krw); $("pMarkup").value = Number(s.markup); showExample(); }
+    $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간 · 관리자는 Vast 잔액 − 회원 잔액 안에서 원가 사용`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.email)}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
       `<td>${esc(m.name || "")}</td><td class="num">${won(m.balance_krw)}</td><td>${when(m.created_at)}</td></tr>`).join("");
+    // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
+    const rate = Number(s.usd_krw), admins = new Set(d.members.filter((m) => m.is_admin).map((m) => m.id));
+    const cost = (x) => x.vast_cost_usd == null ? null : Math.round(Number(x.vast_cost_usd) * rate);
+    const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id));
+    const paid = paidRows.reduce((a, x) => a + x.charged_krw, 0), spent = paidRows.reduce((a, x) => a + cost(x), 0);
+    $("costLine").textContent = paidRows.length
+      ? `회원 사용 ${paidRows.length}건: 받은 요금 ${won(paid)} · 실제 Vast 원가 ${won(spent)} · 차익 ${won(paid - spent)}` +
+        (spent > 0 ? ` (원가의 ${(paid / spent).toFixed(2)}배)` : "") + " · 최근 3일, 10분마다 갱신"
+      : "실제 원가는 GPU를 쓴 뒤 10분 안에 Vast 청구 내역에서 채워집니다(최근 3일 세션).";
     $("sessionRows").innerHTML = d.sessions.slice(0, 40).map((x) => {
       const live = ACTIVE.includes(x.status);
+      const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
+      const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;
+      const margin = c == null || mine ? "" : `<span style="color:${x.charged_krw - c < 0 ? "var(--bad)" : "var(--good)"}">${won(x.charged_krw - c)}</span>`;
       const pill = live ? (x.status === "ready" ? "good" : "warn") : (x.status === "failed" ? "bad" : "");
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : ""].filter(Boolean).join(" · ");
       return `<tr><td>${esc(who(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
         `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${won(x.charged_krw)}</td>` +
+        `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td>${when(x.created_at)}</td><td class="small">${esc(note)}</td>` +
         `<td>${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
-    }).join("") || `<tr><td colspan="9" class="muted">없음</td></tr>`;
+    }).join("") || `<tr><td colspan="11" class="muted">없음</td></tr>`;
     $("ledgerRows").innerHTML = d.ledger.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(who(r.user_id, r.former_member))}</td>` +
       `<td>${esc(r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("");
   } catch (e) {
     $("err").textContent = e.message;
   }
 }
+
+// pricing: what an RTX 3060 at $0.0622/h would cost a member with the values being typed (same rounding as the server)
+let priceDirty = false;
+function showExample() {
+  const rate = Number($("pRate").value), markup = Number($("pMarkup").value);
+  $("pExample").textContent = rate > 0 && markup > 0 ? `예: RTX 3060($0.0622/h) → 원가 ${won(Math.round(0.0622 * rate))} · 회원 시간당 ${won(Math.ceil(0.0622 * rate * markup / 10) * 10)}` : "";
+}
+for (const id of ["pRate", "pMarkup"]) $(id).addEventListener("input", () => { priceDirty = true; showExample(); });
+$("priceForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const usd_krw = Number($("pRate").value), markup = Number($("pMarkup").value);
+  if (!confirm(`환율 ${usd_krw.toLocaleString()}원, 회원 가격 ${markup}배로 바꿀까요?\n새로 켜는 GPU부터 적용됩니다.`)) return;
+  try {
+    const r = await api("/admin/settings", { usd_krw, markup });
+    priceDirty = false;
+    toast(`저장했습니다. 환율 ${Number(r.usd_krw).toLocaleString()}원 · 배율 ${Number(r.markup)}배`);
+    load();
+  } catch (e) { toast(e.message, true); }
+};
 
 $("topupForm").onsubmit = async (ev) => {
   ev.preventDefault();
