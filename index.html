@@ -58,10 +58,10 @@
     <div class="wrap app" id="homeView">
       <div class="wallet">
         <div class="grow">
-          <div class="label">내 잔액</div>
+          <div class="label" id="balanceLabel">내 잔액</div>
           <div class="big" id="balance">-</div>
         </div>
-        <p class="note">충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.</p>
+        <p class="note" id="walletNote">충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.</p>
       </div>
 
       <!-- running session -->
@@ -99,7 +99,7 @@
             <tbody id="offerRows"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
-        <div class="small muted" id="pickHint" style="margin-top:14px">GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.</div>
+        <div class="small muted" id="pickHint" style="margin-top:14px">가격대비 성능과 안정성이 좋은 GPU만 추렸습니다. 반응이 느린 먼 지역(중국·호주·미국·유럽 등)은 뺐습니다. 한국에 가까울수록 반응이 빠릅니다.</div>
         <!-- moved under the chosen row while a GPU is picked -->
         <div class="row hidden" id="pickBar">
           <div class="grow small muted" id="pickInfo"></div>
@@ -226,6 +226,7 @@ sb.auth.onAuthStateChange((_event, s) => {
 });
 
 function leave() {
+  vastBalance = null; vastAt = 0;
   entered = false; clearInterval(pollTimer); profile = null; delete $("balance").dataset.v;
   swap(() => { $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
@@ -237,6 +238,7 @@ async function enter() {
 }
 
 // ------------------------------------------------------------------ data
+let vastBalance = null, vastAt = 0;   // admins: the operator's Vast balance is their balance (checked once a minute)
 async function refresh() {
   const [{ data: p }, { data: s }, { data: l }] = await Promise.all([
     sb.from("profiles").select("*").single(),
@@ -245,10 +247,19 @@ async function refresh() {
   ]);
   if (!p) return;
   profile = p;
-  countTo($("balance"), p.balance_krw);
+  if (p.is_admin && Date.now() - vastAt > 60_000) {
+    vastAt = Date.now();
+    api("/admin/vast").then((v) => { vastBalance = v; refresh(); }).catch(() => {});
+  }
+  const balance = p.is_admin && vastBalance?.krw != null ? vastBalance.krw : p.balance_krw;
+  countTo($("balance"), balance);
+  $("balanceLabel").textContent = p.is_admin && vastBalance?.krw != null ? `Vast 잔액 · $${vastBalance.usd.toFixed(2)}` : "내 잔액";
+  $("walletNote").textContent = p.is_admin
+    ? "관리자는 Vast 잔액으로 바로 씁니다. 사이트 잔액에서는 차감되지 않고, Vast에 잔액이 남아 있는 동안 계속 쓸 수 있습니다."
+    : "충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.";
   $("who").textContent = p.name || p.email;
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
-  $("meBalance").textContent = won(p.balance_krw);
+  $("meBalance").textContent = won(balance);
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   $("adminLink").classList.toggle("hidden", !p.is_admin);
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
@@ -336,7 +347,8 @@ function updatePick(cell) {
 }
 $("startButton").onclick = async () => {
   if (!picked) return;
-  const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, 1분 단위로 잔액에서 차감됩니다.\n준비(3~6분) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.\n\n시작할까요?`;
+  const pay = profile?.is_admin ? "Vast 잔액에서 바로 나갑니다(원가)" : "1분 단위로 잔액에서 차감됩니다";
+  const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(3~6분) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.\n\n시작할까요?`;
   if (!confirm(msg)) return;
   $("startButton").disabled = true; $("startError").textContent = "";
   try {
@@ -345,7 +357,7 @@ $("startButton").onclick = async () => {
     await refresh();
   } catch (err) {
     $("startError").textContent = err.message;
-    if (/빌려 갔|가격이 올랐/.test(err.message)) loadOffers();
+    if (/빌려 갔|가격이 올랐|목록에서/.test(err.message)) loadOffers();
   } finally { $("startButton").disabled = !picked; }
 };
 
@@ -412,7 +424,7 @@ $("pwForm").onsubmit = (ev) => {
 $("leaveForm").onsubmit = (ev) => {
   ev.preventDefault();
   $("leaveError").textContent = "";
-  const left = profile?.balance_krw > 0 ? `\n남은 잔액 ${won(profile.balance_krw)}은 탈퇴와 함께 사라집니다. 환불이 필요하면 탈퇴하기 전에 관리자에게 요청하세요.` : "";
+  const left = profile?.balance_krw > 0 ? `\n남은 잔액 ${won(profile.balance_krw)}은 운영자에게 넘어가며 돌려받을 수 없습니다. 환불이 필요하면 탈퇴하기 전에 관리자에게 요청하세요.` : "";
   if (!confirm(`정말 탈퇴할까요? 이 계정으로 다시 로그인할 수 없습니다.${left}`)) return;
   busy(ev.target, async () => {
     try {

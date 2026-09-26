@@ -48,6 +48,15 @@
     </div>
 
     <div class="panel">
+      <h2>탈퇴 회원</h2>
+      <p class="muted small">탈퇴한 회원의 사용·입출금 기록은 여기에 남습니다. 남은 잔액은 탈퇴할 때 관리자 계정으로 넘어옵니다. 영구 삭제하면 그 회원의 기록이 모두 지워지고 되돌릴 수 없습니다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>이메일</th><th>이름</th><th>가입</th><th>탈퇴</th><th class="num">넘어온 잔액</th><th></th></tr></thead>
+        <tbody id="formerRows"></tbody>
+      </table></div>
+    </div>
+
+    <div class="panel">
       <h2>최근 입출금</h2>
       <div class="table-wrap"><table>
         <thead><tr><th>시각</th><th>회원</th><th>종류</th><th>내용</th><th class="num">금액</th></tr></thead>
@@ -60,16 +69,22 @@
 import { $, api, esc, sb, toast, when, won } from "./app.js";
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
-let emails = {};
-const who = (id) => (id ? emails[id] || "?" : "탈퇴 회원");   // records of deleted accounts are kept without a member
+let emails = {}, formers = {};
+// records of deleted accounts keep no member id; former_member says whose they were
+const who = (id, former) => (id ? emails[id] || "?" : `탈퇴: ${formers[former] || "?"}`);
 
 async function load() {
   $("err").textContent = "";
   try {
     const d = await api("/admin/overview");
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
+    formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
+    $("formerRows").innerHTML = d.former.map((f) => `<tr><td>${esc(f.email)}</td><td>${esc(f.name || "")}</td><td>${when(f.joined_at)}</td>` +
+      `<td>${when(f.left_at)}</td><td class="num">${won(f.balance_moved_krw)}</td>` +
+      `<td><button class="danger" data-purge="${f.id}" data-email="${esc(f.email)}">영구 삭제</button></td></tr>`).join("")
+      || `<tr><td colspan="6" class="muted">없음</td></tr>`;
     const s = d.settings;
-    $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
+    $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간 · 관리자는 Vast 잔액으로 원가 사용`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.email)}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
       `<td>${esc(m.name || "")}</td><td class="num">${won(m.balance_krw)}</td><td>${when(m.created_at)}</td></tr>`).join("");
     $("sessionRows").innerHTML = d.sessions.slice(0, 40).map((x) => {
@@ -77,12 +92,12 @@ async function load() {
       const pill = live ? (x.status === "ready" ? "good" : "warn") : (x.status === "failed" ? "bad" : "");
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : ""].filter(Boolean).join(" · ");
-      return `<tr><td>${esc(who(x.user_id))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
+      return `<tr><td>${esc(who(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
         `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${won(x.charged_krw)}</td>` +
         `<td>${when(x.created_at)}</td><td class="small">${esc(note)}</td>` +
         `<td>${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
     }).join("") || `<tr><td colspan="9" class="muted">없음</td></tr>`;
-    $("ledgerRows").innerHTML = d.ledger.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(who(r.user_id))}</td>` +
+    $("ledgerRows").innerHTML = d.ledger.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(who(r.user_id, r.former_member))}</td>` +
       `<td>${esc(r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("");
   } catch (e) {
     $("err").textContent = e.message;
@@ -105,6 +120,14 @@ $("sessionRows").onclick = async (ev) => {
   if (!confirm("이 GPU를 강제로 종료(삭제)할까요?")) return;
   ev.target.disabled = true;
   try { const r = await api("/admin/stop", { session_id: id }); toast(r.stopped ? "삭제를 확인했습니다." : "삭제 요청을 보냈습니다. 1분 점검이 계속 확인합니다."); }
+  catch (e) { toast(e.message, true); }
+  load();
+};
+$("formerRows").onclick = async (ev) => {
+  const id = ev.target.dataset?.purge; if (!id) return;
+  if (!confirm(`${ev.target.dataset.email}의 사용·입출금 기록을 모두 영구 삭제할까요?\n되돌릴 수 없습니다.`)) return;
+  ev.target.disabled = true;
+  try { const r = await api("/admin/purge", { former_id: id }); toast(`${r.deleted}의 기록을 영구 삭제했습니다.`); }
   catch (e) { toast(e.message, true); }
   load();
 };
