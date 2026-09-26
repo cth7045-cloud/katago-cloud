@@ -100,6 +100,47 @@ tr.sel td { background: #cfe3ff; }
 .dlg-list td { line-height: 30px; white-space: nowrap; }
 .dlg-list tbody tr:hover td { background: #e6f0ff; }
 
+/* strength estimate window (YZY PlayerStrength dashboard, warm paper look) */
+#strengthDlg { width: min(1000px, calc(100vw - 16px)); max-height: 92dvh; padding: 0; border: 1px solid #d9ccb4; border-radius: 14px;
+  background: #f6efe2; color: #2b2419; box-shadow: 0 18px 60px rgba(0,0,0,.45); }
+#strengthDlg[open] { display: flex; flex-direction: column; }
+#strengthDlg::backdrop { background: rgba(0,0,0,.35); }
+.sp-top { display: flex; align-items: center; gap: 14px; padding: 18px 22px 6px; flex-wrap: wrap; }
+.sp-top h2 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: .02em; }
+.sp-top .spacer { flex: 1; }
+.sp-top label { display: grid; font-size: 12px; color: #8a7a60; gap: 2px; }
+.sp-top select { min-width: 210px; background: #fbf7ef; border: 1px solid #d9ccb4; border-radius: 8px; padding: 6px 8px; font-weight: 600; }
+.sp-top button { background: #fbf7ef; border-color: #d9ccb4; border-radius: 8px; padding: 6px 14px; }
+.sp-sub { padding: 0 22px 10px; color: #8a7a60; font-size: 13px; }
+.sp-msg { margin: 0 22px 10px; padding: 10px 14px; border-radius: 10px; background: #fbf7ef; border: 1px solid #e6dccb; color: #6b5d45; }
+.sp-msg.bad { color: #b3261e; }
+.sp-msg:empty { display: none; }
+.sp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 22px; overflow: auto; min-height: 0; }
+.sp-card { background: #fbf7ef; border: 1px solid #e6dccb; border-radius: 14px; padding: 18px 20px; display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 18px; }
+.sp-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; }
+.sp-head img { width: 76px; height: 76px; }
+.sp-side { font-size: 20px; font-weight: 700; }
+.sp-rank { font: 700 36px/1.1 'Open Sans', var(--ui-font); margin-top: 6px; }
+.sp-card.white .sp-rank { color: #b9731b; }
+.sp-conf { color: #8a7a60; margin-top: 4px; }
+.sp-metric { display: grid; grid-template-columns: 1fr; margin-bottom: 8px; }
+.sp-metric span { color: #6b5d45; font-size: 13px; }
+.sp-metric b { font-size: 15px; }
+.sp-bar { height: 8px; border-radius: 4px; background: #e8e0d0; margin-top: 2px; overflow: hidden; }
+.sp-bar i { display: block; height: 100%; border-radius: 4px; background: #3f7f5c; }
+.sp-bar.loss i { background: #c08a3a; }
+.sp-scale { border: 1px solid #e6dccb; border-radius: 12px; padding: 10px; display: grid; gap: 4px; align-content: start; }
+.sp-scale h4 { margin: 0 0 4px; font-size: 12px; font-weight: 400; color: #8a7a60; }
+.sp-scale div { display: grid; grid-template-columns: 38px 1fr; padding: 12px 8px; border-radius: 8px; font-size: 13px; }
+.sp-scale div.on { background: #efe3cc; font-weight: 700; }
+.sp-note { margin: 14px 22px 18px; padding: 10px 14px; border: 1px solid #e6dccb; border-radius: 10px; color: #6b5d45; font-size: 13px; }
+@media (max-width: 760px) {
+  .sp-cards { grid-template-columns: 1fr; }
+  .sp-card { grid-template-columns: 1fr; }
+  .sp-rank { font-size: 24px; }
+  .sp-head img { width: 56px; height: 56px; }
+}
+
 /* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
 @media (orientation: portrait) {
   body { grid-template-rows: auto auto minmax(0, 1fr); }
@@ -135,6 +176,7 @@ tr.sel td { background: #cfe3ff; }
   </details>
   <button id="newGame">신규대국</button>
   <button id="kifuOpen">기보 불러오기</button>
+  <button id="strengthOpen">강도 추정</button>
   <label class="check">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
   <label class="check"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check"><input type="checkbox" id="showCands" checked> 후보수보기</label>
@@ -157,6 +199,19 @@ tr.sel td { background: #cfe3ff; }
   </form>
   <div class="dlg-msg" id="kifuMsg"></div>
   <div class="dlg-list"><table><thead><tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr></thead><tbody id="kifuRows"></tbody></table></div>
+</dialog>
+
+<dialog id="strengthDlg" aria-label="강도 추정">
+  <div class="sp-top">
+    <h2>강도 추정</h2>
+    <span class="spacer"></span>
+    <label>강도 모델<select id="strengthModel"></select></label>
+    <button id="strengthClose">닫기</button>
+  </div>
+  <div class="sp-sub">분석된 주 변화(main-line)를 기반으로 하며 검토 참고용으로만 사용됩니다.</div>
+  <div class="sp-msg" id="strengthMsg"></div>
+  <div class="sp-cards" id="strengthCards"></div>
+  <div class="sp-note">이 추정치는 YZY(LizzieYzy Next)의 XGBoost 강도 모델로 계산합니다. 수마다 KataGo 500 visits로 분석한 결과를 쓰며, 공식 기력이 아니라 검토 참고용입니다.</div>
 </dialog>
 
 <div class="main">
@@ -290,7 +345,10 @@ function connect() {
     send({id: "ver", action: "query_version"}); ping();
     if (analyzing) requestLive();
   };
-  ws.onclose = () => { $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중"; setTimeout(connect, 2000); };
+  ws.onclose = () => {
+    $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중"; setTimeout(connect, 2000);
+    if (strengthId) { queries.delete(strengthId); strengthId = null; strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '강도 추정'을 눌러 이어서 분석하세요.", true); }
+  };
   ws.onmessage = ev => onMessage(JSON.parse(ev.data));
 }
 function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
@@ -325,11 +383,14 @@ function onMessage(msg) {
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; return; }
   const q = queries.get(msg.id);
   if (!q || !msg.rootInfo) return;
-  if (q.line) {  // auto analysis: one response per turn
+  if (q.line) {  // auto analysis / strength estimate: one response per turn
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
-    autoDone++; $("autoAnalyze").textContent = `자동분석 ${autoDone}/${q.line.length}`;
-    if (autoDone >= q.line.length) stopAuto();
+    if (q.strength) strengthStep(q);
+    else {
+      autoDone++; $("autoAnalyze").textContent = `자동분석 ${autoDone}/${q.line.length}`;
+      if (autoDone >= q.line.length) stopAuto();
+    }
   } else {
     store(q.node, msg, msg.id);
     // visits/s like YZY's title bar: measured from this query's first report so network delay drops out
@@ -548,6 +609,93 @@ $("kifuRows").addEventListener("click", async ev => {
 ${g.result} · ${g.date}`; schedule(); }
   $("kifuDlg").close();
 });
+
+// ------------------------------------------------------------------ 강도 추정 (YZY PlayerStrengthEstimator, assets/strength.js)
+// Works where assets/ has strength.js and the models (the website); the GPU's own page only serves the board images.
+const STRENGTH_VISITS = 500;   // YZY's current model was trained on 500-visit analyses (xgb-distill-v500-m210)
+let strengthLib = null, strengthModels = null, strengthId = null;
+function strengthMsg(text, bad = false) { $("strengthMsg").textContent = text; $("strengthMsg").classList.toggle("bad", bad); }
+function strengthPosition(node) {   // YZY BoardData/MoveData view: every value from the side to move
+  const cands = candidates(node), st = nodeStats(node);
+  if (!st || !cands.length) return null;
+  return {wr: st.wr, lead: st.score,
+          cands: cands.map(m => ({move: m.move, wr: moverWr(node, m.winrate), lead: moverLead(node, m.scoreLead), prior: m.prior, order: m.order}))};
+}
+function stopStrength() {
+  if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
+  queries.delete(strengthId); strengthId = null;
+}
+async function openStrength() {
+  $("strengthDlg").showModal();
+  if (!strengthModels) {
+    strengthMsg("강도 모델을 불러오는 중…");
+    try {
+      strengthLib = await import("./assets/strength.js");
+      strengthModels = await strengthLib.loadModels("assets/strength-models.json");
+      $("strengthModel").innerHTML = strengthModels.map((m, i) => `<option value="${i}">${escHtml(m.name)}</option>`).join("");
+    } catch (err) {
+      strengthMsg("강도 모델을 불러오지 못했습니다. 웹사이트의 분석 화면에서 다시 열어 주세요. (" + err.message + ")", true); return;
+    }
+  }
+  if (strengthId) return;   // still analysing: the progress message is up to date
+  const line = lineThrough(root);
+  if (line.length < 2) { $("strengthCards").innerHTML = ""; strengthMsg("기보에 수가 없습니다. 기보를 열거나 수를 둔 뒤 다시 누르세요."); return; }
+  const turns = line.map((_, i) => i).filter(i => !(line[i].analysis && line[i].analysis.rootInfo.visits >= STRENGTH_VISITS));
+  if (!turns.length) return renderStrength();
+  strengthId = "s" + (++qn);
+  const q = {line, strength: true, todo: turns.length, done: 0};
+  queries.set(strengthId, q);
+  if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
+             analyzeTurns: turns, maxVisits: STRENGTH_VISITS})) {
+    queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
+  }
+  $("strengthCards").innerHTML = "";
+  strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${STRENGTH_VISITS} visits)`);
+}
+function strengthStep(q) {
+  q.done++;
+  strengthMsg(`주 변화 ${q.line.length - 1}수를 분석하는 중… ${q.done}/${q.todo} (수마다 ${STRENGTH_VISITS} visits)`);
+  if (q.done >= q.todo) { queries.delete(strengthId); strengthId = null; renderStrength(); }
+}
+function renderStrength() {
+  if (!strengthLib || !strengthModels) return;
+  const line = lineThrough(root);
+  const moves = line.map(n => n.move ? {color: n.move.c, move: n.move.pass ? "pass" : gtp(n.move.x, n.move.y), number: n.depth} : null);
+  const model = strengthModels[+$("strengthModel").value || 0];
+  const r = strengthLib.estimate(line.map(strengthPosition), moves, model);
+  if (r.overall.sampleCount < strengthLib.MIN_REPORT_SAMPLES) {
+    $("strengthCards").innerHTML = "";
+    strengthMsg(`분석된 수가 ${r.overall.sampleCount}수뿐이라 추정할 수 없습니다. 최소 ${strengthLib.MIN_REPORT_SAMPLES}수가 필요합니다.`, true); return;
+  }
+  strengthMsg("");
+  const conf = {high: "높음", medium: "중간", low: "낮음"};
+  const bar = (fill, loss = false) => `<div class="sp-bar${loss ? " loss" : ""}"><i style="width:${Math.round(Math.max(0, Math.min(1, fill)) * 100)}%"></i></div>`;
+  const pct = v => Math.round(v * 100) + "%";
+  const card = (s, side, cls, img) => {
+    const v = s.rankValue, band = v >= 12 ? 0 : v >= 11 ? 1 : v >= 10 ? 2 : 3;
+    const scale = [["12+", "세미-god/AI"], ["11+", "최고의 프로"], ["10+", "전문가"], ["&lt;10", "아마추어 순위"]]
+      .map(([k, t], i) => `<div class="${i === band ? "on" : ""}"><span>${k}</span><span>${t}</span></div>`).join("");
+    return `<div class="sp-card ${cls}">
+      <div class="sp-head"><img src="assets/${img}" alt=""><div><div class="sp-side">${side}</div>
+        <div class="sp-rank">${escHtml(strengthLib.formatRank(v))}</div><div class="sp-conf">자신감: ${conf[s.confidence]}</div></div></div>
+      <div>
+        <div class="sp-metric"><span>이동</span><b>${s.sampleCount}</b>${bar(s.sampleCount / 240)}</div>
+        <div class="sp-metric"><span>AI 최고의 선택</span><b>${pct(s.firstChoiceRate)}</b>${bar(s.firstChoiceRate)}</div>
+        <div class="sp-metric"><span>좋은 움직임</span><b>${pct(s.goodMoveRate)}</b>${bar(s.goodMoveRate)}</div>
+        <div class="sp-metric"><span>평균 점수 손실</span><b>${s.scoreSampleCount ? s.averageScoreLoss.toFixed(1) : "-"}</b>${bar(1 - s.averageScoreLoss / 8, true)}</div>
+        <div class="sp-metric"><span>가중 점수 손실</span><b>${s.weightedScoreLoss.toFixed(1)}</b>${bar(1 - s.weightedScoreLoss / 8, true)}</div>
+      </div>
+      <div class="sp-scale"><h4>점수 척도</h4>${scale}</div>
+    </div>`;
+  };
+  $("strengthCards").innerHTML = (r.black.sampleCount ? card(r.black, "흑성능", "black", "black0.png") : "") +
+                                 (r.white.sampleCount ? card(r.white, "백성능", "white", "white0.png") : "");
+}
+$("strengthOpen").onclick = openStrength;
+$("strengthModel").onchange = renderStrength;
+$("strengthClose").onclick = () => $("strengthDlg").close();
+$("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strengthDlg")) $("strengthDlg").close(); });   // backdrop
+$("strengthDlg").addEventListener("close", stopStrength);   // closing stops the GPU work; reopening resumes what is left
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
 function candidates(node) {

@@ -13,6 +13,12 @@ panels) so it looks the same as the desktop program.
   LizzieFrame.java, WinrateGraph.java and VariationTree.java (GPL-3.0).
   Therefore remote/webui.html is distributed under the GNU GPL v3.0 as well.
   The full license text is in LICENSE-GPL-3.0.txt next to this file.
+* strength.js, strength-models.json (analysis screen "강도 추정")
+  strength.js ports LizzieYzy Next's PlayerStrengthEstimator.java, XGBoostStrengthModel.java,
+  XGBoost20TunResidualCalibrator.java and PlayerStrengthRankFormatter.java (GPL-3.0).
+  strength-models.json holds the same project's bundled models (src/main/resources/models/strength/
+  xgboost20tun[_previous]_booster.json and _residual_calibrator.json) with only the fields the Java
+  scorer reads (trees: left/right children, split indices/conditions, default_left; calibrator spec).
 * OpenSans-Semibold.ttf
   Open Sans, Copyright Google Inc., Apache License 2.0
   (bundled with LizzieYzy Next as its win-rate font).
