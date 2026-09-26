@@ -127,7 +127,20 @@ async function load() {
         `<td>${when(x.created_at)}</td><td class="small">${esc(note)}</td>` +
         `<td>${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
     }).join("") || `<tr><td colspan="11" class="muted">없음</td></tr>`;
-    $("ledgerRows").innerHTML = d.ledger.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(who(r.user_id, r.former_member))}</td>` +
+    // sessions before 2026-09-27 wrote one usage row per minute: show one row per rental like the new ones.
+    // A usage row belongs to the member's session running at that time (a member has one GPU at a time).
+    const t = (v) => new Date(v).getTime();
+    const sessionOf = (r) => d.sessions.find((x) => (r.user_id ? x.user_id === r.user_id : x.former_member === r.former_member) &&
+      t(x.created_at) <= t(r.created_at) && (!x.stopped_at || t(r.created_at) <= t(x.stopped_at) + 120_000))?.id;
+    const rows = [], bySession = {};
+    for (const r of d.ledger) {
+      const sid = r.kind === "usage" ? sessionOf(r) : null, g = sid && bySession[sid];
+      if (!g) { const c = { ...r }; rows.push(c); if (sid) bySession[sid] = c; continue; }
+      g.amount_krw += r.amount_krw;
+      g.mins = (g.mins ?? Number(/(\d+)분/.exec(g.note)?.[1] ?? 0)) + Number(/(\d+)분/.exec(r.note)?.[1] ?? 0);
+      g.note = g.note.replace(/\d+분/, `${g.mins}분`);
+    }
+    $("ledgerRows").innerHTML = rows.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(who(r.user_id, r.former_member))}</td>` +
       `<td>${esc(r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("");
   } catch (e) {
     $("err").textContent = e.message;
