@@ -215,12 +215,12 @@ export function formatRank(rankValue) {
   if (v >= 12) return `${t(v)} 세미-god/AI`;
   if (v >= 11) return `${t(v)} 최고의 프로`;
   if (v >= 10) return `${t(v)} 전문가`;
-  if (v >= 1) return `Fox ${t(v)} dan`;
-  return `Fox ${t(Math.max(1, 2 - v))} kyu`;   // there is no 0 dan: just below 1 dan is 1 kyu
+  if (v >= 1) return `${t(v)}단`;
+  return `${t(Math.max(1, 2 - v))}급`;   // there is no 0 dan: just below 1 dan is 1 kyu
 }
 
 export async function loadModels(url) {
   const r = await fetch(url);
-  if (!r.ok) throw new Error(`강도 모델을 불러오지 못했습니다 (${r.status})`);
+  if (!r.ok) throw new Error(`평가 모델을 불러오지 못했습니다 (${r.status})`);
   return (await r.json()).models;
 }

@@ -15,156 +15,279 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet">
 <style>
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css");
+/* Same look as the website (web/style.css): bright paper, white cards, pill buttons, SUIT.
+   The boards themselves are drawn exactly like YZY and are left alone. */
 :root {
-  --bar: #f0f0f0; --bar-line: #c9c9c9; --bar-text: #1a1a1a;
-  --btn: #eef3fb; --btn-line: #9db2d3; --btn-text: #1a2a44; --btn-on: #cfe0fb;
-  --btn-pink: #fdeef2; --btn-pink-line: #e3a9b9;
-  --ui-font: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+  color-scheme: light;
+  --paper: #f3f5f9; --panel: #ffffff; --ink: #171a22; --muted: #687082; --line: #e8ebf2; --soft: #f1f4f9;
+  --blue: #2c5cf6; --blue-deep: #1f47d6; --cyan: #16c1dc; --cyan-soft: #e3f8fb; --good: #1f9d55; --bad: #e0484d;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --shadow: 0 1px 2px rgba(23, 26, 34, .04), 0 12px 30px -16px rgba(44, 92, 246, .16);
+  --ui-font: "SUIT Variable", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { font: 13px/1.35 var(--ui-font); color: var(--bar-text); overflow: hidden;
-  background: rgb(38, 38, 42) url("assets/background.jpg") repeat;
-  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100dvh; -webkit-text-size-adjust: 100%; }
-button, select, input { font: inherit; color: var(--btn-text); }
-button { background: var(--btn); border: 1px solid var(--btn-line); border-radius: 4px; padding: 3px 12px; min-height: 28px; white-space: nowrap; cursor: pointer; }
-button:hover { background: #e2ebf8; }
-button.on { background: var(--btn-on); border-color: #5f8fd6; }
-button.pink { background: var(--btn-pink); border-color: var(--btn-pink-line); }
-select, input[type=number], input[type=text] { background: #fff; border: 1px solid #b9b9b9; border-radius: 3px; padding: 2px 5px; min-height: 26px; }
-input[type=number] { width: 62px; }
-label.check { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+body { font: 14px/1.4 var(--ui-font); color: var(--ink); overflow: hidden; background: var(--paper);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100dvh; -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
+button, select, input { font: inherit; color: var(--ink); }
+button { font-weight: 600; background: var(--soft); border: 0; border-radius: 999px; padding: 5px 14px; min-height: 34px; white-space: nowrap; cursor: pointer;
+  transition: transform .18s var(--ease), background-color .18s, color .18s; }
+button:hover { background: #e7ebf3; }
+button:active { transform: scale(.96); }
+button.on { background: var(--cyan-soft); color: var(--blue-deep); box-shadow: inset 0 0 0 1px rgba(22, 193, 220, .45); }
+button.pink { background: #fdeced; color: var(--bad); }
+button.pink:hover { background: #fbdcde; }
+#analyze { background: var(--blue); color: #fff; box-shadow: 0 8px 20px -10px rgba(44, 92, 246, .7); }
+#analyze:hover { background: var(--blue-deep); }
+#analyze.on { background: var(--ink); box-shadow: none; }
+:focus-visible { outline: 3px solid rgba(44, 92, 246, .35); outline-offset: 2px; }
+select, input[type=number], input[type=text] { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; min-height: 34px; }
+select:focus, input[type=number]:focus, input[type=text]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(44, 92, 246, .14); }
+input[type=number] { width: 68px; }
+input[type=checkbox] { accent-color: var(--blue); width: 16px; height: 16px; margin: 0; }
+label.check { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 500; color: var(--muted); }
 
-/* Swing-like light bars (top / bottom) */
-.menubar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: var(--bar); border-bottom: 1px solid var(--bar-line);
-  overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+/* frosted top / bottom bars, like the website's */
+.menubar, .toolbar { background: rgba(255, 255, 255, .78); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+.menubar { position: relative; z-index: 20; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid rgba(23, 26, 34, .06);
+  flex-wrap: wrap; row-gap: 6px; white-space: nowrap; }
 .menubar > * { flex: none; }
 .menubar .spacer { flex: 1 1 auto; }
-.status { display: inline-flex; align-items: center; gap: 6px; color: #555; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #d33; }
-.dot.on { background: #2e9d4a; }
+.brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
+.mark { position: relative; width: 24px; height: 16px; flex: none; }
+.mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
+.mark::before { left: 0; background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
+.mark::after { left: 8px; background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
+.status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.status:not(:empty) { background: var(--soft); border-radius: 999px; padding: 5px 12px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+.dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(31, 157, 85, .16); }
 details.menu { position: relative; }
-details.menu > summary { list-style: none; cursor: pointer; padding: 3px 12px; border-radius: 3px; }
+details.menu > summary { list-style: none; cursor: pointer; padding: 5px 14px; min-height: 34px; display: inline-flex; align-items: center;
+  border-radius: 999px; font-weight: 600; background: var(--soft); transition: background-color .18s; }
 details.menu > summary::-webkit-details-marker { display: none; }
-details.menu[open] > summary, details.menu > summary:hover { background: #dde6f3; }
-details.menu .items { position: fixed; z-index: 30; margin-top: 4px; background: #fbfbfb; border: 1px solid #b9b9b9; padding: 3px; display: grid; min-width: 170px; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
-details.menu .items button { border: 0; background: transparent; text-align: left; border-radius: 2px; }
-details.menu .items button:hover { background: #dde6f3; }
-.toolbar { display: flex; gap: 4px; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); background: var(--bar); border-top: 1px solid var(--bar-line);
-  overflow-x: auto; align-items: center; scrollbar-width: thin; }
+details.menu[open] > summary, details.menu > summary:hover { background: #e7ebf3; }
+details.menu .items { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; background: var(--panel); border-radius: 14px; padding: 6px; display: grid; min-width: 180px;
+  box-shadow: 0 2px 6px rgba(23, 26, 34, .06), 0 20px 40px -12px rgba(23, 26, 34, .25); }
+details.menu .items button { background: transparent; text-align: left; border-radius: 10px; justify-content: flex-start; }
+details.menu .items button:hover { background: var(--soft); }
+.toolbar { display: flex; gap: 6px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(23, 26, 34, .06);
+  flex-wrap: wrap; align-items: center; }
 .toolbar > * { flex: none; }
-.toolbar .sep { width: 10px; }
+.toolbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0; }
+.toolbar { gap: 4px; }
+.toolbar button, .toolbar label.check { font-size: 13px; }
+.toolbar button { padding: 5px 11px; }
+#first, #back10, #back, #fwd, #fwd10, #last { padding-inline: 9px; min-width: 34px; }
+#moveNo { width: 52px; }
+#nums { min-width: 84px; }   /* 수순 / 전체 수순 / 마지막 수: same width, so the bar never re-wraps */   /* one row on a usual laptop width; wraps (never scrolls) when narrower */
 #moveNo { width: 62px; text-align: center; }
-.error { color: #c62828; padding-left: 6px; }
+#menuOpen { display: none; }
 
-/* main area: left panels | board | right panels (drawn over the wallpaper like YZY) */
-.main { display: grid; grid-template-columns: 24% minmax(0, 1fr) 24%; min-height: 0; gap: 0; }
-.left, .right { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.cv-box { position: relative; min-height: 0; }
+/* menu sheet (portrait only): the tools that don't fit under the board, moved here by placeMenuItems() */
+dialog.sheet { margin: 0 0 0 auto; width: min(340px, 88vw); height: 100dvh; max-height: 100dvh; border-radius: 24px 0 0 24px; }
+dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .35s var(--ease); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(48px); } }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: calc(14px + env(safe-area-inset-top)) 14px 6px 22px; }
+.sheet-head b { font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+#menuBody { overflow: auto; padding: 0 10px calc(16px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+#menuBody section { padding: 6px 0; }
+#menuBody section + section { border-top: 1px solid var(--line); }
+#menuBody h3 { margin: 8px 12px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+#menuBody section > button, #menuBody section > label { display: flex; width: 100%; align-items: center; justify-content: flex-start; gap: 14px;
+  min-height: 48px; padding: 0 12px; border-radius: 14px; background: transparent; box-shadow: none; color: var(--ink); font-size: 15px; font-weight: 600; cursor: pointer; }
+#menuBody section > :hover { background: var(--soft); }
+#menuBody section > ::before { content: ""; flex: none; width: 22px; height: 22px; background: var(--muted);
+  -webkit-mask: var(--i) center / 22px no-repeat; mask: var(--i) center / 22px no-repeat; }
+#menuBody section > button.on { background: var(--cyan-soft); color: var(--blue-deep); }
+#menuBody section > button.on::before { background: var(--blue); }
+#menuBody section > button.pink { color: var(--bad); }
+#menuBody section > button.pink::before { background: var(--bad); }
+#menuBody label > input, #menuBody label > select { order: 2; margin-left: auto; }
+#menuBody input[type=checkbox] { width: 20px; height: 20px; }
+#menuBody #openSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
+#menuBody #saveSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
+#menuBody #copySgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h8'/></svg>"); }
+#menuBody #pasteSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='4' width='14' height='17' rx='2'/><path d='M9 4V3h6v1M9 11h6M9 15h4'/></svg>"); }
+#menuBody #kifuOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8M12 12v8M9 17l3 3 3-3'/></svg>"); }
+#menuBody #newGame { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
+#menuBody #handicapLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='7' cy='7' r='3'/><circle cx='17' cy='7' r='3'/><circle cx='7' cy='17' r='3'/><circle cx='17' cy='17' r='3'/></svg>"); }
+#menuBody #komiLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 4v8M8 8h8M8 19h8'/></svg>"); }
+#menuBody #pass { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h12M12 7l5 5-5 5M20 5v14'/></svg>"); }
+#menuBody #autoAnalyze { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 20h18M6 17v-5M11 17V7M16 17v-8'/></svg>"); }
+#menuBody #strengthOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='9' r='6'/><path d='M8.5 14 7 22l5-3 5 3-1.5-8'/></svg>"); }
+#menuBody #ownerLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 3v18'/></svg>"); }
+#menuBody #candsLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='3'/></svg>"); }
+#menuBody #nums { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7h2v10M4 17h4M11 7h4v5h-4v5h4M18 7h3v10h-3M18 12h3'/></svg>"); }
+#menuBody #coords { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='7'/><path d='M12 2v4M12 18v4M2 12h4M18 12h4'/></svg>"); }
+#menuBody #promote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20V8M7 13l5-5 5 5M5 4h14'/></svg>"); }
+#menuBody #deleteNode { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'/></svg>"); }
+#menuBody #autoVisitsLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 14l4-4M3.5 18a9 9 0 1 1 17 0'/></svg>"); }
+#menuBody #placeLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='10' cy='13' r='6'/><path d='M19 3v6M16 6h6'/></svg>"); }
+#barLabel, #graphLabel { display: none; }   /* portrait menu only (the landscape screen always shows both) */
+#menuBody #barLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='9' width='18' height='6' rx='1'/><path d='M12 9v6'/></svg>"); }
+#menuBody #graphLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 3v18h18'/><path d='M7 14l4-4 3 3 5-6'/></svg>"); }
+#menuBody #resetBoard { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5'/></svg>"); }
+.error { color: var(--bad); padding-left: 6px; }
+.error:empty { display: none; }
+
+/* main area: left cards | board | right cards */
+.main { display: grid; grid-template-columns: 24% minmax(0, 1fr) 24%; min-height: 0; gap: 12px; padding: 12px; }
+.left, .right { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.cv-box, .comment, #treeBox, .table-box, .mini-box { background: var(--panel); border-radius: 18px; box-shadow: var(--shadow); }
+.cv-box { position: relative; min-height: 0; overflow: hidden; }
 .cv-box > canvas { position: absolute; inset: 0; display: block; }
-#capBox { flex: 0 0 12.5%; min-height: 86px; }
+#capBox { flex: 0 0 11%; min-height: 80px; }
 #statBox { flex: 0 0 10%; min-height: 70px; }
 #graphBox { flex: 1 1 auto; min-height: 110px; cursor: pointer; }
-.comment { flex: 0 0 33%; min-height: 120px; margin: 4px 0 0; background: rgba(0,0,0,.78); border-radius: 12px 12px 0 0; color: #fff; display: flex; flex-direction: column; }
-.tabs { display: flex; gap: 22px; padding: 10px 22px 0; font-size: 14px; }
-.tabs span { padding-bottom: 5px; color: #9a9a9a; }
-.tabs span.on { color: #fff; border-bottom: 2px solid #4b8bf5; }
-#comment { flex: 1; overflow: auto; padding: 10px 12px; white-space: pre-wrap; font-size: 17px; line-height: 1.55; }
-.engine-status { padding: 2px 2px 4px; color: #fff; font-size: 18px; line-height: 1.5; text-shadow: 0 1px 2px #000; }
-.engine-status div { background: rgba(0,0,0,.45); display: inline-block; padding: 0 3px; }
+.comment { flex: 0 0 30%; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
+.comment { flex: 1 1 auto; }
+#gameInfo { padding: 14px 18px 10px; display: grid; gap: 4px; border-bottom: 1px solid var(--line); }
+.gi-row { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 15px; }
+.gi-row b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gi-row span { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.gi-row.quiet b { color: var(--muted); font-weight: 600; }
+.gi-stone { flex: none; width: 14px; height: 14px; border-radius: 50%; }
+.gi-stone.b { background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
+.gi-stone.w { background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .18); }
+.gi-meta { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.gi-meta b { color: var(--ink); font-weight: 700; }
+.engine-line { padding: 10px 18px 0; font-size: 13px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+#engineName { color: var(--ink); font-weight: 650; }
+#comment { flex: 1; overflow: auto; padding: 8px 18px 14px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
+/* empty panels say what will appear there */
+.table-box { position: relative; }
+[data-empty]::after { content: attr(data-empty); position: absolute; inset: 0; display: grid; place-items: center; padding: 0 18px;
+  text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+.table-box[data-empty]::after { top: 34px; }
+[hidden] { display: none !important; }
+#gpuMeter { gap: 8px; padding-right: 5px; }
+#gpuMeter button { min-height: 26px; padding: 2px 10px; font-size: 12px; }
 .center { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
-#board { display: block; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+#board { display: block; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
+  box-shadow: 0 2px 4px rgba(90, 60, 20, .12), 0 30px 60px -24px rgba(120, 80, 20, .45); }
 .main { touch-action: pan-x pan-y; }   /* two-finger gestures instead of pinch zoom */
-#treeBox { flex: 0 0 26%; min-height: 90px; overflow: auto; background: rgba(0,0,0,.51); position: relative; }
+#treeBox { flex: 0 0 26%; min-height: 90px; overflow: auto; position: relative; }
 #tree { display: block; }
-.table-box { flex: 0 0 auto; height: 22%; min-height: 110px; overflow: auto; background: #fff; border-top: 1px solid #555; }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; color: #000; }
-th { position: sticky; top: 0; background: #eaeaea; font-weight: 400; padding: 2px 3px; border: 1px solid #d0d0d0; border-top: 0; }
-td { text-align: center; padding: 0 3px; border-right: 1px solid #e3e3e3; cursor: pointer; line-height: 20px; }
-tr.sel td { background: #cfe3ff; }
-.mini-box { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 4px; }
+.table-box { flex: 0 0 auto; height: 22%; min-height: 110px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink); }
+th { position: sticky; top: 0; background: var(--panel); font-weight: 600; color: var(--muted); padding: 8px 4px 6px; box-shadow: 0 1px 0 var(--line); }
+td { text-align: center; padding: 0 4px; cursor: pointer; line-height: 26px; border-bottom: 1px solid var(--line); }
+tbody tr:hover td { background: var(--soft); }
+tr.sel td { background: var(--cyan-soft); }
+.mini-box { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; }
 #mini { display: block; }
 
-/* game-record import window */
-#kifuDlg { width: min(760px, calc(100vw - 16px)); max-height: 82dvh; padding: 0; border: 1px solid #9a9a9a; border-radius: 6px;
-  background: var(--bar); color: var(--bar-text); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+/* dialogs: white sheets like the website's panels */
+dialog { padding: 0; border: 0; border-radius: 24px; background: var(--panel); color: var(--ink);
+  box-shadow: 0 2px 6px rgba(23, 26, 34, .06), 0 40px 80px -24px rgba(23, 26, 34, .35); }
+dialog::backdrop { background: rgba(23, 26, 34, .32); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+dialog[open] { animation: arrive .35s var(--ease); }
+@keyframes arrive { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+#kifuDlg { width: min(760px, calc(100vw - 16px)); max-height: 82dvh; }
 #kifuDlg[open] { display: flex; flex-direction: column; }
-#kifuDlg::backdrop { background: rgba(0,0,0,.35); }
-.dlg-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--bar-line); flex-wrap: wrap; }
+.dlg-row { display: flex; align-items: center; gap: 8px; padding: 14px 18px; flex-wrap: wrap; }
+.dlg-row b { font-size: 18px; font-weight: 750; letter-spacing: -.02em; }
 .dlg-row .spacer { flex: 1; }
 #foxName { flex: 1 1 160px; min-width: 0; }
-.muted { color: #777; }
-.dlg-msg { padding: 6px 10px; min-height: 28px; color: #555; }
-.dlg-msg.bad { color: #c62828; }
-.dlg-list { overflow: auto; min-height: 0; flex: 1 1 auto; background: #fff; border-top: 1px solid var(--bar-line); }
-.dlg-list td { line-height: 30px; white-space: nowrap; }
-.dlg-list tbody tr:hover td { background: #e6f0ff; }
+.muted { color: var(--muted); }
+.dlg-msg { padding: 0 18px 8px; min-height: 28px; color: var(--muted); }
+.dlg-msg.bad { color: var(--bad); }
+.dlg-list { overflow: auto; min-height: 0; flex: 1 1 auto; border-top: 1px solid var(--line); }
+.dlg-list td { line-height: 40px; white-space: nowrap; }
 
-/* strength estimate window (YZY PlayerStrength dashboard, warm paper look) */
-#strengthDlg { width: min(1000px, calc(100vw - 16px)); max-height: 92dvh; padding: 0; border: 1px solid #d9ccb4; border-radius: 14px;
-  background: #f6efe2; color: #2b2419; box-shadow: 0 18px 60px rgba(0,0,0,.45); }
+/* AI대국: a game against the AI or between two AIs */
+#gameDlg { width: min(520px, calc(100vw - 24px)); max-height: 92dvh; }
+#gameDlg[open] { display: flex; flex-direction: column; }
+.gd { padding: 22px 24px 20px; display: grid; gap: 12px; min-height: 0; overflow: auto; }
+.gd h2 { margin: 0 0 2px; font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+.gd-row { display: grid; grid-template-columns: 78px minmax(0, 1fr); align-items: center; gap: 12px; }
+.gd-row > span { color: var(--muted); font-size: 13px; font-weight: 600; }
+.gd-row select, .gd-row input[type=number], .gd-row input[type=text] { width: 100%; }
+.gd-resign { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.gd-resign input[type=number] { width: 58px; min-height: 30px; }
+.gd-resign label.check { margin-right: 4px; color: var(--ink); }
+.gd-checks { display: flex; gap: 16px; }
+.gd-checks label.check { color: var(--ink); }
+.gd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg { display: flex; background: var(--soft); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { flex: 1; min-width: 0; background: transparent; min-height: 34px; color: var(--muted); padding: 4px 8px; }
+.seg button:hover { background: rgba(255, 255, 255, .6); }
+.seg button.on { background: var(--panel); color: var(--ink); box-shadow: 0 2px 8px rgba(23, 26, 34, .1); }
+.gd-note { margin: 0; color: var(--muted); font-size: 13px; }
+.gd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+button.primary { background: var(--blue); color: #fff; box-shadow: 0 8px 20px -10px rgba(44, 92, 246, .7); }
+button.primary:hover { background: var(--blue-deep); }
+
+/* strength estimate (YZY PlayerStrength dashboard, in the website's colours) */
+#strengthDlg { width: min(1000px, calc(100vw - 16px)); max-height: 92dvh; background: var(--paper); }
 #strengthDlg[open] { display: flex; flex-direction: column; }
-#strengthDlg::backdrop { background: rgba(0,0,0,.35); }
-.sp-top { display: flex; align-items: center; gap: 14px; padding: 18px 22px 6px; flex-wrap: wrap; }
-.sp-top h2 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: .02em; }
+.sp-top { display: flex; align-items: center; gap: 14px; padding: 20px 24px 4px; flex-wrap: wrap; }
+.sp-top h2 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -.035em; }
 .sp-top .spacer { flex: 1; }
-.sp-top label { display: grid; font-size: 12px; color: #8a7a60; gap: 2px; }
-.sp-top select { min-width: 210px; background: #fbf7ef; border: 1px solid #d9ccb4; border-radius: 8px; padding: 6px 8px; font-weight: 600; }
-.sp-top button { background: #fbf7ef; border-color: #d9ccb4; border-radius: 8px; padding: 6px 14px; }
-.sp-sub { padding: 0 22px 10px; color: #8a7a60; font-size: 13px; }
-.sp-msg { margin: 0 22px 10px; padding: 10px 14px; border-radius: 10px; background: #fbf7ef; border: 1px solid #e6dccb; color: #6b5d45; }
-.sp-msg.bad { color: #b3261e; }
+.sp-sub { padding: 0 24px 12px; color: var(--muted); font-size: 13px; }
+.sp-msg { margin: 0 24px 12px; padding: 10px 14px; border-radius: 14px; background: var(--panel); color: var(--muted); }
+.sp-msg.bad { color: var(--bad); }
 .sp-msg:empty { display: none; }
-.sp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 22px; overflow: auto; min-height: 0; }
-.sp-card { background: #fbf7ef; border: 1px solid #e6dccb; border-radius: 14px; padding: 18px 20px; display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 18px; }
+.sp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 24px; overflow: auto; min-height: 0; }
+.sp-card { background: var(--panel); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 18px; }
 .sp-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; }
-.sp-head img { width: 76px; height: 76px; }
-.sp-side { font-size: 20px; font-weight: 700; }
-.sp-rank { font: 700 36px/1.1 'Open Sans', var(--ui-font); margin-top: 6px; }
-.sp-card.white .sp-rank { color: #b9731b; }
-.sp-conf { color: #8a7a60; margin-top: 4px; }
-.sp-metric { display: grid; grid-template-columns: 1fr; margin-bottom: 8px; }
-.sp-metric span { color: #6b5d45; font-size: 13px; }
-.sp-metric b { font-size: 15px; }
-.sp-bar { height: 8px; border-radius: 4px; background: #e8e0d0; margin-top: 2px; overflow: hidden; }
-.sp-bar i { display: block; height: 100%; border-radius: 4px; background: #3f7f5c; }
-.sp-bar.loss i { background: #c08a3a; }
-.sp-scale { border: 1px solid #e6dccb; border-radius: 12px; padding: 10px; display: grid; gap: 4px; align-content: start; }
-.sp-scale h4 { margin: 0 0 4px; font-size: 12px; font-weight: 400; color: #8a7a60; }
-.sp-scale div { display: grid; grid-template-columns: 38px 1fr; padding: 12px 8px; border-radius: 8px; font-size: 13px; }
-.sp-scale div.on { background: #efe3cc; font-weight: 700; }
-.sp-note { margin: 14px 22px 18px; padding: 10px 14px; border: 1px solid #e6dccb; border-radius: 10px; color: #6b5d45; font-size: 13px; }
+.sp-head img { width: 64px; height: 64px; }
+.sp-side { font-size: 18px; font-weight: 700; }
+.sp-rank { font: 800 34px/1.1 var(--ui-font); letter-spacing: -.03em; margin-top: 4px; }
+.sp-card.white .sp-rank { color: var(--blue); }
+.sp-conf { color: var(--muted); margin-top: 4px; }
+.sp-metric { display: grid; grid-template-columns: 1fr; margin-bottom: 10px; }
+.sp-metric span { color: var(--muted); font-size: 13px; }
+.sp-metric b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.sp-bar { height: 6px; border-radius: 999px; background: var(--soft); margin-top: 4px; overflow: hidden; }
+.sp-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--cyan), #34c67a); }
+.sp-bar.loss i { background: #f0a24a; }
+.sp-scale { background: var(--soft); border-radius: 14px; padding: 10px; display: grid; gap: 2px; align-content: start; }
+.sp-scale h4 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.sp-scale div { display: grid; grid-template-columns: 38px 1fr; padding: 10px 8px; border-radius: 10px; font-size: 13px; }
+.sp-scale div.on { background: var(--panel); color: var(--blue-deep); font-weight: 700; box-shadow: 0 2px 8px rgba(23, 26, 34, .08); }
+.sp-note { margin: 16px 24px 20px; color: var(--muted); font-size: 13px; }
 @media (max-width: 760px) {
   .sp-cards { grid-template-columns: 1fr; }
   .sp-card { grid-template-columns: 1fr; }
   .sp-rank { font-size: 24px; }
-  .sp-head img { width: 56px; height: 56px; }
+  .sp-head img { width: 52px; height: 52px; }
 }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 /* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
 @media (orientation: portrait) {
   body { grid-template-rows: auto auto minmax(0, 1fr); }
-  .main { display: flex; flex-direction: column; }
+  .main { display: flex; flex-direction: column; padding: 0; gap: 0; }
+  .brand span:last-child { display: none; }
   .center { order: 1; }
-  .left { order: 2; }
-  #capBox, #graphBox, .comment, .engine-status, .right { display: none; }
+  .left { order: 2; padding: 8px 8px 0; }
+  #capBox, #graphBox, .comment, .right { display: none; }
   #statBox { flex: none; height: 72px; }
+  .graph-open #graphBox { display: block; flex: none; height: 130px; margin-top: 8px; }
+  .bar-off #statBox { display: none; }
+  .bar-off.graph-open #graphBox { margin-top: 0; }
+  .bar-off:not(.graph-open) .left { display: none; }
+  #board { box-shadow: none; }
   .toolbar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-content: start;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); overflow-y: auto; border-top: 0; background: transparent; }
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .toolbar button, .toolbar input { min-height: 42px; padding: 2px; width: 100%; }
-  .toolbar .sep { display: none; }
-  /* rows: moves | analysis | move number & marks | editing */
+  .toolbar button:not(.on):not(.pink):not(#analyze) { background: var(--panel); box-shadow: 0 1px 2px rgba(23, 26, 34, .06); }
+  .toolbar .sep, #fileMenu { display: none; }
+  /* rows: moves | analysis, move number, menu (everything else is in the menu sheet) */
   #first { order: 1; } #back10 { order: 2; } #back { order: 3; } #fwd { order: 4; } #fwd10 { order: 5; } #last { order: 6; }
-  #analyze, #autoAnalyze, #autoPlay, #goMove, #promote, #resetBoard, #deleteNode { grid-column: span 2; }
-  #analyze { order: 7; } #autoAnalyze { order: 8; } #autoPlay { order: 9; }
-  #moveNo { order: 10; } #goMove { order: 11; } #pass { order: 12; } #nums { order: 13; } #coords { order: 14; }
-  #promote { order: 15; } #resetBoard { order: 16; } #deleteNode { order: 17; }
-  .toolbar .error { order: 18; grid-column: 1 / -1; color: #ff8a80; }
+  #analyze, #menuOpen { grid-column: span 2; }
+  #analyze { order: 7; } #moveNo { order: 8; } #goMove { order: 9; }
+  #menuOpen { display: block; order: 10; }
+  .toolbar .error { order: 11; grid-column: 1 / -1; }
 }
 </style>
 </head>
 <body>
 <header class="menubar">
+  <span class="brand"><span class="mark"></span><span>KataGo Cloud</span></span>
   <details class="menu" id="fileMenu">
     <summary>파일</summary>
     <div class="items">
@@ -174,14 +297,18 @@ tr.sel td { background: #cfe3ff; }
       <button id="pasteSgf">SGF 붙여넣기</button>
     </div>
   </details>
-  <button id="newGame">신규대국</button>
+  <button id="newGame">AI대국</button>
   <button id="kifuOpen">기보 불러오기</button>
-  <button id="strengthOpen">강도 추정</button>
-  <label class="check">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
-  <label class="check"><input type="checkbox" id="showOwner"> 형세</label>
-  <label class="check"><input type="checkbox" id="showCands" checked> 후보수보기</label>
+  <button id="strengthOpen">기력 평가</button>
+  <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
+  <label class="check" id="komiLabel">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
+  <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
+  <label class="check" id="candsLabel"><input type="checkbox" id="showCands" checked> 후보수보기</label>
+  <label class="check" id="barLabel"><input type="checkbox" id="showBar" checked> 승률 막대</label>
+  <label class="check" id="graphLabel"><input type="checkbox" id="showGraph"> 승률 그래프</label>
   <span class="spacer"></span>
   <span class="status" id="vps"></span>
+  <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button></span>
   <span class="status"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
   <input type="file" id="fileInput" accept=".sgf,application/x-go-sgf" hidden>
 </header>
@@ -201,17 +328,44 @@ tr.sel td { background: #cfe3ff; }
   <div class="dlg-list"><table><thead><tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr></thead><tbody id="kifuRows"></tbody></table></div>
 </dialog>
 
-<dialog id="strengthDlg" aria-label="강도 추정">
+<dialog id="gameDlg" aria-label="AI대국">
+  <div class="gd">
+    <h2>AI대국</h2>
+    <div class="gd-row"><span>대국</span><div class="seg" id="gdKind"><button data-v="human" class="on">인공지능과 대국</button><button data-v="ai">인공지능끼리 대국</button></div></div>
+    <div class="gd-row"><span>시작</span><div class="seg" id="gdFrom"><button data-v="new" class="on">새 대국</button><button data-v="continue">이어서 두기</button></div></div>
+    <div class="gd-row" data-for="human"><span>내 돌</span><div class="seg" id="gdColor"><button data-v="B" class="on">흑</button><button data-v="W">백</button><button data-v="R">무작위</button></div></div>
+    <div class="gd-row" data-for="new"><span>접바둑 · 덤</span><div class="gd-pair">
+      <select id="gdHandicap" aria-label="접바둑"><option value="0">호선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select>
+      <input type="number" id="gdKomi" step="0.5" min="-50" max="50" aria-label="덤"></div></div>
+    <div class="gd-row" data-for="new"><span>대국자</span><div class="gd-pair">
+      <input type="text" id="gdNameB" placeholder="흑 이름" autocomplete="off"><input type="text" id="gdNameW" placeholder="백 이름" autocomplete="off"></div></div>
+    <div class="gd-row" id="gdAi1"><span>AI세팅</span><div class="gd-pair">
+      <input type="number" class="gd-value" min="1" step="1" value="3" aria-label="AI 세기 값">
+      <select class="gd-mode" aria-label="AI 세기 기준"><option value="time">초당 한 수</option><option value="visits">visits당 한 수</option></select></div></div>
+    <div class="gd-row" id="gdAi2"><span>백 AI세팅</span><div class="gd-pair">
+      <input type="number" class="gd-value" min="1" step="1" value="3" aria-label="백 AI 세기 값">
+      <select class="gd-mode" aria-label="백 AI 세기 기준"><option value="time">초당 한 수</option><option value="visits">visits당 한 수</option></select></div></div>
+    <div class="gd-row"><span>초반 무작위</span><select id="gdRandom"><option value="0">없음 (항상 최선수)</option><option value="10">10수까지 상위 후보 중 무작위</option><option value="20">20수까지 상위 후보 중 무작위</option><option value="40">40수까지 상위 후보 중 무작위</option></select></div>
+    <div class="gd-row"><span>AI 기권</span><div class="gd-resign"><label class="check"><input type="checkbox" id="gdResign" checked> 사용</label>
+      <input type="number" id="gdResignMove" min="0" value="60" aria-label="최소 수순">수 이후, 연속
+      <input type="number" id="gdResignCount" min="1" value="3" aria-label="연속 수">수 동안 승률
+      <input type="number" id="gdResignWr" min="0" max="50" step="0.5" value="5" aria-label="승률">% 미만</div></div>
+    <div class="gd-row"><span>후보수 보임</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label></div></div>
+    <p class="gd-note" id="gdNote"></p>
+    <div class="gd-actions"><button id="gdCancel">취소</button><button id="gdGo" class="primary">대국 시작</button></div>
+  </div>
+</dialog>
+
+<dialog id="strengthDlg" aria-label="기력 평가">
   <div class="sp-top">
-    <h2>강도 추정</h2>
+    <h2>기력 평가</h2>
     <span class="spacer"></span>
-    <label>강도 모델<select id="strengthModel"></select></label>
     <button id="strengthClose">닫기</button>
   </div>
   <div class="sp-sub">분석된 주 변화(main-line)를 기반으로 하며 검토 참고용으로만 사용됩니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
-  <div class="sp-note">이 추정치는 YZY(LizzieYzy Next)의 XGBoost 강도 모델로 계산합니다. 수마다 KataGo 500 visits로 분석한 결과를 쓰며, 공식 기력이 아니라 검토 참고용입니다.</div>
+  <div class="sp-note">이 평가는 YZY(LizzieYzy Next)의 XGBoost 기력 모델로 계산합니다. 수마다 KataGo 500 visits로 분석한 결과를 쓰며, 공식 기력이 아니라 검토 참고용입니다.</div>
 </dialog>
 
 <div class="main">
@@ -220,10 +374,10 @@ tr.sel td { background: #cfe3ff; }
     <div class="cv-box" id="statBox"><canvas id="stat"></canvas></div>
     <div class="cv-box" id="graphBox"><canvas id="graph" aria-label="승률 그래프"></canvas></div>
     <div class="comment">
-      <div class="tabs"><span class="on">댓글</span><span>문제 수</span></div>
+      <div id="gameInfo"></div>
+      <div class="engine-line"><span id="engineName">KataGo</span><span id="hint">생각 멈춤 · 단축키=Space</span></div>
       <div id="comment"></div>
     </div>
-    <div class="engine-status"><div id="engineName">KataGo</div><br><div id="hint">생각 멈춤 · 단축키=Space</div></div>
   </aside>
 
   <section class="center" id="boardBox"><canvas id="board" aria-label="바둑판"></canvas></section>
@@ -243,6 +397,7 @@ tr.sel td { background: #cfe3ff; }
 <footer class="toolbar">
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
+  <label class="check" id="autoVisitsLabel">세기 <select id="autoVisits"><option value="200">빠름</option><option value="400" selected>보통</option><option value="1000">정밀</option></select></label>
   <span class="sep"></span>
   <button id="first" title="처음 (Home)">|&lt;</button>
   <button id="back10" title="10수 뒤로">&lt;&lt;</button>
@@ -252,20 +407,26 @@ tr.sel td { background: #cfe3ff; }
   <button id="fwd" title="다음 (→)">&gt;</button>
   <button id="fwd10" title="10수 앞으로">&gt;&gt;</button>
   <button id="last" title="끝 (End)">&gt;|</button>
-  <button id="autoPlay">자동착수</button>
   <span class="sep"></span>
   <button id="pass">패스</button>
+  <label class="check" id="placeLabel">돌 놓기 <select id="placeMode"><option value="">번갈아</option><option value="B">흑만</option><option value="W">백만</option></select></label>
   <button id="promote">주 변화로 지정</button>
   <button id="nums">수순</button>
   <button id="coords" class="on">좌표</button>
   <button id="resetBoard" class="pink">바둑판초기화</button>
   <button id="deleteNode" class="pink">지우기</button>
   <span class="error" id="err"></span>
+  <button id="menuOpen" aria-haspopup="dialog">☰ 메뉴</button>
 </footer>
+
+<dialog id="menuDlg" class="sheet" aria-label="메뉴">
+  <div class="sheet-head"><b>메뉴</b><button id="menuClose">닫기</button></div>
+  <div id="menuBody"></div>
+</dialog>
 
 <script>
 "use strict";
-const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", AUTO_VISITS = 400, AUTOPLAY_VISITS = 2000, UNLIMITED_VISITS = 1000000000;
+const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", AUTO_VISITS = 400, UNLIMITED_VISITS = 1000000000;
 const UI_FONT = getComputedStyle(document.documentElement).getPropertyValue("--ui-font").trim();
 const WR_FONT = "'Open Sans', " + UI_FONT;   // YZY: fonts/OpenSans-Semibold.ttf
 const WR_WEIGHT = 600;
@@ -281,7 +442,7 @@ function makeRoot(setup = {B: [], W: []}, toPlay = "B") {
   const grid = new Int8Array(N * N), num = new Int16Array(N * N);
   for (const [x, y] of setup.B) grid[idx(x, y)] = 1;
   for (const [x, y] of setup.W) grid[idx(x, y)] = 2;
-  return {parent: null, children: [], move: null, grid, num, caps: {B: 0, W: 0}, ko: -1, toPlay, depth: 0, setup, analysis: null, comment: ""};
+  return {parent: null, children: [], move: null, grid, num, caps: {B: 0, W: 0}, ko: -1, toPlay, depth: 0, setup, analysis: null, comment: "", info: {}};
 }
 function neighbors(i) { const x = i % N, y = (i / N) | 0, out = []; if (x > 0) out.push(i - 1); if (x < N - 1) out.push(i + 1); if (y > 0) out.push(i - N); if (y < N - 1) out.push(i + N); return out; }
 function groupAt(grid, i) {
@@ -333,21 +494,36 @@ const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
 const remoteGpu = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(hashParams.get("u") || "") ? hashParams.get("u") : "";
 let ws = null, qn = 0, liveId = null, autoId = null, autoLine = [], autoDone = 0;
-let analyzing = false, autoPlayColor = null, modelName = "", engineVersion = "";
+// One account = one board: every device of the member joins the same board through the GPU's bridge.
+let bridgeSync = false, synced = false, applyingRemote = false, lastSgf = null, pubTimer = 0;
+let analyzing = false, modelName = "", engineVersion = "";
 const queries = new Map();  // id -> {node} or {line}
 
+// No token on the website = an admin opening the screen without a GPU (board, SGF, 기보 불러오기 only).
+let site = null;  // the website's Supabase client, for the admin's login
+async function openWithoutGpu() {
+  if (/\.trycloudflare\.com$/.test(location.hostname)) { $("conn").textContent = "주소에 접속 토큰이 없습니다"; return; }
+  $("conn").textContent = "확인 중…";
+  try {
+    const { sb } = await import("./app.js");
+    const { data: p } = await sb.from("profiles").select("is_admin").single();
+    if (!p?.is_admin) throw new Error("not admin");
+    site = sb; $("conn").textContent = "GPU 없음 · 관리자 보기";
+  } catch { location.replace("./"); }   // members open this screen from their running GPU
+}
 function connect() {
-  if (!token) { $("conn").textContent = "주소에 접속 토큰이 없습니다"; return; }
+  if (!token) { openWithoutGpu(); return; }
   const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
   ws = new WebSocket(base + "/ws?t=" + encodeURIComponent(token));
   ws.onopen = () => {
+    synced = false;   // until the bridge says which board this device joins
     $("dot").classList.add("on"); $("conn").textContent = "GPU 연결됨"; $("err").textContent = "";
     send({id: "ver", action: "query_version"}); ping();
     if (analyzing) requestLive();
   };
   ws.onclose = () => {
     $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중"; setTimeout(connect, 2000);
-    if (strengthId) { queries.delete(strengthId); strengthId = null; strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '강도 추정'을 눌러 이어서 분석하세요.", true); }
+    if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '기력 평가'를 눌러 이어서 분석하세요.", true); }
   };
   ws.onmessage = ev => onMessage(JSON.parse(ev.data));
 }
@@ -365,10 +541,8 @@ function requestLive() {
   if (!analyzing) return;
   liveId = "q" + (++qn);
   queries.set(liveId, {node: cur});
-  // No visit limit: analysis runs until the member stops it or moves (like YZY pondering).
-  // Auto-play needs a finished search to pick its move, so only that case gets a limit.
-  const visits = autoPlayColor === cur.toPlay ? AUTOPLAY_VISITS : UNLIMITED_VISITS;
-  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: visits, reportDuringSearchEvery: 0.3});
+  // No visit limit: analysis runs until the member stops it or moves (like YZY pondering); AI moves use it too.
+  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.3, ...(bridgeSync ? {live: true} : {})});
 }
 function store(node, msg, id) {
   const old = node.analysis;
@@ -377,7 +551,25 @@ function store(node, msg, id) {
 function onMessage(msg) {
   if ("pong" in msg) {
     if (msg.model) modelName = msg.model;
-    $("conn").textContent = `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms`; updateEngineName(); return;
+    $("conn").textContent = `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms` + (msg.clients > 1 ? ` · 기기 ${msg.clients}대` : "");
+    updateEngineName(); return;
+  }
+  if ("hello" in msg) {   // (bridges before 2026-09-26 never send it: then each device keeps its own board)
+    bridgeSync = true;
+    const shared = msg.state && typeof msg.state.sgf === "string";
+    if (shared) applyState(msg.state);   // e.g. the phone opening shows the laptop's board
+    synced = true;
+    if (!shared) { lastSgf = null; publish(); }                    // first device: its board becomes the shared one
+    else if (analyzing && !msg.live) requestLive();                 // the device that ran the analysis has left
+    return;
+  }
+  if ("state" in msg) { applyState(msg.state); return; }
+  if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
+  if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
+  if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
+    const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
+    if (node) { store(node, msg, msg.peerQuery); schedule(); }
+    return;
   }
   if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; return; }
@@ -397,20 +589,14 @@ function onMessage(msg) {
     const now = performance.now(), v = msg.rootInfo.visits;
     if (q.t0 == null) { q.t0 = now; q.v0 = v; }
     else if (now - q.t0 > 200) $("vps").textContent = `${Math.round((v - q.v0) * 1000 / (now - q.t0))} visits/s`;
-    if (!msg.isDuringSearch && q.node === cur && autoPlayColor === cur.toPlay) setTimeout(() => autoMove(msg), 150);
   }
   schedule();
-}
-function autoMove(msg) {
-  if (autoPlayColor !== cur.toPlay || cur.analysis !== msg) return;
-  const best = candidates(cur)[0];
-  if (best) goTo(play(cur, cur.toPlay, parseGtp(best.move)));
 }
 function startAuto() {
   autoLine = lineThrough(cur); autoDone = 0; autoId = "a" + (++qn);
   queries.set(autoId, {line: autoLine});
   send({...baseQuery(), includeOwnership: false, id: autoId, moves: movesOf(autoLine[autoLine.length - 1]),
-        analyzeTurns: autoLine.map((_, i) => i), maxVisits: AUTO_VISITS});
+        analyzeTurns: autoLine.map((_, i) => i), maxVisits: +$("autoVisits").value || AUTO_VISITS});
   $("autoAnalyze").classList.add("on"); $("autoAnalyze").textContent = `자동분석 0/${autoLine.length}`;
 }
 function stopAuto() {
@@ -426,18 +612,20 @@ function komi() { const v = parseFloat($("komi").value); return Number.isFinite(
 function goTo(node) {
   if (!node) return;
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
-  requestLive(); schedule();
+  reachedAt = performance.now();                                     // AI moves: thinking time starts now
+  if (!applyingRemote) { requestLive(); publish(); }   // following another device: it runs the analysis
+  schedule();
 }
 function step(k) { let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n); }
 function toEnd() { const l = lineThrough(cur); goTo(l[l.length - 1]); }
 function clearAnalysis(n) { n.analysis = null; n.children.forEach(clearAnalysis); }
 
-$("analyze").onclick = () => {
-  analyzing = !analyzing;
-  $("analyze").classList.toggle("on", analyzing); $("analyze").textContent = analyzing ? "■ 분석 정지" : "▶ 분석 시작";
-  $("hint").textContent = analyzing ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
-  requestLive(); schedule();
-};
+function setAnalyzing(on) {
+  analyzing = on;
+  $("analyze").classList.toggle("on", on); $("analyze").textContent = on ? "■ 분석 정지" : "▶ 분석 시작";
+  $("hint").textContent = on ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
+}
+$("analyze").onclick = () => { setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
 $("autoAnalyze").onclick = () => autoId ? stopAuto() : startAuto();
 $("first").onclick = () => goTo(root);
 $("back10").onclick = () => step(-10);
@@ -448,20 +636,132 @@ $("last").onclick = toEnd;
 $("goMove").onclick = () => { const t = parseInt($("moveNo").value, 10); if (!Number.isFinite(t)) return; const l = lineThrough(cur); goTo(l[Math.max(0, Math.min(l.length - 1, t))]); };
 $("moveNo").addEventListener("keydown", e => { if (e.key === "Enter") $("goMove").click(); });
 $("pass").onclick = () => goTo(play(cur, cur.toPlay, null));
-$("autoPlay").onclick = () => {
-  autoPlayColor = autoPlayColor ? null : cur.toPlay;
-  $("autoPlay").classList.toggle("on", !!autoPlayColor);
-  $("autoPlay").textContent = autoPlayColor ? `자동착수 (${autoPlayColor === "B" ? "흑" : "백"})` : "자동착수";
-  if (autoPlayColor && !analyzing) $("analyze").click();
-  else requestLive();   // re-ask with the auto-play limit (or unlimited again when switched off)
+// ------------------------------------------------------------------ AI대국: a game against the AI, or between two AIs
+// The AI plays the blue spot (its best candidate from the live analysis) once its side has thought long enough —
+// a number of seconds, or of visits. Options follow YZY's new-game windows (random opening, resign rule, which
+// side's candidates show).
+let game = null, reachedAt = performance.now();
+// game: {kind, root, ai: {B|W: {mode, value}}, show: {B, W}, random, resign: {on, move, count, wr}, low: {B, W}}
+const colorName = c => c === "B" ? "흑" : "백";
+function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
+function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; schedule(); }
+const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]);
+setInterval(() => {
+  if (!game) return;
+  if (game.root !== root) return stopGame();                                   // another record was opened
+  if (!analyzing) return stopGame("분석이 꺼져 대국을 멈췄습니다.");
+  if (cur.move && cur.move.pass && cur.parent.move && cur.parent.move.pass) {   // both passed: the game is over
+    const s = [cur, cur.parent, cur.parent.parent].map(n => n && nodeStats(n)).find(Boolean);
+    if (s) { root.info.RE = `${s.blackLead >= 0 ? "B" : "W"}+${Math.abs(s.blackLead).toFixed(1)}`; publish(); }
+    return stopGame("양쪽이 패스해 대국이 끝났습니다" + (s ? ` · ${resultText(root.info.RE)} (AI 판정)` : ""));
+  }
+  const mover = cur.toPlay, rule = game.ai[mover];
+  if (!rule || !cur.analysis) return;   // the member's turn, or no analysis yet
+  const cands = candidates(cur); if (!cands.length) return;
+  const sec = (performance.now() - reachedAt) / 1000;
+  if (rule.mode === "visits" ? cur.analysis.rootInfo.visits < rule.value || sec < .5 : sec < rule.value) return;
+  const best = cands[0], r = game.resign;
+  if (r.on && cur.depth >= r.move && moverWr(cur, best.winrate) < r.wr) {
+    if (++game.low[mover] >= r.count) {
+      root.info.RE = other(mover) + "+R"; publish();
+      return stopGame(`${colorName(mover)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`);
+    }
+  } else game.low[mover] = 0;
+  let pick = best;
+  if (cur.depth < game.random) {   // variety in the opening: any of the top 3 that the search took seriously
+    const pool = cands.slice(0, 3).filter(c => c.visits >= best.visits * .1);
+    pick = pool[Math.floor(Math.random() * pool.length)] || best;
+  }
+  const next = play(cur, mover, parseGtp(pick.move));
+  if (next) goTo(next);
+}, 200);
+// AI대국 window
+const segValue = id => $(id).querySelector(".on").dataset.v;
+const GAME_FORM = "kgv.gameForm";
+function gameForm() {
+  const vsHuman = segValue("gdKind") === "human", fresh = segValue("gdFrom") === "new";
+  for (const el of $("gameDlg").querySelectorAll("[data-for]")) el.hidden = !(el.dataset.for === "human" ? vsHuman : fresh);
+  $("gdAi2").hidden = vsHuman;
+  $("gdAi1").querySelector("span").textContent = vsHuman ? "AI세팅" : "흑 AI세팅";
+  $("gdNote").textContent = fresh ? "지금 기보는 지워지고 새 판에서 시작합니다." : `지금 보고 있는 ${cur.depth}수부터 이어서 둡니다.`;
+}
+for (const id of ["gdKind", "gdFrom", "gdColor"]) $(id).addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  if (id === "gdKind") $("gdShowB").checked = $("gdShowW").checked = b.dataset.v === "ai";   // playing yourself: no hints by default
+  gameForm();
+});
+for (const row of [$("gdAi1"), $("gdAi2")]) row.querySelector(".gd-mode").onchange = ev => { row.querySelector(".gd-value").value = ev.target.value === "time" ? 3 : 500; };
+$("gdHandicap").onchange = () => { $("gdKomi").value = +$("gdHandicap").value ? 0.5 : 6.5; };
+function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
+function saveGameForm() {
+  const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
+             resign: [$("gdResign").checked, $("gdResignMove").value, $("gdResignCount").value, $("gdResignWr").value]};
+  try { localStorage.setItem(GAME_FORM, JSON.stringify(f)); } catch { /* storage blocked */ }
+}
+function loadGameForm() {
+  let f = null; try { f = JSON.parse(localStorage.getItem(GAME_FORM) || "null"); } catch { /* storage blocked */ }
+  if (!f) return;
+  const pickSeg = (id, v) => $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === v));
+  pickSeg("gdKind", f.kind); pickSeg("gdColor", f.color);
+  for (const [row, r] of [[$("gdAi1"), f.ai1], [$("gdAi2"), f.ai2]]) if (r) { row.querySelector(".gd-mode").value = r.mode; row.querySelector(".gd-value").value = r.value; }
+  $("gdRandom").value = f.random;
+  [$("gdResign").checked, $("gdResignMove").value, $("gdResignCount").value, $("gdResignWr").value] = f.resign;
+  $("gdShowB").checked = $("gdShowW").checked = f.kind === "ai";
+}
+$("newGame").onclick = () => {
+  if (game) { if (confirm("AI 대국을 멈출까요? (지금까지 둔 수는 남습니다)")) stopGame("대국을 멈췄습니다."); return; }
+  loadGameForm();
+  $("gdHandicap").value = $("handicap").value; $("gdKomi").value = komi(); $("gdNameB").value = $("gdNameW").value = "";
+  gameForm(); $("gameDlg").showModal();
 };
-$("promote").onclick = () => { for (let n = cur; n.parent; n = n.parent) { const s = n.parent.children; s.splice(s.indexOf(n), 1); s.unshift(n); } schedule(); };
-$("nums").onclick = () => { $("nums").classList.toggle("on"); schedule(); };
+$("gdCancel").onclick = () => $("gameDlg").close();
+$("gameDlg").addEventListener("click", ev => { if (ev.target === $("gameDlg")) $("gameDlg").close(); });   // backdrop
+$("gdGo").onclick = () => {
+  const kind = segValue("gdKind"), vsHuman = kind === "human";
+  let mine = segValue("gdColor"); if (mine === "R") mine = Math.random() < .5 ? "B" : "W";
+  const ai = vsHuman ? {[other(mine)]: aiRule($("gdAi1"))} : {B: aiRule($("gdAi1")), W: aiRule($("gdAi2"))};
+  if (segValue("gdFrom") === "new") {
+    const n = +$("gdHandicap").value;
+    $("handicap").value = handicapShown = String(n); $("komi").value = parseFloat($("gdKomi").value) || 0;
+    root = handicapRoot(n);
+    const nm = (id, fallback) => $(id).value.trim() || fallback;
+    root.info = {PB: nm("gdNameB", vsHuman && mine === "B" ? "나" : "KataGo"), PW: nm("gdNameW", vsHuman && mine === "W" ? "나" : "KataGo"),
+                 DT: new Date().toISOString().slice(0, 10)};
+    goTo(root);
+  }
+  game = {kind, root, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked}, random: +$("gdRandom").value,
+          resign: {on: $("gdResign").checked, move: +$("gdResignMove").value || 0, count: Math.max(1, +$("gdResignCount").value || 1),
+                   wr: +$("gdResignWr").value || 0}, low: {B: 0, W: 0}};
+  saveGameForm(); $("gameDlg").close();
+  if (!analyzing) setAnalyzing(true);
+  reachedAt = performance.now(); requestLive(); publish(); gameButton(); schedule();
+  $("err").textContent = vsHuman ? `AI 대국 시작 · 나는 ${colorName(mine)}` : "AI끼리 대국을 시작했습니다";
+};
+$("promote").onclick = () => { for (let n = cur; n.parent; n = n.parent) { const s = n.parent.children; s.splice(s.indexOf(n), 1); s.unshift(n); } publish(); schedule(); };
+// 수순: off -> every move number -> the last move's number only -> off
+const NUM_MODES = {"": ["all", "전체 수순"], all: ["last", "마지막 수"], last: ["", "수순"]};
+$("nums").onclick = () => {
+  const [mode, label] = NUM_MODES[$("nums").dataset.mode || ""];
+  $("nums").dataset.mode = mode; $("nums").textContent = label; $("nums").classList.toggle("on", !!mode); schedule();
+};
 $("coords").onclick = () => { $("coords").classList.toggle("on"); layout(); };
-$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { root = makeRoot(); goTo(root); } };
-$("newGame").onclick = () => { if (confirm("새 대국을 시작할까요? (현재 기보는 사라집니다)")) { root = makeRoot(); goTo(root); } };
+$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { if (+$("handicap").value) $("komi").value = 6.5; $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); } };
+// 접바둑: black's stones on the usual star points, white moves first
+const STAR = {tr: [15, 3], bl: [3, 15], br: [15, 15], tl: [3, 3], c: [9, 9], l: [3, 9], r: [15, 9], t: [9, 3], b: [9, 15]};
+const HANDICAP_POINTS = {2: "tr bl", 3: "tr bl br", 4: "tr bl br tl", 5: "tr bl br tl c", 6: "tr bl br tl l r",
+                         7: "tr bl br tl l r c", 8: "tr bl br tl l r t b", 9: "tr bl br tl l r t b c"};
+function handicapRoot(n) { return HANDICAP_POINTS[n] ? makeRoot({B: HANDICAP_POINTS[n].split(" ").map(k => STAR[k]), W: []}, "W") : makeRoot(); }
+let handicapShown = "0";
+$("handicap").onchange = () => {
+  if (root.children.length && !confirm("접바둑으로 새로 시작할까요? (현재 기보는 사라집니다)")) { $("handicap").value = handicapShown; return; }
+  handicapShown = $("handicap").value;
+  const n = +handicapShown; root = handicapRoot(n);
+  $("komi").value = n ? 0.5 : 6.5;   // handicap games: half a point, so there are no draws
+  clearAnalysis(root); goTo(root);
+};
 $("deleteNode").onclick = () => { if (!cur.parent) return; const p = cur.parent; p.children.splice(p.children.indexOf(cur), 1); goTo(p); };
-$("komi").onchange = () => { clearAnalysis(root); requestLive(); schedule(); };  // old results used the old komi
+$("komi").onchange = () => { clearAnalysis(root); requestLive(); publish(); schedule(); };  // old results used the old komi
 $("showOwner").onchange = () => { requestLive(); schedule(); };
 $("showCands").onchange = schedule;
 document.addEventListener("keydown", e => {
@@ -508,8 +808,14 @@ function expandPoints(vals) {
 function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main line only, like YZY
   const t = parseSgf(text), first = t.nodes[0] || {};
   if (first.SZ && parseInt(first.SZ[0], 10) !== 19) throw new Error("19줄 기보만 지원합니다");
-  const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, (first.PL || ["B"])[0] === "W" ? "W" : "B");
+  const firstMove = t.nodes.slice(1).find(n => n.B || n.W) || (t.vars[0] && t.vars[0].nodes.find(n => n.B || n.W)) || {};
+  const toPlay = first.PL ? (first.PL[0] === "W" ? "W" : "B") : firstMove.W ? "W" : "B";
+  const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, toPlay);
+  const ha = parseInt((first.HA || ["0"])[0], 10);
+  $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : 0);
   newRoot.comment = (first.C || [""])[0];
+  for (const k of GAME_INFO) if (first[k]) newRoot.info[k] = first[k][0];
+  if (first.KGA) newRoot.analysis = unpackAnalysis(first.KGA[0]);
   if (first.KM) $("komi").value = parseFloat(first.KM[0]) || 6.5;
   let skipped = 0;
   function build(tr, start, node) {
@@ -519,23 +825,44 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
       const next = play(node, color, sgfXY(p[color][0]));
       if (!next) { skipped++; return; }
       next.comment = (p.C || [""])[0]; node = next;
+      if (p.KGA) next.analysis = unpackAnalysis(p.KGA[0]);
     }
     for (const v of mainLineOnly ? tr.vars.slice(0, 1) : tr.vars) build(v, 0, node);
   }
   build(t, 1, newRoot);
-  root = newRoot; clearAnalysis(root);
+  root = newRoot;
   goTo(root);
   $("err").textContent = skipped ? `둘 수 없는 수 ${skipped}개를 건너뛰었습니다` : "";
 }
-function toSgf() {
+// Game info shown in the card, and analysis saved with the record (KGA: our own property, other programs skip it),
+// so a saved review opens with its win rates without renting a GPU again.
+const GAME_INFO = ["PB", "PW", "BR", "WR", "RE", "DT", "EV"];
+const r4 = v => Math.round((v || 0) * 1e4) / 1e4;
+function packAnalysis(a) {
+  const ms = (a.moveInfos || []).filter(m => m.visits > 0).sort((p, q) => p.order - q.order).slice(0, 20);
+  return JSON.stringify({r: [r4(a.rootInfo.winrate), r4(a.rootInfo.scoreLead), r4(a.rootInfo.scoreStdev), a.rootInfo.visits],
+                         m: ms.map(m => [m.move, r4(m.winrate), r4(m.scoreLead), m.visits, r4(m.prior), (m.pv || []).slice(0, 12).join(" ")])});
+}
+function unpackAnalysis(text) {
+  try {
+    const o = JSON.parse(text);
+    return {rootInfo: {winrate: o.r[0], scoreLead: o.r[1], scoreStdev: o.r[2], visits: o.r[3]},
+            moveInfos: o.m.map(([move, winrate, scoreLead, visits, prior, pv], order) => ({move, winrate, scoreLead, visits, prior, order, pv: pv ? pv.split(" ") : []}))};
+  } catch { return null; }
+}
+function toSgf(withAnalysis = true) {
   const c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
   const esc = s => s.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
   let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[19]RU[Korean]KM[${komi()}]`;
   if (root.setup.B.length) head += "AB" + root.setup.B.map(([x, y]) => `[${c(x, y)}]`).join("");
   if (root.setup.W.length) head += "AW" + root.setup.W.map(([x, y]) => `[${c(x, y)}]`).join("");
+  if (+$("handicap").value && root.setup.B.length === +$("handicap").value) head += `HA[${$("handicap").value}]`;
   if (root.toPlay === "W") head += "PL[W]";
+  for (const k of GAME_INFO) if (root.info[k]) head += `${k}[${esc(root.info[k])}]`;
   if (root.comment) head += `C[${esc(root.comment)}]`;
-  const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + (n.comment ? `C[${esc(n.comment)}]` : "");
+  const kga = n => withAnalysis && n.analysis && n.analysis.rootInfo ? `KGA[${esc(packAnalysis(n.analysis))}]` : "";
+  head += kga(root);
+  const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + (n.comment ? `C[${esc(n.comment)}]` : "") + kga(n);
   const body = n => {
     let s = "";
     while (true) {
@@ -545,6 +872,73 @@ function toSgf() {
     }
   };
   return head + body(root) + ")";
+}
+// ------------------------------------------------------------------ shared board (one per account, through the bridge)
+// A device publishes what it shows (record without analysis + position + analysis on/off); the others follow.
+// The record is merged into the existing tree, so nodes keep their analysis and a running 기력 평가/자동분석 is not lost.
+function publish() {
+  if (!bridgeSync || !synced || applyingRemote) return;
+  clearTimeout(pubTimer);
+  pubTimer = setTimeout(() => {
+    const st = {path: pathTo(cur).slice(1).map(n => n.parent.children.indexOf(n)), analyzing};
+    const sgf = toSgf(false);
+    if (sgf !== lastSgf) { st.sgf = sgf; lastSgf = sgf; }
+    send({action: "state", state: st});
+  }, 100);
+}
+function applyState(st) {
+  if (!st) return;
+  applyingRemote = true;
+  try {
+    if (typeof st.sgf === "string" && st.sgf !== lastSgf) {
+      try { mergeSgf(st.sgf); } catch (err) { $("err").textContent = "다른 기기의 기보를 읽지 못했습니다: " + err.message; }
+      lastSgf = st.sgf;
+    }
+    if (Array.isArray(st.path)) { let n = root; for (const i of st.path) { if (!n.children[i]) break; n = n.children[i]; } goTo(n); }
+    if (typeof st.analyzing === "boolean" && st.analyzing !== analyzing) setAnalyzing(st.analyzing);
+  } finally { applyingRemote = false; }
+  if (!analyzing && liveId) requestLive();   // the other device stopped the analysis: ours ends too
+  schedule();
+}
+function mergeSgf(text) {
+  const t = parseSgf(text), first = t.nodes[0] || {};
+  const key = pts => pts.map(p => p.join(",")).sort().join(" ");
+  const toPlay = first.PL && first.PL[0] === "W" ? "W" : "B";
+  if (key(expandPoints(first.AB)) !== key(root.setup.B) || key(expandPoints(first.AW)) !== key(root.setup.W) || toPlay !== root.toPlay) {
+    loadSgf(text); return;   // a different start (new game, handicap): a new tree
+  }
+  const km = first.KM ? parseFloat(first.KM[0]) : 6.5;
+  if (km !== komi()) { $("komi").value = km; clearAnalysis(root); }
+  const ha = parseInt((first.HA || ["0"])[0], 10);
+  $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : 0);
+  root.info = {}; for (const k of GAME_INFO) if (first[k]) root.info[k] = first[k][0];
+  root.comment = (first.C || [""])[0];
+  const keep = new Map();   // node -> its children in the other device's order (branches it deleted go away)
+  function walk(tr, start, node) {
+    for (let k = start; k < tr.nodes.length; k++) {
+      const p = tr.nodes[k], color = p.B ? "B" : p.W ? "W" : null;
+      if (!color) continue;
+      const next = play(node, color, sgfXY(p[color][0]));
+      if (!next) return;
+      next.comment = (p.C || [""])[0];
+      if (!keep.has(node)) keep.set(node, []);
+      if (!keep.get(node).includes(next)) keep.get(node).push(next);
+      node = next;
+    }
+    for (const v of tr.vars) walk(v, 0, node);
+  }
+  walk(t, 1, root);
+  const prune = n => { n.children = keep.get(n) || []; n.children.forEach(prune); };
+  prune(root);
+}
+function nodeByMoves(text) {   // "BQ16 WD4 Bpass" from the root, or null
+  let n = root;
+  for (const tok of text ? text.split(" ") : []) {
+    const c = tok[0], m = tok.slice(1);
+    n = n.children.find(ch => ch.move.c === c && (m === "pass" ? ch.move.pass : !ch.move.pass && gtp(ch.move.x, ch.move.y) === m));
+    if (!n) return null;
+  }
+  return n;
 }
 async function readSgfFile(file) {
   const buf = await file.arrayBuffer();
@@ -570,7 +964,9 @@ const KIFU_API = "https://oufxjpnahaqmlbacrdds.supabase.co/functions/v1/kgv/api/
 let kifuList = [], kifuBusy = 0;
 const escHtml = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 async function kifuGet(path) {
-  const r = await fetch(KIFU_API + path, {headers: {"x-kgv-token": token}});
+  const auth = token ? {"x-kgv-token": token}
+    : {Authorization: "Bearer " + ((await site?.auth.getSession())?.data.session?.access_token || "")};
+  const r = await fetch(KIFU_API + path, {headers: auth});
   let body = {}; try { body = await r.json(); } catch { /* not json */ }
   if (!r.ok) throw new Error(body.error || `요청 실패 (${r.status})`);
   return body;
@@ -605,12 +1001,11 @@ $("kifuRows").addEventListener("click", async ev => {
   const r = await kifuRun("기보 받는 중…", () => kifuGet(`/fox/game?id=${encodeURIComponent(g.id)}`));
   if (!r) return;
   try { loadSgf(r.sgf, true); } catch (err) { kifuMsg("SGF 오류: " + err.message, true); return; }
-  if (!root.comment) { root.comment = `흑 ${g.black}  vs  백 ${g.white}
-${g.result} · ${g.date}`; schedule(); }
+  if (!root.info.PB && !root.info.PW) { Object.assign(root.info, {PB: g.black, PW: g.white, RE: g.result, DT: g.date}); schedule(); }
   $("kifuDlg").close();
 });
 
-// ------------------------------------------------------------------ 강도 추정 (YZY PlayerStrengthEstimator, assets/strength.js)
+// ------------------------------------------------------------------ 기력 평가 (YZY PlayerStrengthEstimator, assets/strength.js)
 // Works where assets/ has strength.js and the models (the website); the GPU's own page only serves the board images.
 const STRENGTH_VISITS = 500;   // YZY's current model was trained on 500-visit analyses (xgb-distill-v500-m210)
 let strengthLib = null, strengthModels = null, strengthId = null;
@@ -623,18 +1018,19 @@ function strengthPosition(node) {   // YZY BoardData/MoveData view: every value 
 }
 function stopStrength() {
   if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
-  queries.delete(strengthId); strengthId = null;
+  queries.delete(strengthId); strengthId = null; strengthButton();
 }
+// The estimate keeps running with its window closed; the button shows how far it is.
+function strengthButton(q) { $("strengthOpen").textContent = q ? `기력 평가 ${q.done}/${q.todo}` : "기력 평가"; $("strengthOpen").classList.toggle("on", !!q); }
 async function openStrength() {
   $("strengthDlg").showModal();
   if (!strengthModels) {
-    strengthMsg("강도 모델을 불러오는 중…");
+    strengthMsg("평가 모델을 불러오는 중…");
     try {
       strengthLib = await import("./assets/strength.js");
       strengthModels = await strengthLib.loadModels("assets/strength-models.json");
-      $("strengthModel").innerHTML = strengthModels.map((m, i) => `<option value="${i}">${escHtml(m.name)}</option>`).join("");
     } catch (err) {
-      strengthMsg("강도 모델을 불러오지 못했습니다. 웹사이트의 분석 화면에서 다시 열어 주세요. (" + err.message + ")", true); return;
+      strengthMsg("평가 모델을 불러오지 못했습니다. 웹사이트의 분석 화면에서 다시 열어 주세요. (" + err.message + ")", true); return;
     }
   }
   if (strengthId) return;   // still analysing: the progress message is up to date
@@ -643,29 +1039,35 @@ async function openStrength() {
   const turns = line.map((_, i) => i).filter(i => !(line[i].analysis && line[i].analysis.rootInfo.visits >= STRENGTH_VISITS));
   if (!turns.length) return renderStrength();
   strengthId = "s" + (++qn);
-  const q = {line, strength: true, todo: turns.length, done: 0};
+  const q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now()};
   queries.set(strengthId, q);
   if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
              analyzeTurns: turns, maxVisits: STRENGTH_VISITS})) {
     queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
   }
-  $("strengthCards").innerHTML = "";
-  strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${STRENGTH_VISITS} visits)`);
+  $("strengthCards").innerHTML = ""; strengthButton(q);
+  strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${STRENGTH_VISITS} visits) · 창을 닫아도 계속 분석합니다`);
 }
 function strengthStep(q) {
+  if (q.line[0] !== root) { stopStrength(); strengthMsg("다른 기보를 열어 분석을 멈췄습니다. 다시 누르면 지금 기보로 평가합니다."); return; }
   q.done++;
-  strengthMsg(`주 변화 ${q.line.length - 1}수를 분석하는 중… ${q.done}/${q.todo} (수마다 ${STRENGTH_VISITS} visits)`);
-  if (q.done >= q.todo) { queries.delete(strengthId); strengthId = null; renderStrength(); }
+  const sec = (performance.now() - q.t0) / 1000, left = q.done >= 3 ? Math.ceil(sec / q.done * (q.todo - q.done)) : null;
+  strengthMsg(`주 변화 ${q.line.length - 1}수를 분석하는 중… ${q.done}/${q.todo}` + (left !== null ? ` · 약 ${left}초 남음` : "") + " · 창을 닫아도 계속 분석합니다");
+  strengthButton(q);
+  if (q.done >= q.todo) {
+    queries.delete(strengthId); strengthId = null; strengthButton(); renderStrength();
+    if (!$("strengthDlg").open) $("err").textContent = "기력 평가가 끝났습니다. '기력 평가'를 누르면 결과를 볼 수 있습니다.";
+  }
 }
 function renderStrength() {
   if (!strengthLib || !strengthModels) return;
   const line = lineThrough(root);
   const moves = line.map(n => n.move ? {color: n.move.c, move: n.move.pass ? "pass" : gtp(n.move.x, n.move.y), number: n.depth} : null);
-  const model = strengthModels[+$("strengthModel").value || 0];
+  const model = strengthModels[0];   // XGBoost 20TUN, YZY's current model (the only one shipped)
   const r = strengthLib.estimate(line.map(strengthPosition), moves, model);
   if (r.overall.sampleCount < strengthLib.MIN_REPORT_SAMPLES) {
     $("strengthCards").innerHTML = "";
-    strengthMsg(`분석된 수가 ${r.overall.sampleCount}수뿐이라 추정할 수 없습니다. 최소 ${strengthLib.MIN_REPORT_SAMPLES}수가 필요합니다.`, true); return;
+    strengthMsg(`분석된 수가 ${r.overall.sampleCount}수뿐이라 평가할 수 없습니다. 최소 ${strengthLib.MIN_REPORT_SAMPLES}수가 필요합니다.`, true); return;
   }
   strengthMsg("");
   const conf = {high: "높음", medium: "중간", low: "낮음"};
@@ -688,14 +1090,12 @@ function renderStrength() {
       <div class="sp-scale"><h4>점수 척도</h4>${scale}</div>
     </div>`;
   };
-  $("strengthCards").innerHTML = (r.black.sampleCount ? card(r.black, "흑성능", "black", "black0.png") : "") +
-                                 (r.white.sampleCount ? card(r.white, "백성능", "white", "white0.png") : "");
+  $("strengthCards").innerHTML = (r.black.sampleCount ? card(r.black, "흑기력", "black", "black0.png") : "") +
+                                 (r.white.sampleCount ? card(r.white, "백기력", "white", "white0.png") : "");
 }
 $("strengthOpen").onclick = openStrength;
-$("strengthModel").onchange = renderStrength;
 $("strengthClose").onclick = () => $("strengthDlg").close();
 $("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strengthDlg")) $("strengthDlg").close(); });   // backdrop
-$("strengthDlg").addEventListener("close", stopStrength);   // closing stops the GPU work; reopening resumes what is left
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
 function candidates(node) {
@@ -876,7 +1276,7 @@ function renderBoard(ctx, G, node, o) {
   } else if (o.numbers) {
     const lastI = node.move && !node.move.pass ? idx(node.move.x, node.move.y) : -1;
     for (let i = 0; i < N * N; i++) {
-      const n = node.num[i]; if (!n || !node.grid[i]) continue;
+      const n = node.num[i]; if (!n || !node.grid[i] || (o.numbers === "last" && i !== lastI)) continue;
       const [cx, cy] = P(i);
       if (i === lastI) drawPolygonSmall(ctx, cx, cy, r);
       jString(ctx, UI_FONT, 400, String(n), cx + .5, cy + .5, r * 1.4, n >= 100 ? r * 1.85 : r * 1.4, node.grid[i] === 1 ? "#fff" : "#000");
@@ -951,12 +1351,12 @@ let touchCursor = null;   // [x, y] board point
 function drawMain() {
   if (!boardCtx) return;
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
-  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: $("showCands").checked,
-    branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").classList.contains("on"), ownership: $("showOwner").checked});
+  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown(),
+    branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").dataset.mode || "", ownership: $("showOwner").checked});
 }
 function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
   if (!miniCtx) return;
-  const pv = (hover && hover.pv) || selectedPv || ((candidates(cur)[0] || {}).pv) || null;
+  const pv = (hover && hover.pv) || selectedPv || (candsShown() && (candidates(cur)[0] || {}).pv) || null;
   renderBoard(miniCtx, miniG, cur, {coords: false, candidates: false, branch: pv, hover: null, numbers: false, ownership: false});
 }
 function boardPoint(ev) {
@@ -964,10 +1364,12 @@ function boardPoint(ev) {
   const x = Math.round(((ev.clientX - rect.left) * s - m - .5) / sq), y = Math.round(((ev.clientY - rect.top) * s - m - .5) / sq);
   return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
 }
-function placeAt(pt) { const p = boardPoint(pt); if (!p) return; hover = null; const c = play(cur, cur.toPlay, p); if (c) goTo(c); }
+function placeAt(pt) {
+  const p = boardPoint(pt); if (!p) return; hover = null;
+  if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, $("placeMode").value || cur.toPlay, p); if (c) goTo(c); }
 boardCv.addEventListener("click", placeAt);   // mouse; touches on the board are handled below
 function hoverFor(p) {  // the variation preview for the candidate at board point p (or null)
-  const mv = p && $("showCands").checked ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
+  const mv = p && candsShown() ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
   return mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
 }
 function hoverAt(pt) {  // pt: anything with clientX/clientY
@@ -1049,27 +1451,26 @@ function drawCaptured() {
   if (!capCtx) return;
   const g = capCtx, W = capW, H = capH;
   g.clearRect(0, 0, W, H);
-  g.fillStyle = "rgba(0,0,0,.51)"; g.fillRect(0, 0, W, H);
-  g.fillRect(T(W / 2) - 1, 3, 1, H - 4);
+  g.fillStyle = "#e8ebf2"; g.fillRect(T(W / 2) - 1, 10, 1, H - 20);
   let diam = T(Math.min(T(W / 2), H) / 3); const small = T(diam / 2);
   let bd, wd; if (cur.toPlay === "B") { wd = small; bd = T(small * 3 / 2); } else { bd = small; wd = T(small * 3 / 2); }
   diam = T(diam * 3 / 2); bd = T(bd * 3 / 2); wd = T(wd * 3 / 2);
   g.fillStyle = "#000"; g.beginPath(); g.ellipse(T(W / 4) - T(bd / 2) + bd / 2, T((diam - bd) / 2) + bd / 2, bd / 2, bd / 2, 0, 0, Math.PI * 2); g.fill();
   g.fillStyle = "#fff"; g.beginPath(); g.ellipse(T(W * 3 / 4) - T(wd / 2) + wd / 2, T((diam - wd) / 2) + wd / 2, wd / 2, wd / 2, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = "rgba(23,26,34,.25)"; g.lineWidth = 1; g.stroke();
   const sd = T(H / 4) < 10 ? T(H / 4) : 10;
-  g.fillStyle = analyzing ? "#00ff00" : "#ff0000"; g.beginPath(); g.ellipse(T(W / 2) - 1, T(H * 7 / 26) + T((diam - sd) / 2) + sd / 2, sd / 2, sd / 2, 0, 0, Math.PI * 2); g.fill();
-  jString(g, UI_FONT, 400, "사석:" + cur.caps.B, T(W / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#fff");
-  jString(g, UI_FONT, 400, "사석:" + cur.caps.W, T(W * 3 / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#fff");
-  panelFont(g, Math.max(11, H * .18)); g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  g.fillStyle = analyzing ? "#1f9d55" : "#e0484d"; g.beginPath(); g.ellipse(T(W / 2) - 1, T(H * 7 / 26) + T((diam - sd) / 2) + sd / 2, sd / 2, sd / 2, 0, 0, Math.PI * 2); g.fill();
+  jString(g, UI_FONT, 400, "사석:" + cur.caps.B, T(W / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#171a22");
+  jString(g, UI_FONT, 400, "사석:" + cur.caps.W, T(W * 3 / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#171a22");
+  panelFont(g, Math.max(11, H * .18)); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "alphabetic";
   g.fillText(String(komi()), T(W / 2) - 1, T(H * 7 / 8));
-  g.fillText("한국(일본)룰", T(W / 2) - 1, T(H * 3 / 10));
+  g.fillText("한국룰", T(W / 2) - 1, T(H * 3 / 10));
 }
 function drawStatistics() {
   if (!statCtx) return;
   const g = statCtx; let x = 0, y = 0, W = statW, H = statH;
   g.clearRect(0, 0, W, H);
-  g.fillStyle = "rgba(0,0,0,.51)"; g.fillRect(0, 0, W, H); g.fillRect(1, 1, W - 2, 1);
-  x += 2; y += 2; W -= 4; H -= 4;
+  x += 12; y += 4; W -= 24; H -= 8;
   const curS = nodeStats(cur), prev = cur.parent;
   let lastWR = 50, lastScore = 0, validLast = false;
   const pS = prev && nodeStats(prev);
@@ -1079,23 +1480,30 @@ function drawStatistics() {
   const curWR = valid ? curS.wr : 100 - lastWR, curScore = valid ? curS.score : -lastScore;
   const blackWR = cur.toPlay === "B" ? curWR : 100 - curWR, whiteWR = 100 - blackWR;
   // "Black lead: x  마지막 수(#n): ±w% ±s포인트"
-  let text = "";
-  if (valid) text += "Black lead:" + (cur.toPlay === "B" ? curS.score : -curS.score).toFixed(1);
+  // "흑 리드 x  마지막 수(#n): ±w% ±s집" ("—" until analysed); with 형세 on: the engine's count of the position
+  const own = $("showOwner").checked && cur.analysis && cur.analysis.ownership;
+  let text = "흑 리드 " + (valid ? (cur.toPlay === "B" ? curS.score : -curS.score).toFixed(1) : "—");
   const wrD = validLast ? 100 - lastWR - curWR : 0, scD = validLast ? (-lastScore) - curScore : 0;
   let rank = 0;
   if (prev && cur.move && !cur.move.pass) { const k = candidates(prev).findIndex(c => c.move === gtp(cur.move.x, cur.move.y)); rank = k >= 0 ? k + 1 : 0; }
-  text += " 마지막 수" + (rank > 0 ? `(#${rank})` : "(#  )") + ": " + (wrD > 0 ? "+" : "-") + Math.abs(wrD).toFixed(1) + "%";
-  text += " " + (scD > 0 ? "+" : "-") + Math.abs(scD).toFixed(1) + "포인트";
-  { const f = fitFont(g, UI_FONT, 400, text, T(H / 4), W * 20 / 21); g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillText(text, x, y + T(H * 17 / 20) + f.h / 2); }
+  const sign = v => (v > 0 ? "+" : v < 0 ? "-" : "±") + Math.abs(v).toFixed(1);
+  text += "  마지막 수" + (rank > 0 ? `(#${rank})` : "") + ": " + (valid && validLast && cur.move ? `${sign(wrD)}% ${sign(scD)}집` : "—");
+  if (own && valid) {
+    let b = 0, w = 0; for (const v of own) { if (v > 0) b += v; else w -= v; }
+    const lead = curS && (cur.toPlay === "B" ? curS.score : -curS.score);
+    text = `형세 ${lead >= 0 ? "흑" : "백"} ${Math.abs(lead).toFixed(1)}집 우세 · 영역 흑 ${Math.round(b)} · 백 ${Math.round(w)}`;
+  }
+  { const f = fitFont(g, UI_FONT, 400, text, T(H / 4), W * 20 / 21); g.fillStyle = "#687082"; g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillText(text, x, y + T(H * 17 / 20) + f.h / 2); }
   if (valid || validLast) {
     const maxW = W, bW = T(blackWR * maxW / 100), wW = T(whiteWR * maxW / 100), barY = y + T(H / 3), barX = x, barH = T(H / 3);
     g.fillStyle = "#fff"; g.fillRect(barX + bW, barY, wW, barH);
-    g.fillStyle = "#000"; g.fillRect(barX, barY, bW, barH);
+    g.fillStyle = "#171a22"; g.fillRect(barX, barY, bW, barH);
+    g.strokeStyle = "rgba(23,26,34,.25)"; g.lineWidth = 1; g.strokeRect(barX + .5, barY + .5, maxW - 1, barH - 1);
     if (valid && validLast) {  // change-of-winrate arrow
       const gain = 100 - lastWR - curWR, blackLast = cur.toPlay === "B" ? 100 - lastWR : lastWR;
       const lastX = barX + T(blackLast * maxW / 100), posW = barX + bW, dX = Math.min(posW, lastX), dW = Math.abs(posW - lastX);
       if (dW > 0) {
-        const big = barH > 30, isGain = gain >= 0, c = isGain ? "#00ff00" : "#ff0000";
+        const big = barH > 30, isGain = gain >= 0, c = isGain ? "#1f9d55" : "#e0484d";
         const rightTri = cur.toPlay === "B" ? !isGain : isGain;
         g.strokeStyle = c; g.fillStyle = c; g.lineWidth = big ? 2 : 1;
         g.beginPath();
@@ -1112,7 +1520,7 @@ function drawStatistics() {
     panelFont(g, Math.min(maxW * .63, H) * .24);
     const m = g.measureText("0"), fh = Math.round(m.fontBoundingBoxAscent ?? 10) - Math.round(m.fontBoundingBoxDescent ?? 3);
     const base = y + barH - T((barH - fh) / 2);
-    g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    g.fillStyle = "#171a22"; g.textAlign = "left"; g.textBaseline = "alphabetic";
     const sB = blackWR.toFixed(1) + "%", sW = whiteWR.toFixed(1) + "%", mvn = String(cur.depth);
     g.fillText(sB, barX + 4, base);
     g.fillText(sW, barX + maxW - g.measureText(sW).width - 4, base);
@@ -1122,21 +1530,20 @@ function drawStatistics() {
     for (let i = 1; i <= 3; i++) { const lx = barX + T(i * T(maxW / 4)) + .5; g.beginPath(); g.moveTo(lx, barY); g.lineTo(lx, barY + barH); g.stroke(); }
     g.setLineDash([]);
   } else {
-    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(cur.depth), x + W / 2, y + H / 6);
   }
 }
 
 // ------------------------------------------------------------------ win-rate graph (WinrateGraph.java, normal mode)
 const graphCv = $("graph"); let graphCtx, graphW = 280, graphH = 150;
-const WR_LINE = "rgb(100,180,255)", WR_MISS = "rgb(0,0,178)", SCORE_LINE = "rgb(255,0,255)";
+const WR_LINE = "#2c5cf6", WR_MISS = "#9db2f8", SCORE_LINE = "rgb(230,70,200)";
 function drawGraph() {
   if (!graphCtx) return;
-  const g = graphCtx; let posx = 0, posy = 0, width = graphW, height = graphH;
+  const g = graphCtx; let posx = 8, posy = 0, width = graphW, height = graphH;
   g.clearRect(0, 0, width, height);
-  g.fillStyle = "rgba(22,25,29,.647)"; g.fillRect(0, 0, width, height);
-  posy += 2; width -= 6; height -= 4;
-  g.strokeStyle = "rgba(255,255,255,.282)"; g.lineWidth = 1; g.setLineDash([4, 4]);
+  posy += 2; width -= 16; height -= 4;
+  g.strokeStyle = "rgba(23,26,34,.12)"; g.lineWidth = 1; g.setLineDash([4, 4]);
   for (let i = 1; i <= 3; i++) { const yy = posy + height - T(height * (i * 25) / 100) + .5; g.beginPath(); g.moveTo(posx, yy); g.lineTo(posx + width, yy); g.stroke(); }
   g.setLineDash([]);
   const line = lineThrough(cur);
@@ -1161,7 +1568,7 @@ function drawGraph() {
   if (cs) {
     const cx = X(cur.depth), cy = Math.max(posy + 3, Math.min(posy + height - 3, Yw(cs.blackWr)));
     g.fillStyle = WR_LINE; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
-    g.font = `700 16px ${UI_FONT}`; g.fillStyle = cur.toPlay === "B" ? WR_LINE : "#fff"; g.textBaseline = "alphabetic";
+    g.font = `700 16px ${UI_FONT}`; g.fillStyle = cur.toPlay === "B" ? WR_LINE : "#171a22"; g.textBaseline = "alphabetic";
     const s = cs.blackWr.toFixed(1), sw = g.measureText(s).width;
     const tx = Math.min(Math.max(cx - sw / 2, 0), graphW - sw);
     const ty = cs.blackWr > 50 ? (cs.blackWr > 90 ? cy + 18 : cy - 6) : (cs.blackWr < 10 ? cy - 6 : cy + 18);
@@ -1175,7 +1582,7 @@ function drawGraph() {
 }
 graphCv.addEventListener("click", ev => {
   const rect = graphCv.getBoundingClientRect(), line = lineThrough(cur), numMoves = Math.max(50, line.length - 1);
-  const k = Math.round((ev.clientX - rect.left) / (T((graphW - 6) * .98)) * numMoves); goTo(line[Math.max(0, Math.min(line.length - 1, k))]);
+  const k = Math.round((ev.clientX - rect.left - 8) / (T((graphW - 16) * .98)) * numMoves); goTo(line[Math.max(0, Math.min(line.length - 1, k))]);
 });
 
 // ------------------------------------------------------------------ variation tree (VariationTree.java)
@@ -1184,10 +1591,10 @@ const BLUNDER_T = [-24, -12, -6, -3, -1, 3, 100];
 const BLUNDER_C = [[155, 25, 150], [208, 16, 19], [200, 140, 50], [180, 180, 0], [140, 202, 34], [0, 220, 0], [0, 230, 230]];
 function blunderColor(node) {
   const a = node.parent && nodeStats(node.parent), b = nodeStats(node);
-  if (!a || !b || !node.move) return "#fff";
+  if (!a || !b || !node.move) return "#d5d9e1";
   const diff = (100 - b.wr) - a.wr;   // mover's win-rate change
   const k = BLUNDER_T.findIndex(t => t >= diff);
-  return k >= 0 ? `rgb(${BLUNDER_C[k].join(",")})` : "#fff";
+  return k >= 0 ? `rgb(${BLUNDER_C[k].join(",")})` : "#d5d9e1";
 }
 let treeHits = [];
 function drawTree() {
@@ -1208,7 +1615,7 @@ function drawTree() {
   treeHits = [];
   for (const [nd] of cells) if (nd.parent) {  // lines
     const [x, y] = pos(nd), [px, py] = pos(nd.parent);
-    g.strokeStyle = trunk.has(nd) ? "#fff" : "rgb(103,103,103)"; g.lineWidth = 1; g.beginPath();
+    g.strokeStyle = trunk.has(nd) ? "#171a22" : "#c3c8d3"; g.lineWidth = 1; g.beginPath();
     if (x === px) { g.moveTo(x + 5.5, py + DOT); g.lineTo(x + 5.5, y); }
     else { g.moveTo(px + 5.5 + 5, py + 5.5); g.lineTo(x + 5.5 - XS + 5, py + 5.5); g.lineTo(x + 5.5, y + 5.5); }
     g.stroke();
@@ -1236,7 +1643,7 @@ treeCv.addEventListener("click", ev => {
 // ------------------------------------------------------------------ table, comment
 function drawSide() {
   $("moveNo").value = cur.depth;
-  const cands = candidates(cur), total = cands.reduce((s, c) => s + c.visits, 0) || 1;
+  const cands = candsShown() ? candidates(cur) : [], total = cands.reduce((s, c) => s + c.visits, 0) || 1;
   const selMove = selectedPv && selectedPv[0];
   $("candRows").innerHTML = cands.map((c, k) =>
     `<tr data-k="${k}"${c.move === selMove ? ' class="sel"' : ""}><td>${k + 1}</td><td>${moverWr(cur, c.winrate).toFixed(1)}</td><td>${c.visits}</td><td>${(c.visits / total * 100).toFixed(1)}</td><td>${moverLead(cur, c.scoreLead).toFixed(1)}</td></tr>`).join("");
@@ -1247,17 +1654,72 @@ function drawSide() {
     text = `${who} 승률: ${(100 - s.wr).toFixed(1)}%\n리드: ${(-s.score).toFixed(1)}   표준편차: ${s.stdev.toFixed(1)}\n(${engineLabel().replace(/ /g, "")} / ${s.visits} 방문)\n덤: ${komi()}`;
   }
   $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
+  drawGameInfo();
+  emptyHint($("graphBox"), lineThrough(cur).some(n => n.analysis) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
+  emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
+  emptyHint($("candRows").closest(".table-box"), cands.length ? "" : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
+}
+function emptyHint(el, text) { if (text) el.dataset.empty = text; else delete el.dataset.empty; }
+function resultText(re) {
+  const m = /^\s*([BW])\s*\+\s*(.*)$/i.exec(re || "");
+  if (!m) return /^(0|draw|jigo)$/i.test((re || "").trim()) ? "무승부" : (re || "");
+  const who = m[1].toUpperCase() === "B" ? "흑" : "백", how = m[2].trim();
+  if (/^r(esign)?$/i.test(how)) return who + " 불계승";
+  if (/^t(ime)?$/i.test(how)) return who + " 시간승";
+  if (/^f(orfeit)?$/i.test(how)) return who + " 반칙승";
+  if (/^\d+(\.\d+)?$/.test(how)) return `${who} ${how}집승`;
+  return who + " 승";
+}
+function drawGameInfo() {
+  const i = root.info, named = i.PB || i.PW;
+  const row = (c, name, rank) => `<div class="gi-row${named ? "" : " quiet"}"><i class="gi-stone ${c}"></i><b>${escHtml(name)}</b>${rank ? `<span>${escHtml(rank)}</span>` : ""}</div>`;
+  const hc = +$("handicap").value;
+  const meta = [game && "<b>AI 대국 중</b>", i.RE && `<b>${escHtml(resultText(i.RE))}</b>`, i.DT && escHtml(i.DT), hc ? `접바둑 ${hc}점` : "", `덤 ${komi()}`, "한국룰"].filter(Boolean).join(" · ");
+  const html = row("b", i.PB || "흑", i.BR) + row("w", i.PW || "백", i.WR) +
+    `<div class="gi-meta">${named ? meta : "기보를 열면 대국자와 결과가 표시됩니다 · " + meta}</div>`;
+  if ($("gameInfo").innerHTML !== html) $("gameInfo").innerHTML = html;
 }
 $("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) { selectedPv = c.pv || null; schedule(); } });
 $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) goTo(play(cur, cur.toPlay, parseGtp(c.move))); });
 
+// ------------------------------------------------------------------ portrait menu sheet
+// Portrait keeps only the move buttons, 분석 시작 and 수순 이동 under the board (and visits/s + connection on top);
+// the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
+// and they go back to the bars in landscape.
+const MENU = [["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen"]],
+              ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeLabel"]],
+              ["분석", ["autoAnalyze", "autoVisitsLabel", "strengthOpen"]],
+              ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
+              ["편집", ["promote", "deleteNode", "resetBoard"]]];
+const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
+  const sec = document.createElement("section"); sec.innerHTML = `<h3>${title}</h3>`; $("menuBody").append(sec); return sec;
+});
+let menuPortrait = null;
+function placeMenuItems() {
+  const portrait = matchMedia("(orientation: portrait)").matches;
+  if (portrait === menuPortrait) return;
+  menuPortrait = portrait;
+  if (!portrait && $("menuDlg").open) $("menuDlg").close();
+  MENU.forEach(([, ids], k) => ids.forEach(id => {
+    const el = $(id);
+    if (!menuHomes.has(id)) { const home = document.createComment(id); el.before(home); menuHomes.set(id, home); }
+    if (portrait) menuSections[k].append(el); else menuHomes.get(id).after(el);
+  }));
+}
+$("menuOpen").onclick = () => $("menuDlg").showModal();
+$("menuClose").onclick = () => $("menuDlg").close();
+$("menuDlg").addEventListener("click", ev => { if (ev.target === $("menuDlg")) $("menuDlg").close(); });   // backdrop
+// an action closes the sheet (its own handler has already run); switches and inputs keep it open
+$("menuBody").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && b.id !== "nums" && b.id !== "coords") $("menuDlg").close(); });
+
 // ------------------------------------------------------------------ layout & render loop
 function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }
 function layout() {
+  placeMenuItems();
   const [bw, bh] = fitBox($("boardBox"));
   // portrait: as wide as the screen, leaving room for the win-rate bar and two rows of buttons
   const side = matchMedia("(orientation: portrait)").matches
-    ? Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight - $("statBox").offsetHeight - 110)
+    ? Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight - document.querySelector(".left").offsetHeight - 110)
     : Math.min(bw, bh);
   const k = dpr();
   boardG = geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
@@ -1279,11 +1741,55 @@ function schedule() {
   requestAnimationFrame(() => { pending = false; render(); });
 }
 function render() { if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
-// Re-lay out only when the window really changes; text/table updates must not clear the canvases.
+// Re-lay out only when the window (or a bar's height, now that the bars wrap) really changes;
+// text/table updates must not clear the canvases.
 let lastSize = "";
-new ResizeObserver(() => { const s = `${innerWidth}x${innerHeight}x${dpr()}`; if (s !== lastSize) { lastSize = s; layout(); } }).observe(document.documentElement);
+const bars = [document.querySelector(".menubar"), document.querySelector(".toolbar")];
+const sizeObserver = new ResizeObserver(() => {
+  const s = [innerWidth, innerHeight, dpr(), ...bars.map(b => b.offsetHeight)].join("x");
+  if (s !== lastSize) { lastSize = s; layout(); }
+});
+[document.documentElement, ...bars].forEach(el => sizeObserver.observe(el));
+// Portrait: the win-rate bar and graph under the board are switched in the menu (remembered on this device).
+function applyPanels() {
+  document.body.classList.toggle("bar-off", !$("showBar").checked);
+  document.body.classList.toggle("graph-open", $("showGraph").checked);
+}
+try { const v = JSON.parse(localStorage.getItem("kgv.panels") || "null"); if (v) { $("showBar").checked = !!v.bar; $("showGraph").checked = !!v.graph; } } catch { /* storage blocked */ }
+applyPanels();
+for (const id of ["showBar", "showGraph"]) $(id).onchange = () => {
+  try { localStorage.setItem("kgv.panels", JSON.stringify({bar: $("showBar").checked, graph: $("showGraph").checked})); } catch { /* storage blocked */ }
+  applyPanels(); layout();
+};
+
+// ------------------------------------------------------------------ GPU time, cost and stop (website only, for the logged-in member)
+const LIVE = ["creating", "booting", "setup", "ready", "stopping"];
+async function watchGpu() {
+  if (!token || /\.trycloudflare\.com$/.test(location.hostname)) return;
+  let site; try { site = await import("./app.js"); } catch { return; }
+  async function tick() {
+    const {data: s} = await site.sb.from("gpu_sessions").select("status,charged_krw,instance_created_at,created_at")
+      .eq("web_token", token).limit(1).maybeSingle();
+    if (!s) { $("gpuMeter").hidden = true; return; }   // not logged in on this browser, or not this member's GPU
+    const live = LIVE.includes(s.status);
+    const min = Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at)) / 60000));
+    $("gpuUse").textContent = live ? `${min}분 · ${site.won(s.charged_krw)}` : `GPU 종료됨 · ${site.won(s.charged_krw)}`;
+    $("gpuStop").hidden = !live || s.status === "stopping";
+    $("gpuMeter").hidden = false;
+  }
+  $("gpuStop").onclick = async () => {
+    if (!confirm("GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
+    $("gpuStop").disabled = true;
+    try {
+      const r = await site.api("/stop", {});
+      $("err").textContent = r.stopped ? "GPU를 삭제했습니다. 요금 차감이 멈췄습니다." : "삭제 요청을 보냈습니다. 확인되는 대로 차감이 멈춥니다.";
+    } catch (err) { $("err").textContent = err.message; }
+    $("gpuStop").disabled = false; tick();
+  };
+  tick().catch(() => {}); setInterval(() => tick().catch(() => {}), 30000);
+}
 document.fonts && document.fonts.ready.then(schedule);
-layout(); connect();
+layout(); connect(); watchGpu();
 </script>
 </body>
 </html>

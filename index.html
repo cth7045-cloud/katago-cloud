@@ -50,6 +50,7 @@
         <a class="brand" href="#" id="homeLink"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
         <span class="who" id="who"></span>
         <a href="#me" id="meLink">내 정보</a>
+        <a href="analysis.html" id="analysisLink" class="hidden" target="_blank" rel="noopener">분석 화면</a>
         <a href="admin.html" id="adminLink" class="hidden">관리자</a>
         <button class="quiet" id="logout">로그아웃</button>
       </div>
@@ -262,6 +263,7 @@ async function refresh() {
   $("meBalance").textContent = won(balance);
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   $("adminLink").classList.toggle("hidden", !p.is_admin);
+  $("analysisLink").classList.toggle("hidden", !p.is_admin);   // admins can open it without a GPU
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
