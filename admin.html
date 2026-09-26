@@ -89,7 +89,8 @@ const who = (id, former) => (id ? emails[id] || "?" : `탈퇴: ${formers[former]
 async function load() {
   $("err").textContent = "";
   try {
-    const d = await api("/admin/overview");
+    // admins spend Vast credit, not their site balance: show the same figure as the home page (Vast − members)
+    const [d, funds] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null)]);
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
     formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
     $("formerRows").innerHTML = d.former.map((f) => `<tr><td>${esc(f.email)}</td><td>${esc(f.name || "")}</td><td>${when(f.joined_at)}</td>` +
@@ -100,7 +101,9 @@ async function load() {
     if (!priceDirty) { $("pRate").value = Number(s.usd_krw); $("pMarkup").value = Number(s.markup); showExample(); }
     $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간 · 관리자는 Vast 잔액 − 회원 잔액 안에서 원가 사용`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.email)}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
-      `<td>${esc(m.name || "")}</td><td class="num">${won(m.balance_krw)}</td><td>${when(m.created_at)}</td></tr>`).join("");
+      `<td>${esc(m.name || "")}</td><td class="num">${m.is_admin && funds?.krw != null
+        ? `<span title="Vast ${won(funds.totalKrw)} − 회원 잔액 ${won(funds.membersKrw)}">${won(funds.krw)}</span>` : won(m.balance_krw)}</td>` +
+      `<td>${when(m.created_at)}</td></tr>`).join("");
     // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
     const rate = Number(s.usd_krw), admins = new Set(d.members.filter((m) => m.is_admin).map((m) => m.id));
     const cost = (x) => x.vast_cost_usd == null ? null : Math.round(Number(x.vast_cost_usd) * rate);
