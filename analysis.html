@@ -400,8 +400,8 @@ button.primary:hover { background: var(--blue-deep); }
       <select class="gd-mode" aria-label="백 AI 세기 기준"><option value="time">초당 한 수</option><option value="visits">visits당 한 수</option></select></div></div>
     <div class="gd-row"><span>초반 무작위</span><select id="gdRandom"><option value="0">없음 (항상 최선수)</option><option value="10">10수까지 상위 후보 중 무작위</option><option value="20">20수까지 상위 후보 중 무작위</option><option value="40">40수까지 상위 후보 중 무작위</option></select></div>
     <div class="gd-row"><span>AI 기권</span><div class="gd-resign"><label class="check"><input type="checkbox" id="gdResign" checked> 사용</label>
-      <input type="number" id="gdResignMove" min="0" value="60" aria-label="최소 수순">수 이후, 연속
-      <input type="number" id="gdResignCount" min="1" value="3" aria-label="연속 수">수 동안 승률
+      <input type="number" id="gdResignMove" min="0" value="150" aria-label="최소 수순">수 이후, 연속
+      <input type="number" id="gdResignCount" min="1" value="2" aria-label="연속 수">수 동안 승률
       <input type="number" id="gdResignWr" min="0" max="50" step="0.5" value="5" aria-label="승률">% 미만</div></div>
     <div class="gd-row"><span>후보수 보임</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label></div></div>
     <p class="gd-note" id="gdNote"></p>
@@ -812,6 +812,23 @@ $("pass").onclick = () => goTo(play(cur, cur.toPlay, null));
 let game = null, reachedAt = performance.now();
 // game: {kind, root, ai: {B|W: {mode, value}}, show: {B, W}, random, resign: {on, move, count, wr}, low: {B, W}}
 const colorName = c => c === "B" ? "흑" : "백";
+// Resigning follows YZY's analysis game (Leelaz.notifyAnaResign: from move N, the AI's best winrate below X% for K
+// turns in a row; YZY defaults 150 / 2 / 5%) plus KataGo's own handicap guard (gtp.cpp shouldResign), which is what
+// YZY gets when KataGo plays by genmove: white giving handicap plays at least 1 + 361/5 moves, and only resigns when
+// its score is behind the catch-up schedule (the handicap shrinking to 0 by move 0.6 * 361) by 5 points + 15% of it.
+function initialBlackAdvantage() {  // KataGo initialBlackAdvantage, Korean rules (territory scoring: 14 per stone, no white bonus)
+  const n = root.setup.W.length ? 0 : root.setup.B.length;
+  return n <= 1 ? 7 - komi() : 14 * (n - 1) + 7 - komi();
+}
+function handicapAllowsResign(mover, moverScore) {
+  const adv = initialBlackAdvantage();
+  if (!(adv > .9 && mover === "W")) return true;
+  const minTurn = 1 + Math.floor(N * N / 5);
+  if (cur.depth < minTurn) return false;
+  const toCatchUp = Math.max(1, .6 * N * N - minTurn), spent = Math.min(toCatchUp, Math.max(0, cur.depth - minTurn));
+  const resignScore = -adv * (toCatchUp - spent) / toCatchUp - 5 - adv * .15;
+  return moverScore <= resignScore;
+}
 function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
 function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; schedule(); }
 const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]);
@@ -830,7 +847,7 @@ setInterval(() => {
   const sec = (performance.now() - reachedAt) / 1000;
   if (rule.mode === "visits" ? cur.analysis.rootInfo.visits < rule.value || sec < .5 : sec < rule.value) return;
   const best = cands[0], r = game.resign;
-  if (r.on && cur.depth >= r.move && moverWr(cur, best.winrate) < r.wr) {
+  if (r.on && cur.depth >= r.move && moverWr(cur, best.winrate) < r.wr && handicapAllowsResign(mover, moverLead(cur, best.scoreLead))) {
     if (++game.low[mover] >= r.count) {
       root.info.RE = other(mover) + "+R"; publish();
       return stopGame(`${colorName(mover)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`);
@@ -865,7 +882,7 @@ $("gdHandicap").onchange = () => { $("gdKomi").value = +$("gdHandicap").value ? 
 function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
 function saveGameForm() {
   const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
-             resign: [$("gdResign").checked, $("gdResignMove").value, $("gdResignCount").value, $("gdResignWr").value]};
+             resign: [$("gdResign").checked, $("gdResignMove").value, $("gdResignCount").value, $("gdResignWr").value], v: 2};
   try { localStorage.setItem(GAME_FORM, JSON.stringify(f)); } catch { /* storage blocked */ }
 }
 function loadGameForm() {
@@ -875,6 +892,7 @@ function loadGameForm() {
   pickSeg("gdKind", f.kind); pickSeg("gdColor", f.color);
   for (const [row, r] of [[$("gdAi1"), f.ai1], [$("gdAi2"), f.ai2]]) if (r) { row.querySelector(".gd-mode").value = r.mode; row.querySelector(".gd-value").value = r.value; }
   $("gdRandom").value = f.random;
+  if (!f.v && f.resign && +f.resign[1] === 60 && +f.resign[2] === 3) { f.resign[1] = "150"; f.resign[2] = "2"; }   // old defaults -> YZY's
   [$("gdResign").checked, $("gdResignMove").value, $("gdResignCount").value, $("gdResignWr").value] = f.resign;
   $("gdShowB").checked = $("gdShowW").checked = f.kind === "ai";
 }
