@@ -152,8 +152,8 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 .back:hover { color: var(--ink); text-decoration: none; }
 
 /* start page: GPU 대여 · 내 기보 · 학습방 */
-.hub { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 24px 0 8px; }
-.hub-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 280px; padding: 30px 28px 26px;
+.hub { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 24px 0 8px; }
+.hub-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 230px; padding: 30px 28px 26px;
   border-radius: 28px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow);
   transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
 .hub-tile:hover { text-decoration: none; transform: translateY(-4px); box-shadow: 0 1px 2px rgba(23, 26, 34, .04), 0 26px 50px -20px rgba(44, 92, 246, .3); }
@@ -165,6 +165,7 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 .hub-icon.kifu .bs { fill: var(--ink); stroke: none; }
 .hub-icon.kifu .ws { fill: #fff; stroke: var(--ink); stroke-width: 1.2; }
 .hub-icon.study { background: #e5f5ec; color: var(--good); }
+.hub-icon.batch { background: #ece9fd; color: #5b47d6; }
 .hub-tile b { margin-top: 28px; font-size: 30px; font-weight: 800; letter-spacing: -.035em; line-height: 1.15; }
 .hub-desc { color: var(--muted); font-size: 15px; }
 .hub-sub { margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--blue); min-height: 1.4em; }
