@@ -147,6 +147,9 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody section > button.pink { color: var(--bad); }
 #menuBody section > button.pink::before { background: var(--bad); }
 #menuBody label > input, #menuBody label > select { order: 2; margin-left: auto; }
+.menu-text { display: none; }
+#menuBody .menu-text { display: inline; }
+#menuBody #komiLabel > #komi { margin-left: 0; width: 76px; }
 #menuBody input[type=checkbox] { width: 20px; height: 20px; }
 #menuBody #openSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
 #menuBody #saveSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
@@ -252,6 +255,10 @@ dialog[open] { animation: arrive .35s var(--ease); }
 .gd-checks { display: flex; gap: 16px; }
 .gd-checks label.check { color: var(--ink); }
 .gd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gd-pair-komi { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+.gd-komi { display: flex; gap: 6px; min-width: 0; }
+.gd-row .gd-komi select { width: auto; flex: none; }
+.gd-komi input[type=number] { flex: 1; min-width: 0; }
 .seg { display: flex; background: var(--soft); border-radius: 999px; padding: 3px; gap: 2px; }
 .seg button { flex: 1; min-width: 0; background: transparent; min-height: 34px; color: var(--muted); padding: 4px 8px; white-space: normal; line-height: 1.2; word-break: keep-all; }
 .seg button:hover { background: rgba(255, 255, 255, .6); }
@@ -345,8 +352,8 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="kifuOpen">기보 불러오기</button>
   <button id="strengthOpen">기력 평가</button>
   <div class="lvl" id="strengthLevel" role="group" aria-label="기력 평가 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
-  <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
-  <label class="check" id="komiLabel">덤 <input type="number" id="komi" value="6.5" step="0.5" min="-50" max="50"></label>
+  <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="1">정선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
+  <label class="check" id="komiLabel"><span class="menu-text">덤</span><select id="komiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select> <input type="number" id="komi" value="6.5" step="0.5" min="0" max="150" aria-label="덤 집 수"></label>
   <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check" id="candsLabel"><input type="checkbox" id="showCands" checked> 후보수보기</label>
   <div id="placeRow"><span>돌 놓기</span>
@@ -386,9 +393,9 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="gd-row"><span>대국</span><div class="seg" id="gdKind"><button data-v="human" class="on">AI와 대국</button><button data-v="ai">AI끼리 대국</button></div></div>
     <div class="gd-row"><span>시작</span><div class="seg" id="gdFrom"><button data-v="new" class="on">새 대국</button><button data-v="continue">이어서 두기</button></div></div>
     <div class="gd-row" data-for="human"><span>내 돌</span><div class="seg" id="gdColor"><button data-v="B" class="on">흑</button><button data-v="W">백</button><button data-v="R">무작위</button></div></div>
-    <div class="gd-row" data-for="new"><span>접바둑 · 덤</span><div class="gd-pair">
-      <select id="gdHandicap" aria-label="접바둑"><option value="0">호선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select>
-      <input type="number" id="gdKomi" step="0.5" min="-50" max="50" aria-label="덤"></div></div>
+    <div class="gd-row" data-for="new"><span>접바둑 · 덤</span><div class="gd-pair gd-pair-komi">
+      <select id="gdHandicap" aria-label="접바둑"><option value="0">호선</option><option value="1">정선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select>
+      <div class="gd-komi"><select id="gdKomiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select><input type="number" id="gdKomi" step="0.5" min="0" max="150" aria-label="덤 집 수"></div></div></div>
     <div class="gd-row" data-for="new"><span>대국자</span><div class="gd-pair">
       <input type="text" id="gdNameB" placeholder="흑 이름" autocomplete="off"><input type="text" id="gdNameW" placeholder="백 이름" autocomplete="off"></div></div>
     <div class="gd-row" id="gdAi1"><span>AI세팅</span><div class="gd-pair">
@@ -641,7 +648,8 @@ function baseQuery() {
 function requestLive() {
   if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
   if (!analyzing) return;
-  liveId = "q" + (++qn);
+  const pda = pdaAt(cur);
+  liveId = "q" + (++qn) + (pda ? "~" + pda : "");   // the PDA rides in the id, so other devices' copies (peerQuery) carry it too
   queries.set(liveId, {node: cur});
   // No visit limit: analysis runs until the member stops it or moves (like YZY pondering); AI moves use it too.
   // priority: KataGo serves queued positions first-come, so without it a new live query waited behind every
@@ -649,10 +657,17 @@ function requestLive() {
   // firstReportDuringSearchAfter (in KataGo's source, not its docs): the first candidates come after 0.05 s
   // instead of waiting a whole 0.3 s report period, which was most of the delay after each move.
   send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.3,
-        firstReportDuringSearchAfter: 0.05, priority: 10,
+        firstReportDuringSearchAfter: 0.05, priority: 10, ...(pda ? {overrideSettings: {playoutDoublingAdvantage: pda}} : {}),
         ...(bridgeSync ? {live: true} : {})});
 }
 function store(node, msg, id) {
+  const m = /~(-?[0-9.]+)$/.exec(id || ""), pda = m ? +m[1] : 0;
+  if (pda) {   // searched with a PDA: shown for that turn only, never mixed into the graph, 자동분석, 기력 평가 or SGF
+    msg.pda = pda;
+    const old = node.pdaAn;
+    if (!old || old.pda !== pda || node.paid === id || msg.rootInfo.visits >= old.rootInfo.visits) { node.pdaAn = msg; node.paid = id; }
+    return;
+  }
   const old = node.analysis;
   if (!old || node.aid === id || msg.rootInfo.visits >= old.rootInfo.visits) { node.analysis = msg; node.aid = id; }
 }
@@ -766,7 +781,12 @@ function stopAuto() {
 }
 function engineLabel() { return ["KataGo" + (engineVersion ? " " + engineVersion : ""), modelName].filter(Boolean).join(" · "); }
 function updateEngineName() { $("engineName").textContent = engineLabel(); }
-function komi() { const v = parseFloat($("komi").value); return Number.isFinite(v) ? v : 6.5; }
+// Komi is shown as 덤 (white receives it) or 역덤 (black receives it) plus a number of points; inside it is one signed value.
+function komiOf(sign, input) { const v = parseFloat($(input).value); return Number.isFinite(v) ? +$(sign).value * v : 6.5; }
+function setKomiOf(sign, input, v) { v = Number.isFinite(+v) ? +v : 6.5; $(sign).value = v < 0 ? "-1" : "1"; $(input).value = Math.abs(v); }
+function komi() { return komiOf("komiSign", "komi"); }
+function setKomi(v) { setKomiOf("komiSign", "komi", v); }
+const komiText = (k = komi()) => k < 0 ? `역덤 ${-k}` : `덤 ${k}`;
 
 // ------------------------------------------------------------------ navigation / actions
 function goTo(node) {
@@ -778,7 +798,7 @@ function goTo(node) {
 }
 function step(k) { let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n); }
 function toEnd() { const l = lineThrough(cur); goTo(l[l.length - 1]); }
-function clearAnalysis(n) { n.analysis = null; n.children.forEach(clearAnalysis); }
+function clearAnalysis(n) { n.analysis = n.pdaAn = null; n.children.forEach(clearAnalysis); }
 
 function setAnalyzing(on) {
   analyzing = on;
@@ -813,13 +833,46 @@ const colorName = c => c === "B" ? "흑" : "백";
 // YZY gets when KataGo plays by genmove: white giving handicap plays at least 1 + 361/5 moves, and only resigns when
 // its score is behind the catch-up schedule (the handicap shrinking to 0 by move 0.6 * 361) by 5 points + 15% of it.
 const RESIGN_MOVE = 150, RESIGN_COUNT = 2, RESIGN_WR = 5;   // YZY Config anaGameResignStartMove / Move / Percent
+// PDA (playoutDoublingAdvantage): KataGo's own handicap play (gtp.cpp updateDynamicPDAHelper with the example config's
+// dynamicPlayoutDoublingAdvantageCapPerOppLead = 0.045). The starting advantage in points counts handicap stones AND komi
+// (initialBlackAdvantage below), so 정선, 역덤 or a big 덤 are handled exactly like stones: 14 points ~ one stone.
+// The side behind searches as if it read 2^PDA times more than its opponent; PDA starts at the cap
+// 0.045 x (advantage - 4 points), at most 2.75, in steps of 0.125, and after each of its searches moves one step to keep
+// its own win rate between 5% and 25%. The side ahead gets the negative value (plays safe) when an AI plays it.
+// When it applies (member's decision, not switchable): in AI대국 on every AI turn, never on the member's turn;
+// in plain analysis on the turns of the side that is behind (white in handicap / 역덤 games).
+const PDA_PER_POINT = .045, PDA_STEP = .125, PDA_MAX = 2.75, PDA_START_POINTS = 4;   // 19x19: max(4 / 1, 2)
+const behindSide = () => initialBlackAdvantage() >= 0 ? "W" : "B";
+function pdaCap() {
+  const adv = Math.abs(initialBlackAdvantage());
+  if (adv < PDA_START_POINTS) return 0;
+  return Math.round(Math.min(PDA_MAX, PDA_PER_POINT * (adv - PDA_START_POINTS)) / PDA_STEP) * PDA_STEP;
+}
+function pdaApplies(node) { return game && game.root === root ? !!game.ai[node.toPlay] : node.toPlay === behindSide(); }
+function pdaAt(node) {   // the PDA for the side to move at node (0 = plain search)
+  const cap = pdaCap(); if (!cap || !pdaApplies(node)) return 0;
+  const behind = behindSide(), path = [];
+  for (let n = node.parent; n; n = n.parent) path.push(n);
+  let level = cap;
+  for (let i = path.length - 1; i >= 0; i--) {   // replay the adjustment after each earlier PDA turn, oldest first
+    const n = path[i], a = pdaApplies(n) && (n.pdaAn || n.analysis);
+    if (!a || !a.rootInfo) continue;
+    const wr = behind === "B" ? a.rootInfo.winrate : 1 - a.rootInfo.winrate;   // win rate of the side behind
+    if (wr < .05) level += PDA_STEP; else if (wr > .25) level -= PDA_STEP;
+    level = Math.max(0, Math.min(cap, level));
+  }
+  return node.toPlay === behind ? level : -level;
+}
+// the analysis shown for node: the PDA search on a PDA turn (once it has reported), otherwise the plain one
+function shownAnalysis(node) { const p = pdaAt(node); return p && node.pdaAn && node.pdaAn.pda === p ? node.pdaAn : node.analysis; }
+const pdaShown = node => { const a = shownAnalysis(node); return a && a.pda ? a.pda : 0; };
 function initialBlackAdvantage() {  // KataGo initialBlackAdvantage, Korean rules (territory scoring: 14 per stone, no white bonus)
   const n = root.setup.W.length ? 0 : root.setup.B.length;
   return n <= 1 ? 7 - komi() : 14 * (n - 1) + 7 - komi();
 }
-function handicapAllowsResign(mover, moverScore) {
-  const adv = initialBlackAdvantage();
-  if (!(adv > .9 && mover === "W")) return true;
+function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; here whichever side is behind (역덤 / big 덤)
+  const adv = Math.abs(initialBlackAdvantage());
+  if (!(adv > .9 && mover === behindSide())) return true;
   const minTurn = 1 + Math.floor(N * N / 5);
   if (cur.depth < minTurn) return false;
   const toCatchUp = Math.max(1, .6 * N * N - minTurn), spent = Math.min(toCatchUp, Math.max(0, cur.depth - minTurn));
@@ -827,7 +880,7 @@ function handicapAllowsResign(mover, moverScore) {
   return moverScore <= resignScore;
 }
 function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
-function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; schedule(); }
+function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
 const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]);
 setInterval(() => {
   if (!game) return;
@@ -839,10 +892,11 @@ setInterval(() => {
     return stopGame("양쪽이 패스해 대국이 끝났습니다" + (s ? ` · ${resultText(root.info.RE)} (AI 판정)` : ""));
   }
   const mover = cur.toPlay, rule = game.ai[mover];
-  if (!rule || !cur.analysis) return;   // the member's turn, or no analysis yet
-  const cands = candidates(cur); if (!cands.length) return;
+  const an = shownAnalysis(cur);
+  if (!rule || !an || pdaAt(cur) !== (an.pda || 0)) return;   // the member's turn, or no analysis (with this turn's PDA) yet
+  const cands = candidates(cur, true); if (!cands.length) return;
   const sec = (performance.now() - reachedAt) / 1000;
-  if (rule.mode === "visits" ? cur.analysis.rootInfo.visits < rule.value || sec < .5 : sec < rule.value) return;
+  if (rule.mode === "visits" ? an.rootInfo.visits < rule.value || sec < .5 : sec < rule.value) return;
   const best = cands[0];
   if (game.resign && cur.depth >= RESIGN_MOVE && moverWr(cur, best.winrate) < RESIGN_WR && handicapAllowsResign(mover, moverLead(cur, best.scoreLead))) {
     if (++game.low[mover] >= RESIGN_COUNT) {
@@ -875,7 +929,8 @@ for (const id of ["gdKind", "gdFrom", "gdColor"]) $(id).addEventListener("click"
   gameForm();
 });
 for (const row of [$("gdAi1"), $("gdAi2")]) row.querySelector(".gd-mode").onchange = ev => { row.querySelector(".gd-value").value = ev.target.value === "time" ? 3 : 500; };
-$("gdHandicap").onchange = () => { $("gdKomi").value = +$("gdHandicap").value ? 0.5 : 6.5; };
+const komiForHandicap = n => n === 1 ? 0 : n ? 0.5 : 6.5;   // 정선: no komi; handicap: half a point, so there are no draws
+$("gdHandicap").onchange = () => setKomiOf("gdKomiSign", "gdKomi", komiForHandicap(+$("gdHandicap").value));
 function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
 function saveGameForm() {
   const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
@@ -895,7 +950,7 @@ function loadGameForm() {
 $("newGame").onclick = () => {
   if (game) { if (confirm("AI 대국을 멈출까요? (지금까지 둔 수는 남습니다)")) stopGame("대국을 멈췄습니다."); return; }
   loadGameForm();
-  $("gdHandicap").value = $("handicap").value; $("gdKomi").value = komi(); $("gdNameB").value = $("gdNameW").value = "";
+  $("gdHandicap").value = $("handicap").value; setKomiOf("gdKomiSign", "gdKomi", komi()); $("gdNameB").value = $("gdNameW").value = "";
   gameForm(); $("gameDlg").showModal();
 };
 $("gdCancel").onclick = () => $("gameDlg").close();
@@ -906,7 +961,7 @@ $("gdGo").onclick = () => {
   const ai = vsHuman ? {[other(mine)]: aiRule($("gdAi1"))} : {B: aiRule($("gdAi1")), W: aiRule($("gdAi2"))};
   if (segValue("gdFrom") === "new") {
     const n = +$("gdHandicap").value;
-    $("handicap").value = handicapShown = String(n); $("komi").value = parseFloat($("gdKomi").value) || 0;
+    $("handicap").value = handicapShown = String(n); setKomi(komiOf("gdKomiSign", "gdKomi") || 0);
     root = handicapRoot(n);
     const nm = (id, fallback) => $(id).value.trim() || fallback;
     root.info = {PB: nm("gdNameB", vsHuman && mine === "B" ? "나" : "KataGo"), PW: nm("gdNameW", vsHuman && mine === "W" ? "나" : "KataGo"),
@@ -928,7 +983,7 @@ $("nums").onclick = () => {
   $("nums").dataset.mode = mode; $("nums").textContent = label; $("nums").classList.toggle("on", !!mode); schedule();
 };
 $("coords").onclick = () => { $("coords").classList.toggle("on"); layout(); };
-$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { if (+$("handicap").value) $("komi").value = 6.5; $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); } };
+$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { if (+$("handicap").value) setKomi(6.5); $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); } };
 // 접바둑: black's stones on the usual star points, white moves first
 const STAR = {tr: [15, 3], bl: [3, 15], br: [15, 15], tl: [3, 3], c: [9, 9], l: [3, 9], r: [15, 9], t: [9, 3], b: [9, 15]};
 const HANDICAP_POINTS = {2: "tr bl", 3: "tr bl br", 4: "tr bl br tl", 5: "tr bl br tl c", 6: "tr bl br tl l r",
@@ -939,11 +994,15 @@ $("handicap").onchange = () => {
   if (root.children.length && !confirm("접바둑으로 새로 시작할까요? (현재 기보는 사라집니다)")) { $("handicap").value = handicapShown; return; }
   handicapShown = $("handicap").value;
   const n = +handicapShown; root = handicapRoot(n);
-  $("komi").value = n ? 0.5 : 6.5;   // handicap games: half a point, so there are no draws
+  setKomi(komiForHandicap(n));
   clearAnalysis(root); goTo(root);
 };
 $("deleteNode").onclick = () => { if (!cur.parent) return; const p = cur.parent; p.children.splice(p.children.indexOf(cur), 1); goTo(p); };
-$("komi").onchange = () => { clearAnalysis(root); requestLive(); publish(); schedule(); };  // old results used the old komi
+function komiChanged() {   // old results used the old komi; a negative number typed in flips 덤 <-> 역덤
+  if (parseFloat($("komi").value) < 0) setKomi(komi());
+  clearAnalysis(root); requestLive(); publish(); schedule();
+}
+$("komi").onchange = $("komiSign").onchange = komiChanged;
 $("showOwner").onchange = () => { requestLive(); schedule(); };
 $("showCands").onchange = schedule;
 document.addEventListener("keydown", e => {
@@ -998,7 +1057,8 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   newRoot.comment = (first.C || [""])[0];
   for (const k of GAME_INFO) if (first[k]) newRoot.info[k] = first[k][0];
   if (first.KGA) newRoot.analysis = unpackAnalysis(first.KGA[0]);
-  if (first.KM) $("komi").value = parseFloat(first.KM[0]) || 6.5;
+  if (first.KM) setKomi(parseFloat(first.KM[0]) || 0);
+  if (!(ha >= 2 && ha <= 9) && !newRoot.setup.B.length && !newRoot.setup.W.length && toPlay === "B" && komi() === 0) $("handicap").value = handicapShown = "1";   // 정선
   let skipped = 0;
   function build(tr, start, node) {
     for (let k = start; k < tr.nodes.length; k++) {
@@ -1090,9 +1150,9 @@ function mergeSgf(text) {
     loadSgf(text); return;   // a different start (new game, handicap): a new tree
   }
   const km = first.KM ? parseFloat(first.KM[0]) : 6.5;
-  if (km !== komi()) { $("komi").value = km; clearAnalysis(root); }
+  if (km !== komi()) { setKomi(km); clearAnalysis(root); }
   const ha = parseInt((first.HA || ["0"])[0], 10);
-  $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : 0);
+  $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : !root.setup.B.length && !root.setup.W.length && root.toPlay === "B" && km === 0 ? 1 : 0);
   root.info = {}; for (const k of GAME_INFO) if (first[k]) root.info[k] = first[k][0];
   root.comment = (first.C || [""])[0];
   const keep = new Map();   // node -> its children in the other device's order (branches it deleted go away)
@@ -1288,14 +1348,14 @@ $("strengthRedo").onclick = () => openStrength(true);
 $("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strengthDlg")) $("strengthDlg").close(); });   // backdrop
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
-function candidates(node) {
-  const a = node.analysis; if (!a || !a.moveInfos) return [];
+function candidates(node, shown = false) {
+  const a = shown ? shownAnalysis(node) : node.analysis; if (!a || !a.moveInfos) return [];
   return a.moveInfos.filter(m => m.visits > 0).sort((p, q) => p.order - q.order);
 }
 const moverWr = (node, wrBlack) => (node.toPlay === "B" ? wrBlack : 1 - wrBlack) * 100;
 const moverLead = (node, leadBlack) => node.toPlay === "B" ? leadBlack : -leadBlack;
-function nodeStats(node) {  // YZY BoardData winrate/scoreMean = first candidate, side to move
-  const c = candidates(node)[0], a = node.analysis;
+function nodeStats(node, shown = false) {  // YZY BoardData winrate/scoreMean = first candidate, side to move
+  const c = candidates(node, shown)[0], a = shown ? shownAnalysis(node) : node.analysis;
   if (!a) return null;
   const wrB = c ? c.winrate : a.rootInfo.winrate, leadB = c ? c.scoreLead : a.rootInfo.scoreLead;
   return {wr: moverWr(node, wrB), score: moverLead(node, leadB), blackWr: wrB * 100, blackLead: leadB, visits: a.rootInfo.visits, stdev: a.rootInfo.scoreStdev || 0};
@@ -1436,7 +1496,7 @@ function renderBoard(ctx, G, node, o) {
   const {margin: m, sq, r} = G;
   const P = i => [m + sq * (i % N), m + sq * ((i / N) | 0)];
   drawGoban(ctx, G, o.coords);
-  const a = node.analysis;
+  const a = shownAnalysis(node);
   if (o.ownership && a && a.ownership) for (let i = 0; i < N * N; i++) {
     const v = a.ownership[i]; if (Math.abs(v) < .15) continue;
     const [cx, cy] = P(i), s = Math.round(sq * .42 * Math.min(1, Math.abs(v)));
@@ -1480,7 +1540,7 @@ function renderBoard(ctx, G, node, o) {
 // BoardRenderer.drawLeelazSuggestions (limit 10, colour by visit ratio, cyan best + blue ring, 3 text rows)
 function drawSuggestions(ctx, G, node, hoverI, branch) {
   const {margin: m, sq, r, avail} = G;
-  const list = candidates(node); if (!list.length) return;
+  const list = candidates(node, true); if (!list.length) return;
   const maxP = Math.max(...list.map(c => c.visits));
   const blackToPlay = node.toPlay === "B";
   for (let k = list.length - 1; k >= 0; k--) {
@@ -1546,7 +1606,7 @@ function drawMain() {
 }
 function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
   if (!miniCtx) return;
-  const pv = (hover && hover.pv) || selectedPv || (candsShown() && (candidates(cur)[0] || {}).pv) || null;
+  const pv = (hover && hover.pv) || selectedPv || (candsShown() && (candidates(cur, true)[0] || {}).pv) || null;
   renderBoard(miniCtx, miniG, cur, {coords: false, candidates: false, branch: pv, hover: null, numbers: false, ownership: false});
 }
 function boardPoint(ev) {
@@ -1565,7 +1625,7 @@ $("placeSeg").addEventListener("click", ev => {
 });
 boardCv.addEventListener("click", placeAt);   // mouse; touches on the board are handled below
 function hoverFor(p) {  // the variation preview for the candidate at board point p (or null)
-  const mv = p && candsShown() ? candidates(cur).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
+  const mv = p && candsShown() ? candidates(cur, true).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
   return mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
 }
 function hoverAt(pt) {  // pt: anything with clientX/clientY
@@ -1667,7 +1727,7 @@ function drawStatistics() {
   const g = statCtx; let x = 0, y = 0, W = statW, H = statH;
   g.clearRect(0, 0, W, H);
   x += 12; y += 4; W -= 24; H -= 8;
-  const curS = nodeStats(cur), prev = cur.parent;
+  const curS = nodeStats(cur, true), plainS = nodeStats(cur), prev = cur.parent;
   let lastWR = 50, lastScore = 0, validLast = false;
   const pS = prev && nodeStats(prev);
   if (pS) { lastWR = pS.wr; lastScore = pS.score; validLast = true; }
@@ -1677,13 +1737,14 @@ function drawStatistics() {
   const blackWR = cur.toPlay === "B" ? curWR : 100 - curWR, whiteWR = 100 - blackWR;
   // "Black lead: x  마지막 수(#n): ±w% ±s포인트"
   // "흑 리드 x  마지막 수(#n): ±w% ±s집" ("—" until analysed); with 형세 on: the engine's count of the position
-  const own = $("showOwner").checked && cur.analysis && cur.analysis.ownership;
+  const own = $("showOwner").checked && shownAnalysis(cur) && shownAnalysis(cur).ownership;
   let text = "흑 리드 " + (valid ? (cur.toPlay === "B" ? curS.score : -curS.score).toFixed(1) : "—");
-  const wrD = validLast ? 100 - lastWR - curWR : 0, scD = validLast ? (-lastScore) - curScore : 0;
+  const wrD = validLast && plainS ? 100 - lastWR - plainS.wr : 0, scD = validLast && plainS ? (-lastScore) - plainS.score : 0;
   let rank = 0;
   if (prev && cur.move && !cur.move.pass) { const k = candidates(prev).findIndex(c => c.move === gtp(cur.move.x, cur.move.y)); rank = k >= 0 ? k + 1 : 0; }
   const sign = v => (v > 0 ? "+" : v < 0 ? "-" : "±") + Math.abs(v).toFixed(1);
-  text += "  마지막 수" + (rank > 0 ? `(#${rank})` : "") + ": " + (valid && validLast && cur.move ? `${sign(wrD)}% ${sign(scD)}집` : "—");
+  text += "  마지막 수" + (rank > 0 ? `(#${rank})` : "") + ": " + (plainS && validLast && cur.move ? `${sign(wrD)}% ${sign(scD)}집` : "—");
+  if (pdaShown(cur)) text += `  PDA ${pdaShown(cur)}`;
   if (own && valid) {
     let b = 0, w = 0; for (const v of own) { if (v > 0) b += v; else w -= v; }
     const lead = curS && (cur.toPlay === "B" ? curS.score : -curS.score);
@@ -1756,7 +1817,7 @@ function drawGraph() {
   // win rate (black perspective), 1.7 px; gaps drawn dashed in the miss colour
   g.lineWidth = 1.7;
   for (let j = 1; j < pts.length; j++) { const a = pts[j - 1], b = pts[j]; if (b.k - a.k >= 25) continue;
-    const gap = b.k - a.k > 1; g.strokeStyle = gap ? WR_MISS : WR_LINE; g.setLineDash(gap ? [4, 4] : []);
+    const gap = b.k - a.k > 1 && line.slice(a.k + 1, b.k).some(n => !n.pdaAn); g.strokeStyle = gap ? WR_MISS : WR_LINE; g.setLineDash(gap ? [4, 4] : []);
     g.beginPath(); g.moveTo(X(a.k), Yw(a.wr)); g.lineTo(X(b.k), Yw(b.wr)); g.stroke(); }
   g.setLineDash([]);
   // current move: dot + value
@@ -1841,19 +1902,19 @@ treeCv.addEventListener("click", ev => {
 function drawSide() {
   $("moveNo").value = cur.depth;
   if (!autoId) autoButton();
-  const cands = candsShown() ? candidates(cur) : [], total = cands.reduce((s, c) => s + c.visits, 0) || 1;
+  const cands = candsShown() ? candidates(cur, true) : [], total = cands.reduce((s, c) => s + c.visits, 0) || 1;
   const selMove = selectedPv && selectedPv[0];
   $("candRows").innerHTML = cands.map((c, k) =>
     `<tr data-k="${k}"${c.move === selMove ? ' class="sel"' : ""}><td>${k + 1}</td><td>${moverWr(cur, c.winrate).toFixed(1)}</td><td>${c.visits}</td><td>${(c.visits / total * 100).toFixed(1)}</td><td>${moverLead(cur, c.scoreLead).toFixed(1)}</td></tr>`).join("");
-  const s = nodeStats(cur);
+  const s = nodeStats(cur, true);
   let text = "";
   if (s) {  // append-winrate-to-comment: shown for the player who made the last move
     const who = cur.toPlay === "B" ? "백" : "흑";
-    text = `${who} 승률: ${(100 - s.wr).toFixed(1)}%\n리드: ${(-s.score).toFixed(1)}   표준편차: ${s.stdev.toFixed(1)}\n(${engineLabel().replace(/ /g, "")} / ${s.visits} 방문)\n덤: ${komi()}`;
+    text = `${who} 승률: ${(100 - s.wr).toFixed(1)}%\n리드: ${(-s.score).toFixed(1)}   표준편차: ${s.stdev.toFixed(1)}\n(${engineLabel().replace(/ /g, "")} / ${s.visits} 방문)\n${komiText().replace(" ", ": ")}` + (pdaShown(cur) ? `\nPDA ${pdaShown(cur)} (KataGo 접바둑 보정)` : "");
   }
   $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
   drawGameInfo();
-  emptyHint($("graphBox"), lineThrough(cur).some(n => n.analysis) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
+  emptyHint($("graphBox"), lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
   emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
   emptyHint($("candRows").closest(".table-box"), cands.length ? "" : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
 }
@@ -1872,13 +1933,13 @@ function drawGameInfo() {
   const i = root.info, named = i.PB || i.PW;
   const row = (c, name, rank) => `<div class="gi-row${named ? "" : " quiet"}"><i class="gi-stone ${c}"></i><b>${escHtml(name)}</b>${rank ? `<span>${escHtml(rank)}</span>` : ""}</div>`;
   const hc = +$("handicap").value;
-  const meta = [game && "<b>AI 대국 중</b>", i.RE && `<b>${escHtml(resultText(i.RE))}</b>`, i.DT && escHtml(i.DT), hc ? `접바둑 ${hc}점` : "", `덤 ${komi()}`, "한국룰"].filter(Boolean).join(" · ");
+  const meta = [game && "<b>AI 대국 중</b>", i.RE && `<b>${escHtml(resultText(i.RE))}</b>`, i.DT && escHtml(i.DT), hc >= 2 ? `접바둑 ${hc}점` : hc === 1 ? "정선" : "", komiText(), "한국룰"].filter(Boolean).join(" · ");
   const html = row("b", i.PB || "흑", i.BR) + row("w", i.PW || "백", i.WR) +
     `<div class="gi-meta">${named || i.RE || i.DT ? meta : "기보를 열면 대국자와 결과가 표시됩니다 · " + meta}</div>`;
   if ($("gameInfo").innerHTML !== html) $("gameInfo").innerHTML = html;
 }
-$("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) { selectedPv = c.pv || null; schedule(); } });
-$("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) goTo(play(cur, cur.toPlay, parseGtp(c.move))); });
+$("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur, true)[+tr.dataset.k]; if (c) { selectedPv = c.pv || null; schedule(); } });
+$("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur, true)[+tr.dataset.k]; if (c) goTo(play(cur, cur.toPlay, parseGtp(c.move))); });
 
 // ------------------------------------------------------------------ portrait menu sheet
 // Portrait keeps only the move buttons, 분석 시작 and 수순 이동 under the board (and visits/s on top: the connection,
