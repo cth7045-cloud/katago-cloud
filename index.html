@@ -148,11 +148,10 @@
 
     </div>
 
-    <!-- 기보 분석 (#analyze): the GPU 대여 parts (moved in while this page shows) + attaching the games -->
+    <!-- 기보 분석 (#analyze): attaching the games first, then the GPU 대여 parts (moved in while this page shows) -->
     <div class="wrap app hidden" id="analyzeView">
       <a class="back to-hub" href="./">‹ 처음으로</a>
       <h1 class="page-title">기보 분석</h1>
-      <div id="analyzeGpuSlot"></div>
       <!-- SGF files analysed on the GPU without opening the analysis screen, saved to 내 기보 -->
       <div class="panel" id="batchCard">
         <div class="row" style="margin-bottom:6px">
@@ -191,6 +190,7 @@
           <table><tbody id="batchRows"></tbody></table>
         </div>
       </div>
+      <div id="analyzeGpuSlot"></div>
 
     </div>
 
@@ -476,7 +476,7 @@ function batchShow() {
     : batchQueued ? "GPU가 준비되면 자동으로 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 닫지 마세요."
     : ready ? "SGF 기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
     : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
-    : "위에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
+    : "아래에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
   const done = batchRun.filter((f) => f.state === "saved").length;
   $("hubBatch").textContent = running ? `분석 중 · ${done}/${batchRun.length}판` : batchQueued ? "GPU 준비되면 분석 시작" : batchFiles.some((f) => f.state === "new") ? `기보 ${batchFiles.filter((f) => f.state === "new").length}개 대기` : "";
   const todo = batchFiles.some((f) => f.state !== "saved");
