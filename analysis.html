@@ -571,7 +571,7 @@ function connect() {
   if (!token) { openWithoutGpu(); return; }
   clearTimeout(retryTimer);
   const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
-  const sock = new WebSocket(base + "/ws?t=" + encodeURIComponent(token));
+  const sock = new WebSocket(base + "/ws?t=" + encodeURIComponent(token) + (viewOnly ? "&view=1" : ""));   // view: not counted as a device
   ws = sock; heardAt = performance.now();
   sock.onopen = () => {
     synced = false;   // until the bridge says which board this device joins
