@@ -140,7 +140,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
             <tr><td>지역</td><td>GPU가 있는 곳입니다. <b>한국</b>에 가까울수록 착수 후 분석이 빨리 뜹니다.</td></tr>
             <tr><td>GPU</td><td>그래픽카드 이름입니다. 숫자가 클수록(예: 3060 &lt; 5070 Ti &lt; 5090) 대체로 빠르고 비쌉니다.</td></tr>
             <tr><td>VRAM</td><td>그래픽카드 메모리입니다. 목록에 있는 GPU는 모두 KataGo에 충분합니다.</td></tr>
-            <tr><td>시간당</td><td>1시간 쓸 때의 요금입니다. 실제로는 1분 단위로 나갑니다.</td></tr>
+            <tr><td>시간당</td><td>1시간 쓸 때의 요금입니다. GPU 값에 저장 공간 값까지 넣은 금액이고, 실제로는 쓴 분만큼만 나갑니다.</td></tr>
             <tr><td>성능/$</td><td>가격 대비 성능입니다. Vast가 잰 GPU 성능 점수를 시간당 요금(달러)으로 나눈 값이라, 높을수록 같은 돈으로 더 많이 탐색합니다. 싸고 적당히 빠른 GPU를 고를 때 보세요.</td></tr>
             <tr><td>CPU</td><td>CPU 코어 수입니다. 폰에서는 숨겨집니다.</td></tr>
           </tbody>
@@ -152,10 +152,10 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
       <p>줄을 누르면 그 아래에 <span class="chip">이 GPU로 시작</span>이 나타납니다. 누르면 요금을 한 번 더 확인하고, GPU를 빌린 뒤 세 단계가 차례로 채워집니다.</p>
       <ol class="steps-list">
         <li><b>GPU 빌리기·부팅</b> — GPU를 빌리고 켜는 중입니다.</li>
-        <li><b>KataGo 설치·검증</b> — GPU가 KataGo와 모델을 받아 설치하고, 실제로 한 수 두어 제대로 도는지 확인합니다.</li>
+        <li><b>KataGo 설치·검증</b> — GPU가 KataGo와 모델을 받아 설치하고, 분석 엔진을 켜서 실제로 분석해 보며 제대로 도는지 확인합니다. 그동안 웹 연결도 함께 준비합니다.</li>
         <li><b>분석 준비 완료</b> — <span class="chip">분석 화면 열기</span>가 빛나며 나타납니다.</li>
       </ol>
-      <div class="tip warn"><b>다른 사람이 먼저 빌려 갔다는 안내</b>가 뜨면 요금은 나가지 않았습니다. 목록이 새로 고쳐지니 다른 GPU를 고르세요. 한 번 문제가 난 GPU는 한동안 목록에서 빠집니다.</div>
+      <div class="tip warn"><b>다른 사람이 먼저 빌려 갔다는 안내</b>가 뜨면 요금은 나가지 않았습니다. 목록이 새로 고쳐지니 다른 GPU를 고르세요. 빌리지 못한 GPU는 1시간, 빌렸지만 준비에 실패한 GPU는 24시간 동안 목록에서 빠집니다.</div>
       <p>한 계정은 한 번에 GPU 하나만 쓸 수 있습니다. 쓰는 동안에는 홈에 <b>내 GPU</b> 카드가 보이고, 지금까지 쓴 시간과 요금이 표시됩니다.</p>
     </section>
 
@@ -164,6 +164,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
       <h2>요금과 자동 종료</h2>
       <ul>
         <li>요금은 GPU를 빌린 순간부터 <b>1분 단위</b>로 잔액에서 차감됩니다. 준비하는 3~6분도 포함됩니다.</li>
+<li>쓴 시간만큼 목록의 <b>시간당 요금 그대로</b> 계산합니다. 예를 들어 시간당 170원 GPU를 30분 쓰면 85원입니다(1원 미만은 올림).</li>
         <li>시작하려면 잔액이 그 GPU로 <b>약 15분</b> 쓸 만큼은 있어야 합니다.</li>
         <li>준비 도중 실패해도 그때까지 쓴 시간의 요금은 나갑니다.</li>
       </ul>
@@ -175,7 +176,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <li><b>준비가 너무 오래 걸릴 때</b> — GPU에 문제가 있는 것으로 보고 끕니다.</li>
       </ul>
       <h3>직접 끄기</h3>
-      <p>홈의 <span class="chip pink">GPU 종료</span>, 또는 분석 화면 위쪽 막대의 <span class="chip pink">GPU 종료</span>를 누르세요. 분석 화면 위쪽 막대에는 지금까지 쓴 시간과 요금도 보입니다(사이트에 로그인된 브라우저에서만). 삭제가 확인되면 요금이 멈추고, 사용 내역은 <a href="./#me">내 정보</a>에서 볼 수 있습니다.</p>
+      <p>홈의 <span class="chip pink">GPU 종료</span>, 또는 분석 화면의 <span class="chip pink">GPU 종료</span>를 누르세요. 분석 화면에서는 PC·태블릿 가로 화면이면 위쪽 막대에, 폰 세로 화면이면 <span class="chip">☰ 메뉴</span> 맨 위 <b>GPU</b> 칸에 있고, 지금까지 쓴 시간과 요금도 함께 보입니다(사이트에 로그인된 브라우저에서만). 삭제가 확인되면 요금이 멈추고, 사용 내역은 <a href="./#me">내 정보</a>에서 볼 수 있습니다.</p>
       <div class="tip"><b>다 쓰면 바로 끄는 것이 가장 쌉니다.</b> 브라우저 탭을 닫는 것만으로는 GPU가 곧바로 꺼지지 않습니다(10분 뒤 자동 종료).</div>
     </section>
 
@@ -190,7 +191,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
           <span class="pin" style="left:1.4%;top:8.4%">2</span>
           <span class="pin" style="left:1.4%;top:19.3%">3</span>
           <span class="pin" style="left:1.4%;top:29%">4</span>
-          <span class="pin" style="left:1.4%;top:45.8%">5</span>
+          <span class="pin" style="left:1.4%;top:63.8%">5</span>
           <span class="pin" style="left:26.2%;top:10.2%">6</span>
           <span class="pin" style="left:76%;top:8.4%">7</span>
           <span class="pin" style="left:76%;top:31.3%">8</span>
@@ -200,7 +201,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <figcaption>실제 분석 화면(PC 가로). 58수째를 분석하는 중이고, 후보표 1순위를 눌러 오른쪽 아래 판에 그 수순을 띄운 모습입니다. 누르면 크게 볼 수 있습니다.</figcaption>
       </figure>
       <ol class="legend">
-        <li><b>위쪽 막대</b> — 파일(SGF), AI대국, 기보 불러오기, 기력 평가, 접바둑·덤, 형세·후보수보기, 돌 놓기(흑·백·번갈아). 오른쪽 끝은 초당 탐색 수(visits/s), GPU 요금·종료, 연결 상태(초록 점 = GPU와 연결됨, 숫자 = 응답 시간).</li>
+        <li><b>위쪽 막대</b> — 파일(SGF), AI대국, 기보 불러오기, 기력 평가, 접바둑·덤, 형세·후보수보기, 돌 놓기(흑·백·번갈아). 오른쪽 끝은 초당 탐색 수(visits/s), GPU 사용 시간·요금과 GPU 종료(로그인된 브라우저에서만), 연결 상태(초록 점 = GPU와 연결됨, 숫자 = 응답 시간).</li>
         <li><b>사석·덤</b> — 흑·백이 따낸 돌 수, 덤, 한국룰. 가운데 초록 점은 지금 차례입니다.</li>
         <li><b>승률 칸</b> — 왼쪽 흑·오른쪽 백 승률과 수 번호, 리드(몇 집 앞서는지), 마지막 수로 승률·집을 얼마나 잃었는지.</li>
         <li><b>승률 그래프</b> — 파란 선은 흑 승률, 분홍 선은 리드. 빨간 점이 지금 수이고, 그래프를 누르면 그 수로 갑니다.</li>
@@ -212,13 +213,14 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <li><b>아래쪽 막대</b> — 분석 시작/정지, 자동분석, 수순 이동, 패스, 주 변화로 지정, 수순·좌표, 바둑판초기화, 지우기.</li>
       </ol>
       <h3>휴대폰(세로 화면)</h3>
-      <p>세로 화면에서는 바둑판을 크게 보여 주기 위해 바둑판 → 승률 막대 → 수순 이동 버튼 순으로 놓고, 나머지 기능은 모두 오른쪽 아래 <span class="chip">☰ 메뉴</span> 안에 있습니다. 메뉴는 기보·대국·분석·보기·편집 다섯 칸으로 나뉩니다.</p>
+      <p>세로 화면에서는 바둑판을 크게 보여 주기 위해 위쪽에는 초당 탐색 수(visits/s)만 두고, 바둑판 → 승률 막대 → 수순 이동 버튼 순으로 놓습니다. 나머지 기능은 모두 오른쪽 아래 <span class="chip">☰ 메뉴</span> 안에 있습니다. 메뉴는 GPU·기보·대국·분석·보기·편집 여섯 칸으로 나뉩니다.</p>
       <div class="phones">
         <figure><img src="guide/analysis-portrait.webp" width="780" height="1244" alt="휴대폰 분석 화면: 바둑판, 승률 막대, 수순 이동 버튼, 분석 정지와 메뉴 버튼"><figcaption>휴대폰 화면</figcaption></figure>
-        <figure><img src="guide/analysis-menu.webp" width="780" height="1688" alt="휴대폰 메뉴: 기보, 대국, 분석 칸"><figcaption>☰ 메뉴를 연 모습</figcaption></figure>
+        <figure><img src="guide/analysis-menu.webp" width="780" height="1688" alt="휴대폰 메뉴: GPU 연결 상태와 사용 시간·요금·GPU 종료, 기보, 대국 칸"><figcaption>☰ 메뉴를 연 모습(맨 위 GPU 칸의 시간·요금은 예시)</figcaption></figure>
       </div>
       <ul>
-        <li><b>보기</b> 칸에서 승률 막대와 승률 그래프를 켜고 끌 수 있습니다(기본: 막대 켬, 그래프 끔).</li>
+        <li>맨 위 <b>GPU</b> 칸에서 연결 상태(응답 시간, 여러 기기면 기기 수), 지금까지 쓴 시간·요금을 보고 <span class="chip pink">GPU 종료</span>를 누를 수 있습니다.</li>
+<li><b>보기</b> 칸에서 승률 막대와 승률 그래프를 켜고 끌 수 있습니다(기본: 막대 켬, 그래프 끔).</li>
         <li>수순·좌표·세기·돌 놓기 버튼은 눌러도 메뉴가 닫히지 않아 여러 번 바꿔 볼 수 있습니다.</li>
       </ul>
     </section>
@@ -389,7 +391,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
       <ul>
         <li>한쪽에서 두거나 수를 넘기면 다른 기기도 같은 수로 갑니다.</li>
         <li>실시간 분석은 판마다 하나만 돕니다. 어느 기기에서든 켜고 끌 수 있고, 분석을 돌리던 기기가 나가면 남은 기기가 이어받습니다.</li>
-        <li>위쪽 막대 연결 상태에 지금 붙어 있는 <b>기기 N대</b>가 보입니다.</li>
+        <li>연결 상태에 지금 붙어 있는 <b>기기 N대</b>가 보입니다(가로 화면은 위쪽 막대, 폰은 ☰ 메뉴 맨 위 GPU 칸).</li>
         <li>폰에서 열 때는 폰 브라우저로 사이트에 로그인한 뒤 홈의 <span class="chip">분석 화면 열기</span>를 누르세요.</li>
       </ul>
     </section>
@@ -412,7 +414,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
       <details><summary>“분석 화면 열기”가 안 나타나요.</summary><div>
         <p>보통 3~6분 걸립니다. 홈의 세 단계 중 어디까지 왔는지 보세요. 너무 오래 걸리면 GPU가 스스로 꺼지고 “실패”로 표시됩니다. 그때는 다른 GPU를 골라 다시 시작하세요.</p></div></details>
       <details><summary>연결이 끊겼다고 나와요.</summary><div>
-        <p>폰 화면이 꺼지거나 네트워크가 바뀌면 잠깐 끊겼다가 자동으로 다시 붙습니다. 계속 끊겨 있으면 홈에서 GPU가 아직 “사용 가능”인지 보세요. 10분 동안 쓰지 않아 자동으로 꺼졌을 수 있습니다.</p></div></details>
+        <p>폰 화면이 꺼지거나 네트워크가 바뀌면 잠깐 끊겼다가 자동으로 다시 붙습니다. 화면으로 돌아오면 바로 연결을 확인하고, GPU의 접속 주소가 바뀌어도 사이트에 로그인된 브라우저는 새 주소로 알아서 옮겨 붙습니다. 계속 끊겨 있으면 홈에서 GPU가 아직 “사용 가능”인지 보세요. 10분 동안 쓰지 않아 자동으로 꺼졌을 수 있습니다.</p></div></details>
       <details><summary>분석이 느려요.</summary><div>
         <p>위쪽 막대의 visits/s를 보세요. 자동분석이나 기력 평가가 도는 동안에는 GPU를 나눠 쓰므로 실시간 분석이 느려집니다. 더 빠른 GPU(5070 Ti, 5090 등)나 작은 모델을 고르면 빨라집니다.</p></div></details>
       <details><summary>탭을 닫았는데 요금이 나가나요?</summary><div>
