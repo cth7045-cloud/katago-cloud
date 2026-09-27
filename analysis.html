@@ -655,8 +655,8 @@ function requestLive() {
   // priority: KataGo serves queued positions first-come, so without it a new live query waited behind every
   // queued 자동분석 / 기력 평가 turn and the main board looked stopped; higher priority goes to the next free thread.
   // firstReportDuringSearchAfter (in KataGo's source, not its docs): the first candidates come after 0.05 s
-  // instead of waiting a whole 0.3 s report period, which was most of the delay after each move.
-  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.3,
+  // instead of waiting a whole report period (0.1 s since 2026-09-27; was 0.3 s), which was most of the delay after each move.
+  send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.1,
         firstReportDuringSearchAfter: 0.05, priority: 10, ...(pda ? {overrideSettings: {playoutDoublingAdvantage: pda}} : {}),
         ...(bridgeSync ? {live: true} : {})});
 }
