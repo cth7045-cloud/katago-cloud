@@ -406,7 +406,7 @@ button.primary:hover { background: var(--blue-deep); }
       <select class="gd-mode" aria-label="백 AI 세기 기준"><option value="time">초당 한 수</option><option value="visits">visits당 한 수</option></select></div></div>
     <div class="gd-row"><span>초반 무작위</span><select id="gdRandom"><option value="0">없음 (항상 최선수)</option><option value="10">10수까지 상위 후보 중 무작위</option><option value="20">20수까지 상위 후보 중 무작위</option><option value="40">40수까지 상위 후보 중 무작위</option></select></div>
     <div class="gd-row"><span>AI 기권</span><div class="gd-resign"><label class="check"><input type="checkbox" id="gdResign" checked> 사용</label></div></div>
-    <div class="gd-row"><span>후보수 보임</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label></div></div>
+    <div class="gd-row"><span>AI분석 보기</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label></div></div>
     <p class="gd-note" id="gdNote"></p>
     <div class="gd-actions"><button id="gdCancel">취소</button><button id="gdGo" class="primary">대국 시작</button></div>
   </div>
@@ -882,6 +882,9 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
 function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
 function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
 const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]);
+// AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment).
+// With one colour on, only the board / table candidates follow the turn, as before.
+const analysisHidden = () => !!game && game.root === root && !game.show.B && !game.show.W;
 setInterval(() => {
   if (!game) return;
   if (game.root !== root) return stopGame();                                   // another record was opened
@@ -1727,6 +1730,13 @@ function drawStatistics() {
   const g = statCtx; let x = 0, y = 0, W = statW, H = statH;
   g.clearRect(0, 0, W, H);
   x += 12; y += 4; W -= 24; H -= 8;
+  if (analysisHidden()) {   // move number only, like before any analysis
+    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(String(cur.depth), x + W / 2, y + H / 6);
+    const f = fitFont(g, UI_FONT, 400, "AI 대국 중 · 분석 숨김", T(H / 4), W * 20 / 21); g.fillStyle = "#687082"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    g.fillText("AI 대국 중 · 분석 숨김", x, y + T(H * 17 / 20) + f.h / 2);
+    return;
+  }
   const curS = nodeStats(cur, true), plainS = nodeStats(cur), prev = cur.parent;
   let lastWR = 50, lastScore = 0, validLast = false;
   const pS = prev && nodeStats(prev);
@@ -1803,6 +1813,7 @@ function drawGraph() {
   g.strokeStyle = "rgba(23,26,34,.12)"; g.lineWidth = 1; g.setLineDash([4, 4]);
   for (let i = 1; i <= 3; i++) { const yy = posy + height - T(height * (i * 25) / 100) + .5; g.beginPath(); g.moveTo(posx, yy); g.lineTo(posx + width, yy); g.stroke(); }
   g.setLineDash([]);
+  if (analysisHidden()) return;
   const line = lineThrough(cur);
   let numMoves = line.length - 1; if (numMoves < 1) return;
   if (numMoves < 50) numMoves = 50;
@@ -1906,7 +1917,7 @@ function drawSide() {
   const selMove = selectedPv && selectedPv[0];
   $("candRows").innerHTML = cands.map((c, k) =>
     `<tr data-k="${k}"${c.move === selMove ? ' class="sel"' : ""}><td>${k + 1}</td><td>${moverWr(cur, c.winrate).toFixed(1)}</td><td>${c.visits}</td><td>${(c.visits / total * 100).toFixed(1)}</td><td>${moverLead(cur, c.scoreLead).toFixed(1)}</td></tr>`).join("");
-  const s = nodeStats(cur, true);
+  const s = !analysisHidden() && nodeStats(cur, true);
   let text = "";
   if (s) {  // append-winrate-to-comment: shown for the player who made the last move
     const who = cur.toPlay === "B" ? "백" : "흑";
@@ -1914,7 +1925,7 @@ function drawSide() {
   }
   $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
   drawGameInfo();
-  emptyHint($("graphBox"), lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
+  emptyHint($("graphBox"), analysisHidden() ? "AI 대국 중에는 승률 그래프를 숨깁니다" : lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
   emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
   emptyHint($("candRows").closest(".table-box"), cands.length ? "" : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
 }
