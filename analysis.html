@@ -69,12 +69,17 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 .mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
 .mark::before { left: 0; background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
 .mark::after { left: 8px; background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
-/* 빠름 / 보통 / 정밀 next to 자동분석 and 대국 리포트 (one shared setting) */
+/* 빠름 / 보통 / 정밀 / 초정밀 next to 자동분석 and 대국 리포트 (one shared setting) */
 .lvl { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
 div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
 div.lvl button:hover { background: rgba(255, 255, 255, .7); }
 div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
 #menuBody section > .lvl { margin: 0 0 6px 48px; }
+/* 초정밀 picked in the menu: say under the buttons that it takes long (the landscape list says it on the row itself) */
+.lvl:has(button.on[data-l="ultra"]) { position: relative; }
+#menuBody section > .lvl:has(button.on[data-l="ultra"]) { margin-bottom: 26px; }
+.lvl:has(button.on[data-l="ultra"])::after { content: "⚠ 시간이 오래 걸립니다 — 정밀보다 약 5배"; position: absolute; left: 8px; top: calc(100% + 5px);
+  white-space: nowrap; font-size: 12px; font-weight: 600; color: #c2410c; }
 /* landscape: no buttons beside 자동분석 / 대국 리포트 — pressing them asks for the level instead (portrait keeps them in the menu) */
 .toolbar #autoLevel, .menubar #strengthLevel { display: none; }
 .level-pop { position: fixed; z-index: 40; display: grid; gap: 2px; min-width: 230px; padding: 6px; background: var(--panel); border-radius: 14px;
@@ -84,6 +89,8 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
   border-radius: 10px; background: transparent; box-shadow: none; }
 .level-pop button span { color: var(--muted); font-size: 12px; font-weight: 500; }
 .level-pop button:hover { background: var(--soft); }
+.level-pop button em { flex-basis: 100%; margin: -6px 0 8px; font-style: normal; font-size: 12px; font-weight: 600; color: #c2410c; text-align: left; }
+.level-pop button:has(em) { flex-wrap: wrap; row-gap: 0; }
 .level-pop button.on { background: var(--cyan-soft); color: var(--blue-deep); }
 #menuBody section > .lvl::before { display: none; }
 /* which stones a board click puts down: black only / white only / alternate
@@ -221,6 +228,9 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
   text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
 .table-box[data-empty]::after { top: 34px; }
 [hidden] { display: none !important; }
+/* an SGF file dragged over the page (computer): dropping it opens it */
+body.dropping::after { content: "여기에 놓으면 기보를 엽니다"; position: fixed; inset: 12px; z-index: 100; display: grid; place-items: center;
+  border: 3px dashed var(--blue); border-radius: 22px; background: rgba(232, 238, 255, .82); color: var(--blue); font-size: 22px; font-weight: 700; pointer-events: none; }
 #gpuMeter { gap: 8px; padding-right: 5px; }
 #gpuMeter button { min-height: 26px; padding: 2px 10px; font-size: 12px; }
 .center { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
@@ -426,7 +436,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="newGame">AI대국</button>
   <button id="kifuOpen">기보 불러오기</button>
   <button id="strengthOpen">대국 리포트</button>
-  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
+  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div>
   <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="1">정선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
   <label class="check" id="komiLabel"><span class="menu-text">덤</span><select id="komiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select> <input type="number" id="komi" value="6.5" step="0.5" min="0" max="150" aria-label="덤 집 수"></label>
   <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
@@ -481,6 +491,7 @@ button.primary:hover { background: var(--blue-deep); }
     <div id="saveDo" role="group" aria-label="만들 것">
       <label class="check"><input type="checkbox" id="saveDoKifu"><span>기보 저장<small>기보와 분석값을 내 기보에 저장합니다.</small></span></label>
       <label class="check"><input type="checkbox" id="saveDoNotes"><span>오답노트 만들기<small id="saveDoNotesHint"></small></span></label>
+      <label class="check" id="saveDoStopRow"><input type="checkbox" id="saveDoStop"><span>다 끝나면 GPU 끄기<small id="saveDoStopHint"></small></span></label>
     </div>
     <div class="dlg-msg" id="saveMsg"></div>
     <div class="actions">
@@ -564,7 +575,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="sp-sub">본선의 수를 하나씩 AI의 판단과 비교합니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
-  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 초반은 50수까지, 중반은 150수까지입니다. 분석 세기(빠름 250 · 보통 500 · 정밀 1000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
+  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 초반은 50수까지, 중반은 150수까지입니다. 분석 세기(빠름 250 · 보통 500 · 정밀 1000 · 초정밀 5000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
 </dialog>
 
 <div class="main">
@@ -601,7 +612,7 @@ button.primary:hover { background: var(--blue-deep); }
   </div>
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
-  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
+  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div>
   <span class="sep"></span>
   <button id="first" title="처음 (Home)">|&lt;</button>
   <button id="back10" title="10수 뒤로">&lt;&lt;</button>
@@ -627,6 +638,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button data-l="fast" role="menuitem"><b>빠름</b><span>한 수 250 visits</span></button>
   <button data-l="normal" role="menuitem"><b>보통</b><span>한 수 500 visits</span></button>
   <button data-l="precise" role="menuitem"><b>정밀</b><span>한 수 1000 visits</span></button>
+  <button data-l="ultra" role="menuitem"><b>초정밀</b><span>한 수 5000 visits</span><em>⚠ 시간이 오래 걸립니다 — 정밀보다 약 5배</em></button>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="메뉴">
@@ -751,6 +763,8 @@ function lost() {
   $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중";
   if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '대국 리포트'를 눌러 이어서 분석하세요.", true); }
   if (autoId) { queries.delete(autoId); autoId = null; autoButton(); }   // its search ended with the old connection
+  if (batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); if (q) q.batch(false); }
+  finishCheck(false);   // the analysis it was waiting for died with the connection
   clearTimeout(retryTimer); retryTimer = setTimeout(connect, 2000);
   if (recheckGpu) recheckGpu();   // the GPU's address may have changed (tunnel restarted)
 }
@@ -828,6 +842,7 @@ function onMessage(msg) {
     $("conn").textContent = `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms` + (msg.clients > 1 ? ` · 기기 ${msg.clients}대` : "");
     updateEngineName(); return;
   }
+  if (batchMode && ("hello" in msg || "state" in msg || "liveTaken" in msg || "liveLeft" in msg || msg.id === "peer")) return;   // not on the shared board
   if ("hello" in msg) {   // (bridges before 2026-09-26 never send it: then each device keeps its own board)
     bridgeSync = true;
     if (msg.state && onMirror) onMirror(msg.state);   // the last copy of the member's screen, for an admin watching
@@ -847,11 +862,13 @@ function onMessage(msg) {
   if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
   if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
+    if (/:b\d+$/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board
     const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
     if (node) { store(node, msg, msg.peerQuery); schedule(); }
     return;
   }
   if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
+  if (msg.error && msg.id && msg.id === batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); q.tell("error", {text: "엔진 오류: " + msg.error}); q.batch(null); return; }
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; return; }
   const q = queries.get(msg.id);
   if (!q || !msg.rootInfo) return;
@@ -859,6 +876,7 @@ function onMessage(msg) {
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
     if (q.strength) strengthStep(q);
+    else if (q.batch) { q.done++; q.tell("progress", {done: q.done, todo: q.todo}); if (q.done >= q.todo) batchEnd(true); }
     else {
       autoDone++;
       if (autoDone >= q.todo) stopAuto(); else autoButton();
@@ -872,9 +890,9 @@ function onMessage(msg) {
   }
   schedule();
 }
-// 빠름 / 보통 / 정밀: one setting for 자동분석 and 대국 리포트.
+// 빠름 / 보통 / 정밀 / 초정밀: one setting for 자동분석 and 대국 리포트.
 // Each skips the moves already analysed at least that deep, so what one of them did, the other does not redo.
-const LEVELS = {fast: 250, normal: 500, precise: 1000};
+const LEVELS = {fast: 250, normal: 500, precise: 1000, ultra: 5000};
 let level = "normal";
 try { const v = localStorage.getItem("kgv.level"); if (LEVELS[v]) level = v; } catch { /* storage blocked */ }
 const levelVisits = () => LEVELS[level];
@@ -931,6 +949,7 @@ function stopAuto() {
   const q = autoId && queries.get(autoId);
   if (q && autoDone < q.todo) send({id: "t" + (++qn), action: "terminate", terminateId: autoId});
   queries.delete(autoId); autoId = null; autoButton();
+  if (q) finishCheck(autoDone >= q.todo);
 }
 function engineLabel() { return ["KataGo" + (engineVersion ? " " + engineVersion : ""), modelName].filter(Boolean).join(" · "); }
 function updateEngineName() { $("engineName").textContent = engineLabel(); }
@@ -1349,7 +1368,22 @@ async function readSgfFile(file) {
 document.addEventListener("pointerdown", ev => { if ($("fileMenu").open && !$("fileMenu").contains(ev.target)) $("fileMenu").open = false; });
 document.addEventListener("keydown", ev => { if (ev.key === "Escape") $("fileMenu").open = false; });
 $("openSgf").onclick = () => { $("fileMenu").open = false; $("fileInput").click(); };
-$("fileInput").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; } e.target.value = ""; };
+async function openSgfFile(f) { try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; } }
+$("fileInput").onchange = async e => { const f = e.target.files[0]; if (!f) return; await openSgfFile(f); e.target.value = ""; };
+// A computer: drag an SGF file from the desktop / explorer onto the page = 파일 → SGF 열기.
+// (Without preventDefault the browser would leave the page to show the file.)
+const dragsFiles = ev => !!ev.dataTransfer && [...ev.dataTransfer.types].includes("Files");
+addEventListener("dragover", ev => { if (!dragsFiles(ev)) return; ev.preventDefault(); document.body.classList.add("dropping"); });
+addEventListener("dragleave", ev => { if (!ev.relatedTarget) document.body.classList.remove("dropping"); });   // left the window
+addEventListener("drop", async ev => {
+  if (!dragsFiles(ev)) return;
+  ev.preventDefault(); document.body.classList.remove("dropping");
+  const files = [...ev.dataTransfer.files], f = files.find(x => /\.sgf$/i.test(x.name));
+  if (quiz) { $("err").textContent = "오답노트 문제를 푸는 중에는 기보를 열 수 없습니다"; return; }
+  if (!f) { $("err").textContent = "SGF 기보 파일만 열 수 있습니다"; return; }
+  await openSgfFile(f);
+  if (files.length > 1 && !$("err").textContent) $("err").textContent = `기보는 한 번에 하나만 열 수 있어 ${f.name}을(를) 열었습니다`;
+});
 $("saveSgf").onclick = () => {
   $("fileMenu").open = false;
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toSgf()], {type: "application/x-go-sgf"}));
@@ -1458,7 +1492,7 @@ $("saveMine").onclick = async () => {
   $("saveInfo").textContent = `${st.moves}수 · 분석된 국면 ${st.analyzed}개` + (again ? " · 이미 저장한 기보입니다" : "");
   $("saveMsg").textContent = ""; $("saveMsg").classList.remove("bad");
   // only the checked ones: the game (내 기보), 오답노트 (the mistake list opens)
-  const notesOk = lineThrough(cur).some(n => n.move && moveLoss(n));
+  const notesOk = lineThrough(cur).some(n => n.move && moveLoss(n)) || analysisRunning();
   $("saveDoNotesHint").textContent = notesOk ? "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요."
     : "분석된 수가 없어 만들 수 없습니다. 자동분석을 한 뒤 다시 누르세요.";
   let pick = {kifu: true, notes: false};
@@ -1467,13 +1501,21 @@ $("saveMine").onclick = async () => {
     const box = $("saveDo" + k); box.disabled = !ok; box.checked = ok && pick[k.toLowerCase()]; box.parentElement.classList.toggle("off", !ok);
   }
   if (!["Kifu", "Notes"].some(k => $("saveDo" + k).checked)) $("saveDoKifu").checked = true;   // never open with nothing to do
+  $("saveDoStopRow").hidden = !gpuOn(); $("saveDoStop").checked = false;   // off every time: turning the GPU off is never a leftover choice
   saveDoChanged();
   $("saveDlg").showModal();
 };
 function saveDoChanged() {
   const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked;
   $("saveTitle").hidden = !kifu; $("saveAsNew").hidden = !(kifu && again);
-  $("saveGo").textContent = kifu ? (again ? "덮어쓰기" : "저장") : "만들기";
+  const wait = $("saveDoStop").checked && analysisRunning();
+  $("saveGo").textContent = (wait ? "끝나면 " : "") + (kifu ? (again ? "덮어쓰기" : "저장") : "만들기");
+  $("saveDoStopHint").textContent = analysisRunning()
+    ? `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 저장하고 GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
+    : "저장이 끝나면" + ($("saveDoNotes").checked ? "(오답노트는 담기 창을 닫으면)" : "") + " GPU를 끄고 삭제해 요금을 멈춥니다.";
+  if (!$("saveDoNotes").disabled) $("saveDoNotesHint").textContent = wait
+    ? "분석이 끝나면 목록을 따로 고르지 않고, 오답노트에 담기 창에서 마지막으로 고른 기준(누구의 실수·실수 기준)으로 바로 담습니다."
+    : "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요.";
   $("saveGo").disabled = !["Kifu", "Notes"].some(k => $("saveDo" + k).checked);
 }
 $("saveDo").addEventListener("change", () => {
@@ -1489,26 +1531,151 @@ $("saveForm").onsubmit = ev => { ev.preventDefault(); saveMine(false); };
 $("saveAsNew").onclick = () => saveMine(true);
 async function saveMine(asNew) {
   const c = await mineClient(); if (!c) return;
-  const notes = $("saveDoNotes").checked;
-  if (!$("saveDoKifu").checked) { $("saveDlg").close(); if (notes) $("addNote").onclick(); return; }
+  const kifu = $("saveDoKifu").checked, notes = $("saveDoNotes").checked, stop = $("saveDoStop").checked && gpuOn();
   const say = (t, bad = false) => { $("saveMsg").textContent = t; $("saveMsg").classList.toggle("bad", bad); };
-  const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle(), cut = (v, n) => v ? String(v).slice(0, n) : null;
-  $("saveGo").disabled = $("saveAsNew").disabled = true; say("저장 중…");
-  try {
-    const sgf = toSgf(true), zip = typeof CompressionStream === "function";
-    const data = zip ? await gzip64(sgf) : sgf;
-    if (data.length > 2e6) { say("기보가 너무 큽니다(분석 포함 2MB 초과). 필요 없는 변화도를 지운 뒤 저장하세요.", true); return; }
-    const row = {title, black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60), game_date: cut(root.info.DT, 40),
-                 ...mineStats(), encoding: zip ? "gzip-b64" : "plain", data};
-    const update = !asNew && mineId && mineRoot === root;
-    const {data: saved, error} = await (update ? c.from("saved_kifu").update(row).eq("id", mineId) : c.from("saved_kifu").insert(row)).select("id").single();
-    if (error) { say(error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message, true); return; }
-    mineId = saved.id; mineRoot = root; mineTitle = title;
-    $("saveDlg").close(); $("err").textContent = update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다";
-    if (notes) $("addNote").onclick();   // 오답노트까지: pick the mistakes to add
-  } catch (err) { say("저장하지 못했습니다: " + err.message, true); }
-  finally { $("saveAsNew").disabled = false; saveDoChanged(); }
+  const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle();
+  if (stop && analysisRunning()) {   // 다 끝나면: save (and add the mistakes) when the analysis ends, then the GPU goes off
+    finishPlan = {kifu, notes, title, asNew, root};
+    $("saveDlg").close();
+    $("err").textContent = `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${kifu ? "저장하고 " : "오답노트를 담고 "}GPU를 끕니다`;
+    return;
+  }
+  if (kifu) {
+    $("saveGo").disabled = $("saveAsNew").disabled = true; say("저장 중…");
+    try { const why = await putMine(c, title, asNew); if (why) { say(why, true); return; } }
+    catch (err) { say("저장하지 못했습니다: " + err.message, true); return; }
+    finally { $("saveAsNew").disabled = false; saveDoChanged(); }
+  }
+  $("saveDlg").close();
+  if (notes) { stopAfterNotes = stop; $("addNote").onclick(); }   // pick the mistakes; the GPU goes off when that window closes
+  else if (stop) stopGpuNow("저장을 마쳐");
 }
+async function putMine(c, title, asNew) {   // the game on screen into 내 기보: "" when saved, else why not
+  const row = await mineRow(title);
+  if (!row) return "기보가 너무 큽니다(분석 포함 2MB 초과). 필요 없는 변화도를 지운 뒤 저장하세요.";
+  const update = !asNew && mineId && mineRoot === root;
+  const {data: saved, error} = await (update ? c.from("saved_kifu").update(row).eq("id", mineId) : c.from("saved_kifu").insert(row)).select("id").single();
+  if (error) return error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message;
+  mineId = saved.id; mineRoot = root; mineTitle = title;
+  $("err").textContent = update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다";
+  return "";
+}
+// '다 끝나면 GPU 끄기' in the save window: now, after the 오답노트 window, or once 자동분석 / 대국 리포트 ends.
+let finishPlan = null, stopAfterNotes = false;
+const analysisRunning = () => !!(autoId || strengthId);
+const gpuOn = () => !$("gpuMeter").hidden && !$("gpuStop").hidden;   // this member's own GPU, running (watchGpu)
+$("noteAddDlg").addEventListener("close", () => { if (stopAfterNotes) { stopAfterNotes = false; stopGpuNow("오답노트까지 마쳐"); } });
+function finishCheck(ok) {   // an analysis ended (ok: it ran to the end; not ok: cancelled or cut off)
+  if (!finishPlan) return;
+  if (!ok) { finishPlan = null; $("err").textContent = "분석이 끝까지 가지 않아 저장·GPU 끄기를 하지 않았습니다"; return; }
+  if (analysisRunning()) return;   // the other one is still going
+  const p = finishPlan; finishPlan = null; runFinishPlan(p);
+}
+async function runFinishPlan(p) {
+  if (p.root !== root) { $("err").textContent = "다른 기보를 열어 저장·GPU 끄기를 하지 않았습니다"; return; }
+  const c = await mineClient(); if (!c) return;
+  try {
+    if (p.kifu) { const why = await putMine(c, p.title, p.asNew); if (why) { $("err").textContent = why + " · GPU는 켜 둡니다"; return; } }
+    let note = "";
+    if (p.notes) {   // nobody may be there to pick: the choice last made in the 오답노트에 담기 window
+      let f = {side: "", level: "normal"};
+      try { f = {...f, ...JSON.parse(localStorage.getItem("kgv.noteForm") || "{}")}; } catch { /* storage blocked */ }
+      const picked = noteMistakes(f.side, NOTE_LEVELS[f.level] ? f.level : "normal");
+      const [added, tried] = picked.length ? await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : p.title).slice(0, 100)) : [0, 0];
+      note = ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
+    }
+    stopGpuNow((p.kifu ? "분석이 끝나 저장했습니다." : "분석이 끝났습니다.") + note);
+  } catch (err) { $("err").textContent = "저장하지 못했습니다: " + err.message + " · GPU는 켜 둡니다"; }
+}
+async function stopGpuNow(before = "") {
+  try {
+    const { api } = await import("./app.js");
+    const r = await api("/stop", {});
+    $("err").textContent = (before ? before + " " : "") + (r.stopped ? "GPU를 삭제했습니다. 요금 차감이 멈췄습니다." : "GPU 삭제를 요청했습니다. 확인되는 대로 차감이 멈춥니다.");
+  } catch (err) { $("err").textContent = (before ? before + " " : "") + "GPU를 끄지 못했습니다. 'GPU 종료'를 눌러 주세요: " + err.message; }
+  if (recheckGpu) recheckGpu();
+}
+async function mineRow(title) {   // the saved_kifu row for the game on screen, or null if it is over 2MB
+  const cut = (v, n) => v ? String(v).slice(0, n) : null;
+  const sgf = toSgf(true), zip = typeof CompressionStream === "function";
+  const data = zip ? await gzip64(sgf) : sgf;
+  if (data.length > 2e6) return null;
+  return {title, black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60), game_date: cut(root.info.DT, 40),
+          ...mineStats(), encoding: zip ? "gzip-b64" : "plain", data};
+}
+
+// ------------------------------------------------------------------ 여러 기보 분석 (the website's GPU page runs this screen hidden)
+// index.html opens this page in a hidden frame with #batch=1 and hands it SGF files and a level: each game's main line
+// is analysed like 자동분석 and saved to 내 기보. It stays off the shared board (no publish, no other devices' boards
+// or results) and its results are not shared with the member's other devices.
+const batchMode = hashParams.get("batch") === "1" && parent !== window;
+let batchQ = null, batchStop = false;
+function batchAnalyse(tell) {   // true once the main line is analysed at `level`; false if the connection dropped or 취소; null: engine error
+  const line = lineThrough(root), turns = line.map((_, i) => i).filter(i => !analysed(line[i]));
+  if (!turns.length) return Promise.resolve(true);
+  return new Promise(resolve => {
+    batchQ = "b" + (++qn);
+    queries.set(batchQ, {line, todo: turns.length, done: 0, batch: ok => { batchQ = null; resolve(ok); }, tell});
+    tell("progress", {done: 0, todo: turns.length});
+    if (!send({...baseQuery(), includeOwnership: false, id: batchQ, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, maxVisits: levelVisits()})) batchEnd(false);
+  });
+}
+function batchEnd(ok) {   // the running game's query is over (ok = every turn came back)
+  const q = batchQ && queries.get(batchQ);
+  if (!q) return;
+  if (!ok && q.done < q.todo) send({id: "t" + (++qn), action: "terminate", terminateId: batchQ});
+  queries.delete(batchQ); q.batch(ok);
+}
+function batchNotesSide(o) {   // "" both, "B"/"W", or null when "내 이름 쪽만" finds the name on neither side
+  if (o.side !== "name") return o.side;
+  const name = (o.name || "").trim().toLowerCase(), has = v => !!name && (v || "").toLowerCase().includes(name);
+  return has(root.info.PB) && !has(root.info.PW) ? "B" : has(root.info.PW) && !has(root.info.PB) ? "W" : has(root.info.PB) ? "" : null;
+}
+async function runBatch(files, lvl, notes) {
+  if (LEVELS[lvl]) level = lvl;   // not setLevel(): the member's own 세기 on the analysis screen stays as it was
+  batchStop = false;
+  const c = await mineClient();
+  for (let k = 0; k < files.length && !batchStop; k++) {
+    const tell = (what, extra = {}) => parent.postMessage({batch: what, k, ...extra}, location.origin);
+    try { loadSgf(await readSgfFile(files[k])); } catch (err) { tell("error", {text: "SGF 오류: " + err.message}); continue; }
+    let ok;
+    while ((ok = await batchAnalyse(tell)) === false) {   // dropped: wait for the connection (it reconnects by itself), then the rest
+      if (batchStop) break;
+      tell("wait");
+      while (!batchStop && !(ws && ws.readyState === 1)) await new Promise(r => setTimeout(r, 1000));
+    }
+    if (batchStop) break;
+    if (ok === null) continue;   // told already
+    try {
+      const named = root.info.PB || root.info.PW || root.info.DT;
+      const row = await mineRow((named ? mineDefaultTitle() : files[k].name.replace(/\.sgf$/i, "")).slice(0, 100));
+      if (!row) { tell("error", {text: "분석 포함 2MB가 넘어 저장하지 못했습니다"}); continue; }
+      const {error} = c ? await c.from("saved_kifu").insert(row) : {error: {message: "로그인이 필요합니다"}};
+      if (error) { tell("error", {text: error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message}); continue; }
+      let note = "";
+      if (notes && NOTE_LEVELS[notes.level]) {   // 오답노트도: this game's mistakes, as the 오답노트에 담기 list would pick them
+        const side = batchNotesSide(notes);
+        if (side === null) note = "이름이 없어 오답노트 안 만듦";
+        else try {
+          const picked = noteMistakes(side, notes.level, root);
+          const [added] = picked.length ? await insertNotes(c, picked, row.title) : [0];
+          note = `오답노트 ${added}문제`;
+        } catch (err) { note = "오답노트 못 담음: " + err.message; }
+      }
+      tell("saved", {moves: row.moves, analyzed: row.analyzed, title: row.title, note});
+    } catch (err) { tell("error", {text: "저장하지 못했습니다: " + err.message}); }
+  }
+  parent.postMessage({batch: "end", stopped: batchStop}, location.origin);
+}
+if (batchMode) addEventListener("message", ev => {
+  if (ev.source !== parent || ev.origin !== location.origin || !ev.data) return;
+  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes);
+  if (ev.data.batch === "cancel") { batchStop = true; batchEnd(false); }
+});
+// A long 자동분석 / 대국 리포트 / 여러 기보 분석 is one request: without another one the GPU's guard would count it as idle
+// (10 minutes) and delete the GPU mid-way (초정밀: a game takes ~20 minutes). While one runs, ask something cheap now and then.
+setInterval(() => { if (autoId || strengthId || batchQ) send({id: "keep", action: "query_version"}); }, 120000);
+
 function mineMsg(text, bad = false) { $("mineMsg").textContent = text; $("mineMsg").classList.toggle("bad", bad); }
 async function loadMineList() {
   const c = await mineClient(); if (!c) return;
@@ -1575,10 +1742,10 @@ async function sha256(text) {
   const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   return Array.from(d, b => b.toString(16).padStart(2, "0")).join("");
 }
-function noteMistakes() {   // the analysed moves of the line through the current move, worst first per the chosen filter
-  const side = segValue("noteSide"), [pts, wr] = NOTE_LEVELS[$("noteLevel").value];
+function noteMistakes(side = segValue("noteSide"), level = $("noteLevel").value, from = cur) {   // the analysed mistakes of the line through `from`
+  const [pts, wr] = NOTE_LEVELS[level];
   // the AI's own first choice is no mistake, even when the next position looks worse (search noise; 대국 리포트 calls it AI의 수)
-  return lineThrough(cur).filter(n => n.move && (!side || n.move.c === side) && candidates(n.parent).length && candidates(n.parent)[0].move !== noteMove(n))
+  return lineThrough(from).filter(n => n.move && (!side || n.move.c === side) && candidates(n.parent).length && candidates(n.parent)[0].move !== noteMove(n))
     .map(n => ({n, loss: moveLoss(n)}))
     .filter(r => r.loss && (r.loss.points >= pts || r.loss.wr >= wr));
 }
@@ -1625,25 +1792,27 @@ $("noteAddGo").onclick = async () => {
   if (!picked.length) return;
   $("noteAddGo").disabled = true; say("담는 중…");
   try {
-    const {count, error: countError} = await c.from("mistake_notes").select("id", {count: "exact", head: true});
-    if (countError) throw countError;
-    if (count + picked.length > NOTE_MAX) { say(`오답노트는 ${NOTE_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, NOTE_MAX - count)}문제만 더 담을 수 있습니다.`, true); return; }
-    const title = (mineId && mineRoot === root ? mineTitle : mineDefaultTitle()).slice(0, 100);
-    const rows = await Promise.all(picked.map(async ({n, loss}) => {
-      const sgf = toSgf(false, n.parent), played = noteMove(n);
-      return {title, color: n.move.c, move_no: n.depth, played, best: candidates(n.parent)[0].move,
-              loss_points: Math.round(loss.points * 10) / 10, loss_wr: Math.round(loss.wr * 10) / 10,
-              sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${komi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
-    }));
-    const {data, error} = await c.from("mistake_notes").upsert(rows, {onConflict: "user_id,pos_key", ignoreDuplicates: true}).select("id");
-    if (error) throw error;
-    const added = (data || []).length;
+    const [added, total] = await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : mineDefaultTitle()).slice(0, 100));
     $("noteAddDlg").close();
     $("err").textContent = !added ? "고른 문제가 모두 이미 오답노트에 있습니다"
-      : `오답노트에 ${added}문제를 담았습니다` + (added < rows.length ? ` (이미 담긴 ${rows.length - added}문제는 건너뜀)` : "");
+      : `오답노트에 ${added}문제를 담았습니다` + (added < total ? ` (이미 담긴 ${total - added}문제는 건너뜀)` : "");
   } catch (err) { say("담지 못했습니다: " + err.message, true); }
   finally { noteCount(); }
 };
+async function insertNotes(c, picked, title) {   // [added, tried]: problems already in the notebook are skipped
+  const {count, error: countError} = await c.from("mistake_notes").select("id", {count: "exact", head: true});
+  if (countError) throw countError;
+  if (count + picked.length > NOTE_MAX) throw new Error(`오답노트는 ${NOTE_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, NOTE_MAX - count)}문제만 더 담을 수 있습니다.`);
+  const rows = await Promise.all(picked.map(async ({n, loss}) => {
+    const sgf = toSgf(false, n.parent), played = noteMove(n);
+    return {title, color: n.move.c, move_no: n.depth, played, best: candidates(n.parent)[0].move,
+            loss_points: Math.round(loss.points * 10) / 10, loss_wr: Math.round(loss.wr * 10) / 10,
+            sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${komi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
+  }));
+  const {data, error} = await c.from("mistake_notes").upsert(rows, {onConflict: "user_id,pos_key", ignoreDuplicates: true}).select("id");
+  if (error) throw error;
+  return [(data || []).length, rows.length];
+}
 
 // the list, and solving
 const isDue = k => new Date(k.due_at) <= new Date();
@@ -1832,8 +2001,10 @@ function moveGrade(n) {   // {grade, points} for an analysed move, or null
   return {grade, points};
 }
 function stopStrength() {
+  const was = strengthId;
   if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
   queries.delete(strengthId); strengthId = null; strengthButton();
+  if (was) finishCheck(false);
 }
 // The estimate keeps running with its window closed; the button shows how far it is.
 function strengthButton(q) {
@@ -1869,6 +2040,7 @@ function strengthStep(q) {
   if (q.done >= q.todo) {
     queries.delete(strengthId); strengthId = null; strengthButton(); renderStrength();
     if (!$("strengthDlg").open) $("err").textContent = STRENGTH_DONE;
+    finishCheck(true);
   }
 }
 function renderStrength() {
@@ -2200,7 +2372,7 @@ $("placeSeg").addEventListener("click", ev => {
   placeColor = b.dataset.c;
   $("placeSeg").querySelectorAll("button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
 });
-boardCv.addEventListener("click", placeAt);   // mouse; touches on the board are handled below
+boardCv.addEventListener("click", ev => { if (skipClick) { skipClick = false; return; } placeAt(ev); });   // mouse; touches on the board are handled below
 function hoverFor(p) {  // the variation preview for the candidate at board point p (or null)
   const mv = p && candsShown() ? candidates(cur, true).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
   return mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
@@ -2209,9 +2381,35 @@ function hoverAt(pt) {  // pt: anything with clientX/clientY
   const next = hoverFor(boardPoint(pt));
   if ((next && next.move) !== (hover && hover.move)) { hover = next; schedule(); }
 }
-boardCv.addEventListener("mousemove", ev => { touchCursor = null; hoverAt(ev); });
+boardCv.addEventListener("mousemove", ev => {
+  if (mhold) { mhold.last = ev; if (mhold.held) { moveCursor(ev); return; } }
+  if (touchCursor) return;   // pinned by a long press: it stays until the next press anywhere, as on the phone
+  hoverAt(ev);
+});
 boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
-boardCv.addEventListener("contextmenu", ev => ev.preventDefault());   // long-press must not open a menu
+// Laptop touchpad (and mouse): the phone's touch gestures, translated (the phone's own handling is further down).
+// - press and hold on the board (touchpad clicked and held, or a mouse button) = the long press: the invisible cursor is
+//   pinned there (slide while holding to move it) and stays after letting go, so the preview stays; a short click plays
+// - two fingers up/down on the touchpad = two fingers on the phone (see the wheel handler)
+// - two-finger tap on the touchpad (= right click) on the board = the phone's 3-finger tap: one move back. Windows keeps
+//   3-finger touchpad taps for itself, and a right click is YZY / Lizzie's "back" too.
+let lastPointer = "mouse", mhold = null, skipClick = false;
+document.addEventListener("pointerdown", ev => { lastPointer = ev.pointerType; }, true);
+boardCv.addEventListener("pointerdown", ev => {
+  if (ev.pointerType !== "mouse" || ev.button !== 0) return;
+  skipClick = false;
+  const g = mhold = {held: false, last: ev, timer: setTimeout(() => { g.held = true; moveCursor(g.last); }, LONG_PRESS_MS)};
+});
+addEventListener("pointerup", ev => {
+  if (!mhold || ev.pointerType !== "mouse") return;
+  clearTimeout(mhold.timer);
+  if (mhold.held) skipClick = true;   // the click that follows a long press does not play
+  mhold = null;
+});
+boardCv.addEventListener("contextmenu", ev => {   // a touch long press must not open a menu
+  ev.preventDefault();
+  if (lastPointer === "mouse") step(-1);
+});
 function clearCursor() { if (touchCursor || hover) { touchCursor = null; hover = null; schedule(); } }
 // Capture phase on the whole document, so it runs before any other handler (buttons, table, tree, outside the board).
 document.addEventListener("touchstart", () => { if (touchCursor) clearCursor(); }, {capture: true, passive: true});
@@ -2222,10 +2420,13 @@ let wheelAcc = 0, wheelAt = 0;
 document.querySelector(".main").addEventListener("wheel", ev => {
   if (ev.ctrlKey || ev.target.closest("#treeBox, .table-box, #comment")) return;
   ev.preventDefault();
-  const dy = ev.deltaMode === 1 ? ev.deltaY * 40 : ev.deltaY;
-  if (Math.abs(dy) >= 50) { step(Math.sign(dy)); return; }        // a mouse notch = one move
-  if (performance.now() - wheelAt > 300) wheelAcc = 0;              // touchpad: small deltas add up
-  wheelAt = performance.now(); wheelAcc += dy;
+  const dy = ev.deltaMode === 1 ? ev.deltaY * 40 : ev.deltaY, now = performance.now();
+  // a mouse notch (big, and not in the middle of a touchpad swipe, whose fast part can be big too) = one move
+  if (Math.abs(dy) >= 50 && now - wheelAt > 300) { step(Math.sign(dy)); return; }
+  if (now - wheelAt > 300) wheelAcc = 0;                            // touchpad: small deltas add up
+  // Touchpads scroll "naturally" by default (Windows and Mac: fingers down = content down = negative deltaY), so the sign
+  // is turned around to match two fingers on the phone: fingers down = next move.
+  wheelAt = now; wheelAcc -= dy;
   while (Math.abs(wheelAcc) >= 60) { step(Math.sign(wheelAcc)); wheelAcc -= 60 * Math.sign(wheelAcc); }
 }, {passive: false});
 
@@ -2641,10 +2842,7 @@ async function watchGpu() {
   $("gpuStop").onclick = async () => {
     if (!confirm("GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
     $("gpuStop").disabled = true;
-    try {
-      const r = await site.api("/stop", {});
-      $("err").textContent = r.stopped ? "GPU를 삭제했습니다. 요금 차감이 멈췄습니다." : "삭제 요청을 보냈습니다. 확인되는 대로 차감이 멈춥니다.";
-    } catch (err) { $("err").textContent = err.message; }
+    await stopGpuNow();
     $("gpuStop").disabled = false; tick();
   };
   let checkedAt = 0;   // while reconnecting every 2 s, ask the website at most every 10 s
@@ -2891,7 +3089,7 @@ function watchMember(channel) {
 }
 
 document.fonts && document.fonts.ready.then(schedule);
-layout(); connect(); watchGpu(); mirrorScreen();
+layout(); connect(); watchGpu(); if (!batchMode) mirrorScreen();   // the hidden 여러 기보 분석 frame is not the member's screen
 </script>
 </body>
 </html>

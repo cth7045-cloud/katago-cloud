@@ -233,3 +233,12 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   #appView .bar .brand { font-size: 0; gap: 0; }
   #appView .bar a:not(.brand), #appView .bar button.quiet { padding: 6px 8px; font-size: 14px; }
 }
+
+/* 여러 기보 분석: options under the file / level / start row */
+.batch-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 12px; font-size: 14px; }
+.batch-opts label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.batch-opts label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
+.batch-note-opts { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.batch-opts #batchNoteName { width: 150px; }
+/* SGF files dragged over the page: the 여러 기보 분석 card takes them */
+#batchCard.dropping { outline: 3px dashed var(--blue); outline-offset: 4px; background: #eef3ff; }

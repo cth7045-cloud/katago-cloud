@@ -114,6 +114,45 @@
         <div class="error" id="sessionError"></div>
       </div>
 
+      <!-- 여러 기보 분석: SGF files analysed on the GPU without opening the analysis screen, saved to 내 기보 -->
+      <div class="panel hidden" id="batchCard">
+        <div class="row" style="margin-bottom:6px">
+          <h2 class="grow" style="margin:0">여러 기보 분석</h2>
+          <button class="quiet" id="batchClear">목록 비우기</button>
+        </div>
+        <p class="muted small" id="batchNote" style="margin:0 0 14px"></p>
+        <p class="muted small hide-sm" style="margin:-8px 0 14px">컴퓨터에서는 SGF 파일을 이 화면에 끌어다 놓아도 됩니다.</p>
+        <div class="row">
+          <label class="btn" id="batchPick">기보 파일 추가<input type="file" id="batchFiles" accept=".sgf,application/x-go-sgf" multiple hidden></label>
+          <select id="batchLevel" aria-label="분석 세기">
+            <option value="fast">빠름 · 한 수 250 visits</option>
+            <option value="normal" selected>보통 · 한 수 500 visits</option>
+            <option value="precise">정밀 · 한 수 1000 visits</option>
+            <option value="ultra">초정밀 · 한 수 5000 visits</option>
+          </select>
+          <button class="primary" id="batchStart" disabled>분석 시작</button>
+        </div>
+        <div class="batch-opts">
+          <label class="check"><input type="checkbox" id="batchNotes"> 오답노트도 만들기</label>
+          <span class="batch-note-opts">
+            <select id="batchNoteSide" aria-label="누구의 실수">
+              <option value="">흑·백 모두</option><option value="B">흑만</option><option value="W">백만</option><option value="name">내 이름 쪽만</option>
+            </select>
+            <input id="batchNoteName" placeholder="대국자 이름" aria-label="내 대국자 이름" maxlength="40">
+            <select id="batchNoteLevel" aria-label="실수 기준">
+              <option value="small">작은 실수까지 (2집 · 승률 5%)</option>
+              <option value="normal" selected>실수 (4집 · 승률 10%)</option>
+              <option value="big">큰 실수만 (8집 · 승률 20%)</option>
+            </select>
+          </span>
+          <label class="check"><input type="checkbox" id="batchAutoStop" checked> 다 끝나면 GPU 끄기</label>
+        </div>
+        <p class="small hidden" id="batchWarn" style="margin:10px 0 0;color:#c2410c;font-weight:600">⚠ 초정밀은 시간이 오래 걸립니다 — 정밀보다 약 5배(275수 한 판에 약 20분).</p>
+        <div class="table-wrap hidden" id="batchTable" style="margin-top:12px">
+          <table><tbody id="batchRows"></tbody></table>
+        </div>
+      </div>
+
       <!-- start a session -->
       <div class="panel" id="startCard">
         <div class="row" style="margin-bottom:14px">
@@ -336,6 +375,7 @@ async function refresh() {
   $("hubGpu").textContent = session ? `${session.gpu_name || "GPU"} · ${state}` : `잔액 ${won(balance)}`;
   $("hubGpu").classList.toggle("live", !!session);
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
+  batchShow();
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
   const uses = (s || []).filter((x) => x.charged_krw > 0 || ACTIVE.includes(x.status)).map((x) => {
     const start = x.instance_created_at || x.created_at, live = ACTIVE.includes(x.status);
@@ -396,6 +436,105 @@ async function loadMine() {
     `<td style="text-align:right;white-space:nowrap"><button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
     || `<tr><td colspan="7" class="muted">아직 저장한 기보가 없습니다.</td></tr>`;
 }
+// 여러 기보 분석: the analysis screen does the work in a hidden frame (#batch=1) — the same SGF reading, 자동분석 and
+// 내 기보 rows as when the member does it by hand. This page only picks the files and shows how far it got.
+let batchFiles = [], batchRun = [], batchFrame = null;   // {file, state: new|wait|run|saved|error|cancel, text}
+try { const v = localStorage.getItem("kgv.level"); if ([...$("batchLevel").options].some((o) => o.value === v)) $("batchLevel").value = v; } catch { /* storage blocked */ }
+const BATCH_FORM = ["batchNotes", "batchNoteSide", "batchNoteName", "batchNoteLevel", "batchAutoStop"];   // remembered in kgv.batchForm
+try {
+  const v = JSON.parse(localStorage.getItem("kgv.batchForm") || "{}");
+  for (const id of BATCH_FORM) if (id in v) $(id)[$(id).type === "checkbox" ? "checked" : "value"] = v[id];
+} catch { /* storage blocked */ }
+$("batchCard").addEventListener("change", (e) => {
+  if (!BATCH_FORM.includes(e.target.id)) return;
+  try { localStorage.setItem("kgv.batchForm", JSON.stringify(Object.fromEntries(BATCH_FORM.map((id) => [id, $(id).type === "checkbox" ? $(id).checked : $(id).value])))); } catch { /* storage blocked */ }
+  batchShow();
+});
+$("batchNoteName").addEventListener("input", () => $("batchNoteName").dispatchEvent(new Event("change", { bubbles: true })));
+function batchShow() {
+  const running = !!batchFrame, ready = !!(session && session.status === "ready" && session.web_url && session.web_token);
+  if (running && !ready) batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin);   // the GPU is going away
+  $("batchCard").classList.toggle("hidden", !session && !batchFiles.length);
+  $("batchNote").textContent = running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
+    : ready ? "SGF 기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
+    : "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다.";
+  const todo = batchFiles.some((f) => f.state !== "saved");
+  $("batchStart").textContent = running ? "분석 취소" : "분석 시작";
+  $("batchStart").className = running ? "danger" : "primary";
+  $("batchStart").disabled = !running && !(ready && todo && !($("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim()));
+  for (const id of ["batchFiles", "batchLevel", ...BATCH_FORM]) $(id).disabled = running;
+  $("batchNoteSide").closest(".batch-note-opts").classList.toggle("hidden", !$("batchNotes").checked);
+  $("batchNoteName").classList.toggle("hidden", $("batchNoteSide").value !== "name");
+  $("batchPick").style.opacity = running ? ".45" : "";
+  $("batchClear").disabled = running || !batchFiles.length;
+  $("batchWarn").classList.toggle("hidden", $("batchLevel").value !== "ultra");
+  $("batchTable").classList.toggle("hidden", !batchFiles.length);
+  const color = { saved: "var(--good)", error: "var(--bad)", run: "var(--blue)" };
+  $("batchRows").innerHTML = batchFiles.map((f) => `<tr><td style="white-space:normal;word-break:break-all">${esc(f.file.name)}</td>` +
+    `<td class="num" style="${f.text.length > 14 ? "white-space:normal;min-width:9em" : "white-space:nowrap"};color:${color[f.state] || "var(--muted)"}">${esc(f.text)}</td></tr>`).join("");
+}
+function batchAdd(files) {   // → how many SGF files were added
+  const sgf = [...files].filter((f) => /\.sgf$/i.test(f.name));
+  for (const file of sgf) batchFiles.push({ file, state: "new", text: "대기" });
+  batchShow(); return sgf.length;
+}
+$("batchFiles").onchange = (e) => { batchAdd(e.target.files); e.target.value = ""; };
+// A computer: while 여러 기보 분석 is on screen and waiting for files, SGF files dragged from the desktop / explorer
+// onto the page are added to it. Anywhere else (or while it runs) the drop is refused ("none": no drop event at all),
+// and files are always caught here so one dropped by mistake never makes the browser leave the site.
+const dragsFiles = (e) => !!e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+const batchOpen = () => $("batchCard").offsetParent !== null && !batchFrame;   // the card is on screen and not running
+addEventListener("dragover", (e) => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = batchOpen() ? "copy" : "none";
+  $("batchCard").classList.toggle("dropping", batchOpen());
+});
+addEventListener("dragleave", (e) => { if (!e.relatedTarget) $("batchCard").classList.remove("dropping"); });
+addEventListener("drop", (e) => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault(); $("batchCard").classList.remove("dropping");
+  if (!batchOpen()) return;
+  const k = batchAdd(e.dataTransfer.files), skipped = e.dataTransfer.files.length - k;
+  toast(k ? `기보 ${k}개를 더했습니다` + (skipped ? ` (SGF가 아닌 파일 ${skipped}개는 뺐습니다)` : "") : "SGF 기보 파일만 더할 수 있습니다", !k);
+});
+$("batchLevel").onchange = batchShow;
+$("batchClear").onclick = () => { batchFiles = []; batchShow(); };
+$("batchStart").onclick = () => {
+  if (batchFrame) { batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin); return; }
+  batchRun = batchFiles.filter((f) => f.state !== "saved");
+  batchRun.forEach((f) => { f.state = "wait"; f.text = "대기"; });
+  const fr = document.createElement("iframe");
+  fr.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden";
+  fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
+  const notes = $("batchNotes").checked ? { side: $("batchNoteSide").value, name: $("batchNoteName").value, level: $("batchNoteLevel").value } : null;
+  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => f.file), level: $("batchLevel").value, notes }, location.origin);
+  fr.src = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&batch=1`;
+  document.body.appendChild(fr); batchFrame = fr; batchShow();
+};
+addEventListener("message", (ev) => {
+  if (!batchFrame || ev.source !== batchFrame.contentWindow || ev.origin !== location.origin || !ev.data) return;
+  const d = ev.data, f = batchRun[d.k];
+  if (d.batch === "end") {
+    batchFrame.remove(); batchFrame = null;
+    const saved = batchRun.filter((x) => x.state === "saved").length;
+    batchRun.forEach((x) => { if (x.state === "wait" || x.state === "run") { x.state = "cancel"; x.text = "취소됨"; } });
+    loadMine(); loadNotesCard();
+    if (!d.stopped && $("batchAutoStop").checked && session) {   // 다 끝나면 GPU 끄기 (not after 분석 취소)
+      toast(`${saved}판을 분석해 내 기보에 저장했습니다. GPU를 끄는 중…`);
+      api("/stop", {}).then((r) => { toast(r.stopped ? "다 끝나서 GPU를 껐습니다. 요금 차감이 멈췄습니다." : "다 끝나서 GPU 종료를 요청했습니다."); refresh(); })
+        .catch((err) => toast("GPU를 끄지 못했습니다. 'GPU 종료'를 눌러 주세요: " + err.message, true));
+    } else toast(d.stopped ? `분석을 멈췄습니다. ${saved}판을 내 기보에 저장했습니다.` : `${saved}판을 분석해 내 기보에 저장했습니다.`);
+  } else if (f) {
+    if (d.batch === "progress") { f.state = "run"; f.text = `분석 중 ${d.done}/${d.todo}`; }
+    if (d.batch === "wait") f.text = "GPU 연결 기다리는 중";
+    if (d.batch === "saved") { f.state = "saved"; f.text = `저장함 · ${d.moves}수` + (d.note ? ` · ${d.note}` : ""); }
+    if (d.batch === "error") { f.state = "error"; f.text = d.text; }
+  }
+  batchShow();
+});
+addEventListener("beforeunload", (e) => { if (batchFrame) { e.preventDefault(); e.returnValue = ""; } });
+
 // 오답노트: how many problems are due today; solved on the analysis screen (no GPU needed)
 async function loadNotesCard() {   // 학습방: 오답노트 (and the start page's 학습방 line)
   const now = new Date(), isDue = (n) => new Date(n.due_at) <= now;
