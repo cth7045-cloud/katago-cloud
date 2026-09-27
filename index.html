@@ -111,6 +111,21 @@
         <div class="error" id="startError"></div>
       </div>
 
+      <!-- saved games (내 기보) -->
+      <div class="panel" id="mineCard">
+        <div class="row" style="margin-bottom:14px">
+          <h2 class="grow" style="margin:0">내 기보</h2>
+          <span class="muted small" id="mineCount"></span>
+        </div>
+        <div class="table-wrap scroll-box">
+          <table>
+            <thead><tr><th>제목</th><th class="hide-sm">흑</th><th class="hide-sm">백</th><th class="num">수</th><th class="num" title="저장된 분석이 있는 국면 수">분석</th><th class="hide-sm">저장</th><th></th></tr></thead>
+            <tbody id="mineRows"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="small muted" style="margin-top:14px">분석 화면의 파일 메뉴 → '내 기보에 저장'으로 저장한 기보입니다(최대 100판). 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
+      </div>
+
     </div>
 
     <!-- my account (#me) -->
@@ -236,7 +251,7 @@ function leave() {
 async function enter() {
   swap(() => { $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
   await refresh();
-  loadOffers();
+  loadOffers(); loadMine();
   clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
 }
 
@@ -267,7 +282,7 @@ async function refresh() {
   $("meBalance").textContent = won(balance);
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   $("adminLink").classList.toggle("hidden", !p.is_admin);
-  $("analysisLink").classList.toggle("hidden", !p.is_admin);   // admins can open it without a GPU
+  $("analysisLink").classList.remove("hidden");   // without a GPU: saved games (내 기보) and SGF files, no new analysis
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
@@ -314,6 +329,36 @@ $("stopButton").onclick = async () => {
     toast(r.stopped ? "GPU를 삭제했습니다. 요금 차감이 멈췄습니다." : "삭제 요청을 보냈습니다. 확인되는 대로 차감이 멈춥니다.");
   } catch (err) { toast(err.message, true); }
   finally { $("stopButton").disabled = false; refresh(); }
+};
+
+// ------------------------------------------------------------------ 내 기보 (saved on the analysis screen)
+let mine = [];
+async function loadMine() {
+  const { data, error } = await sb.from("saved_kifu").select("id,title,black,white,moves,analyzed,updated_at").order("updated_at", { ascending: false });
+  if (error) { $("mineRows").innerHTML = `<tr><td colspan="7" class="muted">불러오지 못했습니다.</td></tr>`; return; }
+  mine = data || [];
+  $("mineCount").textContent = `${mine.length} / 100판`;
+  $("mineRows").innerHTML = mine.map((k, i) =>
+    `<tr class="pick" data-open="${i}"><td><b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
+    `<td class="num">${k.moves}</td><td class="num">${k.analyzed}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
+    `<td style="text-align:right;white-space:nowrap"><button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
+    || `<tr><td colspan="7" class="muted">아직 저장한 기보가 없습니다.</td></tr>`;
+}
+addEventListener("focus", () => { if (profile) loadMine(); });   // saved in the analysis tab: shows up on return
+$("mineRows").onclick = async (ev) => {
+  const del = ev.target.closest("[data-del]");
+  if (del) {
+    const k = mine[+del.dataset.del];
+    if (!k || !confirm(`'${k.title}'을(를) 지울까요? 되돌릴 수 없습니다.`)) return;
+    const { error } = await sb.from("saved_kifu").delete().eq("id", k.id);
+    if (error) toast("지우지 못했습니다: " + error.message, true); else toast("기보를 지웠습니다.");
+    loadMine(); return;
+  }
+  const tr = ev.target.closest("[data-open]"); const k = tr && mine[+tr.dataset.open]; if (!k) return;
+  // the member's ready GPU: open it there to keep analysing; otherwise the stored analysis only
+  const gpu = session && session.status === "ready" && session.web_url && session.web_token
+    ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
+  window.open(`analysis.html?v=${Date.now()}#${gpu}kifu=${k.id}`, "_blank", "noopener");
 };
 
 // ------------------------------------------------------------------ offers / start
