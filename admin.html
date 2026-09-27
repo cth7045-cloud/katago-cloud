@@ -82,9 +82,11 @@
 import { $, api, esc, sb, toast, when, won } from "./app.js";
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
-let emails = {}, formers = {};
+let emails = {}, formers = {}, names = {}, formerNames = {};
 // records of deleted accounts keep no member id; former_member says whose they were
 const who = (id, former) => (id ? emails[id] || "?" : `탈퇴: ${formers[former] || "?"}`);
+// the name only (email when there is none); the email stays in the tooltip
+const whoName = (id, former) => (id ? names[id] || emails[id] || "?" : `탈퇴: ${formerNames[former] || formers[former] || "?"}`);
 
 async function load() {
   $("err").textContent = "";
@@ -93,6 +95,8 @@ async function load() {
     const [d, funds] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null)]);
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
     formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
+    names = Object.fromEntries(d.members.map((m) => [m.id, (m.name || "").trim()]));
+    formerNames = Object.fromEntries(d.former.map((f) => [f.id, (f.name || "").trim()]));
     $("formerRows").innerHTML = d.former.map((f) => `<tr><td>${esc(f.email)}</td><td>${esc(f.name || "")}</td><td>${when(f.joined_at)}</td>` +
       `<td>${when(f.left_at)}</td><td class="num">${won(f.balance_moved_krw)}</td>` +
       `<td><button class="danger" data-purge="${f.id}" data-email="${esc(f.email)}">영구 삭제</button></td></tr>`).join("")
@@ -125,7 +129,7 @@ async function load() {
       const pill = live ? (x.status === "ready" ? "good" : "warn") : (x.status === "failed" ? "bad" : "");
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : ""].filter(Boolean).join(" · ");
-      return `<tr><td>${esc(who(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
+      return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
         `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td>${when(x.created_at)}</td><td>${live ? '<span class="muted small">사용 중</span>' : x.stopped_at ? when(x.stopped_at) : ""}</td>` +
