@@ -51,7 +51,6 @@
         <a class="brand" href="#" id="homeLink"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
         <span class="who" id="who"></span>
         <a href="guide.html">가이드</a>
-        <a href="#mine" id="mineLink">내 기보</a>
         <a href="#me" id="meLink">내 정보</a>
         <a href="analysis.html" id="analysisLink" class="hidden" target="_blank" rel="noopener">분석 화면</a>
         <a href="admin.html" id="adminLink" class="hidden">관리자</a>
@@ -59,7 +58,34 @@
       </div>
     </header>
 
-    <div class="wrap app" id="homeView">
+    <!-- start page: the three ways in -->
+    <div class="wrap app hidden" id="hubView">
+      <nav class="hub" aria-label="처음 화면">
+        <a class="hub-tile" href="#gpu">
+          <span class="hub-icon gpu" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4M10 10h4v4h-4z"/></svg></span>
+          <b>GPU 대여</b>
+          <span class="hub-desc">GPU를 빌려 KataGo로 실시간 분석</span>
+          <span class="hub-sub" id="hubGpu"></span>
+        </a>
+        <a class="hub-tile" href="#mine">
+          <span class="hub-icon kifu" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="9" cy="9" r="2.4" class="bs"/><circle cx="15" cy="15" r="2.4" class="ws"/></svg></span>
+          <b>내 기보</b>
+          <span class="hub-desc">저장한 기보를 GPU 없이 다시 보기</span>
+          <span class="hub-sub" id="hubMine"></span>
+        </a>
+        <a class="hub-tile" href="#study">
+          <span class="hub-icon study" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h11M8 8l2 2 4-4"/></svg></span>
+          <b>학습방</b>
+          <span class="hub-desc">내 실수로 만든 오답노트와 실전 사활</span>
+          <span class="hub-sub" id="hubStudy"></span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- GPU 대여 (#gpu) -->
+    <div class="wrap app hidden" id="homeView">
+      <a class="back to-hub" href="./">‹ 처음으로</a>
+      <h1 class="page-title">GPU 대여</h1>
       <div class="wallet">
         <div class="grow">
           <div class="label" id="balanceLabel">내 잔액</div>
@@ -116,6 +142,7 @@
 
     <!-- saved games (#mine, 내 기보) -->
     <div class="wrap app hidden" id="mineView">
+      <a class="back to-hub" href="./">‹ 처음으로</a>
       <h1 class="page-title">내 기보</h1>
       <div class="panel" id="mineCard">
         <div class="row" style="margin-bottom:14px">
@@ -132,8 +159,34 @@
       </div>
     </div>
 
+    <!-- 학습방 (#study) -->
+    <div class="wrap app hidden" id="studyView">
+      <a class="back to-hub" href="./">‹ 처음으로</a>
+      <h1 class="page-title">학습방</h1>
+      <div class="panel" id="notesCard">
+        <div class="row">
+          <div class="grow">
+            <h2 style="margin:0 0 4px">오답노트</h2>
+            <div class="small muted" id="notesInfo"></div>
+          </div>
+          <button class="primary" id="notesOpen">복습하기</button>
+        </div>
+        <div class="row hidden" id="notesPhases" style="margin-top:12px;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <div class="panel" id="ldCard">
+        <div class="row">
+          <div class="grow">
+            <h2 style="margin:0 0 4px">나의 실전 사활</h2>
+            <div class="small muted" id="ldInfo"></div>
+          </div>
+          <button class="primary" id="ldOpen">풀기</button>
+        </div>
+      </div>
+    </div>
+
     <!-- my account (#me) -->
     <div class="wrap app hidden" id="meView">
+      <a class="back to-hub" href="./">‹ 처음으로</a>
       <h1 class="page-title">내 정보</h1>
       <div class="panel">
         <h2>계정</h2>
@@ -255,7 +308,7 @@ function leave() {
 async function enter() {
   swap(() => { $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
   await refresh();
-  loadOffers(); loadMine();
+  loadOffers(); loadMine(); loadNotesCard();
   clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
 }
 
@@ -288,6 +341,9 @@ async function refresh() {
   $("adminLink").classList.toggle("hidden", !p.is_admin);
   $("analysisLink").classList.remove("hidden");   // without a GPU: saved games (내 기보) and SGF files, no new analysis
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
+  const state = session && { creating: "대여 중", booting: "부팅 중", setup: "설치 중", ready: "사용 가능", stopping: "종료 중" }[session.status];
+  $("hubGpu").textContent = session ? `${session.gpu_name || "GPU"} · ${state}` : `잔액 ${won(balance)}`;
+  $("hubGpu").classList.toggle("live", !!session);
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
   const uses = (s || []).filter((x) => x.charged_krw > 0 || ACTIVE.includes(x.status)).map((x) => {
@@ -341,6 +397,7 @@ async function loadMine() {
   const { data, error } = await sb.from("saved_kifu").select("id,title,black,white,moves,analyzed,updated_at").order("updated_at", { ascending: false });
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="7" class="muted">불러오지 못했습니다.</td></tr>`; return; }
   mine = data || [];
+  $("hubMine").textContent = mine.length ? `${mine.length}판 저장` : "저장한 기보 없음";
   $("mineCount").textContent = `${mine.length} / 100판`;
   $("mineRows").innerHTML = mine.map((k, i) =>
     `<tr class="pick" data-open="${i}"><td><b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
@@ -348,7 +405,47 @@ async function loadMine() {
     `<td style="text-align:right;white-space:nowrap"><button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
     || `<tr><td colspan="7" class="muted">아직 저장한 기보가 없습니다.</td></tr>`;
 }
-addEventListener("focus", () => { if (profile) loadMine(); });   // saved in the analysis tab: shows up on return
+// 오답노트: how many problems are due today; solved on the analysis screen (no GPU needed)
+async function loadNotesCard() {   // 학습방: 오답노트 and 나의 실전 사활 (and the start page's 학습방 line)
+  const now = new Date(), isDue = (n) => new Date(n.due_at) <= now;
+  const [{ data, error }, ld] = await Promise.all([sb.from("mistake_notes").select("due_at,move_no"), sb.from("ld_problems").select("due_at")]);
+  $("notesOpen").classList.toggle("hidden", !!error);
+  $("notesPhases").classList.toggle("hidden", !!error || !data.length);
+  if (error) $("notesInfo").textContent = "오답노트를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
+  else {
+    const due = data.filter(isDue).length;
+    $("notesInfo").textContent = data.length
+      ? `오늘 복습할 문제 ${due}개 · 전체 ${data.length}문제`
+      : "분석 화면의 파일 메뉴 → '오답노트에 담기'로 분석한 기보의 실수를 문제로 모아 다시 풀 수 있습니다.";
+    $("notesOpen").textContent = due ? `복습하기 (${due})` : "오답노트 열기";
+    // 초반·중반·종반 by move number, as on the analysis screen (up to 50, up to 150, the rest)
+    const phases = [["opening", "초반", 50], ["middle", "중반", 150], ["end", "종반", Infinity]].map(([v, name, upTo], i, all) => {
+      const mine = data.filter((n) => n.move_no <= upTo && (!i || n.move_no > all[i - 1][2]));
+      return { v, name, all: mine.length, due: mine.filter(isDue).length };
+    });
+    $("notesPhases").innerHTML = phases.map((p) =>
+      `<button data-phase="${p.v}"${p.all ? "" : " disabled"}>${p.name} ${p.all}문제${p.due ? ` · 복습 ${p.due}` : ""}</button>`).join("");
+  }
+  $("ldOpen").classList.toggle("hidden", !!ld.error);
+  if (ld.error) $("ldInfo").textContent = "실전 사활을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
+  else {
+    const due = ld.data.filter(isDue).length;
+    $("ldInfo").textContent = ld.data.length ? `오늘 복습할 문제 ${due}개 · 전체 ${ld.data.length}문제 · GPU 없이 풉니다`
+      : "내 대국에서 나온 사활 모양을 문제로 만들어 풉니다. GPU를 켠 분석 화면에서 대국 기보를 열고 파일 메뉴의 '실전 사활 찾기'를 누르세요.";
+    $("ldOpen").textContent = due ? `풀기 (${due})` : "문제 목록";
+  }
+  const all = [...(error ? [] : data), ...(ld.error ? [] : ld.data)], due = all.filter(isDue).length;
+  $("hubStudy").textContent = due ? `오늘 복습 ${due}문제` : all.length ? `문제 ${all.length}개` : "오답노트 · 실전 사활";
+}
+function openNotes(phase = "") {
+  const gpu = session && session.status === "ready" && session.web_url && session.web_token
+    ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
+  window.open(`analysis.html?v=${Date.now()}#${gpu}notes${phase ? "&phase=" + phase : ""}`, "_blank", "noopener");
+}
+$("ldOpen").onclick = () => window.open(`analysis.html?v=${Date.now()}#ld`, "_blank", "noopener");   // solved without a GPU
+$("notesOpen").onclick = () => openNotes();
+$("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
+addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
 $("mineRows").onclick = async (ev) => {
   const del = ev.target.closest("[data-del]");
   if (del) {
@@ -422,21 +519,24 @@ new IntersectionObserver((entries, io) => {
   if (entries.some((e) => e.isIntersecting)) { $("how").classList.add("in"); io.disconnect(); }
 }, { threshold: .2 }).observe($("how"));
 
-// ------------------------------------------------------------------ pages: home / 내 기보 (#mine) / my account (#me)
+// ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
+const PAGES = { "#gpu": "homeView", "#mine": "mineView", "#study": "studyView", "#me": "meView" };
 function showPage() {
-  const me = location.hash === "#me", kifu = location.hash === "#mine";
-  $("homeView").classList.toggle("hidden", me || kifu);
-  $("meView").classList.toggle("hidden", !me); $("mineView").classList.toggle("hidden", !kifu);
-  $("meLink").classList.toggle("on", me); $("mineLink").classList.toggle("on", kifu);
-  if (kifu && profile) loadMine();
+  const page = PAGES[location.hash] || "hubView";
+  for (const v of ["hubView", ...Object.values(PAGES)]) $(v).classList.toggle("hidden", v !== page);
+  $("meLink").classList.toggle("on", page === "meView");
+  if (profile && (page === "hubView" || page === "mineView")) loadMine();
+  if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
   window.scrollTo(0, 0);
 }
 addEventListener("hashchange", () => swap(showPage));
-$("homeLink").onclick = (ev) => {   // the site name always leads home
+function toHub(ev) {   // the site name and the back links lead to the start page
   ev.preventDefault();
   if (location.hash) history.pushState(null, "", location.pathname + location.search);
   swap(showPage);
-};
+}
+$("homeLink").onclick = toHub;
+document.querySelectorAll(".to-hub").forEach((a) => { a.onclick = toHub; });
 
 // A click on empty space puts the chosen GPU back (the list, form controls and the start bar keep it).
 document.addEventListener("click", (ev) => {

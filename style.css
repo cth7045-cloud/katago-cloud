@@ -148,6 +148,35 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 
 /* ------------------------------------------------------------------ my account */
 .page-title { font-size: clamp(32px, 4.4vw, 48px); font-weight: 800; letter-spacing: -.04em; line-height: 1.1; margin: 8px 0 24px; }
+.back { display: inline-block; margin-top: 4px; font-size: 15px; font-weight: 600; color: var(--muted); }
+.back:hover { color: var(--ink); text-decoration: none; }
+
+/* start page: GPU 대여 · 내 기보 · 학습방 */
+.hub { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 24px 0 8px; }
+.hub-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 280px; padding: 30px 28px 26px;
+  border-radius: 28px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow);
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
+.hub-tile:hover { text-decoration: none; transform: translateY(-4px); box-shadow: 0 1px 2px rgba(23, 26, 34, .04), 0 26px 50px -20px rgba(44, 92, 246, .3); }
+.hub-tile:active { transform: scale(.98); }
+.hub-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; margin-bottom: auto; }
+.hub-icon svg { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.hub-icon.gpu { background: var(--cyan-soft); color: #0b8ea4; }
+.hub-icon.kifu { background: #fbefd9; color: #9a6a1f; }
+.hub-icon.kifu .bs { fill: var(--ink); stroke: none; }
+.hub-icon.kifu .ws { fill: #fff; stroke: var(--ink); stroke-width: 1.2; }
+.hub-icon.study { background: #e5f5ec; color: var(--good); }
+.hub-tile b { margin-top: 28px; font-size: 30px; font-weight: 800; letter-spacing: -.035em; line-height: 1.15; }
+.hub-desc { color: var(--muted); font-size: 15px; }
+.hub-sub { margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--blue); min-height: 1.4em; }
+.hub-sub.live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%;
+  background: var(--good); vertical-align: 1px; box-shadow: 0 0 0 4px rgba(31, 157, 85, .15); }
+@media (max-width: 860px) {
+  .hub { grid-template-columns: 1fr; gap: 14px; margin-top: 8px; }
+  .hub-tile { min-height: 0; display: grid; grid-template-columns: 64px 1fr; column-gap: 18px; row-gap: 2px; padding: 22px; }
+  .hub-icon { grid-row: span 3; margin: 0; align-self: center; }
+  .hub-tile b { margin-top: 0; font-size: 24px; }
+  .hub-sub { margin-top: 4px; }
+}
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0 0 20px; }
 .facts dt { font-size: 14px; font-weight: 600; color: var(--muted); }
 .facts dd { margin: 2px 0 0; font-size: 17px; font-weight: 650; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

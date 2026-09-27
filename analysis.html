@@ -54,18 +54,26 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
   flex-wrap: wrap; row-gap: 6px; white-space: nowrap; }
 .menubar > * { flex: none; }
 .menubar .spacer { flex: 1 1 auto; }
+#saveMine:not([hidden]) { display: inline-flex; align-items: center; gap: 6px; background: #e8eeff; color: var(--blue); font-weight: 700; }
+#saveMine:hover { background: #dce5ff; }
+#saveMine::before { content: ""; width: 16px; height: 16px; background: currentColor; flex: none;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h11l3 3v15H5zM8 3v5h7M8 14h8M8 17h5'/></svg>") center / contain no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h11l3 3v15H5zM8 3v5h7M8 14h8M8 17h5'/></svg>") center / contain no-repeat; }
+#saveKind { margin-top: 2px; }
+#saveKind button { white-space: nowrap; }
+#saveKind button:disabled { opacity: .4; cursor: default; background: transparent; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
 .mark { position: relative; width: 24px; height: 16px; flex: none; }
 .mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
 .mark::before { left: 0; background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
 .mark::after { left: 8px; background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
-/* 빠름 / 보통 / 정밀 next to 자동분석 and 기력 평가 (one shared setting) */
+/* 빠름 / 보통 / 정밀 next to 자동분석 and 대국 리포트 (one shared setting) */
 .lvl { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
 div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
 div.lvl button:hover { background: rgba(255, 255, 255, .7); }
 div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
 #menuBody section > .lvl { margin: 0 0 6px 48px; }
-/* landscape: no buttons beside 자동분석 / 기력 평가 — pressing them asks for the level instead (portrait keeps them in the menu) */
+/* landscape: no buttons beside 자동분석 / 대국 리포트 — pressing them asks for the level instead (portrait keeps them in the menu) */
 .toolbar #autoLevel, .menubar #strengthLevel { display: none; }
 .level-pop { position: fixed; z-index: 40; display: grid; gap: 2px; min-width: 230px; padding: 6px; background: var(--panel); border-radius: 14px;
   box-shadow: 0 2px 6px rgba(23, 26, 34, .06), 0 20px 40px -12px rgba(23, 26, 34, .28); animation: arrive .2s var(--ease); }
@@ -155,8 +163,11 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #saveSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
 #menuBody #copySgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h8'/></svg>"); }
 #menuBody #pasteSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='4' width='14' height='17' rx='2'/><path d='M9 4V3h6v1M9 11h6M9 15h4'/></svg>"); }
-#menuBody #saveMine { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 3h9l4 4v14H6zM9 3v5h6M9 14h7M9 17h5'/></svg>"); }
 #menuBody #openMine { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h6l2 2h8v12H4zM4 10h16'/></svg>"); }
+#menuBody #addNote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 3h12v18l-6-4-6 4zM12 7v6M9 10h6'/></svg>"); }
+#menuBody #openNotes { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h13v18H5zM9 3v18M12 8h3M12 12h3'/></svg>"); }
+#menuBody #findLd { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'/><path d='m20 20-4.5-4.5M9 11h4M11 9v4'/></svg>"); }
+#menuBody #openLd { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><circle cx='10' cy='10' r='2' fill='black'/><circle cx='14' cy='14' r='2'/></svg>"); }
 #menuBody #kifuOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8M12 12v8M9 17l3 3 3-3'/></svg>"); }
 #menuBody #newGame { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
 #menuBody #handicapLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='7' cy='7' r='3'/><circle cx='17' cy='7' r='3'/><circle cx='7' cy='17' r='3'/><circle cx='17' cy='17' r='3'/></svg>"); }
@@ -249,6 +260,37 @@ dialog[open] { animation: arrive .35s var(--ease); }
   #mineRows td.t { max-width: 46vw; }
 }
 #mineRows td.del { text-align: right; }
+/* 오답노트: picking the mistakes of this game, and the list of problems */
+#noteAddDlg, #notesDlg, #ldFindDlg, #ldDlg { width: min(760px, calc(100vw - 16px)); max-height: 82dvh; }
+#noteAddDlg[open], #notesDlg[open], #ldFindDlg[open], #ldDlg[open] { display: flex; flex-direction: column; }
+#noteLevel { flex: 1 1 220px; min-width: 0; }
+#noteSide { flex: none; }
+#noteSide button { flex: none; white-space: nowrap; padding: 4px 14px; }
+#notesPhase, #ldKind { flex: 1; }
+#notesPhase button, #ldKind button { white-space: nowrap; }
+#notesRows .ph { margin-left: 6px; color: var(--muted); font-size: 12px; }
+#noteAddRows tr, #notesRows tr, #ldFindRows tr, #ldRows tr { cursor: pointer; }
+#notesDlg th:first-child, #notesRows td.t, #ldDlg th:first-child, #ldRows td.t { text-align: left; padding-left: 18px; }
+#notesRows td.t, #ldRows td.t { max-width: 260px; overflow: hidden; text-overflow: ellipsis; font-weight: 650; }
+#notesRows tr.due td.t::before, #ldRows tr.due td.t::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--bad); vertical-align: middle; }
+#notesRows td.del, #ldRows td.del { text-align: right; }
+#notesRows td.del button, #ldRows td.del button { line-height: 1.2; min-height: 30px; padding: 4px 12px; }
+.loss { color: var(--bad); font-weight: 650; }
+@media (max-width: 600px) {
+  #noteAddDlg .w, #notesDlg .w, #ldFindDlg .w, #ldDlg .w { display: none; }
+  #notesRows td.t, #ldRows td.t { max-width: 46vw; }
+}
+/* solving one: the bottom bar holds only the problem, the tools are hidden, and no analysis shows until it is answered */
+#quizBar { flex: 1 1 100%; display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; padding: 2px 6px; }
+.qz-text { flex: 1 1 320px; min-width: 0; display: grid; gap: 2px; }
+#quizTitle { font-size: 16px; font-weight: 750; letter-spacing: -.02em; }
+#quizTitle.ok { color: var(--good); }
+#quizTitle.bad { color: var(--bad); }
+#quizSub { color: var(--muted); font-size: 13px; }
+#quizMemo { flex: 1 1 240px; min-width: 0; }
+.qz-actions { display: flex; gap: 6px; }
+body.quiz .toolbar > :not(#quizBar):not(#err) { display: none !important; }
+body.quiz .menubar > :not(.brand):not(.spacer):not(#vps):not(#connStatus):not(#gpuMeter) { display: none; }
 #saveDlg { width: min(460px, calc(100vw - 24px)); }
 #saveDlg .gd { gap: 14px; }
 #saveTitle { width: 100%; }
@@ -287,7 +329,7 @@ dialog[open] { animation: arrive .35s var(--ease); }
 button.primary { background: var(--blue); color: #fff; box-shadow: 0 8px 20px -10px rgba(44, 92, 246, .7); }
 button.primary:hover { background: var(--blue-deep); }
 
-/* strength estimate (YZY PlayerStrength dashboard, in the website's colours) */
+/* 대국 리포트: how each side's moves compare with the AI (was 기력 평가; no rank any more) */
 #strengthDlg { width: min(1000px, calc(100vw - 16px)); max-height: 92dvh; background: var(--paper); }
 #strengthDlg[open] { display: flex; flex-direction: column; }
 .sp-top { display: flex; align-items: center; gap: 14px; padding: 20px 24px 4px; flex-wrap: wrap; }
@@ -298,27 +340,35 @@ button.primary:hover { background: var(--blue-deep); }
 .sp-msg.bad { color: var(--bad); }
 .sp-msg:empty { display: none; }
 .sp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 24px; overflow: auto; min-height: 0; }
-.sp-card { background: var(--panel); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 18px; }
-.sp-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; }
+.sp-card { background: var(--panel); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); display: grid; gap: 16px; align-content: start; }
+.sp-head { display: flex; align-items: center; gap: 16px; }
 .sp-head img { width: 64px; height: 64px; }
 .sp-side { font-size: 18px; font-weight: 700; }
 .sp-rank { font: 800 34px/1.1 var(--ui-font); letter-spacing: -.03em; margin-top: 4px; }
+.sp-rank small { font-size: 15px; font-weight: 650; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
 .sp-card.white .sp-rank { color: var(--blue); }
 .sp-conf { color: var(--muted); margin-top: 4px; }
-.sp-metric { display: grid; grid-template-columns: 1fr; margin-bottom: 10px; }
-.sp-metric span { color: var(--muted); font-size: 13px; }
-.sp-metric b { font-size: 15px; font-variant-numeric: tabular-nums; }
-.sp-bar { height: 6px; border-radius: 999px; background: var(--soft); margin-top: 4px; overflow: hidden; }
-.sp-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--cyan), #34c67a); }
-.sp-bar.loss i { background: #f0a24a; }
-.sp-scale { background: var(--soft); border-radius: 14px; padding: 10px; display: grid; gap: 2px; align-content: start; }
-.sp-scale h4 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.sp-scale div { display: grid; grid-template-columns: 38px 1fr; padding: 10px 8px; border-radius: 10px; font-size: 13px; }
-.sp-scale div.on { background: var(--panel); color: var(--blue-deep); font-weight: 700; box-shadow: 0 2px 8px rgba(23, 26, 34, .08); }
+/* grades: AI의 수 / 좋은 수 / 평범 / 실수 / 악수 */
+.rp-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--soft); }
+.rp-bar i { display: block; height: 100%; }
+.rp-grades { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.rp-grades div { background: var(--soft); border-radius: 14px; padding: 10px 8px; text-align: center; }
+.rp-grades span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.rp-grades span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: var(--c); vertical-align: 1px; }
+.rp-grades b { display: block; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.rp-grades em { display: block; font-style: normal; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rp-phase { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-phase th { color: var(--muted); font-weight: 600; text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.rp-phase td { text-align: right; padding: 8px; border-bottom: 1px solid var(--line); }
+.rp-phase th:first-child, .rp-phase td:first-child { text-align: left; }
+.rp-phase tr:last-child td { border-bottom: 0; }
 .sp-note { margin: 16px 24px 20px; color: var(--muted); font-size: 13px; }
 @media (max-width: 760px) {
   .sp-cards { grid-template-columns: 1fr; }
-  .sp-card { grid-template-columns: 1fr; }
+  .rp-grades { gap: 4px; }
+  .rp-grades div { padding: 8px 2px; }
+  .rp-grades b { font-size: 18px; }
+  .rp-phase th, .rp-phase td { padding: 7px 4px; }
   .sp-rank { font-size: 24px; }
   .sp-head img { width: 52px; height: 52px; }
 }
@@ -351,6 +401,9 @@ button.primary:hover { background: var(--blue-deep); }
   #analyze { order: 7; } #moveNo { order: 8; } #goMove { order: 9; }
   #menuOpen { display: block; order: 10; }
   .toolbar .error { order: 11; grid-column: 1 / -1; }
+  #quizBar { grid-column: 1 / -1; }
+  #quizBar button { width: auto; padding: 2px 16px; }
+  #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
 }
 </style>
 </head>
@@ -364,14 +417,18 @@ button.primary:hover { background: var(--blue-deep); }
       <button id="saveSgf">SGF 저장</button>
       <button id="copySgf">SGF 복사</button>
       <button id="pasteSgf">SGF 붙여넣기</button>
-      <button id="saveMine" hidden>내 기보에 저장</button>
       <button id="openMine" hidden>내 기보 열기</button>
+      <button id="addNote" hidden>오답노트에 담기</button>
+      <button id="openNotes" hidden>오답노트</button>
+      <button id="findLd" hidden>실전 사활 찾기</button>
+      <button id="openLd" hidden>나의 실전 사활</button>
     </div>
   </details>
+  <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
   <button id="newGame">AI대국</button>
   <button id="kifuOpen">기보 불러오기</button>
-  <button id="strengthOpen">기력 평가</button>
-  <div class="lvl" id="strengthLevel" role="group" aria-label="기력 평가 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
+  <button id="strengthOpen">대국 리포트</button>
+  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
   <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="1">정선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
   <label class="check" id="komiLabel"><span class="menu-text">덤</span><select id="komiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select> <input type="number" id="komi" value="6.5" step="0.5" min="0" max="150" aria-label="덤 집 수"></label>
   <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
@@ -423,6 +480,8 @@ button.primary:hover { background: var(--blue-deep); }
     <h2>내 기보에 저장</h2>
     <input type="text" id="saveTitle" maxlength="100" placeholder="제목" autocomplete="off">
     <div class="muted" id="saveInfo"></div>
+    <div class="seg" id="saveKind" role="group" aria-label="저장 방법"><button type="button" data-v="" class="on">기보만 저장</button><button type="button" data-v="notes">오답노트까지 만들기</button></div>
+    <div class="muted small" id="saveKindHint"></div>
     <div class="dlg-msg" id="saveMsg"></div>
     <div class="actions">
       <button type="button" id="saveCancel">취소</button>
@@ -430,6 +489,73 @@ button.primary:hover { background: var(--blue-deep); }
       <button type="submit" id="saveGo" class="primary">저장</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="noteAddDlg" aria-label="오답노트에 담기">
+  <div class="dlg-row">
+    <b>오답노트에 담기</b>
+    <span class="spacer"></span>
+    <button id="noteAddClose">닫기</button>
+  </div>
+  <div class="dlg-row">
+    <div class="seg" id="noteSide" role="group" aria-label="누구의 실수"><button data-v="" class="on">흑·백</button><button data-v="B">흑</button><button data-v="W">백</button></div>
+    <select id="noteLevel" aria-label="실수 기준">
+      <option value="small">작은 실수까지 (2집 · 승률 5%)</option>
+      <option value="normal" selected>실수 (4집 · 승률 10%)</option>
+      <option value="big">큰 실수만 (8집 · 승률 20%)</option>
+    </select>
+  </div>
+  <div class="dlg-msg" id="noteAddMsg"></div>
+  <div class="dlg-list"><table><thead><tr><th><input type="checkbox" id="noteAll" checked aria-label="모두 선택"></th><th>수</th><th>둔 수</th><th>AI 최선</th><th>손해</th><th class="w">승률</th></tr></thead><tbody id="noteAddRows"></tbody></table></div>
+  <div class="dlg-row"><span class="muted" id="noteAddCount"></span><span class="spacer"></span><button id="noteAddGo" class="primary">담기</button></div>
+</dialog>
+
+<dialog id="ldFindDlg" aria-label="실전 사활 찾기">
+  <div class="dlg-row">
+    <b>실전 사활 찾기</b>
+    <span class="spacer"></span>
+    <button id="ldFindStart" class="primary">찾기 시작</button>
+    <button id="ldFindClose">닫기</button>
+  </div>
+  <div class="dlg-msg" id="ldFindMsg"></div>
+  <div class="dlg-list"><table><thead><tr><th><input type="checkbox" id="ldFindAll" checked aria-label="모두 선택"></th><th>수</th><th>종류</th><th>난이도</th><th class="w">실전</th></tr></thead><tbody id="ldFindRows"></tbody></table></div>
+  <div class="dlg-row"><span class="muted" id="ldFindCount"></span><span class="spacer"></span><button id="ldFindGo" class="primary" disabled>담기</button></div>
+</dialog>
+
+<dialog id="ldDlg" aria-label="나의 실전 사활">
+  <div class="dlg-row">
+    <b>나의 실전 사활</b>
+    <span class="muted" id="ldCount"></span>
+    <span class="spacer"></span>
+    <button id="ldClose">닫기</button>
+  </div>
+  <div class="dlg-row">
+    <div class="seg" id="ldKind" role="group" aria-label="종류"><button data-v="" class="on">전체</button><button data-v="live">살리기</button><button data-v="kill">잡기</button><button data-v="race">수상전</button></div>
+  </div>
+  <div class="dlg-row">
+    <button id="ldReview" class="primary">오늘 복습</button>
+    <button id="ldAllBtn">전체 풀기</button>
+  </div>
+  <div class="dlg-msg" id="ldMsg"></div>
+  <div class="dlg-list"><table><thead><tr><th>기보</th><th>수</th><th>종류</th><th class="w">난이도</th><th>맞힘</th><th class="w">다음 복습</th><th></th></tr></thead><tbody id="ldRows"></tbody></table></div>
+</dialog>
+
+<dialog id="notesDlg" aria-label="오답노트">
+  <div class="dlg-row">
+    <b>오답노트</b>
+    <span class="muted" id="notesCount"></span>
+    <span class="spacer"></span>
+    <button id="notesClose">닫기</button>
+  </div>
+  <div class="dlg-row">
+    <div class="seg" id="notesPhase" role="group" aria-label="단계"><button data-v="" class="on">전체</button><button data-v="opening">초반</button><button data-v="middle">중반</button><button data-v="end">종반</button></div>
+  </div>
+  <div class="dlg-row">
+    <button id="notesReview" class="primary">오늘 복습</button>
+    <button id="notesAll">전체 풀기</button>
+  </div>
+  <div class="dlg-msg" id="notesMsg"></div>
+  <div class="dlg-list"><table><thead><tr><th>기보</th><th>수</th><th class="w">손해</th><th>맞힘</th><th class="w">다음 복습</th><th></th></tr></thead><tbody id="notesRows"></tbody></table></div>
 </dialog>
 
 <dialog id="gameDlg" aria-label="AI대국">
@@ -457,17 +583,17 @@ button.primary:hover { background: var(--blue-deep); }
   </div>
 </dialog>
 
-<dialog id="strengthDlg" aria-label="기력 평가">
+<dialog id="strengthDlg" aria-label="대국 리포트">
   <div class="sp-top">
-    <h2>기력 평가</h2>
+    <h2>대국 리포트</h2>
     <span class="spacer"></span>
-    <button id="strengthRedo" disabled title="지금 세기로 모든 수를 다시 분석해 평가합니다">재평가</button>
+    <button id="strengthRedo" disabled title="지금 세기로 모든 수를 다시 분석합니다">다시 분석</button>
     <button id="strengthClose">닫기</button>
   </div>
-  <div class="sp-sub">분석된 주 변화(main-line)를 기반으로 하며 검토 참고용으로만 사용됩니다.</div>
+  <div class="sp-sub">본선의 수를 하나씩 AI의 판단과 비교합니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
-  <div class="sp-note">이 평가는 YZY(LizzieYzy Next)의 XGBoost 기력 모델로 계산합니다. 수마다 KataGo로 분석한 결과(빠름 250 · 보통 500 · 정밀 1000 visits)를 씁니다. 모델이 500 visits 분석으로 학습돼 '보통'이 가장 정확합니다. 공식 기력이 아니라 검토 참고용입니다.</div>
+  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 초반은 50수까지, 중반은 150수까지입니다. 분석 세기(빠름 250 · 보통 500 · 정밀 1000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
 </dialog>
 
 <div class="main">
@@ -497,6 +623,11 @@ button.primary:hover { background: var(--blue-deep); }
 </div>
 
 <footer class="toolbar">
+  <div id="quizBar" hidden>
+    <div class="qz-text"><b id="quizTitle"></b><span id="quizSub"></span></div>
+    <input type="text" id="quizMemo" maxlength="300" placeholder="메모: 왜 틀렸는지 적어 두세요 (Enter로 저장)" autocomplete="off" hidden>
+    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
+  </div>
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
   <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
@@ -647,8 +778,9 @@ function lost() {
   const old = ws; ws = null;
   if (old) { old.onopen = old.onclose = old.onmessage = null; try { old.close(); } catch { /* already closed */ } }
   $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중";
-  if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '기력 평가'를 눌러 이어서 분석하세요.", true); }
+  if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '대국 리포트'를 눌러 이어서 분석하세요.", true); }
   if (autoId) { queries.delete(autoId); autoId = null; autoButton(); }   // its search ended with the old connection
+  if (ldFind) ldStop("GPU 연결이 끊겨 찾기가 멈췄습니다. 다시 연결되면 '찾기 시작'을 누르세요.");
   clearTimeout(retryTimer); retryTimer = setTimeout(connect, 2000);
   if (recheckGpu) recheckGpu();   // the GPU's address may have changed (tunnel restarted)
 }
@@ -696,13 +828,13 @@ function baseQuery() {
 }
 function requestLive() {
   if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
-  if (!analyzing) return;
+  if (!analyzing || quiz) return;   // solving a 오답노트 problem: no live search (it would give the answer away)
   const pda = pdaAt(cur);
   liveId = "q" + (++qn) + (pda ? "~" + pda : "");   // the PDA rides in the id, so other devices' copies (peerQuery) carry it too
   queries.set(liveId, {node: cur});
   // No visit limit: analysis runs until the member stops it or moves (like YZY pondering); AI moves use it too.
   // priority: KataGo serves queued positions first-come, so without it a new live query waited behind every
-  // queued 자동분석 / 기력 평가 turn and the main board looked stopped; higher priority goes to the next free thread.
+  // queued 자동분석 / 대국 리포트 turn and the main board looked stopped; higher priority goes to the next free thread.
   // firstReportDuringSearchAfter (in KataGo's source, not its docs): the first candidates come after 0.05 s
   // instead of waiting a whole report period (0.1 s since 2026-09-27; was 0.3 s), which was most of the delay after each move.
   send({...baseQuery(), id: liveId, moves: movesOf(cur), maxVisits: UNLIMITED_VISITS, reportDuringSearchEvery: 0.1,
@@ -711,7 +843,7 @@ function requestLive() {
 }
 function store(node, msg, id) {
   const m = /~(-?[0-9.]+)$/.exec(id || ""), pda = m ? +m[1] : 0;
-  if (pda) {   // searched with a PDA: shown for that turn only, never mixed into the graph, 자동분석, 기력 평가 or SGF
+  if (pda) {   // searched with a PDA: shown for that turn only, never mixed into the graph, 자동분석, 대국 리포트 or SGF
     msg.pda = pda;
     const old = node.pdaAn;
     if (!old || old.pda !== pda || node.paid === id || msg.rootInfo.visits >= old.rootInfo.visits) { node.pdaAn = msg; node.paid = id; }
@@ -745,18 +877,22 @@ function onMessage(msg) {
   if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
   if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
+    if (/^ld/.test(msg.peerQuery || "")) return;   // 실전 사활 찾기: a cut-out, framed board, not this game's
     const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
     if (node) { store(node, msg, msg.peerQuery); schedule(); }
     return;
   }
   if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
+  const cq = msg.id && queries.get(msg.id);
+  if (cq && cq.cb) { cq.cb(msg); return; }   // 실전 사활 찾기 waits for this answer itself (errors too)
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; return; }
   const q = queries.get(msg.id);
   if (!q || !msg.rootInfo) return;
   if (q.line) {  // auto analysis / strength estimate: one response per turn
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
-    if (q.strength) strengthStep(q);
+    if (q.each) q.each(q);
+    else if (q.strength) strengthStep(q);
     else {
       autoDone++;
       if (autoDone >= q.todo) stopAuto(); else autoButton();
@@ -770,7 +906,7 @@ function onMessage(msg) {
   }
   schedule();
 }
-// 빠름 / 보통 / 정밀: one setting for 자동분석 and 기력 평가 (보통 = the 500 visits the strength model was trained on).
+// 빠름 / 보통 / 정밀: one setting for 자동분석 and 대국 리포트.
 // Each skips the moves already analysed at least that deep, so what one of them did, the other does not redo.
 const LEVELS = {fast: 250, normal: 500, precise: 1000};
 let level = "normal";
@@ -785,7 +921,7 @@ function setLevel(l) {
   levelButtons(); if (!autoId) autoButton(); schedule();
 }
 document.querySelectorAll(".lvl").forEach(g => g.addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setLevel(b.dataset.l); }));
-// Landscape: pressing 자동분석 / 기력 평가 opens a small list of levels; picking one sets it and starts.
+// Landscape: pressing 자동분석 / 대국 리포트 opens a small list of levels; picking one sets it and starts.
 const isPortrait = () => matchMedia("(orientation: portrait)").matches;
 let popFor = null, popRun = null;
 function levelPop(btn, title, run) {
@@ -855,7 +991,7 @@ function setAnalyzing(on) {
   $("analyze").classList.toggle("on", on); $("analyze").textContent = on ? "■ 분석 정지" : "▶ 분석 시작";
   $("hint").textContent = on ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
 }
-$("analyze").onclick = () => { setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
+$("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
 const runAuto = () => startAuto(lineThrough(cur).every(analysed));   // everything analysed at this level = 재분석
 $("autoAnalyze").onclick = () => {
   if (autoId) return stopAuto();
@@ -876,6 +1012,7 @@ $("pass").onclick = () => goTo(play(cur, cur.toPlay, null));
 // a number of seconds, or of visits. Options follow YZY's new-game windows (random opening, resign rule, which
 // side's candidates show).
 let game = null, reachedAt = performance.now();
+let quiz = null;   // a 오답노트 problem being solved (see the 오답노트 section)
 // game: {kind, root, ai: {B|W: {mode, value}}, show: {B, W}, random, resign (on/off), low: {B, W}}
 const colorName = c => c === "B" ? "흑" : "백";
 // Resigning follows YZY's analysis game (Leelaz.notifyAnaResign: from move N, the AI's best winrate below X% for K
@@ -931,10 +1068,10 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
 }
 function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
 function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
-const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]);
+const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]) && !(quiz && !quiz.shown);
 // AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment).
-// With one colour on, only the board / table candidates follow the turn, as before.
-const analysisHidden = () => !!game && game.root === root && !game.show.B && !game.show.W;
+// With one colour on, only the board / table candidates follow the turn, as before. The same for a 오답노트 problem until it is answered.
+const analysisHidden = () => (!!game && game.root === root && !game.show.B && !game.show.W) || (!!quiz && !quiz.shown);
 setInterval(() => {
   if (!game) return;
   if (game.root !== root) return stopGame();                                   // another record was opened
@@ -1145,7 +1282,7 @@ function unpackAnalysis(text) {
             moveInfos: o.m.map(([move, winrate, scoreLead, visits, prior, pv], order) => ({move, winrate, scoreLead, visits, prior, order, pv: pv ? pv.split(" ") : []}))};
   } catch { return null; }
 }
-function toSgf(withAnalysis = true) {
+function toSgf(withAnalysis = true, upTo = null) {   // upTo: only the moves leading to that node (오답노트)
   const c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
   const esc = s => s.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
   let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[19]RU[Korean]KM[${komi()}]`;
@@ -1158,6 +1295,7 @@ function toSgf(withAnalysis = true) {
   const kga = n => withAnalysis && n.analysis && n.analysis.rootInfo ? `KGA[${esc(packAnalysis(n.analysis))}]` : "";
   head += kga(root);
   const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + (n.comment ? `C[${esc(n.comment)}]` : "") + kga(n);
+  if (upTo) return head + pathTo(upTo).slice(1).map(nodeText).join("") + ")";
   const body = n => {
     let s = "";
     while (true) {
@@ -1170,11 +1308,12 @@ function toSgf(withAnalysis = true) {
 }
 // ------------------------------------------------------------------ shared board (one per account, through the bridge)
 // A device publishes what it shows (record without analysis + position + analysis on/off); the others follow.
-// The record is merged into the existing tree, so nodes keep their analysis and a running 기력 평가/자동분석 is not lost.
+// The record is merged into the existing tree, so nodes keep their analysis and a running 대국 리포트/자동분석 is not lost.
 function publish() {
-  if (!bridgeSync || !synced || applyingRemote) return;
+  if (!bridgeSync || !synced || applyingRemote || quiz) return;   // a 오답노트 problem is this device's alone
   clearTimeout(pubTimer);
   pubTimer = setTimeout(() => {
+    if (quiz) return;
     const st = {path: pathTo(cur).slice(1).map(n => n.parent.children.indexOf(n)), analyzing};
     const sgf = toSgf(false);
     if (sgf !== lastSgf) { st.sgf = sgf; lastSgf = sgf; }
@@ -1183,6 +1322,7 @@ function publish() {
 }
 function applyState(st) {
   if (!st) return;
+  if (quiz) { quiz.pending = {...quiz.pending, ...st}; return; }   // applied when the problems end
   applyingRemote = true;
   try {
     if (typeof st.sgf === "string" && st.sgf !== lastSgf) {
@@ -1305,7 +1445,7 @@ $("kifuRows").addEventListener("click", async ev => {
 // ------------------------------------------------------------------ 내 기보 (saved games with their analysis, website only)
 // The record with its analysis (toSgf's KGA properties) goes to the member's own rows in saved_kifu (RLS, at most 100,
 // saved only on the button). Opened without a GPU it shows the stored analysis; with a GPU the analysis continues and
-// 자동분석/기력 평가 skip the positions already analysed at that strength.
+// 자동분석/대국 리포트 skip the positions already analysed at that strength.
 let mineSb = null, mineId = null, mineRoot = null, mineTitle = "", mineList = [];
 async function mineClient() {
   if (mineSb) return mineSb;
@@ -1317,7 +1457,11 @@ async function mineClient() {
   } catch { /* not the website */ }
   return mineSb;
 }
-mineClient().then(c => { $("saveMine").hidden = $("openMine").hidden = !c; });
+mineClient().then(c => {
+  $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = $("findLd").hidden = $("openLd").hidden = !c;
+  if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
+  else if (c && hashParams.has("ld")) openLd();    // the website's 실전 사활 link
+});
 async function gzip64(text) {
   const buf = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
   let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
@@ -1336,6 +1480,7 @@ function mineStats() {
 function mineDefaultTitle() {
   const i = root.info;
   if (i.PB || i.PW) return `${i.PB || "흑"} vs ${i.PW || "백"}${i.DT ? " · " + i.DT : ""}`.slice(0, 100);
+  if (i.DT) return ("기보 " + i.DT).slice(0, 100);   // no names: the game's date (as 오답노트 titles it)
   return "기보 " + new Date().toLocaleString("ko-KR", {dateStyle: "short", timeStyle: "short"});
 }
 function closeMenus() { $("fileMenu").open = false; if ($("menuDlg").open) $("menuDlg").close(); }
@@ -1347,8 +1492,23 @@ $("saveMine").onclick = async () => {
   $("saveInfo").textContent = `${st.moves}수 · 분석된 국면 ${st.analyzed}개` + (again ? " · 이미 저장한 기보입니다" : "");
   $("saveMsg").textContent = ""; $("saveMsg").classList.remove("bad");
   $("saveAsNew").hidden = !again; $("saveGo").textContent = again ? "덮어쓰기" : "저장";
+  // 오답노트까지: after saving, the 오답노트에 담기 list of this game's mistakes opens (needs analysed moves)
+  const notesOk = lineThrough(cur).some(n => n.move && moveLoss(n));
+  $("saveKind").querySelector('[data-v="notes"]').disabled = !notesOk;
+  let kind = ""; try { kind = localStorage.getItem("kgv.saveKind") || ""; } catch { /* storage blocked */ }
+  pickSaveKind(notesOk ? kind : "");
+  $("saveKindHint").textContent = notesOk ? $("saveKindHint").textContent : "분석된 수가 없어 오답노트는 만들 수 없습니다. 자동분석을 한 뒤 저장하면 실수를 문제로 담을 수 있습니다.";
   $("saveDlg").showModal();
 };
+function pickSaveKind(v) {
+  pickSegValue("saveKind", v);
+  $("saveKindHint").textContent = v ? "저장한 뒤 이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요." : "기보와 분석값만 저장합니다.";
+}
+$("saveKind").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b || b.disabled) return;
+  pickSaveKind(b.dataset.v);
+  try { localStorage.setItem("kgv.saveKind", b.dataset.v); } catch { /* storage blocked */ }
+});
 $("saveCancel").onclick = () => $("saveDlg").close();
 $("saveForm").onsubmit = ev => { ev.preventDefault(); saveMine(false); };
 $("saveAsNew").onclick = () => saveMine(true);
@@ -1368,6 +1528,7 @@ async function saveMine(asNew) {
     if (error) { say(error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message, true); return; }
     mineId = saved.id; mineRoot = root; mineTitle = title;
     $("saveDlg").close(); $("err").textContent = update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다";
+    if (segValue("saveKind") === "notes") $("addNote").onclick();   // 오답노트까지: pick the mistakes to add
   } catch (err) { say("저장하지 못했습니다: " + err.message, true); }
   finally { $("saveGo").disabled = $("saveAsNew").disabled = false; }
 }
@@ -1414,42 +1575,721 @@ async function openMineKifu(id) {
   return true;
 }
 
-// ------------------------------------------------------------------ 기력 평가 (YZY PlayerStrengthEstimator, assets/strength.js)
-// Works where assets/ has strength.js and the models (the website); the GPU's own page only serves the board images.
-let strengthLib = null, strengthModels = null, strengthId = null;
+// ------------------------------------------------------------------ 오답노트: the member's mistakes, to solve again (website only)
+// 담기: the analysed moves of this game that lost points (both sides of the move analysed) become problems: the position
+// before the move, what was played, and the stored analysis of that position, which grades the answers without a GPU.
+// Solving: the board shows the position with no analysis; a click is the answer; then the AI's candidates appear with the
+// first answer and the original move marked. Review schedule (mistake_notes.due_at): 1, 3, 7, 14, 30, 60 days after
+// 1, 2, 3... right answers in a row; a wrong answer makes it due again at once.
+const NOTE_MAX = 300, REVIEW_DAYS = [1, 3, 7, 14, 30, 60];
+const NOTE_LEVELS = {small: [2, 5], normal: [4, 10], big: [8, 20]};   // points or win-rate %p lost
+const GOOD_POINTS = 1.5, GOOD_WR = 3;   // this close to the AI's first choice counts as right too (a 500-visit score wobbles ~1 point)
+// 초반·중반·종반 by the move number (19x19): up to 50, up to 150, the rest
+const PHASES = [["opening", "초반", 50], ["middle", "중반", 150], ["end", "종반", Infinity]];
+const phaseOf = moveNo => PHASES.find(p => moveNo <= p[2]);
+let noteRows = [], noteList = [], noteAll = [];
+function moveLoss(n) {   // what the move at n cost the player who made it, or null until both positions are analysed
+  const a = n.move && n.parent && nodeStats(n.parent), b = nodeStats(n);
+  return a && b ? {points: a.score + b.score, wr: a.wr - (100 - b.wr)} : null;
+}
+const noteMove = n => n.move.pass ? "pass" : gtp(n.move.x, n.move.y);
+const lossText = points => `${points >= 0 ? "−" : "+"}${Math.abs(points).toFixed(1)}집`;
+async function sha256(text) {
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  return Array.from(d, b => b.toString(16).padStart(2, "0")).join("");
+}
+function noteMistakes() {   // the analysed moves of the line through the current move, worst first per the chosen filter
+  const side = segValue("noteSide"), [pts, wr] = NOTE_LEVELS[$("noteLevel").value];
+  // the AI's own first choice is no mistake, even when the next position looks worse (search noise; 대국 리포트 calls it AI의 수)
+  return lineThrough(cur).filter(n => n.move && (!side || n.move.c === side) && candidates(n.parent).length && candidates(n.parent)[0].move !== noteMove(n))
+    .map(n => ({n, loss: moveLoss(n)}))
+    .filter(r => r.loss && (r.loss.points >= pts || r.loss.wr >= wr));
+}
+function showNoteMistakes() {
+  noteRows = noteMistakes();
+  $("noteAddRows").innerHTML = noteRows.map((r, i) => {
+    const best = candidates(r.n.parent)[0];
+    return `<tr data-i="${i}"><td><input type="checkbox" data-c="${i}" checked aria-label="${r.n.depth}수 담기"></td><td>${r.n.depth} ${colorName(r.n.move.c)}</td>` +
+      `<td>${noteMove(r.n)}</td><td>${best ? best.move : "—"}</td><td class="loss">${lossText(r.loss.points)}</td><td class="w">−${Math.max(0, r.loss.wr).toFixed(1)}%</td></tr>`;
+  }).join("");
+  $("noteAll").checked = true;
+  const analysed = lineThrough(cur).filter(n => n.move && moveLoss(n)).length;
+  $("noteAddMsg").textContent = !analysed ? "분석된 수가 없습니다. 자동분석으로 기보를 분석한 뒤 담을 수 있습니다."
+    : noteRows.length ? "줄을 누르면 그 수로 이동합니다. 담을 실수를 고르세요." : `분석된 ${analysed}수 중 이 기준에 맞는 실수가 없습니다.`;
+  noteCount();
+}
+function noteCount() {
+  const k = $("noteAddRows").querySelectorAll("input:checked").length;
+  $("noteAddCount").textContent = `${k}개 선택`; $("noteAddGo").disabled = !k;
+}
+$("addNote").onclick = async () => {
+  closeMenus();
+  if (quiz) return;
+  if (!await mineClient()) { $("err").textContent = "로그인한 사이트에서만 오답노트를 쓸 수 있습니다"; return; }
+  try { const v = JSON.parse(localStorage.getItem("kgv.noteForm") || "null"); if (v) { pickSegValue("noteSide", v.side); $("noteLevel").value = v.level; } } catch { /* storage blocked */ }
+  showNoteMistakes(); $("noteAddDlg").showModal();
+};
+function pickSegValue(id, v) { $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === v)); }
+function saveNoteForm() { try { localStorage.setItem("kgv.noteForm", JSON.stringify({side: segValue("noteSide"), level: $("noteLevel").value})); } catch { /* storage blocked */ } }
+$("noteSide").addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return; pickSegValue("noteSide", b.dataset.v); saveNoteForm(); showNoteMistakes(); });
+$("noteLevel").onchange = () => { saveNoteForm(); showNoteMistakes(); };
+$("noteAll").onchange = () => { $("noteAddRows").querySelectorAll("input").forEach(x => { x.checked = $("noteAll").checked; }); noteCount(); };
+$("noteAddRows").addEventListener("change", noteCount);
+$("noteAddRows").addEventListener("click", ev => {
+  if (ev.target.closest("input")) return;
+  const tr = ev.target.closest("tr"), r = tr && noteRows[+tr.dataset.i]; if (r) goTo(r.n);
+});
+$("noteAddClose").onclick = () => $("noteAddDlg").close();
+$("noteAddDlg").addEventListener("click", ev => { if (ev.target === $("noteAddDlg")) $("noteAddDlg").close(); });   // backdrop
+$("noteAddGo").onclick = async () => {
+  const c = await mineClient(); if (!c) return;
+  const say = (t, bad = false) => { $("noteAddMsg").textContent = t; $("noteAddMsg").classList.toggle("bad", bad); };
+  const picked = [...$("noteAddRows").querySelectorAll("input:checked")].map(x => noteRows[+x.dataset.c]).filter(Boolean);
+  if (!picked.length) return;
+  $("noteAddGo").disabled = true; say("담는 중…");
+  try {
+    const {count, error: countError} = await c.from("mistake_notes").select("id", {count: "exact", head: true});
+    if (countError) throw countError;
+    if (count + picked.length > NOTE_MAX) { say(`오답노트는 ${NOTE_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, NOTE_MAX - count)}문제만 더 담을 수 있습니다.`, true); return; }
+    const title = (mineId && mineRoot === root ? mineTitle : mineDefaultTitle()).slice(0, 100);
+    const rows = await Promise.all(picked.map(async ({n, loss}) => {
+      const sgf = toSgf(false, n.parent), played = noteMove(n);
+      return {title, color: n.move.c, move_no: n.depth, played, best: candidates(n.parent)[0].move,
+              loss_points: Math.round(loss.points * 10) / 10, loss_wr: Math.round(loss.wr * 10) / 10,
+              sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${komi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
+    }));
+    const {data, error} = await c.from("mistake_notes").upsert(rows, {onConflict: "user_id,pos_key", ignoreDuplicates: true}).select("id");
+    if (error) throw error;
+    const added = (data || []).length;
+    $("noteAddDlg").close();
+    $("err").textContent = !added ? "고른 문제가 모두 이미 오답노트에 있습니다"
+      : `오답노트에 ${added}문제를 담았습니다` + (added < rows.length ? ` (이미 담긴 ${rows.length - added}문제는 건너뜀)` : "");
+  } catch (err) { say("담지 못했습니다: " + err.message, true); }
+  finally { noteCount(); }
+};
+
+// the list, and solving
+const isDue = k => new Date(k.due_at) <= new Date();
+function dueText(k) {
+  if (isDue(k)) return "오늘";
+  const days = Math.ceil((new Date(k.due_at) - Date.now()) / 86400000);
+  return days <= 1 ? "내일" : `${days}일 뒤`;
+}
+function notesMsg(text, bad = false) { $("notesMsg").textContent = text; $("notesMsg").classList.toggle("bad", bad); }
+async function loadNotes() {
+  const c = await mineClient(); if (!c) return;
+  notesMsg("불러오는 중…");
+  const {data, error} = await c.from("mistake_notes").select("id,title,color,move_no,played,loss_points,tries,correct,streak,due_at,memo")
+    .order("due_at", {ascending: true});
+  if (error) { notesMsg("오답노트를 불러오지 못했습니다: " + error.message, true); return; }
+  noteAll = data || [];
+  showNotes();
+}
+function showNotes() {
+  const phase = segValue("notesPhase");
+  $("notesPhase").querySelectorAll("button").forEach(b => {
+    const p = PHASES.find(x => x[0] === b.dataset.v);
+    b.textContent = `${p ? p[1] : "전체"} ${noteAll.filter(k => !p || phaseOf(k.move_no) === p).length}`;
+  });
+  noteList = noteAll.filter(k => !phase || phaseOf(k.move_no)[0] === phase);
+  const due = noteList.filter(isDue).length;
+  $("notesCount").textContent = `${noteAll.length} / ${NOTE_MAX}문제`;
+  $("notesReview").textContent = `오늘 복습 ${due}`; $("notesReview").disabled = !due; $("notesAll").disabled = !noteList.length;
+  $("notesRows").innerHTML = noteList.map((k, i) =>
+    `<tr data-i="${i}"${isDue(k) ? ' class="due"' : ""}><td class="t" title="${escHtml(k.title + (k.memo ? " · " + k.memo : ""))}">${escHtml(k.title)}</td>` +
+    `<td>${k.move_no} ${colorName(k.color)}${phase ? "" : `<span class="ph">${phaseOf(k.move_no)[1]}</span>`}</td><td class="w loss">${lossText(k.loss_points)}</td><td>${k.correct}/${k.tries}</td>` +
+    `<td class="w">${dueText(k)}</td><td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
+  notesMsg(noteList.length ? `복습할 문제 ${due}개 · 문제를 누르면 그 문제만 풉니다. 맞히면 1·3·7·14·30·60일 뒤에 다시 나옵니다.`
+    : noteAll.length ? "이 단계에는 담은 문제가 없습니다."
+    : "담은 문제가 없습니다. 분석한 기보에서 파일 메뉴의 '오답노트에 담기'로 실수를 담으세요.");
+}
+$("notesPhase").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  pickSegValue("notesPhase", b.dataset.v); showNotes();
+  try { localStorage.setItem("kgv.notesPhase", b.dataset.v); } catch { /* storage blocked */ }
+});
+async function openNotes() {
+  closeMenus();
+  if (!await mineClient()) { $("err").textContent = "로그인한 사이트에서만 오답노트를 쓸 수 있습니다"; return; }
+  const want = hashParams.get("phase");   // the website's per-phase links
+  hashParams.delete("phase");
+  try { pickSegValue("notesPhase", PHASES.some(p => p[0] === want) ? want : localStorage.getItem("kgv.notesPhase") || ""); } catch { /* storage blocked */ }
+  if (!$("notesDlg").open) $("notesDlg").showModal();
+  loadNotes();
+}
+$("openNotes").onclick = openNotes;
+$("notesClose").onclick = () => $("notesDlg").close();
+$("notesDlg").addEventListener("click", ev => { if (ev.target === $("notesDlg")) $("notesDlg").close(); });   // backdrop
+$("notesReview").onclick = () => startQuiz(noteList.filter(isDue));
+$("notesAll").onclick = () => startQuiz(noteList.slice());
+$("notesRows").addEventListener("click", async ev => {
+  const del = ev.target.closest("button[data-del]");
+  if (del) {
+    const k = noteList[+del.dataset.del]; if (!k || !confirm(`${k.title} · ${k.move_no}수 문제를 지울까요?`)) return;
+    const {error} = await mineSb.from("mistake_notes").delete().eq("id", k.id);
+    if (error) { notesMsg("지우지 못했습니다: " + error.message, true); return; }
+    loadNotes(); return;
+  }
+  const tr = ev.target.closest("tr"), k = tr && noteList[+tr.dataset.i]; if (k) startQuiz([k]);
+});
+async function startQuiz(list, ld = false) {
+  if (!list.length) return;
+  const say = ld ? ldListMsg : notesMsg;
+  if (game) { say("AI 대국 중에는 문제를 풀 수 없습니다. 대국을 멈춘 뒤 다시 누르세요.", true); return; }
+  if (ldFind) { say("실전 사활 찾기가 끝난 뒤에 풀 수 있습니다.", true); return; }
+  if (strengthId) { say("대국 리포트 분석이 끝난 뒤에 풀 수 있습니다(기보가 바뀌면 분석이 멈춥니다).", true); return; }
+  if (!quiz) {   // the board being studied comes back when the problems end
+    if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
+    quiz = {prev: {root, cur, komi: komi(), handicap: $("handicap").value}, pending: null};
+    document.body.classList.add("quiz"); $("quizBar").hidden = false;
+  }
+  quiz.list = list; quiz.i = 0; quiz.right = 0; quiz.ld = ld;
+  $("notesDlg").close(); $("ldDlg").close();
+  await (ld ? showLd() : showProblem());
+}
+async function showProblem() {
+  const k = quiz.list[quiz.i];
+  Object.assign(quiz, {note: k, node: null, shown: false, answer: null, grade: null});
+  $("quizTitle").className = ""; $("quizTitle").textContent = `문제 ${quiz.i + 1}/${quiz.list.length} · ${colorName(k.color)} 차례`;
+  $("quizSub").textContent = "불러오는 중…"; $("quizMemo").hidden = $("quizNext").hidden = true; $("quizShow").hidden = false;
+  const {data, error} = await mineSb.from("mistake_notes").select("sgf,analysis").eq("id", k.id).maybeSingle();
+  if (error || !data) { $("quizSub").textContent = "문제를 불러오지 못했습니다" + (error ? ": " + error.message : ""); $("quizNext").hidden = quiz.i + 1 >= quiz.list.length; return; }
+  try { loadSgf(data.sgf); } catch (err) { $("quizSub").textContent = "문제를 열지 못했습니다: " + err.message; return; }
+  quiz.an = unpackAnalysis(data.analysis);
+  quiz.node = lineThrough(root).pop();
+  quiz.node.analysis = null;   // shown only after the answer
+  goTo(quiz.node);
+  $("err").textContent = "";
+  $("quizSub").textContent = `${k.title} · ${phaseOf(k.move_no)[1]} ${k.move_no}수째 · AI라면 어디에 둘까요? 바둑판을 눌러 답하세요`;
+}
+function gradeAnswer(k, an, move) {
+  const cands = an.moveInfos.filter(m => m.visits > 0).sort((p, q) => p.order - q.order), best = cands[0];
+  const mine = k.color === "B" ? 1 : -1, lead = m => mine * m.scoreLead, wr = m => (k.color === "B" ? m.winrate : 1 - m.winrate) * 100;
+  if (move === best.move) return {ok: true, text: "정답! AI가 가장 먼저 고른 수입니다"};
+  if (move === k.played) return {ok: false, text: "오답 · 처음 둔 수와 같습니다"};
+  const c = cands.find(m => m.move === move);
+  if (!c || c.visits < Math.max(3, best.visits * .02)) return {ok: false, text: "오답 · AI가 거의 살펴보지 않은 수입니다"};
+  const dp = lead(best) - lead(c), dw = wr(best) - wr(c);
+  if (dp <= GOOD_POINTS && dw <= GOOD_WR) return {ok: true, text: `정답 · 좋은 수 (AI 최선과 ${Math.max(0, dp).toFixed(1)}집 차이)`};
+  return {ok: false, text: `오답 · AI 최선보다 ${dp.toFixed(1)}집 손해`};
+}
+async function answerQuiz(p) {
+  if (quiz.ld) return answerLd(p);
+  if (!quiz.node) return;
+  if (cur !== quiz.node) { goTo(quiz.node); return; }   // looked back through the moves: back to the problem first
+  if (quiz.shown) return;
+  const move = p ? gtp(p[0], p[1]) : null;
+  if (move && quiz.node.grid[idx(p[0], p[1])]) return;   // an occupied point is no answer
+  quiz.answer = p; quiz.grade = move ? gradeAnswer(quiz.note, quiz.an, move) : {ok: false, text: "정답을 보았습니다"};
+  quiz.shown = true; quiz.node.analysis = quiz.an;
+  const k = quiz.note, ok = quiz.grade.ok, streak = ok ? k.streak + 1 : 0;
+  if (ok) quiz.right++;
+  const due = new Date(Date.now() + (ok ? REVIEW_DAYS[Math.min(streak, REVIEW_DAYS.length) - 1] * 86400000 : 0)).toISOString();
+  const change = {tries: k.tries + 1, correct: k.correct + (ok ? 1 : 0), streak, due_at: due, last_at: new Date().toISOString()};
+  Object.assign(k, change);
+  const best = quiz.an.moveInfos[0];
+  $("quizTitle").className = ok ? "ok" : "bad"; $("quizTitle").textContent = quiz.grade.text;
+  $("quizSub").textContent = `처음 둔 수 ${k.played} (${lossText(k.loss_points)}) · AI 최선 ${best ? best.move : "—"} · ` +
+    (ok ? `다음 복습 ${dueText(k)}` : "다시 복습 목록에 남습니다") + " · 후보수에 마우스를 올리면(폰은 길게 누르면) 수순이 보입니다";
+  $("quizMemo").value = k.memo || ""; $("quizMemo").hidden = false;
+  $("quizShow").hidden = true; $("quizNext").hidden = false;
+  $("quizNext").textContent = quiz.i + 1 < quiz.list.length ? "다음 문제" : "결과 보기";
+  schedule();
+  const {error} = await mineSb.from("mistake_notes").update(change).eq("id", k.id);
+  if (error) $("err").textContent = "기록을 저장하지 못했습니다: " + error.message;
+}
+$("quizShow").onclick = () => quiz.ld ? ldReveal() : answerQuiz(null);
+$("quizNext").onclick = () => {
+  if (quiz.busy) return;
+  if (quiz.i + 1 < quiz.list.length) { quiz.i++; quiz.ld ? showLd() : showProblem(); return; }
+  const n = quiz.list.length, right = quiz.right, what = quiz.ld ? "실전 사활" : "오답노트";
+  endQuiz();
+  $("err").textContent = `${what} ${n}문제 중 ${right}문제를 맞혔습니다`;
+};
+$("quizEnd").onclick = () => endQuiz();
+async function saveQuizMemo() {
+  const k = quiz && quiz.note, memo = $("quizMemo").value.trim().slice(0, 300);
+  if (!k || memo === (k.memo || "")) return;
+  const {error} = await mineSb.from(quiz.ld ? "ld_problems" : "mistake_notes").update({memo}).eq("id", k.id);
+  if (error) { $("err").textContent = "메모를 저장하지 못했습니다: " + error.message; return; }
+  k.memo = memo; $("err").textContent = "메모를 저장했습니다";
+}
+$("quizMemo").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); saveQuizMemo(); } });
+$("quizMemo").addEventListener("change", saveQuizMemo);
+function endQuiz() {
+  if (!quiz) return;
+  saveQuizMemo();
+  const {prev, pending} = quiz;
+  quiz = null; document.body.classList.remove("quiz"); $("quizBar").hidden = true; $("quizRetry").hidden = true;
+  root = prev.root; setKomi(prev.komi); $("handicap").value = handicapShown = prev.handicap;
+  if (pending) applyState(pending);   // another device changed the shared board meanwhile: follow it
+  else goTo(prev.cur);
+  $("err").textContent = "";
+}
+function drawQuizMarks(ctx, G) {   // after answering: ✕ on the original mistake, a ring on the answer
+  const {margin: m, sq, r} = G, at = xy => [m + sq * xy[0] + .5, m + sq * xy[1] + .5];
+  const played = parseGtp(quiz.note.played);
+  if (played) {
+    const [x, y] = at(played), d = r * .55;
+    ctx.strokeStyle = "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 5); ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x - d, y - d); ctx.lineTo(x + d, y + d); ctx.moveTo(x + d, y - d); ctx.lineTo(x - d, y + d); ctx.stroke();
+  }
+  if (quiz.answer) {
+    const [x, y] = at(quiz.answer);
+    ctx.strokeStyle = quiz.grade.ok ? "rgb(31,157,85)" : "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 6);
+    ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+// ------------------------------------------------------------------ 나의 실전 사활 (life-and-death problems from the member's games)
+// 찾기 (needs the GPU): positions of the analysed main line where one move is far better than the next (LD_GAP points);
+// KataGo's per-move ownership (includeMovesOwnership) then shows which stones live or die by that move, and 3+ of them
+// close together make a life-and-death shape. Its corner or side is cut out and the rest of the board filled with a
+// tsumego frame: a wall of the attacker's stones round it, the nearer half of the rest the attacker's and the farther half
+// the defender's, both alive with eyes, area scoring and a komi that leaves the game to the local result. KataGo checks
+// the shape again inside the frame (the first move must still work, a likely wrong one must fail) and the answer tree is
+// computed once: the solver's correct moves with the opponent's most stubborn reply, and refutations of the likely wrong
+// moves. Solving later needs no GPU (ld_problems.tree). Query ids start with "ld", so other devices ignore the copies.
+const LD_MAX = 300, LD_GAP = 4, LD_FLIP = 1.0, LD_MIN_STONES = 3, LD_MAX_CANDS = 30, LD_MAX_AREA = 121, LD_MAX_STONES = 40;
+const LD_SCAN_VISITS = 400, LD_ROOT_VISITS = 1600, LD_NODE_VISITS = 800, LD_DEPTH = 6, LD_BUDGET = 12;
+const LD_KINDS = {live: "살리기", kill: "잡기", race: "수상전"}, LD_LEVELS = {easy: "쉬움", normal: "보통", hard: "어려움"};
+let ldFind = null, ldFound = [], ldFoundRoot = null, ldAll = [], ldList = [];
+function ldAsk(query) {   // one final answer (no reports during the search)
+  return new Promise((resolve, reject) => {
+    const id = "ld" + (++qn);
+    queries.set(id, {cb: msg => { queries.delete(id); if (ldFind) ldFind.running = null; msg.error ? reject(new Error("엔진 오류: " + msg.error)) : resolve(msg); }});
+    if (ldFind) Object.assign(ldFind, {running: id, reject});
+    if (!send({boardXSize: N, boardYSize: N, ...query, id})) { queries.delete(id); reject(new Error("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.")); }
+  });
+}
+function ldAnalyse(line, turns) {   // the missing main-line analysis, stored like 자동분석's (so it is not an "ld" query)
+  return new Promise((resolve, reject) => {
+    const id = "la" + (++qn);
+    queries.set(id, {line, todo: turns.length, done: 0, each: q => {
+      q.done++; ldMsg(`본선을 분석하는 중… ${q.done}/${q.todo} (수마다 ${levelVisits()} visits)`);
+      if (q.done >= q.todo) { queries.delete(id); if (ldFind) ldFind.running = null; resolve(); }
+    }});
+    if (ldFind) Object.assign(ldFind, {running: id, reject});
+    if (!send({...baseQuery(), includeOwnership: false, id, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, maxVisits: levelVisits()})) {
+      queries.delete(id); reject(new Error("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요."));
+    }
+  });
+}
+function ldStop(text) {
+  if (!ldFind) return;
+  const {running, reject} = ldFind; ldFind = null;
+  if (running) { send({id: "t" + (++qn), action: "terminate", terminateId: running}); queries.delete(running); }
+  if (reject) reject(new Error(text || "찾기를 멈췄습니다."));
+}
+const ldIn = (reg, xy) => !!xy && xy[0] >= reg[0] && xy[0] <= reg[2] && xy[1] >= reg[1] && xy[1] <= reg[3];
+function ldCandidates(line) {   // positions where the best move is worth LD_GAP points more than the second
+  const out = [];
+  for (const n of line) {
+    if (!n.move || n.move.pass || !n.parent) continue;
+    const P = n.parent, cs = candidates(P);
+    if (cs.length < 2 || cs[0].move === "pass") continue;
+    const gap = moverLead(P, cs[0].scoreLead) - moverLead(P, cs[1].scoreLead);
+    if (gap >= LD_GAP) out.push({n, P, gap});
+  }
+  return out.sort((a, b) => b.gap - a.gap).slice(0, LD_MAX_CANDS).sort((a, b) => a.n.depth - b.n.depth);
+}
+function ldStake(P, best, alt, s) {   // the biggest close group of whole chains that live or die by the best move
+  const flip = new Set();
+  for (let i = 0; i < N * N; i++) if (P.grid[i] && (best.ownership[i] - alt.ownership[i]) * s >= LD_FLIP) flip.add(i);
+  const chains = [], seen = new Set();
+  for (const i of flip) {
+    if (seen.has(i)) continue;
+    const g = groupAt(P.grid, i).stones; g.forEach(j => seen.add(j));
+    if (g.filter(j => flip.has(j)).length * 2 >= g.length) chains.push(g);
+  }
+  const near = (a, b) => a.some(i => b.some(j => Math.max(Math.abs(i % N - j % N), Math.abs(((i / N) | 0) - ((j / N) | 0))) <= 2));
+  const clusters = [];
+  for (const g of chains) {   // join every cluster this chain is near
+    const hit = clusters.filter(c => near(c, g)), merged = hit.flat().concat(g);
+    for (const c of hit) clusters.splice(clusters.indexOf(c), 1);
+    clusters.push(merged);
+  }
+  const b = parseGtp(best.move);
+  const close = c => c.some(i => Math.max(Math.abs(i % N - b[0]), Math.abs(((i / N) | 0) - b[1])) <= 3);
+  return clusters.filter(close).sort((x, y) => y.length - x.length)[0] || [];
+}
+function ldRegion(stake, best) {   // the stake, the best move and the nearby part of its line, 2 lines around; edges snap
+  const xs = stake.map(i => i % N), ys = stake.map(i => (i / N) | 0);
+  let [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  for (const mv of [best.move, ...(best.pv || []).slice(1, 5)]) {
+    const xy = parseGtp(mv);
+    if (xy && xy[0] >= x0 - 3 && xy[0] <= x1 + 3 && xy[1] >= y0 - 3 && xy[1] <= y1 + 3) {
+      x0 = Math.min(x0, xy[0]); x1 = Math.max(x1, xy[0]); y0 = Math.min(y0, xy[1]); y1 = Math.max(y1, xy[1]);
+    }
+  }
+  x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(N - 1, x1 + 2); y1 = Math.min(N - 1, y1 + 2);
+  if (x0 <= 2) x0 = 0; if (y0 <= 2) y0 = 0; if (x1 >= N - 3) x1 = N - 1; if (y1 >= N - 3) y1 = N - 1;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  return w * h <= LD_MAX_AREA && w <= N - 5 && h <= N - 5 ? [x0, y0, x1, y1] : null;
+}
+// The frame: every point next to the region (diagonals too) is the attacker's; of the rest, the nearer half (Chebyshev
+// distance) is the attacker's and the farther half the defender's; eyes on a sparse lattice keep both alive. Returns null
+// when a frame chain would not have two eyes (e.g. the defender's half split into thin strips).
+function ldFrame(grid, reg, attacker) {
+  const dist = i => { const x = i % N, y = (i / N) | 0; return Math.max(reg[0] - x, x - reg[2], reg[1] - y, y - reg[3], 0); };
+  const area = new Array(N * N).fill(null), rest = [];
+  for (let i = 0; i < N * N; i++) { const d = dist(i); if (d === 1) area[i] = attacker; else if (d > 1) rest.push({i, d}); }
+  rest.sort((a, b) => a.d - b.d || a.i - b.i);
+  rest.forEach((p, k) => { area[p.i] = k < rest.length / 2 ? attacker : other(attacker); });
+  const eye = new Set();
+  for (const {i} of rest) if ((i % N + 2 * ((i / N) | 0)) % 5 === 0 && neighbors(i).every(j => area[j] === area[i])) eye.add(i);
+  const g = new Int8Array(N * N), stones = [];
+  for (let i = 0; i < N * N; i++) {
+    const c = area[i] === null ? (grid[i] === 1 ? "B" : grid[i] === 2 ? "W" : null) : eye.has(i) ? null : area[i];
+    if (c) { g[i] = c === "B" ? 1 : 2; stones.push([c, gtp(i % N, (i / N) | 0)]); }
+  }
+  const checked = new Set();
+  for (let i = 0; i < N * N; i++) {
+    if (area[i] === null || !g[i] || checked.has(i)) continue;
+    const chain = groupAt(g, i).stones; chain.forEach(j => checked.add(j));
+    const eyes = new Set(); for (const j of chain) for (const e of neighbors(j)) if (eye.has(e)) eyes.add(e);
+    if (eyes.size < 2) return null;
+  }
+  let bOut = 0, wOut = 0;
+  for (let i = 0; i < N * N; i++) if (area[i] !== null) { if (area[i] === "B") bOut++; else wOut++; }
+  return {stones, bOut, wOut};
+}
+async function ldTree(F, seq, depth, budget) {   // -> {node: {c: [{m, r?, n?}], w: [{m, pv}]}, top, good, bad} or null
+  if (budget.n <= 0) return null;
+  budget.n--;
+  const r = await ldAsk({rules: "chinese", komi: F.komi, initialStones: F.stones, initialPlayer: F.mover, moves: seq,
+                         includeMovesOwnership: true, maxVisits: depth ? LD_NODE_VISITS : LD_ROOT_VISITS});
+  const infos = (r.moveInfos || []).filter(m => m.ownership).sort((a, b) => a.order - b.order), top = infos[0];
+  if (!top) return null;
+  const sc = m => F.stake.reduce((a, i) => a + m.ownership[i] * F.s, 0) / F.stake.length;
+  const wr = m => F.mover === "B" ? m.winrate : 1 - m.winrate;
+  const inside = m => ldIn(F.reg, parseGtp(m.move));
+  const good = infos.filter(m => inside(m) && m.visits >= top.visits * .1 && sc(m) >= .4 && wr(m) >= .5);
+  const bad = infos.filter(m => inside(m) && !good.includes(m) && m.visits >= 3 && sc(m) < .2).sort((a, b) => b.prior - a.prior).slice(0, 4);
+  const node = {c: [], w: bad.map(m => ({m: m.move, pv: ldPv(F.reg, (m.pv || []).slice(1))}))};
+  for (const [k, m] of good.slice(0, 3).entries()) {
+    const reply = m.pv && m.pv[1];
+    const settled = !reply || reply === "pass" || !ldIn(F.reg, parseGtp(reply)) || (depth >= 1 && sc(m) >= .92);
+    if (k > 0 || settled || depth + 1 >= LD_DEPTH) { node.c.push(k === 0 && !settled ? {m: m.move, r: reply} : {m: m.move}); continue; }
+    const child = await ldTree(F, [...seq, [F.mover, m.move], [other(F.mover), reply]], depth + 1, budget);
+    node.c.push(child && child.node.c.length ? {m: m.move, r: reply, n: child.node} : {m: m.move, r: reply});
+  }
+  return {node, top, good, bad, all: infos};
+}
+function ldPv(reg, pv) { const out = []; for (const mv of pv) { if (mv === "pass" || !ldIn(reg, parseGtp(mv)) || out.length >= 8) break; out.push(mv); } return out; }
+async function ldMake({n, P}) {   // one candidate position -> a problem, or null
+  const mover = P.toPlay, s = mover === "B" ? 1 : -1, played = noteMove(n);
+  const r0 = await ldAsk({...baseQuery(), includeOwnership: false, includeMovesOwnership: true, moves: movesOf(P), maxVisits: LD_SCAN_VISITS});
+  const infos = (r0.moveInfos || []).filter(m => m.ownership).sort((a, b) => a.order - b.order), best = infos[0];
+  if (!best || best.move === "pass") return null;
+  const alt = (played !== best.move && infos.find(m => m.move === played)) || infos[1];
+  if (!alt) return null;
+  const stake = ldStake(P, best, alt, s);
+  if (stake.length < LD_MIN_STONES) return null;
+  if (ldFound.some(p => p.stake.filter(i => stake.includes(i)).length * 2 >= stake.length)) return null;   // the same fight again
+  const reg = ldRegion(stake, best);
+  if (!reg) return null;
+  let inside = 0; for (let y = reg[1]; y <= reg[3]; y++) for (let x = reg[0]; x <= reg[2]; x++) if (P.grid[idx(x, y)]) inside++;
+  if (inside > LD_MAX_STONES) return null;   // a whole-board fight, not a problem
+  // 살리기 / 잡기 by whose stones are at stake (saving a group usually also dooms a few cutting stones: 3/4 decides)
+  const mine = mover === "B" ? 1 : 2, own = stake.filter(i => P.grid[i] === mine).length / stake.length;
+  const kind = own >= .75 ? "live" : own <= .25 ? "kill" : "race";
+  let attacker = kind === "live" ? other(mover) : mover;
+  if (kind === "race") {   // the colour with more stones on the region's edge holds the wall
+    let b = 0, w = 0;
+    for (let y = reg[1]; y <= reg[3]; y++) for (let x = reg[0]; x <= reg[2]; x++)
+      if (x === reg[0] || x === reg[2] || y === reg[1] || y === reg[3]) { const v = P.grid[idx(x, y)]; if (v === 1) b++; else if (v === 2) w++; }
+    attacker = b >= w ? "B" : "W";
+  }
+  const frame = ldFrame(P.grid, reg, attacker);
+  if (!frame) return null;
+  const share = own => { let e = 0; for (let y = reg[1]; y <= reg[3]; y++) for (let x = reg[0]; x <= reg[2]; x++) e += own[idx(x, y)]; return e; };
+  let komiF = frame.bOut - frame.wOut + (share(best.ownership) + share(alt.ownership)) / 2;
+  komiF = Math.round(komiF * 2) / 2; if (Number.isInteger(komiF)) komiF += .5;
+  const F = {stones: frame.stones, komi: komiF, mover, s, stake, reg};
+  const res = await ldTree(F, [], 0, {n: LD_BUDGET});
+  if (!res || !res.good.length || res.good[0] !== res.top || res.good.length > 2 || !res.node.c.length) return null;
+  // Refutations for the game's own move and the likeliest other tries: an obvious answer leaves KataGo only a visit or
+  // two on the rest, so their lines are searched here one by one (a try that turns out to work too is left out).
+  const node = res.node, sc = m => stake.reduce((a, i) => a + m.ownership[i] * s, 0) / stake.length;
+  const tries = [played, ...res.all.filter(m => !res.good.includes(m)).sort((a, b) => b.prior - a.prior).map(m => m.move)]
+    .filter((mv, k, all) => mv !== res.top.move && mv !== "pass" && ldIn(reg, parseGtp(mv)) && all.indexOf(mv) === k && !res.good.some(m => m.move === mv));
+  for (const mv of tries) {
+    if (node.w.filter(w => w.pv.length).length >= 3) break;
+    const known = node.w.find(w => w.m === mv);
+    if (known && known.pv.length) continue;
+    const r = await ldAsk({rules: "chinese", komi: komiF, initialStones: F.stones, initialPlayer: mover, moves: [[mover, mv]],
+                           includeMovesOwnership: true, maxVisits: LD_NODE_VISITS});
+    const reply = (r.moveInfos || []).filter(m => m.ownership).sort((a, b) => a.order - b.order)[0];
+    if (!reply || sc(reply) >= .4) continue;
+    if (known) known.pv = ldPv(reg, reply.pv || []); else node.w.push({m: mv, pv: ldPv(reg, reply.pv || [])});
+  }
+  if (!node.w.some(w => w.pv.length)) return null;   // nothing plausible fails: no problem to solve
+  const setup = {B: [], W: [], r: reg};
+  for (let y = reg[1]; y <= reg[3]; y++) for (let x = reg[0]; x <= reg[2]; x++) { const v = P.grid[idx(x, y)]; if (v) setup[v === 1 ? "B" : "W"].push(gtp(x, y)); }
+  const prior = res.top.prior;
+  return {n, stake, kind, color: mover, move_no: n.depth, level: prior >= .7 ? "easy" : prior >= .3 ? "normal" : "hard",
+          missed: played !== best.move, played, first: res.top.move, setup, tree: node,
+          pos_key: await sha256(`ld|${mover}|${setup.B.join(",")}|${setup.W.join(",")}`)};
+}
+function ldMsg(text, bad = false) { $("ldFindMsg").textContent = text; $("ldFindMsg").classList.toggle("bad", bad); }
+function ldRender() {
+  $("ldFindRows").innerHTML = ldFound.map((p, i) =>
+    `<tr data-i="${i}"><td><input type="checkbox" data-c="${i}" checked aria-label="${p.move_no}수 장면 담기"></td><td>${p.move_no} ${colorName(p.color)}</td>` +
+    `<td>${LD_KINDS[p.kind]}</td><td>${LD_LEVELS[p.level]}</td><td class="w">${p.missed ? `놓침 (${p.played})` : "찾음"}</td><td>${p.first}</td></tr>`).join("");
+  ldCount();
+}
+function ldCount() {
+  const k = $("ldFindRows").querySelectorAll("input:checked").length;
+  $("ldFindCount").textContent = ldFound.length ? `${k}개 선택` : ""; $("ldFindGo").disabled = !k || !!ldFind;
+  $("ldFindStart").textContent = ldFind ? "멈추기" : ldFound.length ? "다시 찾기" : "찾기 시작";
+}
+async function ldSearch() {
+  const line = lineThrough(root), start = root;
+  ldFind = {running: null, reject: null}; ldFound = []; ldFoundRoot = root; ldRender();
+  try {
+    const turns = line.map((_, i) => i).filter(i => !(line[i].analysis && line[i].analysis.rootInfo));
+    if (turns.length) await ldAnalyse(line, turns);
+    const cands = ldCandidates(line);
+    for (let k = 0; k < cands.length; k++) {
+      if (!ldFind) return;
+      if (root !== start) throw new Error("다른 기보를 열어 찾기를 멈췄습니다.");
+      ldMsg(`사활 장면을 살펴보는 중… ${k + 1}/${cands.length} · 찾은 문제 ${ldFound.length}개`);
+      const p = await ldMake(cands[k]);
+      if (p && ldFind) { ldFound.push(p); ldRender(); }
+    }
+    ldMsg(ldFound.length ? `사활 문제 ${ldFound.length}개를 찾았습니다. 줄을 누르면 실전 장면으로 이동합니다. 담을 문제를 고르세요.`
+      : cands.length ? `큰 차이가 나는 장면 ${cands.length}곳을 살펴봤지만 사활 문제로 만들 만한 모양이 없었습니다.`
+      : "한 수로 크게 갈리는 장면이 없어 사활 문제를 만들 수 없었습니다.");
+  } catch (err) { ldMsg(err.message, !/멈췄/.test(err.message)); }
+  finally { if (ldFind) ldFind = null; ldCount(); }
+}
+$("findLd").onclick = async () => {
+  closeMenus();
+  if (quiz || game) { $("err").textContent = "문제를 풀거나 AI 대국 중에는 찾을 수 없습니다"; return; }
+  if (!await mineClient()) { $("err").textContent = "로그인한 사이트에서만 쓸 수 있습니다"; return; }
+  if (!ldFind && ldFoundRoot !== root) ldFound = [];   // found in another game
+  if (!ldFind) { ldMsg(!token ? "실전 사활 찾기는 GPU가 필요합니다. GPU를 켜고 분석 화면을 연 뒤 다시 누르세요."
+    : lineThrough(root).length < 30 ? "수가 너무 적습니다. 대국 기보를 연 뒤 찾으세요."
+    : "기보의 본선에서 사활 문제로 만들 만한 모양을 찾습니다. 분석되지 않은 수는 먼저 분석하고(자동분석과 같음), 후보 장면마다 KataGo로 다시 검증해 풀이 수순을 미리 계산합니다. 한 판에 보통 1~3분 걸립니다."); ldRender(); }
+  $("ldFindDlg").showModal();
+};
+$("ldFindStart").onclick = () => {
+  if (ldFind) { ldStop(); return; }
+  if (!token) return;
+  if (lineThrough(root).length < 30) return;
+  ldSearch(); ldCount();
+};
+$("ldFindClose").onclick = () => { ldStop(); $("ldFindDlg").close(); };
+$("ldFindDlg").addEventListener("cancel", () => ldStop());
+$("ldFindAll").onchange = () => { $("ldFindRows").querySelectorAll("input").forEach(x => { x.checked = $("ldFindAll").checked; }); ldCount(); };
+$("ldFindRows").addEventListener("change", ldCount);
+$("ldFindRows").addEventListener("click", ev => {
+  if (ev.target.closest("input")) return;
+  const tr = ev.target.closest("tr"), p = tr && ldFound[+tr.dataset.i];
+  if (p && lineThrough(root).includes(p.n)) goTo(p.n.parent);
+});
+$("ldFindGo").onclick = async () => {
+  const c = await mineClient(); if (!c) return;
+  const picked = [...$("ldFindRows").querySelectorAll("input:checked")].map(x => ldFound[+x.dataset.c]).filter(Boolean);
+  if (!picked.length) return;
+  $("ldFindGo").disabled = true; ldMsg("담는 중…");
+  try {
+    const {count, error: countError} = await c.from("ld_problems").select("id", {count: "exact", head: true});
+    if (countError) throw countError;
+    if (count + picked.length > LD_MAX) { ldMsg(`실전 사활은 ${LD_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, LD_MAX - count)}문제만 더 담을 수 있습니다.`, true); return; }
+    const title = (mineId && mineRoot === root ? mineTitle : mineDefaultTitle()).slice(0, 100);
+    const rows = picked.map(p => ({title, color: p.color, move_no: p.move_no, kind: p.kind, level: p.level, missed: p.missed, played: p.played,
+                                   first: p.first, setup: JSON.stringify(p.setup), tree: JSON.stringify(p.tree), pos_key: p.pos_key}));
+    const {data, error} = await c.from("ld_problems").upsert(rows, {onConflict: "user_id,pos_key", ignoreDuplicates: true}).select("id");
+    if (error) throw error;
+    const added = (data || []).length;
+    $("ldFindDlg").close();
+    $("err").textContent = !added ? "고른 문제가 모두 이미 실전 사활에 있습니다"
+      : `실전 사활에 ${added}문제를 담았습니다` + (added < rows.length ? ` (이미 담긴 ${rows.length - added}문제는 건너뜀)` : "");
+  } catch (err) { ldMsg("담지 못했습니다: " + err.message, true); }
+  finally { ldCount(); }
+};
+
+// the list, and solving (no GPU)
+function ldListMsg(text, bad = false) { $("ldMsg").textContent = text; $("ldMsg").classList.toggle("bad", bad); }
+async function loadLd() {
+  const c = await mineClient(); if (!c) return;
+  ldListMsg("불러오는 중…");
+  const {data, error} = await c.from("ld_problems").select("id,title,color,move_no,kind,level,missed,played,first,tries,correct,streak,due_at,memo")
+    .order("due_at", {ascending: true});
+  if (error) { ldListMsg("실전 사활을 불러오지 못했습니다: " + error.message, true); return; }
+  ldAll = data || [];
+  showLdList();
+}
+function showLdList() {
+  const kind = segValue("ldKind");
+  $("ldKind").querySelectorAll("button").forEach(b => { b.textContent = `${b.dataset.v ? LD_KINDS[b.dataset.v] : "전체"} ${ldAll.filter(k => !b.dataset.v || k.kind === b.dataset.v).length}`; });
+  ldList = ldAll.filter(k => !kind || k.kind === kind);
+  const due = ldList.filter(isDue).length;
+  $("ldCount").textContent = `${ldAll.length} / ${LD_MAX}문제`;
+  $("ldReview").textContent = `오늘 복습 ${due}`; $("ldReview").disabled = !due; $("ldAllBtn").disabled = !ldList.length;
+  $("ldRows").innerHTML = ldList.map((k, i) =>
+    `<tr data-i="${i}"${isDue(k) ? ' class="due"' : ""}><td class="t" title="${escHtml(k.title + (k.memo ? " · " + k.memo : ""))}">${escHtml(k.title)}</td>` +
+    `<td>${k.move_no} ${colorName(k.color)}</td><td>${LD_KINDS[k.kind]}</td><td class="w">${LD_LEVELS[k.level]}</td><td>${k.correct}/${k.tries}</td>` +
+    `<td class="w">${dueText(k)}</td><td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
+  ldListMsg(ldList.length ? `복습할 문제 ${due}개 · 문제를 누르면 그 문제만 풉니다. GPU 없이 미리 계산한 수순으로 풉니다.`
+    : ldAll.length ? "이 종류에는 담은 문제가 없습니다."
+    : "담은 문제가 없습니다. GPU를 켠 분석 화면에서 대국 기보를 열고 파일 메뉴의 '실전 사활 찾기'를 누르세요.");
+}
+async function openLd() {
+  closeMenus();
+  if (!await mineClient()) { $("err").textContent = "로그인한 사이트에서만 쓸 수 있습니다"; return; }
+  if (!$("ldDlg").open) $("ldDlg").showModal();
+  loadLd();
+}
+$("openLd").onclick = openLd;
+$("ldClose").onclick = () => $("ldDlg").close();
+$("ldDlg").addEventListener("click", ev => { if (ev.target === $("ldDlg")) $("ldDlg").close(); });   // backdrop
+$("ldKind").addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return; pickSegValue("ldKind", b.dataset.v); showLdList(); });
+$("ldReview").onclick = () => startQuiz(ldList.filter(isDue), true);
+$("ldAllBtn").onclick = () => startQuiz(ldList.slice(), true);
+$("ldRows").addEventListener("click", async ev => {
+  const del = ev.target.closest("button[data-del]");
+  if (del) {
+    const k = ldList[+del.dataset.del]; if (!k || !confirm(`${k.title} · ${k.move_no}수 사활 문제를 지울까요?`)) return;
+    const {error} = await mineSb.from("ld_problems").delete().eq("id", k.id);
+    if (error) { ldListMsg("지우지 못했습니다: " + error.message, true); return; }
+    loadLd(); return;
+  }
+  const tr = ev.target.closest("tr"), k = tr && ldList[+tr.dataset.i]; if (k) startQuiz([k], true);
+});
+const sgfPt = mv => { const [x, y] = parseGtp(mv); return "[" + String.fromCharCode(97 + x) + String.fromCharCode(97 + y) + "]"; };
+async function showLd() {
+  const k = quiz.list[quiz.i];
+  Object.assign(quiz, {note: k, node: null, shown: true, done: false, busy: false, recorded: false, answer: null, grade: null});
+  $("quizTitle").className = ""; $("quizTitle").textContent = `문제 ${quiz.i + 1}/${quiz.list.length} · ${colorName(k.color)} 선 · ${LD_KINDS[k.kind]}`;
+  $("quizSub").textContent = "불러오는 중…"; $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = false;
+  const {data, error} = await mineSb.from("ld_problems").select("setup,tree").eq("id", k.id).maybeSingle();
+  if (error || !data) { $("quizSub").textContent = "문제를 불러오지 못했습니다" + (error ? ": " + error.message : ""); $("quizNext").hidden = quiz.i + 1 >= quiz.list.length; return; }
+  try {
+    const st = JSON.parse(data.setup);
+    quiz.tree = JSON.parse(data.tree); quiz.reg = st.r;
+    loadSgf(`(;GM[1]FF[4]SZ[19]KM[0]PL[${k.color}]` + (st.B.length ? "AB" + st.B.map(sgfPt).join("") : "") + (st.W.length ? "AW" + st.W.map(sgfPt).join("") : "") + ")");
+  } catch (err) { $("quizSub").textContent = "문제를 열지 못했습니다: " + err.message; return; }
+  quiz.node = quiz.at = root; quiz.t = quiz.tree;
+  goTo(root); $("err").textContent = "";
+  $("quizSub").textContent = `${k.title} · ${k.move_no}수째 장면 · ${LD_LEVELS[k.level]} · ${k.missed ? "실전에서 놓친 곳" : "실전에서 찾은 곳"} · 파란 선 안에서 ${colorName(k.color)}을 두세요`;
+}
+const ldWait = () => new Promise(r => setTimeout(r, 450));
+async function ldPlayLine(moves, color) {   // plays moves one by one from quiz.at, alternating colours
+  quiz.busy = true;
+  for (const mv of moves) {
+    await ldWait();
+    if (!quiz || !quiz.ld) return;
+    const c = play(quiz.at, color, parseGtp(mv)); if (!c) break;
+    quiz.at = c; goTo(c); color = other(color);
+  }
+  if (quiz) quiz.busy = false;
+}
+async function answerLd(p) {
+  if (!quiz.node || quiz.busy) return;
+  if (cur !== quiz.at) { goTo(quiz.at); return; }   // looked back through the moves: back to the latest first
+  if (quiz.done || quiz.at.grid[idx(p[0], p[1])]) return;
+  const k = quiz.note, move = gtp(p[0], p[1]), hit = quiz.t.c.find(c => c.m === move);
+  const first = quiz.at === quiz.node, child = play(quiz.at, k.color, p);
+  if (!child) return;   // ko or suicide
+  quiz.at = child; goTo(child);
+  if (first) quiz.answer = p;
+  if (hit) {
+    if (hit.r) await ldPlayLine([hit.r], other(k.color));
+    if (!quiz || !quiz.ld) return;
+    if (hit.n) { quiz.t = hit.n; $("quizTitle").className = "ok"; $("quizTitle").textContent = "좋습니다 · 계속 두세요"; return; }
+    return ldFinish(true, "정답! 사활이 해결됐습니다");
+  }
+  const w = quiz.t.w.find(x => x.m === move);
+  ldFinish(false, w ? "오답 · 상대가 이렇게 받으면 실패입니다" : "오답 · AI가 검토한 후보에 없는 수입니다");
+  if (w) await ldPlayLine(w.pv, other(k.color));
+}
+async function ldFinish(ok, text) {
+  const k = quiz.note;
+  quiz.done = true; quiz.grade = {ok};
+  $("quizTitle").className = ok ? "ok" : "bad"; $("quizTitle").textContent = text;
+  $("quizShow").hidden = ok; $("quizRetry").hidden = $("quizNext").hidden = false;
+  $("quizNext").textContent = quiz.i + 1 < quiz.list.length ? "다음 문제" : "결과 보기";
+  $("quizMemo").value = k.memo || ""; $("quizMemo").hidden = false;
+  if (quiz.recorded) { $("quizSub").textContent = "다시 풀기는 기록에 넣지 않습니다"; return; }
+  quiz.recorded = true;
+  if (ok) quiz.right++;
+  const streak = ok ? k.streak + 1 : 0;
+  const due = new Date(Date.now() + (ok ? REVIEW_DAYS[Math.min(streak, REVIEW_DAYS.length) - 1] * 86400000 : 0)).toISOString();
+  const change = {tries: k.tries + 1, correct: k.correct + (ok ? 1 : 0), streak, due_at: due, last_at: new Date().toISOString()};
+  Object.assign(k, change);
+  $("quizSub").textContent = (ok ? `다음 복습 ${dueText(k)}` : "다시 복습 목록에 남습니다") + " · '정답 보기'로 정답 수순을, '다시 풀기'로 처음부터 다시 둘 수 있습니다";
+  const {error} = await mineSb.from("ld_problems").update(change).eq("id", k.id);
+  if (error) $("err").textContent = "기록을 저장하지 못했습니다: " + error.message;
+}
+async function ldReveal() {   // 정답 보기: the main line of the answer from the start (before answering = giving up)
+  if (quiz.busy) return;
+  if (!quiz.done) await ldFinish(false, "정답을 보았습니다");
+  const moves = []; let t = quiz.tree;
+  while (t && t.c.length) { const c = t.c[0]; moves.push(c.m); if (c.r) moves.push(c.r); t = c.n; }
+  quiz.at = quiz.node; goTo(quiz.node);
+  await ldPlayLine(moves, quiz.note.color);
+}
+$("quizRetry").onclick = () => {
+  if (!quiz || !quiz.ld || quiz.busy) return;
+  Object.assign(quiz, {at: quiz.node, t: quiz.tree, done: false, answer: null, grade: null});
+  goTo(quiz.node);
+  $("quizTitle").className = ""; $("quizTitle").textContent = `다시 풀기 · ${colorName(quiz.note.color)} 선 · ${LD_KINDS[quiz.note.kind]}`;
+  $("quizSub").textContent = "처음부터 다시 두세요 · 다시 풀기는 기록에 넣지 않습니다";
+  $("quizRetry").hidden = true; $("quizShow").hidden = false;
+};
+function drawLdMarks(ctx, G) {   // the problem's region (inner sides only), and a ring on the first answer when it is over
+  const {margin: m, sq, r} = G, [x0, y0, x1, y1] = quiz.reg || [0, 0, N - 1, N - 1];
+  const X = x => m + sq * x + .5, Y = y => m + sq * y + .5, h = sq / 2;
+  ctx.save(); ctx.strokeStyle = "rgba(44,92,246,.75)"; ctx.lineWidth = Math.max(2, r / 7); ctx.setLineDash([sq * .35, sq * .25]);
+  ctx.beginPath();
+  if (x0 > 0) { ctx.moveTo(X(x0) - h, Y(y0) - (y0 > 0 ? h : 0)); ctx.lineTo(X(x0) - h, Y(y1) + (y1 < N - 1 ? h : 0)); }
+  if (x1 < N - 1) { ctx.moveTo(X(x1) + h, Y(y0) - (y0 > 0 ? h : 0)); ctx.lineTo(X(x1) + h, Y(y1) + (y1 < N - 1 ? h : 0)); }
+  if (y0 > 0) { ctx.moveTo(X(x0) - (x0 > 0 ? h : 0), Y(y0) - h); ctx.lineTo(X(x1) + (x1 < N - 1 ? h : 0), Y(y0) - h); }
+  if (y1 < N - 1) { ctx.moveTo(X(x0) - (x0 > 0 ? h : 0), Y(y1) + h); ctx.lineTo(X(x1) + (x1 < N - 1 ? h : 0), Y(y1) + h); }
+  ctx.stroke(); ctx.restore();
+  if (quiz.done && quiz.answer) {
+    const [x, y] = [X(quiz.answer[0]), Y(quiz.answer[1])];
+    ctx.strokeStyle = quiz.grade.ok ? "rgb(31,157,85)" : "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 6);
+    ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+// ------------------------------------------------------------------ 대국 리포트
+// Each analysed move of the main line gets a grade from the same loss as 오답노트 (moveLoss: the mover's lead before and
+// after the move): AI의 수 = the AI's first choice; 좋은 수 = within GOOD_POINTS/GOOD_WR (what counts as right when
+// solving a problem); 실수 / 악수 = 오답노트's 'normal' / 'big' levels; 평범 = in between. No rank: a single game
+// says little about it, and the rank model ran past 9 dan.
+let strengthId = null;
 function strengthMsg(text, bad = false) { $("strengthMsg").textContent = text; $("strengthMsg").classList.toggle("bad", bad); }
-function strengthPosition(node) {   // YZY BoardData/MoveData view: every value from the side to move
-  const cands = candidates(node), st = nodeStats(node);
-  if (!st || !cands.length) return null;
-  return {wr: st.wr, lead: st.score,
-          cands: cands.map(m => ({move: m.move, wr: moverWr(node, m.winrate), lead: moverLead(node, m.scoreLead), prior: m.prior, order: m.order}))};
+const GRADES = [["ai", "AI의 수", "#16a3dc"], ["good", "좋은 수", "#1f9d55"], ["inacc", "평범", "#e3a008"], ["mistake", "실수", "#f07a2a"], ["blunder", "악수", "#e0484d"]];
+function moveGrade(n) {   // {grade, points} for an analysed move, or null
+  const loss = moveLoss(n); if (!loss) return null;
+  const best = candidates(n.parent)[0], points = Math.max(0, loss.points), wr = Math.max(0, loss.wr);
+  const [mp, mw] = NOTE_LEVELS.normal, [bp, bw] = NOTE_LEVELS.big;
+  const grade = best && best.move === noteMove(n) ? "ai" : points <= GOOD_POINTS && wr <= GOOD_WR ? "good"
+    : points >= bp || wr >= bw ? "blunder" : points >= mp || wr >= mw ? "mistake" : "inacc";
+  return {grade, points};
 }
 function stopStrength() {
   if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
   queries.delete(strengthId); strengthId = null; strengthButton();
 }
 // The estimate keeps running with its window closed; the button shows how far it is.
-function strengthButton(q) { $("strengthOpen").textContent = q ? `기력 평가 ${q.done}/${q.todo}` : "기력 평가"; $("strengthOpen").classList.toggle("on", !!q); }
-const STRENGTH_DONE = "기력 평가가 끝났습니다. '기력 평가'를 누르면 결과를 볼 수 있습니다.";
-async function openStrength(again = false) {
+function strengthButton(q) { $("strengthOpen").textContent = q ? `대국 리포트 ${q.done}/${q.todo}` : "대국 리포트"; $("strengthOpen").classList.toggle("on", !!q); }
+const STRENGTH_DONE = "대국 리포트 분석이 끝났습니다. '대국 리포트'를 누르면 결과를 볼 수 있습니다.";
+function openStrength(again = false) {
   if ($("err").textContent === STRENGTH_DONE) $("err").textContent = "";   // the result is being looked at (or redone)
   if (!$("strengthDlg").open) $("strengthDlg").showModal();
-  if (!strengthModels) {
-    strengthMsg("평가 모델을 불러오는 중…");
-    try {
-      strengthLib = await import("./assets/strength.js");
-      strengthModels = await strengthLib.loadModels("assets/strength-models.json");
-    } catch (err) {
-      strengthMsg("평가 모델을 불러오지 못했습니다. 웹사이트의 분석 화면에서 다시 열어 주세요. (" + err.message + ")", true); return;
-    }
-  }
   if (strengthId) return;   // still analysing: the progress message is up to date
   const line = lineThrough(root);
   if (line.length < 2) { $("strengthCards").innerHTML = ""; strengthMsg("기보에 수가 없습니다. 기보를 열거나 수를 둔 뒤 다시 누르세요."); return; }
   const turns = line.map((_, i) => i).filter(i => again || !analysed(line[i]));
   if (!turns.length) return renderStrength();
   strengthId = "s" + (++qn);
-  if (again) for (const i of turns) line[i].aid = strengthId;   // 재평가: the new results replace the old ones
+  if (again) for (const i of turns) line[i].aid = strengthId;   // 다시 분석: the new results replace the old ones
   const q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now()};
   queries.set(strengthId, q);
   if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
@@ -1460,7 +2300,7 @@ async function openStrength(again = false) {
   strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
 }
 function strengthStep(q) {
-  if (q.line[0] !== root) { stopStrength(); strengthMsg("다른 기보를 열어 분석을 멈췄습니다. 다시 누르면 지금 기보로 평가합니다."); return; }
+  if (q.line[0] !== root) { stopStrength(); strengthMsg("다른 기보를 열어 분석을 멈췄습니다. 다시 누르면 지금 기보로 분석합니다."); return; }
   q.done++;
   const sec = (performance.now() - q.t0) / 1000, left = q.done >= 3 ? Math.ceil(sec / q.done * (q.todo - q.done)) : null;
   strengthMsg(`주 변화 ${q.line.length - 1}수를 분석하는 중… ${q.done}/${q.todo}` + (left !== null ? ` · 약 ${left}초 남음` : "") + " · 창을 닫아도 계속 분석합니다");
@@ -1471,42 +2311,39 @@ function strengthStep(q) {
   }
 }
 function renderStrength() {
-  if (!strengthLib || !strengthModels) return;
-  const line = lineThrough(root);
-  const moves = line.map(n => n.move ? {color: n.move.c, move: n.move.pass ? "pass" : gtp(n.move.x, n.move.y), number: n.depth} : null);
-  const model = strengthModels[0];   // XGBoost 20TUN, YZY's current model (the only one shipped)
-  const r = strengthLib.estimate(line.map(strengthPosition), moves, model);
-  if (r.overall.sampleCount < strengthLib.MIN_REPORT_SAMPLES) {
+  const line = lineThrough(root), bySide = {B: [], W: []};
+  for (const n of line) { const g = n.move && !n.move.pass && moveGrade(n); if (g) bySide[n.move.c].push({...g, no: n.depth}); }
+  const total = bySide.B.length + bySide.W.length;
+  if (total < 6) {
     $("strengthCards").innerHTML = "";
-    strengthMsg(`분석된 수가 ${r.overall.sampleCount}수뿐이라 평가할 수 없습니다. 최소 ${strengthLib.MIN_REPORT_SAMPLES}수가 필요합니다.`, true); return;
+    strengthMsg(`분석된 수가 ${total}수뿐이라 리포트를 만들 수 없습니다. 최소 6수가 필요합니다.`, true); return;
   }
-  strengthMsg(""); $("strengthRedo").disabled = !!strengthId;   // a result is up: it can be evaluated again
-  const conf = {high: "높음", medium: "중간", low: "낮음"};
-  const bar = (fill, loss = false) => `<div class="sp-bar${loss ? " loss" : ""}"><i style="width:${Math.round(Math.max(0, Math.min(1, fill)) * 100)}%"></i></div>`;
-  const pct = v => Math.round(v * 100) + "%";
-  const card = (s, side, cls, img) => {
-    const v = s.rankValue, band = v >= 12 ? 0 : v >= 11 ? 1 : v >= 10 ? 2 : 3;
-    const scale = [["12+", "세미-god/AI"], ["11+", "최고의 프로"], ["10+", "전문가"], ["&lt;10", "아마추어 순위"]]
-      .map(([k, t], i) => `<div class="${i === band ? "on" : ""}"><span>${k}</span><span>${t}</span></div>`).join("");
+  strengthMsg(""); $("strengthRedo").disabled = !!strengthId;   // a result is up: it can be analysed again
+  const pct = (k, n) => n ? Math.round(k / n * 100) : 0;
+  const avg = xs => xs.length ? (xs.reduce((a, x) => a + x.points, 0) / xs.length).toFixed(1) : "—";
+  const card = (xs, side, name, cls, img) => {
+    const n = xs.length, count = g => xs.filter(x => x.grade === g).length;
+    const bar = GRADES.map(([g, , c]) => `<i style="width:${count(g) / n * 100}%;background:${c}" title="${escHtml(GRADES.find(x => x[0] === g)[1])} ${count(g)}"></i>`).join("");
+    const grades = GRADES.map(([g, label, c]) => `<div style="--c:${c}"><span>${label}</span><b>${count(g)}</b><em>${pct(count(g), n)}%</em></div>`).join("");
+    const phases = PHASES.map(([, label, upTo], i) => {
+      const ps = xs.filter(x => x.no <= upTo && (!i || x.no > PHASES[i - 1][2]));
+      const bad = ps.filter(x => x.grade === "mistake" || x.grade === "blunder").length;
+      return ps.length ? `<tr><td>${label}</td><td>${ps.length}</td><td>${pct(ps.filter(x => x.grade === "ai").length, ps.length)}%</td><td>${avg(ps)}집</td><td>${bad}</td></tr>` : "";
+    }).join("");
     return `<div class="sp-card ${cls}">
-      <div class="sp-head"><img src="assets/${img}" alt=""><div><div class="sp-side">${side}</div>
-        <div class="sp-rank">${escHtml(strengthLib.formatRank(v))}</div><div class="sp-conf">자신감: ${conf[s.confidence]}</div></div></div>
-      <div>
-        <div class="sp-metric"><span>이동</span><b>${s.sampleCount}</b>${bar(s.sampleCount / 240)}</div>
-        <div class="sp-metric"><span>AI 최고의 선택</span><b>${pct(s.firstChoiceRate)}</b>${bar(s.firstChoiceRate)}</div>
-        <div class="sp-metric"><span>좋은 움직임</span><b>${pct(s.goodMoveRate)}</b>${bar(s.goodMoveRate)}</div>
-        <div class="sp-metric"><span>평균 점수 손실</span><b>${s.scoreSampleCount ? s.averageScoreLoss.toFixed(1) : "-"}</b>${bar(1 - s.averageScoreLoss / 8, true)}</div>
-        <div class="sp-metric"><span>가중 점수 손실</span><b>${s.weightedScoreLoss.toFixed(1)}</b>${bar(1 - s.weightedScoreLoss / 8, true)}</div>
-      </div>
-      <div class="sp-scale"><h4>점수 척도</h4>${scale}</div>
+      <div class="sp-head"><img src="assets/${img}" alt=""><div><div class="sp-side">${side}${name ? " · " + escHtml(name) : ""}</div>
+        <div class="sp-rank">${pct(count("ai"), n)}%<small>AI 일치율</small></div><div class="sp-conf">평균 손해 ${avg(xs)}집 · 분석된 수 ${n}</div></div></div>
+      <div class="rp-bar">${bar}</div>
+      <div class="rp-grades">${grades}</div>
+      <table class="rp-phase"><thead><tr><th>단계</th><th>수</th><th>AI 일치율</th><th>평균 손해</th><th>실수·악수</th></tr></thead><tbody>${phases}</tbody></table>
     </div>`;
   };
-  $("strengthCards").innerHTML = (r.black.sampleCount ? card(r.black, "흑기력", "black", "black0.png") : "") +
-                                 (r.white.sampleCount ? card(r.white, "백기력", "white", "white0.png") : "");
+  $("strengthCards").innerHTML = (bySide.B.length ? card(bySide.B, "흑", root.info.PB, "black", "black0.png") : "") +
+                                 (bySide.W.length ? card(bySide.W, "백", root.info.PW, "white", "white0.png") : "");
 }
 $("strengthOpen").onclick = () => {
   if (strengthId || isPortrait()) return openStrength();   // running: just show how far it is
-  levelPop($("strengthOpen"), "기력 평가 세기", () => openStrength());
+  levelPop($("strengthOpen"), "대국 리포트 세기", () => openStrength());
 };
 $("strengthClose").onclick = () => $("strengthDlg").close();
 $("strengthRedo").onclick = () => openStrength(true);
@@ -1768,6 +2605,8 @@ function drawMain() {
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown(),
     branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").dataset.mode || "", ownership: $("showOwner").checked});
+  if (quiz && quiz.ld) drawLdMarks(boardCtx, boardG);
+  else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
 }
 function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
   if (!miniCtx) return;
@@ -1781,6 +2620,7 @@ function boardPoint(ev) {
 }
 function placeAt(pt) {
   const p = boardPoint(pt); if (!p) return; hover = null;
+  if (quiz) { answerQuiz(p); return; }   // a 오답노트 problem: the click is the answer
   if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c); }
 let placeColor = "";   // "" = alternate, "B" / "W" = only that colour (life-and-death, set positions)
 $("placeSeg").addEventListener("click", ev => {
@@ -1895,8 +2735,9 @@ function drawStatistics() {
   if (analysisHidden()) {   // move number only, like before any analysis
     panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(cur.depth), x + W / 2, y + H / 6);
-    const f = fitFont(g, UI_FONT, 400, "AI 대국 중 · 분석 숨김", T(H / 4), W * 20 / 21); g.fillStyle = "#687082"; g.textAlign = "left"; g.textBaseline = "alphabetic";
-    g.fillText("AI 대국 중 · 분석 숨김", x, y + T(H * 17 / 20) + f.h / 2);
+    const t = quiz ? "오답노트 · 답을 고르면 분석이 보입니다" : "AI 대국 중 · 분석 숨김";   // (실전 사활 has no analysis to hide)
+    const f = fitFont(g, UI_FONT, 400, t, T(H / 4), W * 20 / 21); g.fillStyle = "#687082"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    g.fillText(t, x, y + T(H * 17 / 20) + f.h / 2);
     return;
   }
   const curS = nodeStats(cur, true), plainS = nodeStats(cur), prev = cur.parent;
@@ -2087,9 +2928,11 @@ function drawSide() {
   }
   $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
   drawGameInfo();
-  emptyHint($("graphBox"), analysisHidden() ? "AI 대국 중에는 승률 그래프를 숨깁니다" : lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
+  emptyHint($("graphBox"), analysisHidden() ? (quiz ? "답을 고르면 분석이 보입니다" : "AI 대국 중에는 승률 그래프를 숨깁니다")
+    : lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
   emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
-  emptyHint($("candRows").closest(".table-box"), cands.length ? "" : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
+  emptyHint($("candRows").closest(".table-box"), cands.length ? "" : quiz && !quiz.shown ? "답을 고르면 AI 후보수가 보입니다"
+    : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
 }
 function emptyHint(el, text) { if (text) el.dataset.empty = text; else delete el.dataset.empty; }
 function resultText(re) {
@@ -2120,7 +2963,7 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
 // and they go back to the bars in landscape.
 const MENU = [["GPU", ["connStatus", "gpuMeter"]],
-              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen", "saveMine", "openMine"]],
+              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen", "openMine", "addNote", "openNotes", "findLd", "openLd"]],
               ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
