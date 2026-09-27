@@ -2162,7 +2162,8 @@ function watchMember(channel) {
     const html = await gunzip(m), doc = frame.contentDocument, body = doc.body;
     fresh = Date.now(); stage.hidden = false; if (viewTag) viewTag.textContent = tagText;
     if (!size || size.w !== m.w || size.h !== m.h) { size = {w: m.w, h: m.h}; fit(); label(); }
-    doc.documentElement.style.scrollbarWidth = m.touch ? "none" : "";
+    if (m.touch && !doc.getElementById("mtouch")) doc.head.insertAdjacentHTML("beforeend", '<style id="mtouch">*{scrollbar-width:none}</style>');
+    if (!m.touch && doc.getElementById("mtouch")) doc.getElementById("mtouch").remove();
     for (const a of [...body.attributes]) body.removeAttribute(a.name);
     for (const [k, v] of m.attrs || []) body.setAttribute(k, v);
     const t = doc.createElement("template"); t.innerHTML = html;
