@@ -136,6 +136,10 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody section > button, #menuBody section > label { display: flex; width: 100%; align-items: center; justify-content: flex-start; gap: 14px;
   min-height: 48px; padding: 0 12px; border-radius: 14px; background: transparent; box-shadow: none; color: var(--ink); font-size: 15px; font-weight: 600; cursor: pointer; }
 #menuBody section > :hover { background: var(--soft); }
+#menuBody section > .status { display: flex; justify-content: flex-start; gap: 10px; min-height: 44px; margin: 2px 0; padding: 0 12px;
+  border-radius: 14px; background: var(--soft); font-size: 14px; color: var(--ink); }
+#menuBody section > .status::before { display: none; }
+#menuBody #gpuStop { margin-left: auto; }
 #menuBody section > ::before { content: ""; flex: none; width: 22px; height: 22px; background: var(--muted);
   -webkit-mask: var(--i) center / 22px no-repeat; mask: var(--i) center / 22px no-repeat; }
 #menuBody section > button.on { background: var(--cyan-soft); color: var(--blue-deep); }
@@ -310,14 +314,16 @@ button.primary:hover { background: var(--blue-deep); }
   .bar-off.graph-open #graphBox { margin-top: 0; }
   .bar-off:not(.graph-open) .left { display: none; }
   #board { box-shadow: none; }
-  .toolbar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-content: start;
+  .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start;
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .toolbar button, .toolbar input { min-height: 42px; padding: 2px; width: 100%; }
   .toolbar button:not(.on):not(.pink):not(#analyze) { background: var(--panel); box-shadow: 0 1px 2px rgba(23, 26, 34, .06); }
   .toolbar .sep, #fileMenu { display: none; }
   /* rows: moves | analysis, move number, menu (everything else is in the menu sheet) */
   #first { order: 1; } #back10 { order: 2; } #back { order: 3; } #fwd { order: 4; } #fwd10 { order: 5; } #last { order: 6; }
-  #analyze, #menuOpen { grid-column: span 2; }
+  /* 12 columns: six move buttons of 2; then 분석 4, move number 2, 수순 이동 3 (its label no longer overflows), 메뉴 3 */
+  #first, #back10, #back, #fwd, #fwd10, #last { grid-column: span 2; }
+  #analyze { grid-column: span 4; } #moveNo { grid-column: span 2; width: 100%; }   /* its landscape 62px was wider than the cell: it ran under 수순 이동 */ #goMove, #menuOpen { grid-column: span 3; }
   #analyze { order: 7; } #moveNo { order: 8; } #goMove { order: 9; }
   #menuOpen { display: block; order: 10; }
   .toolbar .error { order: 11; grid-column: 1 / -1; }
@@ -356,7 +362,7 @@ button.primary:hover { background: var(--blue-deep); }
   <span class="spacer"></span>
   <span class="status" id="vps"></span>
   <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button></span>
-  <span class="status"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
+  <span class="status" id="connStatus"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
   <input type="file" id="fileInput" accept=".sgf,application/x-go-sgf" hidden>
 </header>
 
@@ -1862,10 +1868,12 @@ $("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr
 $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur)[+tr.dataset.k]; if (c) goTo(play(cur, cur.toPlay, parseGtp(c.move))); });
 
 // ------------------------------------------------------------------ portrait menu sheet
-// Portrait keeps only the move buttons, 분석 시작 and 수순 이동 under the board (and visits/s + connection on top);
+// Portrait keeps only the move buttons, 분석 시작 and 수순 이동 under the board (and visits/s on top: the connection,
+// GPU time·cost and GPU 종료 are the sheet's first section, so the top bar stays one row on a phone);
 // the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
 // and they go back to the bars in landscape.
-const MENU = [["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen"]],
+const MENU = [["GPU", ["connStatus", "gpuMeter"]],
+              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen"]],
               ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
