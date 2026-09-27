@@ -255,11 +255,12 @@ dialog[open] { animation: arrive .35s var(--ease); }
 .gd-checks label.check { color: var(--ink); }
 .gd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .seg { display: flex; background: var(--soft); border-radius: 999px; padding: 3px; gap: 2px; }
-.seg button { flex: 1; min-width: 0; background: transparent; min-height: 34px; color: var(--muted); padding: 4px 8px; }
+.seg button { flex: 1; min-width: 0; background: transparent; min-height: 34px; color: var(--muted); padding: 4px 8px; white-space: normal; line-height: 1.2; word-break: keep-all; }
 .seg button:hover { background: rgba(255, 255, 255, .6); }
 .seg button.on { background: var(--panel); color: var(--ink); box-shadow: 0 2px 8px rgba(23, 26, 34, .1); }
 .gd-note { margin: 0; color: var(--muted); font-size: 13px; }
 .gd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+@media (max-width: 380px) { .gd-row { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; } .seg button { padding: 4px 4px; } }
 button.primary { background: var(--blue); color: #fff; box-shadow: 0 8px 20px -10px rgba(44, 92, 246, .7); }
 button.primary:hover { background: var(--blue-deep); }
 
@@ -384,7 +385,7 @@ button.primary:hover { background: var(--blue-deep); }
 <dialog id="gameDlg" aria-label="AI대국">
   <div class="gd">
     <h2>AI대국</h2>
-    <div class="gd-row"><span>대국</span><div class="seg" id="gdKind"><button data-v="human" class="on">인공지능과 대국</button><button data-v="ai">인공지능끼리 대국</button></div></div>
+    <div class="gd-row"><span>대국</span><div class="seg" id="gdKind"><button data-v="human" class="on">AI와 대국</button><button data-v="ai">AI끼리 대국</button></div></div>
     <div class="gd-row"><span>시작</span><div class="seg" id="gdFrom"><button data-v="new" class="on">새 대국</button><button data-v="continue">이어서 두기</button></div></div>
     <div class="gd-row" data-for="human"><span>내 돌</span><div class="seg" id="gdColor"><button data-v="B" class="on">흑</button><button data-v="W">백</button><button data-v="R">무작위</button></div></div>
     <div class="gd-row" data-for="new"><span>접바둑 · 덤</span><div class="gd-pair">
