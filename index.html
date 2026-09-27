@@ -51,6 +51,7 @@
         <a class="brand" href="#" id="homeLink"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
         <span class="who" id="who"></span>
         <a href="guide.html">가이드</a>
+        <a href="#mine" id="mineLink">내 기보</a>
         <a href="#me" id="meLink">내 정보</a>
         <a href="analysis.html" id="analysisLink" class="hidden" target="_blank" rel="noopener">분석 화면</a>
         <a href="admin.html" id="adminLink" class="hidden">관리자</a>
@@ -111,10 +112,14 @@
         <div class="error" id="startError"></div>
       </div>
 
-      <!-- saved games (내 기보) -->
+    </div>
+
+    <!-- saved games (#mine, 내 기보) -->
+    <div class="wrap app hidden" id="mineView">
+      <h1 class="page-title">내 기보</h1>
       <div class="panel" id="mineCard">
         <div class="row" style="margin-bottom:14px">
-          <h2 class="grow" style="margin:0">내 기보</h2>
+          <h2 class="grow" style="margin:0">저장한 기보</h2>
           <span class="muted small" id="mineCount"></span>
         </div>
         <div class="table-wrap scroll-box">
@@ -125,7 +130,6 @@
         </div>
         <div class="small muted" style="margin-top:14px">분석 화면의 파일 메뉴 → '내 기보에 저장'으로 저장한 기보입니다(최대 100판). 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
       </div>
-
     </div>
 
     <!-- my account (#me) -->
@@ -418,11 +422,13 @@ new IntersectionObserver((entries, io) => {
   if (entries.some((e) => e.isIntersecting)) { $("how").classList.add("in"); io.disconnect(); }
 }, { threshold: .2 }).observe($("how"));
 
-// ------------------------------------------------------------------ pages: home / my account (#me)
+// ------------------------------------------------------------------ pages: home / 내 기보 (#mine) / my account (#me)
 function showPage() {
-  const me = location.hash === "#me";
-  $("homeView").classList.toggle("hidden", me); $("meView").classList.toggle("hidden", !me);
-  $("meLink").classList.toggle("on", me);
+  const me = location.hash === "#me", kifu = location.hash === "#mine";
+  $("homeView").classList.toggle("hidden", me || kifu);
+  $("meView").classList.toggle("hidden", !me); $("mineView").classList.toggle("hidden", !kifu);
+  $("meLink").classList.toggle("on", me); $("mineLink").classList.toggle("on", kifu);
+  if (kifu && profile) loadMine();
   window.scrollTo(0, 0);
 }
 addEventListener("hashchange", () => swap(showPage));

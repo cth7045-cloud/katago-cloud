@@ -197,6 +197,8 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   .who { display: none; }
   /* top bar on a phone: the two stones stay as the home link, the name gives its room to the links */
   #startCard th, #offerRows td { padding-left: 4px; padding-right: 4px; font-size: 13px; }   /* 지역·GPU·VRAM·시간당·성능/$ fit a phone */
+  #mineRows td:first-child { white-space: normal; overflow-wrap: anywhere; }   /* 내 기보: a long title wraps so 수·분석·삭제 stay on screen */
+  #mineCard th, #mineRows td { padding-left: 6px; padding-right: 6px; }
   #offerRows td:first-child { white-space: normal; overflow-wrap: normal; }   /* "싱가포르/동남아" breaks after the slash */   /* "싱가포르/동남아" breaks after the slash instead of pushing 성능/$ off screen */
   #appView .bar .wrap { gap: 2px; }
   #appView .bar .brand { font-size: 0; gap: 0; }
