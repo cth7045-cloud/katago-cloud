@@ -566,6 +566,7 @@ async function openWithoutGpu() {
     site = sb; $("conn").textContent = "GPU 없음 · 관리자 보기";
   } catch { location.replace("./"); }   // members open this screen from their running GPU
 }
+let onMirror = null;   // set by mirrorScreen(): copies of the member's screen arriving through the bridge
 let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message of any kind from the GPU
 function connect() {
   if (!token) { openWithoutGpu(); return; }
@@ -603,9 +604,10 @@ if (viewOnly) {
     addEventListener(type, block, {capture: true, passive: false});
   }
   const tag = document.createElement("div");
+  tag.id = "viewTag";
   tag.textContent = "관리자 보기 · 조작할 수 없습니다";
   tag.style.cssText = "position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9999;padding:6px 14px;border-radius:999px;" +
-    "background:rgba(20,24,34,.78);color:#fff;font-size:13px;pointer-events:none";
+    "background:rgba(20,24,34,.78);color:#fff;font-size:13px;pointer-events:none;white-space:nowrap";
   document.body.appendChild(tag);
   document.title = "보기 전용 · " + document.title;
 }
@@ -660,6 +662,7 @@ function onMessage(msg) {
   }
   if ("hello" in msg) {   // (bridges before 2026-09-26 never send it: then each device keeps its own board)
     bridgeSync = true;
+    if (msg.state && onMirror) onMirror(msg.state);   // the last copy of the member's screen, for an admin watching
     const shared = msg.state && typeof msg.state.sgf === "string";
     if (shared) applyState(msg.state);   // e.g. the phone opening shows the laptop's board
     synced = true;
@@ -667,7 +670,11 @@ function onMessage(msg) {
     else if (analyzing && !msg.live) requestLive();                 // the device that ran the analysis has left
     return;
   }
-  if ("state" in msg) { applyState(msg.state); return; }
+  if ("state" in msg) {
+    if (onMirror) onMirror(msg.state);
+    if (msg.state && ("sgf" in msg.state || "path" in msg.state || "analyzing" in msg.state)) applyState(msg.state);   // not a mere screen copy
+    return;
+  }
   if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
   if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
@@ -1974,8 +1981,246 @@ async function watchGpu() {
   recheckGpu = () => { if (Date.now() - checkedAt > 10000) { checkedAt = Date.now(); tick().catch(() => {}); } };
   tick().catch(() => {}); setInterval(() => tick().catch(() => {}), 30000);
 }
+// ------------------------------------------------------------------ 관리자 "화면 보기": the member's whole screen, as they see it
+// The admin sees exactly what is on the member's screen (open menus and dialogs, what is typed, scroll positions, the
+// board with its hover preview, where the finger or mouse is) at the member's own size and orientation, scaled to fit.
+// While an admin watches (their page says so every 4 s on a Supabase Realtime channel named after this GPU's token),
+// the member's page sends a copy of itself (gzipped HTML with form values) and pictures of its canvases through the
+// bridge's shared-board channel ({action: "state"}), which every bridge already forwards to the other connections,
+// the admin's included, so it works on GPUs started before this. Nothing is sent while nobody watches.
+// ponytail: whole canvases as pictures (screen size, ≤900 px; 2.5 a second while the member acts, else 1), tens of
+// KB/s from the member while watched; send drawing commands instead if that ever matters.
+const MIRROR_CANVAS = 900;
+const b64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
+async function gzip(text) {
+  if (!window.CompressionStream) return {html: text};
+  const buf = await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+  return {z: b64(new Uint8Array(buf))};
+}
+function gunzip(m) {
+  if (typeof m.html === "string") return m.html;
+  const bytes = Uint8Array.from(atob(m.z), c => c.charCodeAt(0));
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+}
+async function mirrorScreen() {
+  if (!token || /\.trycloudflare\.com$/.test(location.hostname) || !window.crypto || !crypto.subtle) return;
+  let site; try { site = await import("./app.js"); } catch { return; }
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  const channel = site.sb.channel("kgv-watch-" + [...digest.slice(0, 12)].map(b => b.toString(16).padStart(2, "0")).join(""));
+  if (viewOnly) watchMember(channel); else offerMirror(channel);
+}
+
+// The member's side: send the screen while watched.
+function offerMirror(channel) {
+  const dev = Math.random().toString(36).slice(2, 10);
+  let watchedUntil = 0, lastInput = 0, active = false, dirty = true, busy = false, lastHtml = "", lastSc = "", sentAt = 0, ptrAt = 0;
+  const others = new Map();   // the member's other devices sending their screen: dev -> {at, seen}; the one used last wins
+  channel.on("broadcast", {event: "watch"}, () => { watchedUntil = Date.now() + 10000; }).subscribe();
+  onMirror = st => { const m = st && st.mirror; if (m && m.dev && m.dev !== dev) others.set(m.dev, {at: m.at || 0, seen: Date.now()}); };
+  new MutationObserver(() => { dirty = true; }).observe(document.body, {subtree: true, childList: true, attributes: true, characterData: true});
+  for (const t of ["input", "change", "scroll", "toggle"]) addEventListener(t, () => { dirty = true; }, true);
+  const ctx2d = CanvasRenderingContext2D.prototype;   // a canvas drawn on since its last picture is sent again
+  for (const name of ["clearRect", "fillRect", "strokeRect", "fillText", "strokeText", "drawImage", "fill", "stroke", "putImageData"]) {
+    const draw = ctx2d[name];
+    ctx2d[name] = function () { this.canvas.mDirty = true; return draw.apply(this, arguments); };
+  }
+  const point = e => {
+    lastInput = Date.now();
+    if (!active || (e.type === "pointermove" && Date.now() - ptrAt < 80)) return;
+    ptrAt = Date.now();
+    send({action: "state", state: {mptr: {dev, x: Math.round(e.clientX), y: Math.round(e.clientY), d: e.buttons ? 1 : 0, k: e.pointerType === "mouse" ? "m" : "t"}}});
+  };
+  for (const t of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) addEventListener(t, point, {capture: true, passive: true});
+  for (const t of ["keydown", "wheel"]) addEventListener(t, () => { lastInput = Date.now(); }, {capture: true, passive: true});
+  function snapshot() {
+    const sel = "input,textarea,select,dialog,script", clone = document.body.cloneNode(true);
+    const to = clone.querySelectorAll(sel);
+    document.body.querySelectorAll(sel).forEach((el, i) => {
+      const c = to[i];
+      if (el.tagName === "SCRIPT") c.textContent = "";
+      else if (el.tagName === "DIALOG") {
+        let modal = true; try { modal = el.matches(":modal"); } catch { /* older browser: dialogs here are modal */ }
+        if (el.open && modal) { c.removeAttribute("open"); c.setAttribute("data-mmodal", ""); }
+      }
+      else if (el.tagName === "SELECT") [...el.options].forEach((o, k) => c.options[k].toggleAttribute("selected", o.selected));
+      else if (el.tagName === "TEXTAREA") c.textContent = el.value;
+      else if (el.type === "checkbox" || el.type === "radio") c.toggleAttribute("checked", el.checked);
+      else if (el.type !== "password" && el.type !== "file") c.setAttribute("value", el.value);
+    });
+    return clone.innerHTML;
+  }
+  function scrolls() {
+    const all = document.body.getElementsByTagName("*"), out = [];
+    for (let i = 0; i < all.length; i++) if (all[i].scrollTop || all[i].scrollLeft) out.push([i, Math.round(all[i].scrollTop), Math.round(all[i].scrollLeft)]);
+    return JSON.stringify(out);
+  }
+  const probe = document.createElement("canvas"); probe.width = probe.height = 1;
+  const webp = probe.toDataURL("image/webp").startsWith("data:image/webp");   // Safari: JPEG
+  function picture(c) {
+    const shown = c.getBoundingClientRect().width;   // the size on screen, not the device pixels: the admin sees it scaled down anyway
+    const k = Math.min(1, MIRROR_CANVAS / Math.max(c.width, c.height), shown > 0 ? shown / c.width : 1), t = document.createElement("canvas");
+    t.width = Math.max(1, Math.round(c.width * k)); t.height = Math.max(1, Math.round(c.height * k));
+    const g = t.getContext("2d");
+    if (!webp) { g.fillStyle = "#fff"; g.fillRect(0, 0, t.width, t.height); }   // JPEG has no transparency
+    g.drawImage(c, 0, 0, t.width, t.height);
+    return new Promise(done => t.toBlob(b => {
+      if (!b) return done(null);
+      const r = new FileReader(); r.onload = () => done(r.result); r.onerror = () => done(null); r.readAsDataURL(b);
+    }, webp ? "image/webp" : "image/jpeg", 0.6));
+  }
+  const coarse = matchMedia("(pointer: coarse)").matches;   // phones and tablets: scrollbars float over the page
+  const canvasKeys = () => [...document.querySelectorAll("canvas[id]")].map(c => "mc_" + c.id);
+  setInterval(async () => {
+    const now = Date.now();
+    for (const [d, o] of others) if (now - o.seen > 8000) others.delete(d);
+    const mine = [...others].every(([d, o]) => lastInput > o.at || (lastInput === o.at && dev > d));
+    const on = now < watchedUntil && document.visibilityState === "visible" && mine && !!ws && ws.readyState === 1;
+    if (on !== active) {
+      active = on;
+      if (on) { lastHtml = ""; dirty = true; document.querySelectorAll("canvas").forEach(c => { c.mDirty = true; c.mSent = null; }); }
+      else if (now >= watchedUntil) send({action: "state", state: Object.fromEntries(["mirror", "mptr", ...canvasKeys()].map(k => [k, null]))});   // nobody watches: drop the copy
+    }
+    if (!active || busy) return;
+    busy = true;
+    try {
+      const busyMember = now - lastInput < 3000;   // quick while the member is doing something, else once a second
+      if ((dirty && (busyMember || now - sentAt >= 1000)) || now - sentAt > 3000) {
+        dirty = false;
+        const html = snapshot(), sc = scrolls();
+        if (html !== lastHtml || sc !== lastSc || now - sentAt > 3000) {
+          lastHtml = html; lastSc = sc; sentAt = now;
+          send({action: "state", state: {mirror: {dev, at: lastInput, w: innerWidth, h: innerHeight, sc: JSON.parse(sc), touch: coarse,
+                attrs: [...document.body.attributes].map(a => [a.name, a.value]), ...await gzip(html)}}});
+        }
+      }
+      for (const c of document.querySelectorAll("canvas[id]")) {
+        if (!c.mDirty || now - (c.mAt || 0) < (busyMember ? 400 : 1000) || !c.width || !c.height || !c.getClientRects().length) continue;
+        c.mDirty = false; c.mAt = now;
+        const u = await picture(c);
+        if (!u || u === c.mSent || u.length > 900000) continue;   // the page redraws every canvas on each report: send only changes (bridge frames ≤ 1 MB)
+        c.mSent = u;
+        send({action: "state", state: {["mc_" + c.id]: {dev, u}}});
+      }
+    } finally { busy = false; }
+  }, 250);
+}
+
+// The admin's side: show the copy in a script-less frame of the member's size.
+function watchMember(channel) {
+  const beat = () => channel.send({type: "broadcast", event: "watch", payload: {}});
+  channel.subscribe(status => { if (status === "SUBSCRIBED") beat(); });
+  setInterval(beat, 4000);
+  const stage = document.createElement("div"), frame = document.createElement("iframe"), note = document.createElement("div"), finger = document.createElement("div");
+  stage.style.cssText = "position:fixed;inset:0;z-index:9990;background:#e3e6ec;overflow:hidden";
+  frame.setAttribute("sandbox", "allow-same-origin");   // no scripts run in the copy
+  frame.setAttribute("title", "회원 화면");
+  frame.style.cssText = "position:absolute;left:0;top:0;border:0;transform-origin:0 0;background:#fff;box-shadow:0 12px 40px rgba(23,26,34,.28);pointer-events:none";
+  note.style.cssText = "position:absolute;left:12px;right:12px;top:10px;text-align:center;font-size:13px;color:#4a5263";
+  finger.style.cssText = "position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;pointer-events:none;opacity:0;" +
+    "border:2px solid #e5484d;background:rgba(229,72,77,.22);transition:opacity .35s,transform .12s";
+  stage.append(note, frame, finger);
+  document.body.appendChild(stage);
+  const head = document.head.cloneNode(true); head.querySelectorAll("script").forEach(s => s.remove());
+  frame.srcdoc = `<!doctype html><html lang="ko"><head><base href="${location.href.split("#")[0].replace(/"/g, "&quot;")}">${head.innerHTML}</head><body></body></html>`;
+  let ready = false, size = null, scale = 1, left = 0, top = 0, fresh = 0, pending = null, applying = false, scrolled = new Set(), fingerTimer = 0, seq = 0;
+  const pics = new Map();   // canvas id -> number of the picture shown
+  const viewTag = $("viewTag"), tagText = viewTag ? viewTag.textContent : "";
+  frame.onload = () => { ready = true; for (const [id, url] of early) picture(id, url); early.clear(); drain(); };
+  function fit() {
+    if (!size) return;
+    const W = innerWidth, H = innerHeight - 36;
+    scale = Math.min((W - 24) / size.w, (H - 24) / size.h);
+    left = (W - size.w * scale) / 2; top = 36 + (H - size.h * scale) / 2;
+    Object.assign(frame.style, {width: size.w + "px", height: size.h + "px", transform: `translate(${left}px,${top}px) scale(${scale})`});
+  }
+  addEventListener("resize", fit);
+  function label() {
+    const age = Math.round((Date.now() - fresh) / 1000);
+    note.textContent = !size ? "회원 화면을 기다리는 중…"
+      : `회원 화면 · ${size.w > size.h ? "가로" : "세로"} ${size.w}×${size.h}` + (age > 8 ? ` · ${age}초 전 화면 (회원 화면이 꺼져 있거나 다른 앱을 보는 중)` : "");
+  }
+  label(); setInterval(label, 1000);
+  setTimeout(() => {   // a member's page from before this feature never sends its screen: show the shared board instead
+    if (size) return;
+    stage.hidden = true;
+    if (viewTag) viewTag.textContent = "회원 화면을 받지 못해 바둑판·분석만 보입니다 · 회원 화면이 꺼져 있거나 예전 화면이면 새로고침 후 보입니다";
+  }, 15000);
+  onMirror = st => {
+    if (!st) return;
+    if (st.mirror) { pending = st.mirror; drain(); }
+    for (const k in st) if (k.startsWith("mc_") && st[k] && st[k].u) picture(k.slice(3), st[k].u);
+    if (st.mptr && size) showFinger(st.mptr);
+  };
+  async function drain() {
+    if (!ready || applying) return;
+    applying = true;
+    try { while (pending) { const m = pending; pending = null; await apply(m); } }
+    catch (err) { note.textContent = "회원 화면을 그리지 못했습니다: " + err.message; }
+    finally { applying = false; }
+  }
+  async function apply(m) {
+    const html = await gunzip(m), doc = frame.contentDocument, body = doc.body;
+    fresh = Date.now(); stage.hidden = false; if (viewTag) viewTag.textContent = tagText;
+    if (!size || size.w !== m.w || size.h !== m.h) { size = {w: m.w, h: m.h}; fit(); label(); }
+    doc.documentElement.style.scrollbarWidth = m.touch ? "none" : "";
+    for (const a of [...body.attributes]) body.removeAttribute(a.name);
+    for (const [k, v] of m.attrs || []) body.setAttribute(k, v);
+    const t = doc.createElement("template"); t.innerHTML = html;
+    const want = [...t.content.querySelectorAll("dialog")].map(d => d.hasAttribute("data-mmodal") ? "modal" : d.hasAttribute("open") ? "open" : "");
+    morphKids(body, t.content);
+    doc.querySelectorAll("dialog").forEach((d, i) => {
+      let modal = false; try { modal = d.matches(":modal"); } catch { /* older browser */ }
+      if (want[i] === "modal" && !modal) { if (d.open) d.close(); d.showModal(); }
+      else if (want[i] === "open" && (!d.open || modal)) { if (d.open) d.close(); d.show(); }
+      else if (!want[i] && d.open) d.close();
+    });
+    const all = body.getElementsByTagName("*"), sc = new Map((m.sc || []).map(([i, y, x]) => [i, [y, x]]));
+    for (const i of scrolled) if (!sc.has(i) && all[i]) { all[i].scrollTop = 0; all[i].scrollLeft = 0; }
+    for (const [i, [y, x]] of sc) if (all[i]) { all[i].scrollTop = y; all[i].scrollLeft = x; }
+    scrolled = new Set(sc.keys());
+  }
+  // Make the frame's nodes match the copy, keeping what did not change (no flicker, canvases keep their picture).
+  function morph(to, from) {
+    if (to.nodeType !== from.nodeType || to.nodeName !== from.nodeName) { to.replaceWith(to.ownerDocument.importNode(from, true)); return; }
+    if (to.nodeType !== 1) { if (to.nodeValue !== from.nodeValue) to.nodeValue = from.nodeValue; return; }
+    const keep = a => to.nodeName === "DIALOG" && a === "open";   // dialogs are opened with show()/showModal() after
+    for (const a of [...to.attributes]) if (!from.hasAttribute(a.name) && !keep(a.name)) to.removeAttribute(a.name);
+    for (const a of from.attributes) if (to.getAttribute(a.name) !== a.value && !keep(a.name)) to.setAttribute(a.name, a.value);
+    morphKids(to, from);
+  }
+  function morphKids(to, from) {
+    const a = to.childNodes, b = from.childNodes;
+    for (let i = 0; i < b.length; i++) { if (i < a.length) morph(a[i], b[i]); else to.appendChild(to.ownerDocument.importNode(b[i], true)); }
+    while (a.length > b.length) to.lastChild.remove();
+  }
+  // A document without scripts shows no canvas bitmaps (its canvases show their fallback), so each picture goes
+  // under its canvas as a background instead; a rule in the frame's head, which the copies of the body never touch.
+  const early = new Map();   // pictures that came before the frame was ready
+  function picture(id, url) {
+    if (!/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(url)) return;   // only a picture goes into the frame's CSS
+    if (!ready) { early.set(id, url); return; }
+    const img = new Image(), n = ++seq;
+    img.onload = () => {   // swapped in once decoded, so the board never blinks
+      if ((pics.get(id) || 0) > n) return;   // a newer picture got here first
+      pics.set(id, n);
+      const doc = frame.contentDocument;
+      let rule = doc.getElementById("mpic-" + id);
+      if (!rule) { rule = doc.createElement("style"); rule.id = "mpic-" + id; doc.head.appendChild(rule); }
+      rule.textContent = `#${CSS.escape(id)}{background:url("${url}") 0 0/100% 100% no-repeat !important}`;
+    };
+    img.src = url;
+  }
+  function showFinger(p) {
+    const mouse = p.k === "m";
+    finger.style.left = left + p.x * scale + "px"; finger.style.top = top + p.y * scale + "px";
+    finger.style.transform = `scale(${p.d ? 1 : mouse ? .4 : .7})`; finger.style.opacity = "1";
+    clearTimeout(fingerTimer);
+    if (!p.d) fingerTimer = setTimeout(() => { finger.style.opacity = "0"; }, mouse ? 5000 : 900);
+  }
+}
+
 document.fonts && document.fonts.ready.then(schedule);
-layout(); connect(); watchGpu();
+layout(); connect(); watchGpu(); mirrorScreen();
 </script>
 </body>
 </html>
