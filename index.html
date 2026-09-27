@@ -202,6 +202,7 @@
         <div class="row" style="margin-bottom:14px">
           <h2 class="grow" style="margin:0">저장한 기보</h2>
           <span class="muted small" id="mineCount"></span>
+          <button class="primary" id="mineAdd" type="button" title="GPU 없이 빈 판에 기보를 직접 두어 기록합니다">＋ 기보 추가</button>
         </div>
         <div class="table-wrap scroll-box">
           <table>
@@ -209,7 +210,7 @@
             <tbody id="mineRows"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
-        <div class="small muted" style="margin-top:14px">분석 화면의 파일 메뉴 → '내 기보에 저장'으로 저장한 기보입니다(최대 100판). 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
+        <div class="small muted" style="margin-top:14px">분석 화면의 '내 기보 저장'으로 저장한 기보입니다(최대 100판). <b>기보 추가</b>를 누르면 GPU 없이 빈 판에 수를 두어 기보를 기록하고 저장할 수 있습니다. 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
       </div>
     </div>
 
@@ -598,6 +599,10 @@ function openNotes(phase = "") {
 $("notesOpen").onclick = () => openNotes();
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
+$("mineAdd").onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
+  if (mine.length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
+  window.open(`analysis.html?v=${Date.now()}#record=1`, "_blank", "noopener");
+};
 $("mineRows").onclick = async (ev) => {
   const del = ev.target.closest("[data-del]");
   if (del) {

@@ -302,6 +302,8 @@ dialog[open] { animation: arrive .35s var(--ease); }
 body.quiz .toolbar > :not(#quizBar):not(#err) { display: none !important; }
 body.quiz .menubar > :not(.brand):not(.spacer):not(#vps):not(#connStatus):not(#gpuMeter) { display: none; }
 #saveDlg { width: min(460px, calc(100vw - 24px)); }
+#infoDlg { width: min(460px, calc(100vw - 24px)); }
+#gameInfo { cursor: pointer; }
 #saveDlg .gd { gap: 14px; }
 #saveTitle { width: 100%; }
 #saveInfo { font-size: 13px; }
@@ -427,6 +429,7 @@ button.primary:hover { background: var(--blue-deep); }
       <button id="saveSgf">SGF 저장</button>
       <button id="copySgf">SGF 복사</button>
       <button id="pasteSgf">SGF 붙여넣기</button>
+      <button id="editInfo">기보 정보…</button>
       <button id="openMine" hidden>내 기보 열기</button>
       <button id="addNote" hidden>오답노트에 담기</button>
       <button id="openNotes" hidden>오답노트</button>
@@ -562,6 +565,20 @@ button.primary:hover { background: var(--blue-deep); }
     <p class="gd-note" id="gdNote"></p>
     <div class="gd-actions"><button id="gdCancel">취소</button><button id="gdGo" class="primary">대국 시작</button></div>
   </div>
+</dialog>
+
+<dialog id="infoDlg" aria-label="기보 정보">
+  <form class="gd" id="infoForm">
+    <h2>기보 정보</h2>
+    <div class="gd-row"><span>대국자</span><div class="gd-pair">
+      <input type="text" id="infoB" placeholder="흑 이름" maxlength="100" autocomplete="off"><input type="text" id="infoW" placeholder="백 이름" maxlength="100" autocomplete="off"></div></div>
+    <div class="gd-row"><span>날짜</span><input type="text" id="infoDate" placeholder="2026-09-28" maxlength="40" autocomplete="off"></div>
+    <div class="gd-row"><span>결과</span><div class="gd-pair">
+      <select id="infoWho" aria-label="이긴 쪽"><option value="">미정</option><option value="B">흑 승</option><option value="W">백 승</option><option value="0">무승부</option></select>
+      <input type="text" id="infoHow" placeholder="불계/집 수" maxlength="12" autocomplete="off" aria-label="이긴 방법"></div></div>
+    <p class="gd-note" id="infoNote"></p>
+    <div class="gd-actions"><button type="button" id="infoCancel">취소</button><button type="submit" class="primary">확인</button></div>
+  </form>
 </dialog>
 
 <dialog id="strengthDlg" aria-label="대국 리포트">
@@ -712,6 +729,7 @@ let root = makeRoot(), cur = root;
 
 // ------------------------------------------------------------------ engine connection
 const hashParams = new URLSearchParams(location.hash.slice(1));
+const recordMode = hashParams.get("record") === "1";   // 내 기보 → 기보 추가: an empty board to record a game on, no GPU
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
 const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
@@ -735,6 +753,11 @@ async function openWithoutGpu() {
     if (!p) throw new Error("not logged in");
     site = sb; $("conn").textContent = "GPU 없음 · 저장된 분석만 보기";
     if (pendingKifu) openMineKifu(pendingKifu);
+    else if (recordMode) {
+      $("conn").textContent = "GPU 없음 · 기보 기록";
+      if (!root.info.DT) root.info.DT = new Date().toLocaleDateString("sv-SE");   // today, YYYY-MM-DD
+      openInfo("판을 눌러 흑·백 차례로 두세요. 잘못 둔 수는 '지우기'로 지웁니다. 다 두면 '내 기보 저장'을 누르세요. 대국자·결과는 파일 → 기보 정보나 판 옆 대국자 칸을 눌러 언제든 고칠 수 있습니다.");
+    }
   } catch { location.replace("./"); }
 }
 let onMirror = null;   // set by mirrorScreen(): copies of the member's screen arriving through the bridge
@@ -2727,6 +2750,32 @@ function drawGameInfo() {
     `<div class="gi-meta">${named || i.RE || i.DT ? meta : "기보를 열면 대국자와 결과가 표시됩니다 · " + meta}</div>`;
   if ($("gameInfo").innerHTML !== html) $("gameInfo").innerHTML = html;
 }
+// 기보 정보: names, date and result typed in (a game recorded by hand, or fixing a loaded one's header)
+function openInfo(note = "") {
+  closeMenus();
+  const i = root.info, m = /^\s*([BW])\s*\+\s*(.*)$/i.exec(i.RE || "");
+  $("infoB").value = i.PB || ""; $("infoW").value = i.PW || ""; $("infoDate").value = i.DT || "";
+  $("infoWho").value = m ? m[1].toUpperCase() : /^(0|draw|jigo)$/i.test((i.RE || "").trim()) ? "0" : "";
+  $("infoHow").value = !m ? "" : /^r(esign)?$/i.test(m[2].trim()) ? "불계" : m[2].trim();
+  $("infoHow").disabled = !/^[BW]$/.test($("infoWho").value);
+  $("infoNote").textContent = note; $("infoNote").hidden = !note;
+  $("infoDlg").showModal();
+}
+$("infoWho").onchange = () => { $("infoHow").disabled = !/^[BW]$/.test($("infoWho").value); };
+$("infoCancel").onclick = () => $("infoDlg").close();
+$("editInfo").onclick = () => openInfo();
+$("gameInfo").onclick = () => { if (!viewOnly) openInfo(); };
+$("gameInfo").title = "눌러서 대국자·날짜·결과 고치기";
+$("infoForm").onsubmit = ev => {
+  ev.preventDefault();
+  const i = root.info, set = (k, v) => { v = v.trim(); if (v) i[k] = v; else delete i[k]; };
+  set("PB", $("infoB").value); set("PW", $("infoW").value); set("DT", $("infoDate").value);
+  const who = $("infoWho").value, how = $("infoHow").value.trim();
+  if (who === "0") i.RE = "0";
+  else if (who) i.RE = `${who}+${/^(불계|r(esign)?)$/i.test(how) ? "R" : /^\d+(\.\d+)?$/.test(how.replace(/집$/, "")) ? how.replace(/집$/, "") : how}`;
+  else delete i.RE;
+  $("infoDlg").close(); publish(); schedule();
+};
 $("candRows").addEventListener("click", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur, true)[+tr.dataset.k]; if (c) { selectedPv = c.pv || null; schedule(); } });
 $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest("tr"); if (!tr) return; const c = candidates(cur, true)[+tr.dataset.k]; if (c) goTo(play(cur, cur.toPlay, parseGtp(c.move))); });
 
@@ -2736,7 +2785,7 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
 // and they go back to the bars in landscape.
 const MENU = [["GPU", ["connStatus", "gpuMeter"]],
-              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen", "openMine", "addNote", "openNotes"]],
+              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "editInfo", "kifuOpen", "openMine", "addNote", "openNotes"]],
               ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
