@@ -76,7 +76,7 @@
         <a class="hub-tile" href="#study">
           <span class="hub-icon study" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h11M8 8l2 2 4-4"/></svg></span>
           <b>학습방</b>
-          <span class="hub-desc">내 실수로 만든 오답노트와 실전 사활</span>
+          <span class="hub-desc">내 실수로 만든 오답노트 풀기</span>
           <span class="hub-sub" id="hubStudy"></span>
         </a>
       </nav>
@@ -172,15 +172,6 @@
           <button class="primary" id="notesOpen">복습하기</button>
         </div>
         <div class="row hidden" id="notesPhases" style="margin-top:12px;gap:8px;flex-wrap:wrap"></div>
-      </div>
-      <div class="panel" id="ldCard">
-        <div class="row">
-          <div class="grow">
-            <h2 style="margin:0 0 4px">나의 실전 사활</h2>
-            <div class="small muted" id="ldInfo"></div>
-          </div>
-          <button class="primary" id="ldOpen">풀기</button>
-        </div>
       </div>
     </div>
 
@@ -406,9 +397,9 @@ async function loadMine() {
     || `<tr><td colspan="7" class="muted">아직 저장한 기보가 없습니다.</td></tr>`;
 }
 // 오답노트: how many problems are due today; solved on the analysis screen (no GPU needed)
-async function loadNotesCard() {   // 학습방: 오답노트 and 나의 실전 사활 (and the start page's 학습방 line)
+async function loadNotesCard() {   // 학습방: 오답노트 (and the start page's 학습방 line)
   const now = new Date(), isDue = (n) => new Date(n.due_at) <= now;
-  const [{ data, error }, ld] = await Promise.all([sb.from("mistake_notes").select("due_at,move_no"), sb.from("ld_problems").select("due_at")]);
+  const { data, error } = await sb.from("mistake_notes").select("due_at,move_no");
   $("notesOpen").classList.toggle("hidden", !!error);
   $("notesPhases").classList.toggle("hidden", !!error || !data.length);
   if (error) $("notesInfo").textContent = "오답노트를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
@@ -426,23 +417,14 @@ async function loadNotesCard() {   // 학습방: 오답노트 and 나의 실전 
     $("notesPhases").innerHTML = phases.map((p) =>
       `<button data-phase="${p.v}"${p.all ? "" : " disabled"}>${p.name} ${p.all}문제${p.due ? ` · 복습 ${p.due}` : ""}</button>`).join("");
   }
-  $("ldOpen").classList.toggle("hidden", !!ld.error);
-  if (ld.error) $("ldInfo").textContent = "실전 사활을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
-  else {
-    const due = ld.data.filter(isDue).length;
-    $("ldInfo").textContent = ld.data.length ? `오늘 복습할 문제 ${due}개 · 전체 ${ld.data.length}문제 · GPU 없이 풉니다`
-      : "내 대국에서 나온 사활 모양을 문제로 만들어 풉니다. GPU를 켠 분석 화면에서 대국 기보를 열고 '내 기보 저장'에서 '사활 만들기'를 고르세요.";
-    $("ldOpen").textContent = due ? `풀기 (${due})` : "문제 목록";
-  }
-  const all = [...(error ? [] : data), ...(ld.error ? [] : ld.data)], due = all.filter(isDue).length;
-  $("hubStudy").textContent = due ? `오늘 복습 ${due}문제` : all.length ? `문제 ${all.length}개` : "오답노트 · 실전 사활";
+  const all = error ? [] : data, due = all.filter(isDue).length;
+  $("hubStudy").textContent = due ? `오늘 복습 ${due}문제` : all.length ? `문제 ${all.length}개` : "오답노트";
 }
 function openNotes(phase = "") {
   const gpu = session && session.status === "ready" && session.web_url && session.web_token
     ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
   window.open(`analysis.html?v=${Date.now()}#${gpu}notes${phase ? "&phase=" + phase : ""}`, "_blank", "noopener");
 }
-$("ldOpen").onclick = () => window.open(`analysis.html?v=${Date.now()}#ld`, "_blank", "noopener");   // solved without a GPU
 $("notesOpen").onclick = () => openNotes();
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
