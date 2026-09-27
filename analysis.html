@@ -59,9 +59,11 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 #saveMine::before { content: ""; width: 16px; height: 16px; background: currentColor; flex: none;
   -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h11l3 3v15H5zM8 3v5h7M8 14h8M8 17h5'/></svg>") center / contain no-repeat;
           mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h11l3 3v15H5zM8 3v5h7M8 14h8M8 17h5'/></svg>") center / contain no-repeat; }
-#saveKind { margin-top: 2px; }
-#saveKind button { white-space: nowrap; }
-#saveKind button:disabled { opacity: .4; cursor: default; background: transparent; }
+#saveDo { display: grid; gap: 10px; margin-top: 2px; }
+#saveDo label.check { color: var(--ink); font-weight: 600; white-space: normal; align-items: flex-start; }
+#saveDo label.check input { margin-top: 3px; flex: none; }
+#saveDo label.check small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
+#saveDo label.check.off { opacity: .45; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
 .mark { position: relative; width: 24px; height: 16px; flex: none; }
 .mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
@@ -166,7 +168,6 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #openMine { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h6l2 2h8v12H4zM4 10h16'/></svg>"); }
 #menuBody #addNote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 3h12v18l-6-4-6 4zM12 7v6M9 10h6'/></svg>"); }
 #menuBody #openNotes { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h13v18H5zM9 3v18M12 8h3M12 12h3'/></svg>"); }
-#menuBody #findLd { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='6'/><path d='m20 20-4.5-4.5M9 11h4M11 9v4'/></svg>"); }
 #menuBody #openLd { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><circle cx='10' cy='10' r='2' fill='black'/><circle cx='14' cy='14' r='2'/></svg>"); }
 #menuBody #kifuOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8M12 12v8M9 17l3 3 3-3'/></svg>"); }
 #menuBody #newGame { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
@@ -420,7 +421,6 @@ button.primary:hover { background: var(--blue-deep); }
       <button id="openMine" hidden>내 기보 열기</button>
       <button id="addNote" hidden>오답노트에 담기</button>
       <button id="openNotes" hidden>오답노트</button>
-      <button id="findLd" hidden>실전 사활 찾기</button>
       <button id="openLd" hidden>나의 실전 사활</button>
     </div>
   </details>
@@ -480,8 +480,11 @@ button.primary:hover { background: var(--blue-deep); }
     <h2>내 기보에 저장</h2>
     <input type="text" id="saveTitle" maxlength="100" placeholder="제목" autocomplete="off">
     <div class="muted" id="saveInfo"></div>
-    <div class="seg" id="saveKind" role="group" aria-label="저장 방법"><button type="button" data-v="" class="on">기보만 저장</button><button type="button" data-v="notes">오답노트까지 만들기</button></div>
-    <div class="muted small" id="saveKindHint"></div>
+    <div id="saveDo" role="group" aria-label="만들 것">
+      <label class="check"><input type="checkbox" id="saveDoKifu"><span>기보 저장<small>기보와 분석값을 내 기보에 저장합니다.</small></span></label>
+      <label class="check"><input type="checkbox" id="saveDoNotes"><span>오답노트 만들기<small id="saveDoNotesHint"></small></span></label>
+      <label class="check"><input type="checkbox" id="saveDoLd"><span>사활 만들기<small id="saveDoLdHint"></small></span></label>
+    </div>
     <div class="dlg-msg" id="saveMsg"></div>
     <div class="actions">
       <button type="button" id="saveCancel">취소</button>
@@ -510,9 +513,9 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="dlg-row"><span class="muted" id="noteAddCount"></span><span class="spacer"></span><button id="noteAddGo" class="primary">담기</button></div>
 </dialog>
 
-<dialog id="ldFindDlg" aria-label="실전 사활 찾기">
+<dialog id="ldFindDlg" aria-label="사활 만들기">
   <div class="dlg-row">
-    <b>실전 사활 찾기</b>
+    <b>사활 만들기</b>
     <span class="spacer"></span>
     <button id="ldFindStart" class="primary">찾기 시작</button>
     <button id="ldFindClose">닫기</button>
@@ -1458,7 +1461,7 @@ async function mineClient() {
   return mineSb;
 }
 mineClient().then(c => {
-  $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = $("findLd").hidden = $("openLd").hidden = !c;
+  $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = $("openLd").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
   else if (c && hashParams.has("ld")) openLd();    // the website's 실전 사활 link
 });
@@ -1491,29 +1494,50 @@ $("saveMine").onclick = async () => {
   $("saveTitle").value = again ? mineTitle : mineDefaultTitle();
   $("saveInfo").textContent = `${st.moves}수 · 분석된 국면 ${st.analyzed}개` + (again ? " · 이미 저장한 기보입니다" : "");
   $("saveMsg").textContent = ""; $("saveMsg").classList.remove("bad");
-  $("saveAsNew").hidden = !again; $("saveGo").textContent = again ? "덮어쓰기" : "저장";
-  // 오답노트까지: after saving, the 오답노트에 담기 list of this game's mistakes opens (needs analysed moves)
-  const notesOk = lineThrough(cur).some(n => n.move && moveLoss(n));
-  $("saveKind").querySelector('[data-v="notes"]').disabled = !notesOk;
-  let kind = ""; try { kind = localStorage.getItem("kgv.saveKind") || ""; } catch { /* storage blocked */ }
-  pickSaveKind(notesOk ? kind : "");
-  $("saveKindHint").textContent = notesOk ? $("saveKindHint").textContent : "분석된 수가 없어 오답노트는 만들 수 없습니다. 자동분석을 한 뒤 저장하면 실수를 문제로 담을 수 있습니다.";
+  // three things to make, only the checked ones: the game (내 기보), 오답노트 (the mistake list opens), 실전 사활 (the search starts)
+  const notesOk = lineThrough(cur).some(n => n.move && moveLoss(n)), ldOk = !!token && lineThrough(root).length >= 30 && !quiz && !game;
+  $("saveDoNotesHint").textContent = notesOk ? "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요."
+    : "분석된 수가 없어 만들 수 없습니다. 자동분석을 한 뒤 다시 누르세요.";
+  $("saveDoLdHint").textContent = !token ? "GPU가 필요합니다. GPU를 켠 분석 화면에서 누르세요."
+    : !ldOk ? "수가 너무 적거나 문제 풀이·AI 대국 중이라 만들 수 없습니다."
+    : "사활 문제로 만들 만한 모양을 찾아 풀이 수순을 미리 계산합니다(한 판에 보통 1~3분).";
+  let pick = {kifu: true, notes: false, ld: false};
+  try { pick = {...pick, ...JSON.parse(localStorage.getItem("kgv.saveDo") || "{}")}; } catch { /* storage blocked */ }
+  for (const [k, ok] of [["Kifu", true], ["Notes", notesOk], ["Ld", ldOk]]) {
+    const box = $("saveDo" + k); box.disabled = !ok; box.checked = ok && pick[k.toLowerCase()]; box.parentElement.classList.toggle("off", !ok);
+  }
+  if (!["Kifu", "Notes", "Ld"].some(k => $("saveDo" + k).checked)) $("saveDoKifu").checked = true;   // never open with nothing to do
+  saveDoChanged();
   $("saveDlg").showModal();
 };
-function pickSaveKind(v) {
-  pickSegValue("saveKind", v);
-  $("saveKindHint").textContent = v ? "저장한 뒤 이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요." : "기보와 분석값만 저장합니다.";
+function saveDoChanged() {
+  const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked;
+  $("saveTitle").hidden = !kifu; $("saveAsNew").hidden = !(kifu && again);
+  $("saveGo").textContent = kifu ? (again ? "덮어쓰기" : "저장") : "만들기";
+  $("saveGo").disabled = !["Kifu", "Notes", "Ld"].some(k => $("saveDo" + k).checked);
 }
-$("saveKind").addEventListener("click", ev => {
-  const b = ev.target.closest("button"); if (!b || b.disabled) return;
-  pickSaveKind(b.dataset.v);
-  try { localStorage.setItem("kgv.saveKind", b.dataset.v); } catch { /* storage blocked */ }
+$("saveDo").addEventListener("change", () => {
+  saveDoChanged();
+  try {   // remember the boxes that could be changed; a greyed-out one keeps its last choice
+    const pick = JSON.parse(localStorage.getItem("kgv.saveDo") || "{}");
+    for (const k of ["Kifu", "Notes", "Ld"]) if (!$("saveDo" + k).disabled) pick[k.toLowerCase()] = $("saveDo" + k).checked;
+    localStorage.setItem("kgv.saveDo", JSON.stringify(pick));
+  } catch { /* storage blocked */ }
 });
 $("saveCancel").onclick = () => $("saveDlg").close();
 $("saveForm").onsubmit = ev => { ev.preventDefault(); saveMine(false); };
 $("saveAsNew").onclick = () => saveMine(true);
+let saveThenLd = false;   // 사활 만들기 waits until the 오답노트 list is closed
+function saveMakeNext(notes, ld) {
+  saveThenLd = notes && ld;
+  if (notes) $("addNote").onclick();
+  else if (ld) openLdFind(true);
+}
+$("noteAddDlg").addEventListener("close", () => { if (saveThenLd) { saveThenLd = false; openLdFind(true); } });
 async function saveMine(asNew) {
   const c = await mineClient(); if (!c) return;
+  const notes = $("saveDoNotes").checked, ld = $("saveDoLd").checked;
+  if (!$("saveDoKifu").checked) { $("saveDlg").close(); saveMakeNext(notes, ld); return; }
   const say = (t, bad = false) => { $("saveMsg").textContent = t; $("saveMsg").classList.toggle("bad", bad); };
   const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle(), cut = (v, n) => v ? String(v).slice(0, n) : null;
   $("saveGo").disabled = $("saveAsNew").disabled = true; say("저장 중…");
@@ -1528,9 +1552,9 @@ async function saveMine(asNew) {
     if (error) { say(error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message, true); return; }
     mineId = saved.id; mineRoot = root; mineTitle = title;
     $("saveDlg").close(); $("err").textContent = update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다";
-    if (segValue("saveKind") === "notes") $("addNote").onclick();   // 오답노트까지: pick the mistakes to add
+    saveMakeNext(notes, ld);
   } catch (err) { say("저장하지 못했습니다: " + err.message, true); }
-  finally { $("saveGo").disabled = $("saveAsNew").disabled = false; }
+  finally { $("saveAsNew").disabled = false; saveDoChanged(); }
 }
 function mineMsg(text, bad = false) { $("mineMsg").textContent = text; $("mineMsg").classList.toggle("bad", bad); }
 async function loadMineList() {
@@ -1736,7 +1760,7 @@ async function startQuiz(list, ld = false) {
   if (!list.length) return;
   const say = ld ? ldListMsg : notesMsg;
   if (game) { say("AI 대국 중에는 문제를 풀 수 없습니다. 대국을 멈춘 뒤 다시 누르세요.", true); return; }
-  if (ldFind) { say("실전 사활 찾기가 끝난 뒤에 풀 수 있습니다.", true); return; }
+  if (ldFind) { say("사활 만들기가 끝난 뒤에 풀 수 있습니다.", true); return; }
   if (strengthId) { say("대국 리포트 분석이 끝난 뒤에 풀 수 있습니다(기보가 바뀌면 분석이 멈춥니다).", true); return; }
   if (!quiz) {   // the board being studied comes back when the problems end
     if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
@@ -2064,16 +2088,17 @@ async function ldSearch() {
   } catch (err) { ldMsg(err.message, !/멈췄/.test(err.message)); }
   finally { if (ldFind) ldFind = null; ldCount(); }
 }
-$("findLd").onclick = async () => {
+async function openLdFind(auto = false) {   // 내 기보 저장 → 사활 만들기
   closeMenus();
   if (quiz || game) { $("err").textContent = "문제를 풀거나 AI 대국 중에는 찾을 수 없습니다"; return; }
   if (!await mineClient()) { $("err").textContent = "로그인한 사이트에서만 쓸 수 있습니다"; return; }
   if (!ldFind && ldFoundRoot !== root) ldFound = [];   // found in another game
-  if (!ldFind) { ldMsg(!token ? "실전 사활 찾기는 GPU가 필요합니다. GPU를 켜고 분석 화면을 연 뒤 다시 누르세요."
+  if (!ldFind) { ldMsg(!token ? "사활 만들기는 GPU가 필요합니다. GPU를 켜고 분석 화면을 연 뒤 다시 누르세요."
     : lineThrough(root).length < 30 ? "수가 너무 적습니다. 대국 기보를 연 뒤 찾으세요."
     : "기보의 본선에서 사활 문제로 만들 만한 모양을 찾습니다. 분석되지 않은 수는 먼저 분석하고(자동분석과 같음), 후보 장면마다 KataGo로 다시 검증해 풀이 수순을 미리 계산합니다. 한 판에 보통 1~3분 걸립니다."); ldRender(); }
   $("ldFindDlg").showModal();
-};
+  if (auto && !ldFind && !ldFound.length) $("ldFindStart").onclick();
+}
 $("ldFindStart").onclick = () => {
   if (ldFind) { ldStop(); return; }
   if (!token) return;
@@ -2135,7 +2160,7 @@ function showLdList() {
     `<td class="w">${dueText(k)}</td><td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
   ldListMsg(ldList.length ? `복습할 문제 ${due}개 · 문제를 누르면 그 문제만 풉니다. GPU 없이 미리 계산한 수순으로 풉니다.`
     : ldAll.length ? "이 종류에는 담은 문제가 없습니다."
-    : "담은 문제가 없습니다. GPU를 켠 분석 화면에서 대국 기보를 열고 파일 메뉴의 '실전 사활 찾기'를 누르세요.");
+    : "담은 문제가 없습니다. GPU를 켠 분석 화면에서 대국 기보를 열고 '내 기보 저장'에서 '사활 만들기'를 고르세요.");
 }
 async function openLd() {
   closeMenus();
@@ -2963,7 +2988,7 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
 // and they go back to the bars in landscape.
 const MENU = [["GPU", ["connStatus", "gpuMeter"]],
-              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen", "openMine", "addNote", "openNotes", "findLd", "openLd"]],
+              ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "kifuOpen", "openMine", "addNote", "openNotes", "openLd"]],
               ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],

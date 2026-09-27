@@ -431,7 +431,7 @@ async function loadNotesCard() {   // 학습방: 오답노트 and 나의 실전 
   else {
     const due = ld.data.filter(isDue).length;
     $("ldInfo").textContent = ld.data.length ? `오늘 복습할 문제 ${due}개 · 전체 ${ld.data.length}문제 · GPU 없이 풉니다`
-      : "내 대국에서 나온 사활 모양을 문제로 만들어 풉니다. GPU를 켠 분석 화면에서 대국 기보를 열고 파일 메뉴의 '실전 사활 찾기'를 누르세요.";
+      : "내 대국에서 나온 사활 모양을 문제로 만들어 풉니다. GPU를 켠 분석 화면에서 대국 기보를 열고 '내 기보 저장'에서 '사활 만들기'를 고르세요.";
     $("ldOpen").textContent = due ? `풀기 (${due})` : "문제 목록";
   }
   const all = [...(error ? [] : data), ...(ld.error ? [] : ld.data)], due = all.filter(isDue).length;
