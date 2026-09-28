@@ -379,6 +379,8 @@ async function enter() {
   loadOffers(); loadMine(); loadNotesCard();
   clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
 }
+// a tab left in the background (phones pause its timers) is out of date when it comes back: refresh at once
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && profile) refresh(); });
 
 // ------------------------------------------------------------------ data
 let vastBalance = null, vastAt = 0;   // admins: the operator's Vast balance is their balance (checked once a minute)
@@ -804,6 +806,10 @@ $("startButton").onclick = async () => {
   } catch (err) {
     $("startError").textContent = err.message;
     if (/빌려 갔|가격이 올랐|목록에서/.test(err.message)) loadOffers();
+    if (/이미 사용 중/.test(err.message)) {   // a GPU is on (another tab or device started it): show it, with its 종료 button
+      await refresh();
+      if (session) { $("startError").textContent = ""; $("sessionCard").scrollIntoView({ behavior: "smooth", block: "center" }); toast("이미 켜져 있는 GPU가 있습니다. 여기서 '분석 화면 열기'나 'GPU 종료'를 누르세요."); }
+    }
   } finally { $("startButton").disabled = !picked; }
 };
 
