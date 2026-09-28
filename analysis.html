@@ -955,9 +955,24 @@ function onMessage(msg) {
     // visits/s like YZY's title bar: measured from this query's first report so network delay drops out
     const now = performance.now(), v = msg.rootInfo.visits;
     if (q.t0 == null) { q.t0 = now; q.v0 = v; }
-    else if (now - q.t0 > 200) $("vps").textContent = `${Math.round((v - q.v0) * 1000 / (now - q.t0))} visits/s`;
+    else if (now - q.t0 > 200) {
+      const vps = Math.round((v - q.v0) * 1000 / (now - q.t0));
+      $("vps").textContent = `${vps} visits/s`;
+      reportSpeed(vps, now - q.t0, v - q.v0);
+    }
   }
   schedule();
+}
+// GPU·모델별 속도 (admin page, 2026-09-29): the live analysis's visits/s goes to the database with this GPU's token
+// (report_speed: counted only while the rental is ready, one report per 20 s per rental). Only a clean measure: the
+// search ran at least 5 s (past its warm-up) and nothing else of this screen shares the GPU (자동분석, 대국 리포트,
+// 여러 기보 분석). Website only (the GPU's own page has no database access); an admin watching never reports.
+let speedAt = -Infinity;
+function reportSpeed(vps, ms, visits) {
+  if (!token || viewOnly || batchMode || GPU_HOST.test(location.hostname)) return;
+  if (ms < 5000 || visits < 500 || autoId || strengthId || batchQ || performance.now() - speedAt < 60000) return;
+  speedAt = performance.now();
+  import("./app.js").then(({ sb }) => sb.rpc("report_speed", { p_token: token, p_vps: vps })).catch(() => {});
 }
 // 빠름 / 보통 / 정밀 / 초정밀: one setting for 자동분석 and 대국 리포트.
 // Each skips the moves already analysed at least that deep, so what one of them did, the other does not redo.

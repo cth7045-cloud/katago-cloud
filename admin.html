@@ -56,6 +56,17 @@
     </div>
 
     <div class="panel">
+      <h2>GPU·모델별 속도</h2>
+      <p class="muted small">회원이 분석 화면에서 실시간 분석을 5초 넘게 돌리면 그때의 visits/s가 1분에 한 번 기록됩니다(자동분석·대국 리포트와 함께 돌 때는 빼고). 평균은 대여마다의 평균을 다시 평균한 값입니다. '준비 때 측정'은 예전에 GPU를 준비하며 KataGo 벤치마크로 잰 값입니다.</p>
+      <label class="field" style="max-width:260px">모델<select id="speedModel"><option value="">전체</option></select></label>
+      <div class="table-wrap"><table>
+        <thead><tr><th>GPU</th><th class="num">평균 visits/s</th><th>모델</th><th class="num">최고</th><th class="num" title="측정한 대여 수 · 기록 횟수">대여·기록</th><th class="num">스레드</th><th>마지막 측정</th><th>출처</th></tr></thead>
+        <tbody id="speedRows"></tbody>
+      </table></div>
+      <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
+    </div>
+
+    <div class="panel">
       <h2>회원</h2>
       <div class="table-wrap"><table>
         <thead><tr><th>이름</th><th>이메일</th><th class="num">잔액</th><th>가입</th></tr></thead>
@@ -88,8 +99,8 @@ import { $, api, esc, sb, toast, when, won } from "./app.js";
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
-const PAGE = 10, pages = { session: 1, ledger: 1 }, lists = { session: [], ledger: [] };
-const render = { session: null, ledger: null };
+const PAGE = 10, pages = { session: 1, ledger: 1, speed: 1 }, lists = { session: [], ledger: [], speed: [] };
+const render = { session: null, ledger: null, speed: null };
 function showPage(key) {
   const rows = lists[key], last = Math.max(1, Math.ceil(rows.length / PAGE));
   const cur = pages[key] = Math.min(Math.max(1, pages[key]), last);
@@ -113,8 +124,10 @@ async function load() {
   try {
     // admins spend Vast credit, not their site balance: show the same figure as the home page (Vast − members)
     // 최근 입출금 comes from the database function admin_ledger (only what an admin did by hand, 2026-09-29)
-    const [d, funds, ledger] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null),
-      sb.rpc("admin_ledger").then(({ data, error }) => { if (error) throw error; return data ?? []; })]);
+    const [d, funds, ledger, speed] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null),
+      sb.rpc("admin_ledger").then(({ data, error }) => { if (error) throw error; return data ?? []; }),
+      // GPU·모델별 속도 (admin_speed, 2026-09-29); an error here only empties that table
+      sb.rpc("admin_speed").then(({ data, error }) => (error ? null : data ?? []))]);
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
     formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
     names = Object.fromEntries(d.members.map((m) => [m.id, (m.name || "").trim()]));
@@ -173,10 +186,34 @@ async function load() {
       `<td>${esc(KIND[r.kind] || r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("")
       || `<tr><td colspan="5" class="muted">없음</td></tr>`; };
     showPage("ledger");
+    speedRows = speed;
+    showSpeed();
   } catch (e) {
     $("err").textContent = e.message;
   }
 }
+
+// GPU·모델별 속도: the admin picks a model; rows sort fastest first
+const MODEL_NAMES = { "transformer-large": "Transformer 대형", "transformer-medium": "Transformer 중형", "transformer-small": "Transformer 소형",
+  "model-cnn-b40-latest": "CNN b40", "model-cnn-b28-latest": "CNN b28", "model-muon-b28": "b28 Muon", "model-cnn-b18-latest": "CNN b18" };
+let speedRows = [];
+const modelName = (r) => r.model_name || MODEL_NAMES[r.model_id] || r.model_id;
+function showSpeed() {
+  if (speedRows == null) { $("speedRows").innerHTML = `<tr><td colspan="8" class="muted">속도 기록을 불러오지 못했습니다.</td></tr>`; $("speedPager").innerHTML = ""; return; }
+  const pick = $("speedModel"), keep = pick.value;
+  const ids = [...new Set(speedRows.map((r) => r.model_id))].sort((a, b) => modelName({ model_id: a }).localeCompare(modelName({ model_id: b }), "ko"));
+  pick.innerHTML = `<option value="">전체</option>` + ids.map((id) => `<option value="${esc(id)}">${esc(modelName({ model_id: id }))}</option>`).join("");
+  pick.value = ids.includes(keep) ? keep : "";
+  lists.speed = speedRows.filter((r) => !pick.value || r.model_id === pick.value)
+    .sort((a, b) => (a.source === b.source ? 0 : a.source === "use" ? -1 : 1) || Number(b.avg_vps) - Number(a.avg_vps));
+  showPage("speed");
+}
+render.speed = (list) => { $("speedRows").innerHTML = list.map((r) => `<tr><td>${esc(r.gpu_name)}</td><td class="num"><b>${Number(r.avg_vps).toLocaleString()}</b></td>` +
+  `<td>${esc(modelName(r))}</td><td class="num">${Number(r.best_vps).toLocaleString()}</td>` +
+  `<td class="num">${r.source === "use" ? `${r.sessions} · ${r.samples}` : ""}</td><td class="num">${r.threads ?? ""}</td><td>${when(r.last_at)}</td>` +
+  `<td class="small muted">${r.source === "use" ? "실사용" : "준비 때 측정"}</td></tr>`).join("")
+  || `<tr><td colspan="8" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
+$("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
 
 // pricing: what an RTX 3060 at $0.0622/h would cost a member with the values being typed (same rounding as the server)
 let priceDirty = false;
