@@ -352,3 +352,10 @@ button.quiet.shared { color: var(--good); }
 #installAuth { max-width: 560px; margin: 28px 0 0; flex-wrap: nowrap; }
 #installAuth .grow { flex: 1 1 0; min-width: 0; }
 #installAuth b { font-size: 17px; margin-bottom: 2px; }
+
+/* page numbers under a long admin list (‹ 1 2 3 4 5 ›) */
+.pager { display: flex; justify-content: center; gap: 4px; margin-top: 14px; flex-wrap: wrap; }
+.pager:empty { display: none; }
+.pager button { min-width: 40px; min-height: 40px; padding: 6px 10px; background: transparent; color: var(--muted); box-shadow: none; }
+.pager button.on { color: var(--blue-deep); background: var(--soft); }
+.pager button:disabled { opacity: .35; cursor: default; transform: none; }

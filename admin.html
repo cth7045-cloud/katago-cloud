@@ -52,6 +52,7 @@
           <th class="num" title="Vast가 실제로 청구한 금액(GPU·디스크·다운로드·업로드) × 환율. 10분마다 갱신, 최근 3일 세션만">실제 원가</th><th class="num">차익</th><th>시작</th><th>종료</th><th class="num" title="시작부터 종료까지(사용 중이면 지금까지). GPU 부팅 시간 포함">사용 시간</th><th>메모</th><th></th></tr></thead>
         <tbody id="sessionRows"></tbody>
       </table></div>
+      <nav class="pager" id="sessionPager" aria-label="GPU 목록 페이지"></nav>
     </div>
 
     <div class="panel">
@@ -73,10 +74,12 @@
 
     <div class="panel">
       <h2>최근 입출금</h2>
+      <p class="muted small">관리자가 직접 충전하거나 회수한 기록만 보입니다. GPU 사용 요금은 위 GPU 목록에 있습니다.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>시각</th><th>회원</th><th>종류</th><th>내용</th><th class="num">금액</th></tr></thead>
         <tbody id="ledgerRows"></tbody>
       </table></div>
+      <nav class="pager" id="ledgerPager" aria-label="입출금 목록 페이지"></nav>
     </div>
   </div>
 </main>
@@ -84,6 +87,21 @@
 import { $, api, esc, sb, toast, when, won } from "./app.js";
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
+// long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
+const PAGE = 10, pages = { session: 1, ledger: 1 }, lists = { session: [], ledger: [] };
+const render = { session: null, ledger: null };
+function showPage(key) {
+  const rows = lists[key], last = Math.max(1, Math.ceil(rows.length / PAGE));
+  const cur = pages[key] = Math.min(Math.max(1, pages[key]), last);
+  render[key](rows.slice((cur - 1) * PAGE, cur * PAGE));
+  const from = Math.max(1, Math.min(cur - 2, last - 4)), to = Math.min(last, from + 4);
+  let html = `<button type="button" data-page="${cur - 1}" aria-label="이전 페이지"${cur === 1 ? " disabled" : ""}>‹</button>`;
+  for (let i = from; i <= to; i++) html += `<button type="button" data-page="${i}"${i === cur ? ' class="on" aria-current="page"' : ""}>${i}</button>`;
+  html += `<button type="button" data-page="${cur + 1}" aria-label="다음 페이지"${cur === last ? " disabled" : ""}>›</button>`;
+  const nav = $(key + "Pager");
+  nav.innerHTML = last > 1 ? html : "";
+  nav.onclick = (ev) => { const n = Number(ev.target.dataset?.page); if (n) { pages[key] = n; showPage(key); } };
+}
 let emails = {}, formers = {}, names = {}, formerNames = {}, members = [];
 // records of deleted accounts keep no member id; former_member says whose they were
 const who = (id, former) => (id ? emails[id] || "?" : `탈퇴: ${formers[former] || "?"}`);
@@ -94,7 +112,9 @@ async function load() {
   $("err").textContent = "";
   try {
     // admins spend Vast credit, not their site balance: show the same figure as the home page (Vast − members)
-    const [d, funds] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null)]);
+    // 최근 입출금 comes from the database function admin_ledger (only what an admin did by hand, 2026-09-29)
+    const [d, funds, ledger] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null),
+      sb.rpc("admin_ledger").then(({ data, error }) => { if (error) throw error; return data ?? []; })]);
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
     formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
     names = Object.fromEntries(d.members.map((m) => [m.id, (m.name || "").trim()]));
@@ -126,7 +146,8 @@ async function load() {
       const m = Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000));
       return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
     };
-    $("sessionRows").innerHTML = d.sessions.slice(0, 40).map((x) => {
+    lists.session = d.sessions;
+    render.session = (list) => { $("sessionRows").innerHTML = list.map((x) => {
       const live = ACTIVE.includes(x.status);
       const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
       const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;
@@ -143,22 +164,15 @@ async function load() {
           // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing)
           ? `<a class="btn" target="_blank" rel="noopener" href="analysis.html?v=${Date.now()}#u=${encodeURIComponent(x.web_url)}&t=${encodeURIComponent(x.web_token)}&view=1">화면 보기</a> ` : ""}` +
         `${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
-    }).join("") || `<tr><td colspan="13" class="muted">없음</td></tr>`;
-    // sessions before 2026-09-27 wrote one usage row per minute: show one row per rental like the new ones.
-    // A usage row belongs to the member's session running at that time (a member has one GPU at a time).
-    const t = (v) => new Date(v).getTime();
-    const sessionOf = (r) => d.sessions.find((x) => (r.user_id ? x.user_id === r.user_id : x.former_member === r.former_member) &&
-      t(x.created_at) <= t(r.created_at) && (!x.stopped_at || t(r.created_at) <= t(x.stopped_at) + 120_000))?.id;
-    const rows = [], bySession = {};
-    for (const r of d.ledger) {
-      const sid = r.kind === "usage" ? sessionOf(r) : null, g = sid && bySession[sid];
-      if (!g) { const c = { ...r }; rows.push(c); if (sid) bySession[sid] = c; continue; }
-      g.amount_krw += r.amount_krw;
-      g.mins = (g.mins ?? Number(/(\d+)분/.exec(g.note)?.[1] ?? 0)) + Number(/(\d+)분/.exec(r.note)?.[1] ?? 0);
-      g.note = g.note.replace(/\d+분/, `${g.mins}분`);
-    }
-    $("ledgerRows").innerHTML = rows.slice(0, 60).map((r) => `<tr><td>${when(r.created_at)}</td><td title="${esc(who(r.user_id, r.former_member))}">${esc(whoName(r.user_id, r.former_member))}</td>` +
-      `<td>${esc(r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("");
+    }).join("") || `<tr><td colspan="13" class="muted">없음</td></tr>`; };
+    showPage("session");
+    // what an admin did by hand: 충전(topup, +) and 회수(adjust, −)
+    const KIND = { topup: "충전", adjust: "회수" };
+    lists.ledger = ledger;
+    render.ledger = (list) => { $("ledgerRows").innerHTML = list.map((r) => `<tr><td>${when(r.created_at)}</td><td title="${esc(who(r.user_id, r.former_member))}">${esc(whoName(r.user_id, r.former_member))}</td>` +
+      `<td>${esc(KIND[r.kind] || r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">없음</td></tr>`; };
+    showPage("ledger");
   } catch (e) {
     $("err").textContent = e.message;
   }
