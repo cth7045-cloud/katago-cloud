@@ -56,6 +56,7 @@
       <div class="wrap">
         <a class="brand" href="#" id="homeLink"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
         <span class="who" id="who"></span>
+        <a href="#charge" id="chargeLink">충전</a>
         <a href="guide.html">가이드</a>
         <a href="#me" id="meLink">내 정보</a>
         <a href="analysis.html" id="analysisLink" class="hidden" target="_blank" rel="noopener">분석 화면</a>
@@ -272,6 +273,20 @@
       </div>
     </div>
 
+    <!-- 잔액 충전 (#charge): members ask the operator through the KakaoTalk open chat -->
+    <div class="wrap app hidden" id="chargeView">
+      <a class="back to-hub" href="./">‹ 처음으로</a>
+      <h1 class="page-title">잔액 충전</h1>
+      <div class="panel charge-card">
+        <p class="charge-lead">잔액 충전은 관리자에게 문의하세요</p>
+        <p class="muted small" style="margin:0">카카오톡 오픈채팅으로 충전할 금액을 알려 주시면 안내해 드립니다.</p>
+        <img class="charge-qr" src="charge/kakao-openchat-qr.png" width="800" height="800" alt="카카오톡 오픈채팅방 QR 코드">
+        <p class="muted small hide-sm" style="margin:0">휴대폰 카메라로 QR 코드를 찍으면 오픈채팅방이 열립니다.</p>
+        <a class="btn primary charge-open" href="https://open.kakao.com/o/ssRZTShi" target="_blank" rel="noopener">카카오톡 오픈채팅 열기</a>
+        <p class="small charge-balance">지금 잔액 <b id="chargeBalance">-</b></p>
+      </div>
+    </div>
+
     <!-- my account (#me) -->
     <div class="wrap app hidden" id="meView">
       <a class="back to-hub" href="./">‹ 처음으로</a>
@@ -463,12 +478,14 @@ async function refresh() {
     : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;   // a server before 2026-09-27 sends only the Vast balance
   $("walletNote").textContent = p.is_admin
     ? "관리자 잔액은 Vast 잔액에서 회원들이 충전해 둔 잔액을 뺀 금액입니다. 관리자 GPU는 원가로 여기서 나가고, 0원이 되면 자동으로 꺼집니다."
-    : "충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.";
+    : "";
+  if (!p.is_admin) $("walletNote").innerHTML = `충전은 <a href="#charge">잔액 충전</a>에서 관리자에게 문의하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.`;
   $("who").textContent = p.name || p.email;
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
-  $("meBalance").textContent = won(balance);
+  $("meBalance").textContent = won(balance); $("chargeBalance").textContent = won(balance);
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   $("adminLink").classList.toggle("hidden", !p.is_admin);
+  $("chargeLink").classList.toggle("hidden", p.is_admin);   // the operator tops up members, not their own balance
   $("analysisLink").classList.remove("hidden");   // without a GPU: saved games (내 기보) and SGF files, no new analysis
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
   const state = session && { creating: "대여 중", booting: "부팅 중", setup: "설치 중", ready: "사용 가능", stopping: "종료 중" }[session.status];
@@ -892,7 +909,7 @@ new IntersectionObserver((entries, io) => {
 }, { threshold: .2 }).observe($("how"));
 
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
-const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#study": "studyView", "#me": "meView" };
+const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#study": "studyView", "#me": "meView", "#charge": "chargeView" };
 function showPage() {
   const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : "hubView");
   // one set of GPU parts (balance, my GPU, choosing one): on the 기보 분석 page while it shows, else on GPU 대여
@@ -900,6 +917,7 @@ function showPage() {
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
   for (const v of ["hubView", ...Object.values(PAGES)]) $(v).classList.toggle("hidden", v !== page);
   $("meLink").classList.toggle("on", page === "meView");
+  $("chargeLink").classList.toggle("on", page === "chargeView");
   if (page === "mineView") showMineFolder();
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
