@@ -395,7 +395,7 @@ button.primary:hover { background: var(--blue-deep); }
 
 /* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
 @media (orientation: portrait) {
-  body { grid-template-rows: auto auto minmax(0, 1fr); }
+  body { grid-template-rows: auto auto minmax(0, 1fr); overflow-y: auto; }   /* scrolls only if a very short screen still overflows */
   .main { display: flex; flex-direction: column; padding: 0; gap: 0; }
   .brand span:last-child { display: none; }
   .center { order: 1; }
@@ -407,7 +407,7 @@ button.primary:hover { background: var(--blue-deep); }
   .bar-off.graph-open #graphBox { margin-top: 0; }
   .bar-off:not(.graph-open) .left { display: none; }
   #board { box-shadow: none; }
-  .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start;
+  .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start; align-self: start;   /* its own height: layout() measures it */
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .toolbar button, .toolbar input { min-height: 42px; padding: 2px; width: 100%; }
   .toolbar button:not(.on):not(.pink):not(#analyze) { background: var(--panel); box-shadow: 0 1px 2px rgba(23, 26, 34, .06); }
@@ -2889,9 +2889,12 @@ function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r
 function layout() {
   placeMenuItems();
   const [bw, bh] = fitBox($("boardBox"));
-  // portrait: as wide as the screen, leaving room for the win-rate bar and two rows of buttons
+  // portrait: as wide as the screen, leaving room for the win-rate bar and what is under it: the buttons, a message
+  // line, the 오답노트 answer bar. Measured, not assumed (user report 2026-09-28: a fixed 110 px cut the bottom off on a
+  // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
   const side = matchMedia("(orientation: portrait)").matches
-    ? Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight - document.querySelector(".left").offsetHeight - 110)
+    ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight
+        - document.querySelector(".left").offsetHeight - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
   boardG = geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
