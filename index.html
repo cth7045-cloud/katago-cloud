@@ -47,6 +47,15 @@
         <li style="--i:2"><span class="move black">3</span><div><b>분석 화면 열기</b><p>다 쓰면 GPU 종료를 누르세요. 요금이 그 자리에서 멈춥니다.</p></div></li>
       </ol>
       <p class="how-more"><a href="guide.html">자세한 사용법 보기</a></p>
+      <!-- 앱으로 설치: always here (a member who removed the app can install it again); hidden only inside the app -->
+      <div class="panel install-card" id="installAuth">
+        <span class="app-icon" aria-hidden="true"></span>
+        <div class="grow">
+          <b>홈 화면에 앱으로 설치</b>
+          <div class="small muted" data-install-how>주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</div>
+        </div>
+        <button class="primary" type="button" data-install>설치</button>
+      </div>
     </div>
   </section>
 
@@ -1076,13 +1085,14 @@ function installHow() {
   if (iOS) return /CriOS|FxiOS|EdgiOS/.test(ua) ? "Safari로 이 사이트를 연 뒤 아래쪽 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요."
     : "아래쪽(아이패드는 위쪽) 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요.";
   if (android) return "브라우저 메뉴(⋮) → '홈 화면에 추가' 또는 '앱 설치'를 누르세요.";
-  return "Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕)을 누르세요.";
+  return "Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕)을 누르세요. 이미 설치했다면 같은 자리의 '앱에서 열기'로 열 수 있습니다.";
 }
 function showInstall() {
   let hidden = false; try { hidden = localStorage.getItem("kgv.installHide") === "1"; } catch { /* private mode */ }
   const can = !standalone && (installEvent || iOS || android);
   $("installCard").classList.toggle("hidden", !can || hidden);
   $("installPanel").classList.toggle("hidden", standalone || !(installEvent || iOS || android || matchMedia("(pointer: fine)").matches));
+  $("installAuth").classList.toggle("hidden", standalone);   // the login page always offers it (to install again after removing)
   document.querySelectorAll("[data-install-how]").forEach((el) => { el.textContent = installHow(); });
   document.querySelectorAll("[data-install]").forEach((b) => b.classList.toggle("hidden", !installEvent));
 }

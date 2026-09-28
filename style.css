@@ -349,3 +349,6 @@ button.quiet.shared { color: var(--good); }
   #appView .bar .wrap { padding: 0 8px; gap: 0; }
   #appView .bar a:not(.brand), #appView .bar button.quiet { padding: 6px 4px; font-size: 13px; }
 }
+#installAuth { max-width: 560px; margin: 28px 0 0; flex-wrap: nowrap; }
+#installAuth .grow { flex: 1 1 0; min-width: 0; }
+#installAuth b { font-size: 17px; margin-bottom: 2px; }
