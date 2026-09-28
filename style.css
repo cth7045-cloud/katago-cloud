@@ -101,6 +101,7 @@ tr.sel:has(+ tr.pick-bar) td { border-bottom-color: transparent; }
 .pill.good { background: #def6e7; color: var(--good); }
 .pill.bad { background: #fdeced; color: var(--bad); }
 .pill.warn { background: #fff2d9; color: var(--warn); }
+.pill.fast { padding: 1px 7px; font-size: 11px; white-space: nowrap; vertical-align: 1px; }
 
 /* long lists scroll inside their panel; the page itself stays put */
 .scroll-box { max-height: min(56vh, 540px); overflow: auto; overscroll-behavior: contain; margin: 0; border-radius: 14px; }

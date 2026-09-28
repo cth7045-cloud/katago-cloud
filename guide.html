@@ -124,7 +124,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <li><b>회원가입</b> — 첫 화면에서 <span class="chip">회원가입</span>을 누르고 이름, 이메일, 비밀번호(8자 이상)를 넣습니다. 가입하면 바로 로그인됩니다.</li>
         <li><b>충전</b> — 요금은 미리 충전한 잔액에서 나갑니다. 충전은 관리자에게 요청하세요. 충전되면 <b>GPU 대여</b> 화면 위쪽 <b>내 잔액</b>에 금액이 보입니다.</li>
         <li><b>GPU 시작</b> — 처음 화면의 <b>GPU 대여</b>를 누르고 GPU 목록에서 하나를 골라 <span class="chip">이 GPU로 시작</span>을 누릅니다.</li>
-        <li><b>분석 화면 열기</b> — 3~6분 뒤 준비가 끝나면 <span class="chip">분석 화면 열기</span> 버튼이 나타납니다. 새 탭에서 분석 화면이 열립니다.</li>
+        <li><b>분석 화면 열기</b> — 보통 1~3분 뒤 준비가 끝나면 <span class="chip">분석 화면 열기</span> 버튼이 나타납니다. 새 탭에서 분석 화면이 열립니다.</li>
         <li><b>GPU 종료</b> — 다 쓰면 반드시 <span class="chip pink">GPU 종료</span>를 누르세요. 그 순간 요금이 멈춥니다.</li>
       </ol>
     </section>
@@ -163,7 +163,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
     <section id="price">
       <h2>요금과 자동 종료</h2>
       <ul>
-        <li>요금은 GPU를 빌린 순간부터 <b>1분 단위</b>로 잔액에서 차감됩니다. 준비하는 3~6분도 포함됩니다.</li>
+        <li>요금은 GPU를 빌린 순간부터 <b>1분 단위</b>로 잔액에서 차감됩니다. 준비하는 1~3분도 포함됩니다.</li>
 <li>쓴 시간만큼 목록의 <b>시간당 요금 그대로</b> 계산합니다. 예를 들어 시간당 170원 GPU를 30분 쓰면 85원입니다(1원 미만은 올림).</li>
         <li>시작하려면 잔액이 그 GPU로 <b>약 15분</b> 쓸 만큼은 있어야 합니다.</li>
         <li>준비 도중 실패해도 그때까지 쓴 시간의 요금은 나갑니다.</li>
@@ -460,7 +460,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
     <section id="faq" class="faq">
       <h2>자주 묻는 질문</h2>
       <details><summary>“분석 화면 열기”가 안 나타나요.</summary><div>
-        <p>보통 3~6분 걸립니다. <b>GPU 대여</b> 화면의 세 단계 중 어디까지 왔는지 보세요. 너무 오래 걸리면 GPU가 스스로 꺼지고 “실패”로 표시됩니다. 그때는 다른 GPU를 골라 다시 시작하세요.</p></div></details>
+        <p>보통 1~3분 걸립니다. 목록에서 <span class="chip">⚡빠른 시작</span>이 붙은 GPU는 최근에 써 본 서버라 더 빨리(보통 1분 안팎) 켜집니다. 처음 쓰는 서버는 프로그램을 내려받느라 1~2분 더 걸릴 수 있습니다. <b>GPU 대여</b> 화면의 세 단계 중 어디까지 왔는지 보세요. 너무 오래 걸리면 GPU가 스스로 꺼지고 “실패”로 표시됩니다. 그때는 다른 GPU를 골라 다시 시작하세요.</p></div></details>
       <details><summary>연결이 끊겼다고 나와요.</summary><div>
         <p>폰 화면이 꺼지거나 네트워크가 바뀌면 잠깐 끊겼다가 자동으로 다시 붙습니다. 화면으로 돌아오면 바로 연결을 확인하고, GPU의 접속 주소가 바뀌어도 사이트에 로그인된 브라우저는 새 주소로 알아서 옮겨 붙습니다. 계속 끊겨 있으면 <b>GPU 대여</b> 화면에서 GPU가 아직 “사용 가능”인지 보세요. 10분 동안 쓰지 않아 자동으로 꺼졌을 수 있습니다.</p></div></details>
       <details><summary>분석이 느려요.</summary><div>
