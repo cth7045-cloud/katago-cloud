@@ -1070,7 +1070,10 @@ let installEvent = null;
 const ua = navigator.userAgent;
 const iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const android = /Android/.test(ua);
+// KakaoTalk and the Naver apps open links in their own in-app browser, which cannot install a site as an app
+const inApp = /KAKAOTALK/i.test(ua) || /NAVER\(inapp/i.test(ua);
 function installHow() {
+  if (inApp) return "카카오톡·네이버 앱 안에서는 설치할 수 없습니다. 크롬에서 이 사이트를 열어 설치해 주세요.";
   if (installEvent) return "주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.";
   if (iOS) return /CriOS|FxiOS|EdgiOS/.test(ua) ? "Safari로 이 사이트를 연 뒤 아래쪽 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요."
     : "아래쪽(아이패드는 위쪽) 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요.";
