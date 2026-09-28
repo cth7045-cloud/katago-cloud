@@ -740,7 +740,9 @@ const recordMode = hashParams.get("record") === "1";   // 내 기보 → 기보 
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
 const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
-const GPU_URL = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+// The GPU's own address: a named tunnel on our domain (2026-09-28), or a quick tunnel (the fallback, and the PC app).
+const GPU_HOST = /^[a-z0-9-]+\.(trycloudflare\.com|katago\.dpdns\.org)$/;
+const GPU_URL = /^https:\/\/[a-z0-9-]+\.(trycloudflare\.com|katago\.dpdns\.org)$/;
 let remoteGpu = GPU_URL.test(hashParams.get("u") || "") ? hashParams.get("u") : "";   // changes if the GPU's tunnel restarts (watchGpu)
 let ws = null, qn = 0, liveId = null, autoId = null, autoLine = [], autoDone = 0;
 // One account = one board: every device of the member joins the same board through the GPU's bridge.
@@ -752,7 +754,7 @@ const queries = new Map();  // id -> {node} or {line}
 // the analysis stored in them, SGF files and 기보 불러오기, but no new analysis. (Admins only until 2026-09-27.)
 let site = null;  // the website's Supabase client, for the member's login
 async function openWithoutGpu() {
-  if (/\.trycloudflare\.com$/.test(location.hostname)) { $("conn").textContent = "주소에 접속 토큰이 없습니다"; return; }
+  if (GPU_HOST.test(location.hostname)) { $("conn").textContent = "주소에 접속 토큰이 없습니다"; return; }
   $("conn").textContent = "확인 중…";
   try {
     const { sb } = await import("./app.js");
@@ -1482,7 +1484,7 @@ let mineFolder = null, mineFolders = [];   // the opened game's 분류 (kifu_fol
 const hashFolder = /^[0-9a-f-]{36}$/.test(hashParams.get("folder") || "") ? hashParams.get("folder") : null;   // 기보 추가 from a folder
 async function mineClient() {
   if (mineSb) return mineSb;
-  if (viewOnly || /\.trycloudflare\.com$/.test(location.hostname)) return null;   // the GPU's own page has no login
+  if (viewOnly || GPU_HOST.test(location.hostname)) return null;   // the GPU's own page has no login
   try {
     const { sb } = await import("./app.js");
     const { data } = await sb.auth.getSession();
@@ -2934,7 +2936,7 @@ for (const id of ["showBar", "showGraph"]) $(id).onchange = () => {
 // ------------------------------------------------------------------ GPU time, cost and stop (website only, for the logged-in member)
 const LIVE = ["creating", "booting", "setup", "ready", "stopping"];
 async function watchGpu() {
-  if (!token || /\.trycloudflare\.com$/.test(location.hostname)) return;
+  if (!token || GPU_HOST.test(location.hostname)) return;
   let site; try { site = await import("./app.js"); } catch { return; }
   async function tick() {
     const {data: s} = await site.sb.from("gpu_sessions").select("status,charged_krw,instance_created_at,created_at,web_url")
@@ -2983,7 +2985,7 @@ function gunzip(m) {
   return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
 }
 async function mirrorScreen() {
-  if (!token || /\.trycloudflare\.com$/.test(location.hostname) || !window.crypto || !crypto.subtle) return;
+  if (!token || GPU_HOST.test(location.hostname) || !window.crypto || !crypto.subtle) return;
   let site; try { site = await import("./app.js"); } catch { return; }
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
   const channel = site.sb.channel("kgv-watch-" + [...digest.slice(0, 12)].map(b => b.toString(16).padStart(2, "0")).join(""));
