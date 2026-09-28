@@ -22,12 +22,34 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
 .mine-find { margin-bottom: 10px; }
-.folder-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-.chip-btn { min-height: 34px; padding: 5px 14px; font-size: 14px; background: var(--soft); color: var(--ink); }
-.chip-btn span { color: var(--muted); font-weight: 500; margin-left: 2px; }
-.chip-btn.on { background: var(--blue); color: #fff; }
-.chip-btn.on span { color: rgba(255, 255, 255, .8); }
-.chip-btn.add { background: transparent; color: var(--blue); border: 1px dashed #c9d3ea; }
+.mine-top { margin: 8px 0 18px; }
+.folder-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; margin-bottom: 18px; }
+.folder-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 190px; padding: 24px 24px 22px; text-align: left;
+  font: inherit; color: var(--ink); background: var(--panel); border: 0; border-radius: 28px; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(23, 26, 34, .04), 0 18px 40px -24px rgba(44, 92, 246, .25); transition: transform .25s var(--ease), box-shadow .25s; }
+.folder-card:hover { text-decoration: none; background: var(--panel); transform: translateY(-4px); box-shadow: 0 1px 2px rgba(23, 26, 34, .04), 0 26px 50px -20px rgba(44, 92, 246, .3); }
+.folder-card:active { transform: scale(.98); }
+.folder-card b { margin-top: 20px; font-size: 22px; font-weight: 800; letter-spacing: -.03em; line-height: 1.2; overflow-wrap: anywhere; }
+.folder-card .hub-icon { width: 54px; height: 54px; border-radius: 18px; margin: 0; align-self: flex-start; grid-row: auto; }
+.folder-card .hub-icon svg { width: 28px; height: 28px; }
+.folder-n { font-size: 14px; font-weight: 700; color: var(--blue); }
+.folder-last { color: var(--muted); font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-card.add { background: transparent; border: 2px dashed #cfd8ec; box-shadow: none; }
+.folder-card.add b { color: var(--blue); }
+.hub-icon.folder { background: #e8eefe; color: var(--blue); }
+.hub-icon.folder.c1 { background: #fbefd9; color: #9a6a1f; }
+.hub-icon.folder.c2 { background: #e5f5ec; color: var(--good); }
+.hub-icon.folder.c3 { background: #ece9fd; color: #5b47d6; }
+.hub-icon.folder.c4 { background: #fde8ef; color: #c2386b; }
+.hub-icon.folder.none { background: var(--soft); color: var(--muted); }
+.hub-icon.folder.add { background: transparent; color: var(--blue); }
+@media (max-width: 640px) {
+  .folder-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .folder-card { min-height: 150px; padding: 18px 16px 16px; border-radius: 22px; }
+  .folder-card b { margin-top: 12px; font-size: 18px; }
+  .folder-card .hub-icon { width: 44px; height: 44px; border-radius: 14px; }
+  .folder-card .hub-icon svg { width: 24px; height: 24px; }
+}
 .folder-tools { display: inline-flex; gap: 4px; margin-left: auto; }
 .folder-tools button { min-height: 34px; padding: 5px 12px; font-size: 13px; }
 .folder-col select { min-height: 34px; padding: 4px 8px; font-size: 13px; max-width: 150px; }

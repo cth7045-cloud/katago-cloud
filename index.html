@@ -197,15 +197,27 @@
 
     <!-- saved games (#mine, 내 기보) -->
     <div class="wrap app hidden" id="mineView">
-      <a class="back to-hub" href="./">‹ 처음으로</a>
-      <h1 class="page-title">내 기보</h1>
-      <div class="panel" id="mineCard">
-        <div class="row" style="margin-bottom:14px">
-          <h2 class="grow" style="margin:0">저장한 기보</h2>
-          <span class="muted small" id="mineCount"></span>
-          <button class="primary" id="mineAdd" type="button" title="GPU 없이 빈 판에 기보를 직접 두어 기록합니다">＋ 기보 추가</button>
+      <a class="back to-hub" href="./" id="mineBackHub">‹ 처음으로</a>
+      <a class="back hidden" href="#mine" id="mineBack">‹ 내 기보</a>
+      <h1 class="page-title" id="mineHead">내 기보</h1>
+      <!-- the folders, as cards (#mine) -->
+      <div id="folderHome">
+        <div class="row mine-top">
+          <span class="muted" id="mineCount"></span>
+          <span class="grow"></span>
+          <button class="primary" type="button" data-mine-add title="GPU 없이 빈 판에 기보를 직접 두어 기록합니다">＋ 기보 추가</button>
         </div>
-        <div class="folder-bar" id="folderBar" role="group" aria-label="분류"></div>
+        <nav class="folder-cards" id="folderCards" aria-label="분류"></nav>
+        <p class="small muted">분류는 <b>＋ 새 분류</b>로 직접 만들고(예: 타이젬 기보, 오프라인 기보), 분류를 연 뒤 기보마다 <b>분류</b> 칸에서 옮깁니다. 분류를 지워도 안의 기보는 '분류 없음'으로 갑니다.</p>
+      </div>
+      <!-- one folder's games (#mine/<all|none|id>) -->
+      <div class="panel hidden" id="mineCard">
+        <div class="row" style="margin-bottom:14px">
+          <h2 class="grow" style="margin:0" id="folderTitle">전체 기보</h2>
+          <span class="muted small" id="folderCount"></span>
+          <span class="folder-tools hidden" id="folderTools"><button type="button" class="quiet" data-folder-rename>이름 바꾸기</button><button type="button" class="quiet" data-folder-del>분류 지우기</button></span>
+          <button class="primary" type="button" data-mine-add title="GPU 없이 빈 판에 기보를 직접 두어 기록합니다">＋ 기보 추가</button>
+        </div>
         <div class="row mine-find hidden" id="mineFind">
           <input type="search" id="mineQuery" placeholder="기보 찾기: 제목·대국자·날짜·결과 (예: 홍길동 2026-09 흑 불계)" aria-label="기보 찾기" autocomplete="off">
           <select id="mineSort" aria-label="정렬">
@@ -220,7 +232,7 @@
             <tbody id="mineRows"><tr><td colspan="9" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
-        <div class="small muted" style="margin-top:14px">분석 화면의 '내 기보 저장'으로 저장한 기보입니다(최대 100판). <b>기보 추가</b>를 누르면 GPU 없이 빈 판에 수를 두어 기보를 기록하고 저장할 수 있습니다. <b>분류</b>는 '＋ 새 분류'로 직접 만들고(예: 타이젬 기보, 오프라인 기보), 기보마다 분류 칸에서 옮깁니다. 기보를 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
+        <div class="small muted" style="margin-top:14px">분석 화면의 '내 기보 저장'으로 저장한 기보입니다(최대 100판). <b>기보 추가</b>를 누르면 GPU 없이 빈 판에 수를 두어 기보를 기록하고 저장할 수 있습니다(이 분류로 저장). 각 기보의 <b>분류</b> 칸에서 다른 분류로 옮깁니다. 기보를 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
       </div>
     </div>
 
@@ -450,15 +462,14 @@ $("stopButton").onclick = async () => {
 
 // ------------------------------------------------------------------ 내 기보 (saved on the analysis screen)
 let mine = [], folders = [];   // folders: the member's own 분류 (kifu_folders)
-let curFolder = "all";         // "all" | "none" (분류 없음) | a folder id
-try { curFolder = localStorage.getItem("kgv.mineFolder") || "all"; } catch { /* storage blocked */ }
+let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" (분류 없음) | a folder id; null = the folder cards
 async function loadMine() {
   const [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id").order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; return; }
   mine = data || []; folders = fr.error ? [] : fr.data || [];
-  if (curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) curFolder = "all";
+  if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
   $("hubMine").textContent = mine.length ? `${mine.length}판 저장` : "저장한 기보 없음";
   $("mineCount").textContent = `${mine.length} / 100판`;
   showMine();
@@ -490,7 +501,7 @@ function showMine() {
   $("mineFind").classList.toggle("hidden", mine.length < 2);
   $("mineCard").classList.toggle("no-folders", !folders.length);
   const opts = (sel) => `<option value="">분류 없음</option>` + folders.map((f) => `<option value="${f.id}"${f.id === sel ? " selected" : ""}>${esc(f.name)}</option>`).join("");
-  const filtered = words.length || onlyAnalyzed || curFolder !== "all";
+  const filtered = words.length || onlyAnalyzed;
   $("mineShown").textContent = filtered ? `${rows.length}판 찾음` : "";
   $("mineRows").innerHTML = rows.map(({ k, i }) =>
     `<tr class="pick" data-open="${i}"><td><b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
@@ -499,24 +510,38 @@ function showMine() {
     `<td style="text-align:right;white-space:nowrap"><button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
     || `<tr><td colspan="9" class="muted">${!mine.length ? "아직 저장한 기보가 없습니다." : words.length || onlyAnalyzed ? "찾는 기보가 없습니다." : "이 분류에는 기보가 없습니다."}</td></tr>`;
 }
-// 분류 (folders): 전체 · each folder · 분류 없음 as buttons; the chosen folder can be renamed or deleted
+// 분류 (folders): #mine shows them as cards (전체 · each folder · 분류 없음 · ＋ 새 분류); a card opens #mine/<key>,
+// the list of that folder's games, where the folder can be renamed or deleted.
+const FOLDER_ICON = `<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
+const ALL_ICON = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="9" cy="9" r="2.4" class="bs"/><circle cx="15" cy="15" r="2.4" class="ws"/></svg>`;
+const folderGames = (id) => mine.filter((k) => id === "all" ? true : id === "none" ? !k.folder_id || !folders.some((f) => f.id === k.folder_id) : k.folder_id === id);
 function drawFolders() {
-  const count = (id) => mine.filter((k) => id === "none" ? !k.folder_id || !folders.some((f) => f.id === k.folder_id) : k.folder_id === id).length;
-  const chip = (id, name, n) => `<button type="button" class="chip-btn${curFolder === id ? " on" : ""}" data-folder="${id}">${esc(name)} <span>${n}</span></button>`;
+  const card = (id, name, cls, icon) => {
+    const games = folderGames(id), last = games[0];
+    return `<a class="folder-card" href="#mine/${id}"><span class="hub-icon ${cls}" aria-hidden="true">${icon}</span><b>${esc(name)}</b>` +
+      `<span class="folder-n">${games.length}판</span><span class="folder-last">${last ? esc(last.title) : "비어 있음"}</span></a>`;
+  };
+  $("folderCards").innerHTML = card("all", "전체 기보", "kifu", ALL_ICON) +
+    folders.map((f, k) => card(f.id, f.name, "folder c" + (k % 5), FOLDER_ICON)).join("") +
+    (folders.length ? card("none", "분류 없음", "folder none", FOLDER_ICON) : "") +
+    `<button type="button" class="folder-card add" data-folder-add><span class="hub-icon folder add" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><b>새 분류</b><span class="folder-last">예: 타이젬 기보, 오프라인 기보</span></button>`;
+  // the open folder's head
   const picked = folders.find((f) => f.id === curFolder);
-  $("folderBar").innerHTML = chip("all", "전체", mine.length) + folders.map((f) => chip(f.id, f.name, count(f.id))).join("") +
-    (folders.length ? chip("none", "분류 없음", count("none")) : "") +
-    `<button type="button" class="chip-btn add" data-folder-add>＋ 새 분류</button>` +
-    (picked ? `<span class="folder-tools"><button type="button" class="quiet" data-folder-rename>이름 바꾸기</button><button type="button" class="quiet" data-folder-del>분류 지우기</button></span>` : "");
+  $("folderTitle").textContent = curFolder === "all" ? "전체 기보" : curFolder === "none" ? "분류 없음" : picked ? picked.name : "";
+  $("folderCount").textContent = curFolder ? `${folderGames(curFolder).length}판` : "";
+  $("folderTools").classList.toggle("hidden", !picked);
   // 기보 분석 page: which folder the analysed games go into (kept once chosen, else the folder open in 내 기보)
   const keep = $("batchFolder").value || (picked ? picked.id : "");
   $("batchFolder").innerHTML = `<option value="">저장할 분류: 없음</option>` + folders.map((f) => `<option value="${f.id}">저장할 분류: ${esc(f.name)}</option>`).join("");
   $("batchFolder").value = folders.some((f) => f.id === keep) ? keep : "";
   $("batchFolder").classList.toggle("hidden", !folders.length);
 }
-function pickFolder(id) {
-  curFolder = id;
-  try { localStorage.setItem("kgv.mineFolder", id); } catch { /* storage blocked */ }
+function showMineFolder() {   // from the hash: the cards, or one folder's list
+  const m = /^#mine\/(all|none|[0-9a-f-]{36})$/.exec(location.hash);
+  curFolder = m ? m[1] : null;
+  $("folderHome").classList.toggle("hidden", !!curFolder); $("mineCard").classList.toggle("hidden", !curFolder);
+  $("mineBack").classList.toggle("hidden", !curFolder); $("mineBackHub").classList.toggle("hidden", !!curFolder);
+  if (!curFolder) $("mineQuery").value = "";
   showMine();
 }
 async function newFolder() {   // → the new folder's id, or null
@@ -527,11 +552,12 @@ async function newFolder() {   // → the new folder's id, or null
   if (error) { toast(/duplicate|unique/i.test(error.message) ? "같은 이름의 분류가 이미 있습니다." : error.message, true); return null; }
   return data.id;
 }
-$("folderBar").onclick = async (ev) => {
-  const b = ev.target.closest("button"); if (!b) return;
-  if (b.dataset.folder) return pickFolder(b.dataset.folder);
-  if ("folderAdd" in b.dataset) { const id = await newFolder(); if (id) { curFolder = id; pickFolder(id); await loadMine(); toast("분류를 만들었습니다. 기보의 분류 칸에서 이 분류로 옮기세요."); } return; }
-  const f = folders.find((x) => x.id === curFolder); if (!f) return;
+$("folderCards").onclick = async (ev) => {
+  if (!ev.target.closest("[data-folder-add]")) return;
+  if (await newFolder()) { await loadMine(); toast("분류를 만들었습니다. 전체 기보에서 기보의 분류 칸으로 옮기세요."); }
+};
+$("folderTools").onclick = async (ev) => {
+  const b = ev.target.closest("button"); const f = b && folders.find((x) => x.id === curFolder); if (!f) return;
   if ("folderRename" in b.dataset) {
     const name = (prompt("분류 이름 바꾸기", f.name) || "").trim();
     if (!name || name === f.name) return;
@@ -543,8 +569,8 @@ $("folderBar").onclick = async (ev) => {
     const n = mine.filter((k) => k.folder_id === f.id).length;
     if (!confirm(`'${f.name}' 분류를 지울까요?` + (n ? `\n안에 있던 기보 ${n}판은 지워지지 않고 '분류 없음'으로 갑니다.` : ""))) return;
     const { error } = await sb.from("kifu_folders").delete().eq("id", f.id);
-    if (error) toast("지우지 못했습니다: " + error.message, true); else { toast("분류를 지웠습니다."); pickFolder("all"); }
-    loadMine();
+    if (error) { toast("지우지 못했습니다: " + error.message, true); return; }
+    toast("분류를 지웠습니다."); location.hash = "#mine";
   }
 };
 $("mineQuery").oninput = showMine;
@@ -699,11 +725,11 @@ function openNotes(phase = "") {
 $("notesOpen").onclick = () => openNotes();
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
-$("mineAdd").onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
+document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
   if (mine.length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
   const folder = folders.some((f) => f.id === curFolder) ? `&folder=${curFolder}` : "";   // saved into the folder on screen
   window.open(`analysis.html?v=${Date.now()}#record=1${folder}`, "_blank", "noopener");
-};
+}; });
 $("mineRows").onchange = async (ev) => {   // 분류 칸: move the game to another folder
   const sel = ev.target.closest("select[data-move]"); if (!sel) return;
   const k = mine[+sel.dataset.move]; if (!k) return;
@@ -790,12 +816,13 @@ new IntersectionObserver((entries, io) => {
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
 const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#study": "studyView", "#me": "meView" };
 function showPage() {
-  const page = PAGES[location.hash] || "hubView";
+  const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : "hubView");
   // one set of GPU parts (balance, my GPU, choosing one): on the 기보 분석 page while it shows, else on GPU 대여
   const slot = $(page === "analyzeView" ? "analyzeGpuSlot" : "homeGpuSlot");
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
   for (const v of ["hubView", ...Object.values(PAGES)]) $(v).classList.toggle("hidden", v !== page);
   $("meLink").classList.toggle("on", page === "meView");
+  if (page === "mineView") showMineFolder();
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
   window.scrollTo(0, 0);
