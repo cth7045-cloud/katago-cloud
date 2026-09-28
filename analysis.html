@@ -263,6 +263,8 @@ dialog[open] { animation: arrive .35s var(--ease); }
 #mineFindRow { padding-top: 0; padding-bottom: 6px; }
 #mineFindRow[hidden] { display: none; }
 #mineQuery { flex: 1 1 200px; min-width: 0; }
+#mineFolderPick { flex: 0 1 auto; max-width: 45%; }
+#mineFolderPick[hidden] { display: none; }
 #mineDlg { width: min(760px, calc(100vw - 16px)); max-height: 82dvh; }
 #mineDlg[open] { display: flex; flex-direction: column; }
 #mineRows tr { cursor: pointer; }
@@ -485,7 +487,7 @@ button.primary:hover { background: var(--blue-deep); }
     <span class="spacer"></span>
     <button id="mineClose">닫기</button>
   </div>
-  <div class="dlg-row" id="mineFindRow" hidden><input type="search" id="mineQuery" placeholder="기보 찾기: 제목·대국자·날짜·결과" aria-label="기보 찾기" autocomplete="off"></div>
+  <div class="dlg-row" id="mineFindRow" hidden><select id="mineFolderPick" aria-label="분류" hidden></select><input type="search" id="mineQuery" placeholder="기보 찾기: 제목·대국자·날짜·결과" aria-label="기보 찾기" autocomplete="off"></div>
   <div class="dlg-msg" id="mineMsg"></div>
   <div class="dlg-list"><table><thead><tr><th>제목</th><th class="w">흑</th><th class="w">백</th><th class="w">결과</th><th>수</th><th>분석</th><th class="w">저장</th><th></th></tr></thead><tbody id="mineRows"></tbody></table></div>
 </dialog>
@@ -495,6 +497,7 @@ button.primary:hover { background: var(--blue-deep); }
     <h2>내 기보에 저장</h2>
     <input type="text" id="saveTitle" maxlength="100" placeholder="제목" autocomplete="off">
     <div class="muted" id="saveInfo"></div>
+    <label class="gd-row" id="saveFolderRow"><span>분류</span><select id="saveFolder" aria-label="분류"></select></label>
     <div id="saveDo" role="group" aria-label="만들 것">
       <label class="check"><input type="checkbox" id="saveDoKifu"><span>기보 저장<small>기보와 분석값을 내 기보에 저장합니다.</small></span></label>
       <label class="check"><input type="checkbox" id="saveDoNotes"><span>오답노트 만들기<small id="saveDoNotesHint"></small></span></label>
@@ -1475,6 +1478,8 @@ $("kifuRows").addEventListener("click", async ev => {
 // saved only on the button). Opened without a GPU it shows the stored analysis; with a GPU the analysis continues and
 // 자동분석/대국 리포트 skip the positions already analysed at that strength.
 let mineSb = null, mineId = null, mineRoot = null, mineTitle = "", mineList = [];
+let mineFolder = null, mineFolders = [];   // the opened game's 분류 (kifu_folders id), and the member's folders
+const hashFolder = /^[0-9a-f-]{36}$/.test(hashParams.get("folder") || "") ? hashParams.get("folder") : null;   // 기보 추가 from a folder
 async function mineClient() {
   if (mineSb) return mineSb;
   if (viewOnly || /\.trycloudflare\.com$/.test(location.hostname)) return null;   // the GPU's own page has no login
@@ -1530,7 +1535,35 @@ $("saveMine").onclick = async () => {
   if (!["Kifu", "Notes"].some(k => $("saveDo" + k).checked)) $("saveDoKifu").checked = true;   // never open with nothing to do
   $("saveDoStopRow").hidden = !gpuOn(); $("saveDoStop").checked = false;   // off every time: turning the GPU off is never a leftover choice
   saveDoChanged();
+  await fillSaveFolders(again ? mineFolder : hashFolder || (() => { try { return localStorage.getItem("kgv.saveFolder"); } catch { return null; } })());
   $("saveDlg").showModal();
+};
+// 분류 in the save window: 분류 없음, the member's folders, or a new one made on the spot
+async function loadMineFolders(c) {
+  const {data, error} = await c.from("kifu_folders").select("id,name").order("name");
+  mineFolders = error ? [] : data || [];
+  return mineFolders;
+}
+async function fillSaveFolders(want) {
+  const c = await mineClient(); if (!c) return;
+  await loadMineFolders(c);
+  $("saveFolder").innerHTML = `<option value="">분류 없음</option>` +
+    mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="+">＋ 새 분류 만들기…</option>`;
+  $("saveFolder").value = mineFolders.some(f => f.id === want) ? want : "";
+  $("saveFolder").dataset.last = $("saveFolder").value;
+}
+$("saveFolder").onchange = async () => {
+  const sel = $("saveFolder");
+  if (sel.value !== "+") { sel.dataset.last = sel.value; return; }
+  const name = (prompt("새 분류 이름 (예: 타이젬 기보, 오프라인 기보)") || "").trim();
+  if (!name) { sel.value = sel.dataset.last || ""; return; }
+  const c = await mineClient();
+  const {data, error} = name.length > 30 ? {error: {message: "분류 이름은 30자까지입니다"}} : await c.from("kifu_folders").insert({name}).select("id").single();
+  if (error) {
+    $("saveMsg").textContent = /duplicate|unique/i.test(error.message) ? "같은 이름의 분류가 이미 있습니다" : error.message; $("saveMsg").classList.add("bad");
+    sel.value = sel.dataset.last || ""; return;
+  }
+  await fillSaveFolders(data.id);
 };
 function saveDoChanged() {
   const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked;
@@ -1561,15 +1594,17 @@ async function saveMine(asNew) {
   const kifu = $("saveDoKifu").checked, notes = $("saveDoNotes").checked, stop = $("saveDoStop").checked && gpuOn();
   const say = (t, bad = false) => { $("saveMsg").textContent = t; $("saveMsg").classList.toggle("bad", bad); };
   const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle();
+  const folder = $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
+  try { localStorage.setItem("kgv.saveFolder", folder || ""); } catch { /* storage blocked */ }
   if (stop && analysisRunning()) {   // 다 끝나면: save (and add the mistakes) when the analysis ends, then the GPU goes off
-    finishPlan = {kifu, notes, title, asNew, root};
+    finishPlan = {kifu, notes, title, asNew, root, folder};
     $("saveDlg").close();
     $("err").textContent = `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${kifu ? "저장하고 " : "오답노트를 담고 "}GPU를 끕니다`;
     return;
   }
   if (kifu) {
     $("saveGo").disabled = $("saveAsNew").disabled = true; say("저장 중…");
-    try { const why = await putMine(c, title, asNew); if (why) { say(why, true); return; } }
+    try { const why = await putMine(c, title, asNew, folder); if (why) { say(why, true); return; } }
     catch (err) { say("저장하지 못했습니다: " + err.message, true); return; }
     finally { $("saveAsNew").disabled = false; saveDoChanged(); }
   }
@@ -1577,14 +1612,16 @@ async function saveMine(asNew) {
   if (notes) { stopAfterNotes = stop; $("addNote").onclick(); }   // pick the mistakes; the GPU goes off when that window closes
   else if (stop) stopGpuNow("저장을 마쳐");
 }
-async function putMine(c, title, asNew) {   // the game on screen into 내 기보: "" when saved, else why not
+async function putMine(c, title, asNew, folder = null) {   // the game on screen into 내 기보 (folder: its 분류): "" when saved, else why not
   const row = await mineRow(title);
   if (!row) return "기보가 너무 큽니다(분석 포함 2MB 초과). 필요 없는 변화도를 지운 뒤 저장하세요.";
+  row.folder_id = folder;
   const update = !asNew && mineId && mineRoot === root;
   const {data: saved, error} = await (update ? c.from("saved_kifu").update(row).eq("id", mineId) : c.from("saved_kifu").insert(row)).select("id").single();
   if (error) return error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message;
-  mineId = saved.id; mineRoot = root; mineTitle = title;
-  $("err").textContent = update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다";
+  mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder;
+  const fname = folder && (mineFolders.find(f => f.id === folder) || {}).name;
+  $("err").textContent = (fname ? `'${fname}' 분류 · ` : "") + (update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다");
   return "";
 }
 // '다 끝나면 GPU 끄기' in the save window: now, after the 오답노트 window, or once 자동분석 / 대국 리포트 ends.
@@ -1602,7 +1639,7 @@ async function runFinishPlan(p) {
   if (p.root !== root) { $("err").textContent = "다른 기보를 열어 저장·GPU 끄기를 하지 않았습니다"; return; }
   const c = await mineClient(); if (!c) return;
   try {
-    if (p.kifu) { const why = await putMine(c, p.title, p.asNew); if (why) { $("err").textContent = why + " · GPU는 켜 둡니다"; return; } }
+    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder); if (why) { $("err").textContent = why + " · GPU는 켜 둡니다"; return; } }
     let note = "";
     if (p.notes) {   // nobody may be there to pick: the choice last made in the 오답노트에 담기 window
       let f = {side: "", level: "normal"};
@@ -1658,7 +1695,7 @@ function batchNotesSide(o) {   // "" both, "B"/"W", or null when "내 이름 쪽
   const name = (o.name || "").trim().toLowerCase(), has = v => !!name && (v || "").toLowerCase().includes(name);
   return has(root.info.PB) && !has(root.info.PW) ? "B" : has(root.info.PW) && !has(root.info.PB) ? "W" : has(root.info.PB) ? "" : null;
 }
-async function runBatch(files, lvl, notes) {
+async function runBatch(files, lvl, notes, folder = null) {
   if (LEVELS[lvl]) level = lvl;   // not setLevel(): the member's own 세기 on the analysis screen stays as it was
   batchStop = false;
   const c = await mineClient();
@@ -1677,6 +1714,7 @@ async function runBatch(files, lvl, notes) {
       const named = root.info.PB || root.info.PW || root.info.DT;
       const row = await mineRow((named ? mineDefaultTitle() : files[k].name.replace(/\.sgf$/i, "")).slice(0, 100));
       if (!row) { tell("error", {text: "분석 포함 2MB가 넘어 저장하지 못했습니다"}); continue; }
+      row.folder_id = folder;
       const {error} = c ? await c.from("saved_kifu").insert(row) : {error: {message: "로그인이 필요합니다"}};
       if (error) { tell("error", {text: error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message}); continue; }
       let note = "";
@@ -1696,7 +1734,7 @@ async function runBatch(files, lvl, notes) {
 }
 if (batchMode) addEventListener("message", ev => {
   if (ev.source !== parent || ev.origin !== location.origin || !ev.data) return;
-  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes);
+  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes, /^[0-9a-f-]{36}$/.test(ev.data.folder || "") ? ev.data.folder : null);
   if (ev.data.batch === "cancel") { batchStop = true; batchEnd(false); }
 });
 // A long 자동분석 / 대국 리포트 / 여러 기보 분석 is one request: without another one the GPU's guard would count it as idle
@@ -1707,27 +1745,38 @@ function mineMsg(text, bad = false) { $("mineMsg").textContent = text; $("mineMs
 async function loadMineList() {
   const c = await mineClient(); if (!c) return;
   mineMsg("불러오는 중…");
-  const {data, error} = await c.from("saved_kifu").select("id,title,black,white,result,game_date,moves,analyzed,updated_at").order("updated_at", {ascending: false});
+  const [{data, error}] = await Promise.all([
+    c.from("saved_kifu").select("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id").order("updated_at", {ascending: false}),
+    loadMineFolders(c)]);
   if (error) { mineMsg("목록을 불러오지 못했습니다: " + error.message, true); return; }
   mineList = data || [];
   $("mineCount").textContent = `${mineList.length} / 100판`;
   const day = iso => new Date(iso).toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"});
   $("mineRows").innerHTML = mineList.map((k, i) =>
-    `<tr data-i="${i}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, "")].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
+    `<tr data-i="${i}" data-folder="${mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
     `<td class="w">${escHtml(resultText(k.result || ""))}</td><td>${k.moves}</td><td>${k.analyzed}</td><td class="w">${day(k.updated_at)}</td>` +
     `<td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
   mineMsg(mineList.length ? "기보를 누르면 저장된 분석과 함께 열립니다." : "저장한 기보가 없습니다. 분석한 기보를 파일 메뉴의 '내 기보에 저장'으로 저장하세요.");
   $("mineFindRow").hidden = mineList.length < 2;
+  const pick = $("mineFolderPick"), keep = pick.value || "all";
+  pick.innerHTML = `<option value="all">전체</option>` + mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="none">분류 없음</option>`;
+  pick.value = [...pick.options].some(o => o.value === keep) ? keep : "all";
+  pick.hidden = !mineFolders.length;
   findMine();
 }
 function findMine() {   // 기보 찾기: every word typed must appear in the title, a player, the date or the result
   const words = $("mineQuery").value.toLowerCase().split(/\s+/).filter(Boolean);
+  const folder = $("mineFolderPick").hidden ? "all" : $("mineFolderPick").value;
   let shown = 0;
-  for (const tr of $("mineRows").rows) { const ok = words.every(w => tr.dataset.find.includes(w)); tr.hidden = !ok; shown += ok; }
-  if (words.length) mineMsg(shown ? `${shown}판 찾음 · 기보를 누르면 저장된 분석과 함께 열립니다.` : "찾는 기보가 없습니다.");
+  for (const tr of $("mineRows").rows) {
+    const ok = (folder === "all" || tr.dataset.folder === (folder === "none" ? "" : folder)) && words.every(w => tr.dataset.find.includes(w));
+    tr.hidden = !ok; shown += ok;
+  }
+  if (words.length || folder !== "all") mineMsg(shown ? `${shown}판 찾음 · 기보를 누르면 저장된 분석과 함께 열립니다.` : "찾는 기보가 없습니다.");
   else if (mineList.length) mineMsg("기보를 누르면 저장된 분석과 함께 열립니다.");
 }
 $("mineQuery").oninput = findMine;
+$("mineFolderPick").onchange = findMine;
 $("openMine").onclick = async () => { closeMenus(); if (!await mineClient()) return; $("mineDlg").showModal(); loadMineList(); };
 $("mineClose").onclick = () => $("mineDlg").close();
 $("mineDlg").addEventListener("click", ev => { if (ev.target === $("mineDlg")) $("mineDlg").close(); });   // backdrop
@@ -1747,11 +1796,11 @@ async function openMineKifu(id) {
   pendingKifu = null;
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 내 기보를 열 수 있습니다"; return false; }
-  const {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data").eq("id", id).maybeSingle();
+  const {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id").eq("id", id).maybeSingle();
   if (error || !k) { $("err").textContent = "기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
   try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
-  mineId = k.id; mineRoot = root; mineTitle = k.title;
+  mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id;
   $("err").textContent = `내 기보 '${k.title}'을(를) 열었습니다`;
   return true;
 }

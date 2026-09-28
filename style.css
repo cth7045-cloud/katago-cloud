@@ -22,6 +22,16 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
 .mine-find { margin-bottom: 10px; }
+.folder-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.chip-btn { min-height: 34px; padding: 5px 14px; font-size: 14px; background: var(--soft); color: var(--ink); }
+.chip-btn span { color: var(--muted); font-weight: 500; margin-left: 2px; }
+.chip-btn.on { background: var(--blue); color: #fff; }
+.chip-btn.on span { color: rgba(255, 255, 255, .8); }
+.chip-btn.add { background: transparent; color: var(--blue); border: 1px dashed #c9d3ea; }
+.folder-tools { display: inline-flex; gap: 4px; margin-left: auto; }
+.folder-tools button { min-height: 34px; padding: 5px 12px; font-size: 13px; }
+.folder-col select { min-height: 34px; padding: 4px 8px; font-size: 13px; max-width: 150px; }
+#mineCard.no-folders .folder-col { display: none; }
 .mine-find input[type=search] { flex: 1 1 260px; min-width: 0; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
