@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fafbfd">
 <title>KataGo Cloud</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KataGo Cloud">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet">
@@ -28,6 +34,7 @@
           <label class="field hidden" id="nameField">이름<input id="realName" autocomplete="name" minlength="2" maxlength="30"></label>
           <label class="field">이메일<input id="email" type="email" autocomplete="email" required></label>
           <label class="field">비밀번호<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+          <label class="check agree hidden" id="agreeField"><input type="checkbox" id="agree"><span><a href="policy.html#terms" target="_blank">이용약관</a>과 <a href="policy.html#privacy" target="_blank">개인정보 처리방침</a>에 동의합니다 (필수, 만 14세 이상)</span></label>
           <button class="primary" id="authButton" type="submit">로그인</button>
           <div class="error" id="authError"></div>
         </form>
@@ -37,7 +44,7 @@
       <h2>세 단계면 분석이 시작됩니다</h2>
       <ol>
         <li style="--i:0"><span class="move black">1</span><div><b>GPU 고르기</b><p>목록에서 GPU를 고르세요. 한국에 가까울수록 반응이 빠릅니다.</p></div></li>
-        <li style="--i:1"><span class="move white">2</span><div><b>3~5분 기다리기</b><p>GPU가 KataGo를 스스로 설치하고 실제로 한 수 두어 검증합니다.</p></div></li>
+        <li style="--i:1"><span class="move white">2</span><div><b>1~3분 기다리기</b><p>GPU가 KataGo를 스스로 설치하고 실제로 한 수 두어 검증합니다.</p></div></li>
         <li style="--i:2"><span class="move black">3</span><div><b>분석 화면 열기</b><p>다 쓰면 GPU 종료를 누르세요. 요금이 그 자리에서 멈춥니다.</p></div></li>
       </ol>
       <p class="how-more"><a href="guide.html">자세한 사용법 보기</a></p>
@@ -86,6 +93,16 @@
           <span class="hub-sub" id="hubStudy"></span>
         </a>
       </nav>
+      <!-- 홈 화면에 앱으로 설치: shown until installed or closed (내 정보 keeps the same button) -->
+      <div class="panel install-card hidden" id="installCard">
+        <span class="app-icon" aria-hidden="true"></span>
+        <div class="grow">
+          <b>홈 화면에 앱으로 설치</b>
+          <div class="small muted" data-install-how>주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</div>
+        </div>
+        <button class="primary" type="button" data-install>설치</button>
+        <button class="quiet" type="button" id="installHide" aria-label="닫기">닫기</button>
+      </div>
     </div>
 
     <!-- GPU 대여 (#gpu) -->
@@ -113,6 +130,10 @@
           <div class="step" id="step3">분석 준비 완료</div>
         </div>
         <div class="muted small" id="sessionProgress"></div>
+        <div class="row notify-row hidden" id="notifyRow">
+          <span class="small muted grow">다른 탭에 가 있어도 준비되면 알려 드립니다.</span>
+          <button class="quiet" type="button" id="notifyBtn">🔔 준비되면 알림 받기</button>
+        </div>
         <div class="row" style="margin-top:16px">
           <div class="grow small" id="sessionMeta"></div>
           <a class="btn primary hidden" id="openAnalysis" target="_blank" rel="noopener">분석 화면 열기</a>
@@ -289,6 +310,15 @@
         </div>
       </div>
 
+      <div class="panel hidden" id="installPanel">
+        <h2>앱으로 설치</h2>
+        <div class="row">
+          <span class="app-icon" aria-hidden="true"></span>
+          <p class="small muted grow" style="margin:0" data-install-how>홈 화면에 추가하면 주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</p>
+          <button class="primary" type="button" data-install>설치</button>
+        </div>
+      </div>
+
       <div class="panel leave">
         <h2>회원 탈퇴</h2>
         <p class="muted small" id="leaveNote">탈퇴하면 이 계정으로 다시 로그인할 수 없습니다. 켜져 있는 GPU가 있으면 먼저 종료하세요.</p>
@@ -300,6 +330,40 @@
       </div>
     </div>
   </section>
+
+  <!-- 기보 공유 링크 (내 기보 → 공유) -->
+  <dialog id="shareDlg" class="sheet">
+    <form method="dialog" class="stack">
+      <div class="row"><h2 class="grow" style="margin:0">기보 공유</h2><button class="quiet" value="close" aria-label="닫기">닫기</button></div>
+      <p class="small" style="margin:0"><b id="shareTitle"></b></p>
+      <p class="small muted" style="margin:0" id="shareNote">링크를 받은 사람은 로그인 없이 이 기보와 저장된 분석(승률 그래프·후보수)을 볼 수 있습니다. 수정하거나 내 계정을 볼 수는 없습니다.</p>
+      <div class="row share-link hidden" id="shareBox">
+        <input id="shareUrl" readonly aria-label="공유 링크">
+        <button class="primary" type="button" id="shareCopy">복사</button>
+      </div>
+      <div class="row">
+        <button class="primary" type="button" id="shareOn">링크 만들기</button>
+        <button class="btn" type="button" id="shareSend">보내기…</button>
+        <a class="btn" id="shareView" target="_blank" rel="noopener">열어 보기</a>
+        <span class="grow"></span>
+        <button class="danger" type="button" id="shareOff">공유 끄기</button>
+      </div>
+      <p class="small muted" style="margin:0">공유를 끄면 지금 링크는 더 이상 열리지 않습니다. 다시 켜면 새 링크가 만들어집니다.</p>
+      <div class="error" id="shareError"></div>
+    </form>
+  </dialog>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <a href="guide.html">사용 가이드</a>
+      <a href="policy.html#terms">이용약관</a>
+      <a href="policy.html#privacy"><b>개인정보 처리방침</b></a>
+      <a href="policy.html#refund">환불 규정</a>
+      <a href="licenses.html">오픈소스 고지</a>
+      <span class="grow"></span>
+      <span class="muted">© 2026 KataGo Cloud</span>
+    </div>
+  </footer>
 </main>
 
 <script type="module">
@@ -335,6 +399,7 @@ function setMode(m) {
   $("tabLogin").classList.toggle("on", m === "login"); $("tabSignup").classList.toggle("on", m === "signup");
   $("nameField").classList.toggle("hidden", m === "login");
   $("realName").required = m === "signup";   // a hidden required field would block signing in
+  $("agreeField").classList.toggle("hidden", m === "login"); $("agree").required = m === "signup";
   $("authButton").textContent = m === "login" ? "로그인" : "회원가입";
   $("password").autocomplete = m === "login" ? "current-password" : "new-password";
   $("authError").textContent = "";
@@ -415,6 +480,7 @@ async function refresh() {
   $("hubGpu").textContent = session ? `${session.gpu_name || "GPU"} · ${state}` : `잔액 ${won(balance)}`;
   $("hubGpu").classList.toggle("live", !!session);
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
+  watchReady(s && s[0]);
   batchShow();
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
   const uses = (s || []).filter((x) => x.charged_krw > 0 || ACTIVE.includes(x.status)).map((x) => {
@@ -449,6 +515,7 @@ function showSession(s) {
   open.classList.toggle("hidden", !(ready && s.web_url && s.web_token));
   if (ready && s.web_url) open.href = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`;
   $("stopButton").classList.toggle("hidden", !live || st === "stopping");
+  $("notifyRow").classList.toggle("hidden", !(live && !ready && st !== "stopping" && notifyState() === "default"));
   $("sessionError").textContent = (s.error && s.error !== "offer gone" ? s.error : "") +
     (s.refunded_krw > 0 ? ` · 준비에 실패해 요금 ${won(s.refunded_krw)}을 돌려드렸습니다.` : "");
 }
@@ -466,10 +533,16 @@ $("stopButton").onclick = async () => {
 // ------------------------------------------------------------------ 내 기보 (saved on the analysis screen)
 let mine = [], folders = [];   // folders: the member's own 분류 (kifu_folders)
 let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" (분류 없음) | a folder id; null = the folder cards
+// share_token (기보 공유, DB 20260929b): until that column exists the list loads without it and 공유 stays hidden
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token", canShare = true;
 async function loadMine() {
-  const [{ data, error }, fr] = await Promise.all([
-    sb.from("saved_kifu").select("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id").order("updated_at", { ascending: false }),
+  let [{ data, error }, fr] = await Promise.all([
+    sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && canShare && /share_token/.test(error.message || "")) {
+    canShare = false; KIFU_COLS = KIFU_COLS.replace(",share_token", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; return; }
   mine = data || []; folders = fr.error ? [] : fr.data || [];
   if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
@@ -510,7 +583,7 @@ function showMine() {
     `<tr class="pick" data-open="${i}"><td><b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
     `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${esc(k.game_date || "")}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
     `<td class="folder-col"><select data-move="${i}" aria-label="분류 옮기기">${opts(k.folder_id)}</select></td>` +
-    `<td style="text-align:right;white-space:nowrap"><button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
+    `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
     || `<tr><td colspan="9" class="muted">${!mine.length ? "아직 저장한 기보가 없습니다." : words.length || onlyAnalyzed ? "찾는 기보가 없습니다." : "이 분류에는 기보가 없습니다."}</td></tr>`;
 }
 // 분류 (folders): #mine shows them as cards (전체 · each folder · 분류 없음 · ＋ 새 분류); a card opens #mine/<key>,
@@ -723,7 +796,7 @@ async function loadNotesCard() {   // 학습방: 오답노트 (and the start pag
 function openNotes(phase = "") {
   const gpu = session && session.status === "ready" && session.web_url && session.web_token
     ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
-  window.open(`analysis.html?v=${Date.now()}#${gpu}notes${phase ? "&phase=" + phase : ""}`, "_blank", "noopener");
+  openPage(`analysis.html?v=${Date.now()}#${gpu}notes${phase ? "&phase=" + phase : ""}`);
 }
 $("notesOpen").onclick = () => openNotes();
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
@@ -731,7 +804,7 @@ addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } 
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
   if (mine.length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
   const folder = folders.some((f) => f.id === curFolder) ? `&folder=${curFolder}` : "";   // saved into the folder on screen
-  window.open(`analysis.html?v=${Date.now()}#record=1${folder}`, "_blank", "noopener");
+  openPage(`analysis.html?v=${Date.now()}#record=1${folder}`);
 }; });
 $("mineRows").onchange = async (ev) => {   // 분류 칸: move the game to another folder
   const sel = ev.target.closest("select[data-move]"); if (!sel) return;
@@ -744,6 +817,8 @@ $("mineRows").onchange = async (ev) => {   // 분류 칸: move the game to anoth
 };
 $("mineRows").onclick = async (ev) => {
   if (ev.target.closest("select")) return;
+  const share = ev.target.closest("[data-share]");
+  if (share) { openShare(mine[+share.dataset.share]); return; }
   const del = ev.target.closest("[data-del]");
   if (del) {
     const k = mine[+del.dataset.del];
@@ -756,7 +831,7 @@ $("mineRows").onclick = async (ev) => {
   // the member's ready GPU: open it there to keep analysing; otherwise the stored analysis only
   const gpu = session && session.status === "ready" && session.web_url && session.web_token
     ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
-  window.open(`analysis.html?v=${Date.now()}#${gpu}kifu=${k.id}`, "_blank", "noopener");
+  openPage(`analysis.html?v=${Date.now()}#${gpu}kifu=${k.id}`);
 };
 
 // ------------------------------------------------------------------ offers / start
@@ -801,6 +876,7 @@ $("startButton").onclick = async () => {
   if (!confirm(msg)) return;
   $("startButton").disabled = true; $("startError").textContent = "";
   try {
+    askNotify();   // 준비 알림: asked once, while the member is clicking
     await api("/start", { offer_id: picked.id, machine_id: picked.machineId, seen_price_usd: picked.price, gpu: picked.gpu, region: picked.region, model_id: $("model").value });
     toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
     await refresh();
@@ -898,6 +974,115 @@ $("leaveForm").onsubmit = (ev) => {
     } catch (err) { $("leaveError").textContent = err.message; }
   });
 };
+
+// ------------------------------------------------------------------ GPU 준비 알림
+// The GPU takes a minute or a few to get ready, so members switch tabs or apps. When this page sees the member's GPU
+// go from renting/booting/installing to ready (or failed), it says so: a system notification if allowed and the page is
+// not in front, the tab title, and a toast. Only changes seen by this page count (a page opened later stays quiet).
+const seenStatus = new Map();
+const baseTitle = document.title;
+const notifyState = () => ("Notification" in window ? Notification.permission : "unsupported");
+function askNotify() {
+  if (notifyState() !== "default") return;
+  Notification.requestPermission().then(() => showSession(session)).catch(() => {});
+}
+$("notifyBtn").onclick = () => { askNotify(); };
+function watchReady(s) {
+  if (!s) return;
+  const prev = seenStatus.get(s.id); seenStatus.set(s.id, s.status);
+  if (!prev || prev === s.status || !["creating", "booting", "setup"].includes(prev)) return;
+  if (s.status === "ready") alertMember("GPU 준비 완료", `${s.gpu_name || "GPU"} 준비가 끝났습니다. 분석 화면을 열어 시작하세요.`);
+  else if (s.status === "failed") alertMember("GPU 준비 실패", `${s.gpu_name || "GPU"}를 준비하지 못했습니다.` + (s.refunded_krw > 0 ? ` 요금 ${won(s.refunded_krw)}은 돌려드렸습니다.` : " 다른 GPU로 다시 시작해 주세요."));
+}
+function alertMember(title, body) {
+  toast(body);
+  if (document.visibilityState === "visible") return;
+  document.title = `● ${title} · ${baseTitle}`;
+  if (notifyState() !== "granted") return;
+  const opts = { body, tag: "kgv-gpu", icon: "icons/icon-192.png", badge: "icons/badge-96.png", data: { url: location.pathname + "#gpu" } };
+  // Android Chrome only shows notifications through the service worker (new Notification() throws there)
+  (navigator.serviceWorker?.getRegistration() || Promise.resolve(null))
+    .then((reg) => reg ? reg.showNotification(title, opts) : new Notification(title, opts))
+    .catch(() => { try { new Notification(title, opts); } catch { /* not allowed here */ } });
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") document.title = baseTitle; });
+
+// ------------------------------------------------------------------ 기보 공유 링크
+// 공유 makes a read-only link (analysis.html#share=<token>) that opens without logging in or a GPU. The token is made
+// by the database (set_kifu_share); turning sharing off drops it, so the old link stops working.
+let shareKifu = null;
+const shareLink = (t) => new URL(`analysis.html#share=${t}`, location.href).href;
+function openShare(k) {
+  if (!k) return;
+  shareKifu = k; $("shareTitle").textContent = k.title; $("shareError").textContent = "";
+  showShare(); $("shareDlg").showModal();
+}
+function showShare() {
+  const t = shareKifu?.share_token;
+  $("shareBox").classList.toggle("hidden", !t);
+  $("shareOn").classList.toggle("hidden", !!t);
+  $("shareOff").classList.toggle("hidden", !t);
+  $("shareView").classList.toggle("hidden", !t);
+  $("shareSend").classList.toggle("hidden", !t || !navigator.share);
+  if (t) { $("shareUrl").value = shareLink(t); $("shareView").href = shareLink(t); }
+}
+async function setShare(on) {
+  $("shareError").textContent = "";
+  const { data, error } = await sb.rpc("set_kifu_share", { p_id: shareKifu.id, p_on: on });
+  if (error) { $("shareError").textContent = "바꾸지 못했습니다: " + error.message; return false; }
+  shareKifu.share_token = data || null; showShare(); showMine();
+  return true;
+}
+$("shareOn").onclick = async () => { if (await setShare(true)) toast("공유 링크를 만들었습니다. 복사해서 보내세요."); };
+$("shareOff").onclick = async () => {
+  if (!confirm("공유를 끌까요? 지금 링크는 더 이상 열리지 않습니다.")) return;
+  if (await setShare(false)) toast("공유를 껐습니다.");
+};
+$("shareCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("shareUrl").value); toast("링크를 복사했습니다."); }
+  catch { $("shareUrl").select(); document.execCommand?.("copy"); toast("링크를 복사했습니다."); }
+};
+$("shareSend").onclick = () => navigator.share({ title: shareKifu.title, text: `${shareKifu.title} · KataGo Cloud 기보`, url: $("shareUrl").value }).catch(() => {});
+$("shareUrl").onfocus = (ev) => ev.target.select();
+$("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg")) $("shareDlg").close(); });   // outside the sheet
+
+// ------------------------------------------------------------------ 앱으로 설치 (PWA)
+// sw.js makes the site installable and shows the notifications above; it caches nothing (every page comes from the
+// network as before). Installed, the site opens without the address bar, so pages that used to open in a new tab
+// open in the same window (on iPhone a new tab would be Safari, which is not logged in).
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
+if (standalone) for (const id of ["analysisLink", "openAnalysis"]) $(id).removeAttribute("target");
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+let installEvent = null;
+const ua = navigator.userAgent;
+const iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const android = /Android/.test(ua);
+function installHow() {
+  if (installEvent) return "주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.";
+  if (iOS) return /CriOS|FxiOS|EdgiOS/.test(ua) ? "Safari로 이 사이트를 연 뒤 아래쪽 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요."
+    : "아래쪽(아이패드는 위쪽) 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요.";
+  if (android) return "브라우저 메뉴(⋮) → '홈 화면에 추가' 또는 '앱 설치'를 누르세요.";
+  return "Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕)을 누르세요.";
+}
+function showInstall() {
+  let hidden = false; try { hidden = localStorage.getItem("kgv.installHide") === "1"; } catch { /* private mode */ }
+  const can = !standalone && (installEvent || iOS || android);
+  $("installCard").classList.toggle("hidden", !can || hidden);
+  $("installPanel").classList.toggle("hidden", standalone || !(installEvent || iOS || android || matchMedia("(pointer: fine)").matches));
+  document.querySelectorAll("[data-install-how]").forEach((el) => { el.textContent = installHow(); });
+  document.querySelectorAll("[data-install]").forEach((b) => b.classList.toggle("hidden", !installEvent));
+}
+addEventListener("beforeinstallprompt", (ev) => { ev.preventDefault(); installEvent = ev; showInstall(); });
+addEventListener("appinstalled", () => { installEvent = null; $("installCard").classList.add("hidden"); $("installPanel").classList.add("hidden"); toast("앱으로 설치했습니다. 홈 화면의 KataGo Cloud로 여세요."); });
+document.querySelectorAll("[data-install]").forEach((b) => { b.onclick = async () => {
+  if (!installEvent) return;
+  installEvent.prompt();
+  try { await installEvent.userChoice; } catch { /* dismissed */ }
+  installEvent = null; showInstall();
+}; });
+$("installHide").onclick = () => { try { localStorage.setItem("kgv.installHide", "1"); } catch { /* private mode */ } showInstall(); };
+showInstall();
 
 setMode("login");
 </script>

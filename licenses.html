@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fafbfd">
+<title>오픈소스 고지 · KataGo Cloud</title>
+<meta name="description" content="KataGo Cloud가 쓰는 오픈소스 소프트웨어·신경망·글꼴과 그 라이선스.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="./"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
+    <a href="./">홈으로</a>
+  </div>
+</header>
+
+<main class="wrap legal">
+  <nav class="toc" aria-label="목차">
+    <ol>
+      <li><a href="#site">사이트</a></li>
+      <li><a href="#gpu">GPU에서 도는 것</a></li>
+      <li><a href="#fonts">글꼴·라이브러리</a></li>
+      <li><a href="#texts">라이선스 전문</a></li>
+    </ol>
+  </nav>
+
+  <article>
+    <h1>오픈소스 고지</h1>
+    <p class="meta">KataGo Cloud는 아래 오픈소스 소프트웨어와 공개된 신경망·글꼴을 사용합니다. 만든 분들께 감사드립니다.</p>
+
+    <h2 id="site">사이트</h2>
+    <div class="lic">
+      <h3>LizzieYzy Next — GNU GPL v3.0</h3>
+      <p><a href="https://github.com/wimi321/lizzieyzy-next" rel="noopener">github.com/wimi321/lizzieyzy-next</a></p>
+      <p>분석 화면(<code>analysis.html</code>)과 로그인 화면의 바둑판 그림(<code>hero.js</code>)은 LizzieYzy Next의 그리기 규칙(BoardRenderer, GlassEffectRenderer, LizzieFrame, WinrateGraph, VariationTree)을 옮겨 만들었고, 바둑판·돌·배경 그림(<code>assets/board.png</code>, <code>black0.png</code>, <code>white0.png</code>, <code>background.jpg</code>)은 LizzieYzy Next에서 가져왔습니다. 그래서 이 파일들은 <b>GNU GPL v3.0</b>으로 배포합니다.</p>
+      <p>소스 코드: 이 파일들은 압축·변환하지 않은 원본 그대로 제공되며, 전체 사이트 코드는 공개 저장소 <a href="https://github.com/cth7045-cloud/katago-cloud" rel="noopener">github.com/cth7045-cloud/katago-cloud</a>에 있습니다. 자세한 내용은 <a href="assets/NOTICE.txt">assets/NOTICE.txt</a>, 전문은 <a href="assets/LICENSE-GPL-3.0.txt">assets/LICENSE-GPL-3.0.txt</a>를 보세요.</p>
+    </div>
+
+    <h2 id="gpu">GPU에서 도는 것</h2>
+    <p>GPU를 빌리면 그 GPU 서버에 아래 프로그램과 신경망을 내려받아 실행합니다. 회원의 기기로 배포되는 것은 없습니다.</p>
+    <div class="lic">
+      <h3>KataGo — MIT License</h3>
+      <p><a href="https://github.com/lightvector/KataGo" rel="noopener">github.com/lightvector/KataGo</a> · Copyright David J Wu ("lightvector") 및 KataGo 기여자</p>
+      <p>바둑 분석 엔진입니다. 공식 릴리스(CUDA 버전)를 그대로 받아 씁니다.</p>
+    </div>
+    <div class="lic">
+      <h3>KataGo 신경망 (모델)</h3>
+      <p>CNN b18·b28·b40, b28 Muon은 <a href="https://katagotraining.org/" rel="noopener">katagotraining.org</a>(KataGo 분산 학습)에서, Transformer 소형·중형·대형은 <a href="https://github.com/lightvector/KataGo/releases" rel="noopener">KataGo 공식 릴리스</a>에서 받습니다. 사용 조건은 <a href="https://katagotraining.org/network_license/" rel="noopener">katagotraining.org 신경망 라이선스</a>와 KataGo 저장소의 안내를 따릅니다.</p>
+    </div>
+    <div class="lic">
+      <h3>cloudflared — Apache License 2.0</h3>
+      <p><a href="https://github.com/cloudflare/cloudflared" rel="noopener">github.com/cloudflare/cloudflared</a> · Copyright Cloudflare, Inc.</p>
+      <p>GPU와 분석 화면을 잇는 암호화 연결(Cloudflare Tunnel)에 씁니다. 공식 릴리스를 그대로 받아 씁니다.</p>
+    </div>
+    <div class="lic">
+      <h3>Python, Ubuntu 패키지</h3>
+      <p>GPU 안의 중계 프로그램은 Python 표준 라이브러리만으로 만들었고(<a href="https://docs.python.org/3/license.html" rel="noopener">PSF License</a>), 설치에 쓰는 curl·unzip 등 Ubuntu 패키지는 각자의 라이선스를 따릅니다.</p>
+    </div>
+
+    <h2 id="fonts">글꼴·라이브러리</h2>
+    <div class="lic">
+      <h3>supabase-js — MIT License</h3>
+      <p><a href="https://github.com/supabase/supabase-js" rel="noopener">github.com/supabase/supabase-js</a> · Copyright (c) 2020 Supabase</p>
+      <p>로그인과 데이터 읽기·쓰기에 씁니다(jsDelivr에서 받음).</p>
+    </div>
+    <div class="lic">
+      <h3>SUIT — SIL Open Font License 1.1</h3>
+      <p><a href="https://github.com/sun-typeface/SUIT" rel="noopener">github.com/sun-typeface/SUIT</a> · Copyright sun-typeface</p>
+      <p>사이트 전체의 한글 글꼴입니다(jsDelivr에서 받음).</p>
+    </div>
+    <div class="lic">
+      <h3>Open Sans — SIL Open Font License 1.1</h3>
+      <p><a href="https://fonts.google.com/specimen/Open+Sans" rel="noopener">fonts.google.com/specimen/Open+Sans</a> · Copyright The Open Sans Project Authors</p>
+      <p>바둑판의 승률·방문 수 숫자 글꼴입니다(LizzieYzy Next와 같음, Google Fonts에서 받음).</p>
+    </div>
+
+    <h2 id="texts">라이선스 전문</h2>
+    <div class="lic">
+      <h3>GNU General Public License v3.0</h3>
+      <p><a href="assets/LICENSE-GPL-3.0.txt">assets/LICENSE-GPL-3.0.txt</a> · <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">gnu.org</a></p>
+    </div>
+    <div class="lic">
+      <h3>MIT License (KataGo, supabase-js)</h3>
+      <details><summary>전문 보기</summary>
+<pre>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre></details>
+    </div>
+    <div class="lic">
+      <h3>Apache License 2.0 (cloudflared)</h3>
+      <p><a href="https://www.apache.org/licenses/LICENSE-2.0" rel="noopener">apache.org/licenses/LICENSE-2.0</a></p>
+    </div>
+    <div class="lic">
+      <h3>SIL Open Font License 1.1 (SUIT, Open Sans)</h3>
+      <p><a href="https://openfontlicense.org/open-font-license-official-text/" rel="noopener">openfontlicense.org</a></p>
+    </div>
+    <p class="meta" style="margin-top:28px"><a href="./">홈으로</a> · <a href="policy.html">이용약관·개인정보 처리방침·환불 규정</a></p>
+  </article>
+</main>
+</body>
+</html>

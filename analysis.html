@@ -11,6 +11,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KataGo 분석</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KataGo Cloud">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet">
@@ -64,6 +70,7 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 #saveDo label.check input { margin-top: 3px; flex: none; }
 #saveDo label.check small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #saveDo label.check.off { opacity: .45; }
+.home-back { font-weight: 700; font-size: 14px; padding: 5px 10px; border-radius: 999px; background: var(--soft, #f1f4f9); color: inherit; text-decoration: none; white-space: nowrap; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
 .mark { position: relative; width: 24px; height: 16px; flex: none; }
 .mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
@@ -428,6 +435,7 @@ button.primary:hover { background: var(--blue-deep); }
 </head>
 <body>
 <header class="menubar">
+  <a class="home-back" id="homeBack" href="./" hidden title="처음 화면으로">‹ 홈</a>
   <span class="brand"><span class="mark"></span><span>KataGo Cloud</span></span>
   <details class="menu" id="fileMenu">
     <summary>파일</summary>
@@ -440,6 +448,7 @@ button.primary:hover { background: var(--blue-deep); }
       <button id="openMine" hidden>내 기보 열기</button>
       <button id="addNote" hidden>오답노트에 담기</button>
       <button id="openNotes" hidden>오답노트</button>
+      <button id="aboutOss">오픈소스 고지</button>
     </div>
   </details>
   <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
@@ -740,6 +749,7 @@ let root = makeRoot(), cur = root;
 const hashParams = new URLSearchParams(location.hash.slice(1));
 const recordMode = hashParams.get("record") === "1";   // 내 기보 → 기보 추가: an empty board to record a game on, no GPU
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
+const shareToken = /^[A-Za-z0-9_-]{24}$/.test(hashParams.get("share") || "") ? hashParams.get("share") : null;   // 기보 공유 link
 const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
 // The GPU's own address: a named tunnel on our domain (2026-09-28), or a quick tunnel (the fallback, and the PC app).
@@ -758,6 +768,7 @@ let site = null;  // the website's Supabase client, for the member's login
 async function openWithoutGpu() {
   if (GPU_HOST.test(location.hostname)) { $("conn").textContent = "주소에 접속 토큰이 없습니다"; return; }
   $("conn").textContent = "확인 중…";
+  if (shareToken) { openShared(shareToken); return; }
   try {
     const { sb } = await import("./app.js");
     const { data: p } = await sb.from("profiles").select("is_admin").single();
@@ -770,6 +781,24 @@ async function openWithoutGpu() {
       openInfo("판을 눌러 흑·백 차례로 두세요. 잘못 둔 수는 '지우기'로 지웁니다. 다 두면 '내 기보 저장'을 누르세요. 대국자·결과는 파일 → 기보 정보나 판 옆 대국자 칸을 눌러 언제든 고칠 수 있습니다.");
     }
   } catch { location.replace("./"); }
+}
+// 기보 공유: a member's saved game opened from its read-only link, by anyone, logged in or not (shared_kifu() gives
+// only the game: title, players, result, date and the record with its stored analysis). The board works as usual
+// for trying moves; a logged-in visitor can keep a copy with '내 기보 저장' (a new game of their own).
+async function openShared(t) {
+  let k = null, error = null;
+  try {
+    const { sb } = await import("./app.js");
+    ({ data: k, error } = await sb.rpc("shared_kifu", { p_token: t }).maybeSingle());
+  } catch (err) { error = err; }
+  $("conn").textContent = "GPU 없음 · 공유된 기보";
+  if (error || !k) { $("err").textContent = error ? "공유된 기보를 불러오지 못했습니다" : "공유가 꺼졌거나 없는 링크입니다"; return; }
+  try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
+  catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return; }
+  document.title = `${k.title} · KataGo Cloud`;
+  const member = await mineClient();
+  $("err").textContent = `공유된 기보 '${k.title}'` + (k.analyzed ? " · 저장된 분석 포함" : "") +
+    (member ? " — '내 기보 저장'으로 내 기보에 복사할 수 있습니다" : " — 로그인하면 내 기보에 복사할 수 있습니다");
 }
 let onMirror = null;   // set by mirrorScreen(): copies of the member's screen arriving through the bridge
 let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message of any kind from the GPU
@@ -2862,7 +2891,8 @@ const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
-              ["편집", ["promote", "deleteNode", "resetBoard"]]];
+              ["편집", ["promote", "deleteNode", "resetBoard"]],
+              ["정보", ["aboutOss"]]];
 const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
   const sec = document.createElement("section"); sec.innerHTML = `<h3>${title}</h3>`; $("menuBody").append(sec); return sec;
 });
@@ -2883,6 +2913,14 @@ $("menuClose").onclick = () => $("menuDlg").close();
 $("menuDlg").addEventListener("click", ev => { if (ev.target === $("menuDlg")) $("menuDlg").close(); });   // backdrop
 // an action closes the sheet (its own handler has already run); switches and inputs keep it open
 $("menuBody").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && b.id !== "nums" && b.id !== "coords" && !b.closest(".lvl, .stone-seg")) $("menuDlg").close(); });
+// 오픈소스 고지 (this screen is GPL-3.0, see the page) — on the website; the GPU's own page points to the website's copy
+$("aboutOss").onclick = () => { closeMenus(); window.open(GPU_HOST.test(location.hostname) ? "https://katago-cloud.onrender.com/licenses.html" : "licenses.html", "_blank", "noopener"); };
+// Installed as an app (홈 화면에 추가) the site has no address bar or back button: '‹ 홈' leads back to the start page.
+// The service worker (sw.js, caches nothing) is the website's; the GPU's own page has none.
+if (!GPU_HOST.test(location.hostname)) {
+  if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) $("homeBack").hidden = false;
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 // ------------------------------------------------------------------ layout & render loop
 function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }

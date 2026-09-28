@@ -1,0 +1,17 @@
+{
+  "name": "KataGo Cloud",
+  "short_name": "KataGo Cloud",
+  "description": "내 전용 GPU로 KataGo 바둑 분석",
+  "lang": "ko",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fafbfd",
+  "theme_color": "#fafbfd",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

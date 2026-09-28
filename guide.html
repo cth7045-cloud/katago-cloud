@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#fafbfd">
 <title>사용 가이드 · KataGo Cloud</title>
 <meta name="description" content="KataGo Cloud 사용 가이드: GPU 빌리기, 요금, 분석 화면, 자동분석·대국 리포트, AI대국, 기보 불러오기.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
@@ -124,7 +127,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <li><b>회원가입</b> — 첫 화면에서 <span class="chip">회원가입</span>을 누르고 이름, 이메일, 비밀번호(8자 이상)를 넣습니다. 가입하면 바로 로그인됩니다.</li>
         <li><b>충전</b> — 요금은 미리 충전한 잔액에서 나갑니다. 충전은 관리자에게 요청하세요. 충전되면 <b>GPU 대여</b> 화면 위쪽 <b>내 잔액</b>에 금액이 보입니다.</li>
         <li><b>GPU 시작</b> — 처음 화면의 <b>GPU 대여</b>를 누르고 GPU 목록에서 하나를 골라 <span class="chip">이 GPU로 시작</span>을 누릅니다.</li>
-        <li><b>분석 화면 열기</b> — 보통 1~3분 뒤 준비가 끝나면 <span class="chip">분석 화면 열기</span> 버튼이 나타납니다. 새 탭에서 분석 화면이 열립니다.</li>
+        <li><b>분석 화면 열기</b> — 보통 1~3분 뒤 준비가 끝나면 <span class="chip">분석 화면 열기</span> 버튼이 나타납니다. 새 탭에서 분석 화면이 열립니다. 기다리는 동안 다른 탭이나 앱에 가 있어도 됩니다 — GPU를 시작할 때 알림을 허용하면(또는 내 GPU 칸의 <span class="chip">🔔 준비되면 알림 받기</span>) 준비가 끝나거나 실패했을 때 알림이 오고, 탭 제목에도 ●가 붙습니다(사이트 탭을 열어 둔 동안만).</li>
         <li><b>GPU 종료</b> — 다 쓰면 반드시 <span class="chip pink">GPU 종료</span>를 누르세요. 그 순간 요금이 멈춥니다.</li>
       </ol>
     </section>
@@ -404,7 +407,8 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <li><b>분류</b> — 기보를 내가 정한 분류(예: 타이젬 기보, 오프라인 기보)로 나눠 둡니다. 처음 화면의 <b>내 기보</b>를 누르면 분류가 카드로 보입니다(전체 기보 · 내가 만든 분류들 · 분류 없음, 카드마다 판 수와 최근 기보). <b>＋ 새 분류</b> 카드로 만들고(30개까지), 카드를 누르면 그 분류의 기보 목록이 열립니다. 목록의 <b>분류</b> 칸에서 기보를 다른 분류로 옮기고, 분류 목록 위의 <b>이름 바꾸기</b>·<b>분류 지우기</b>로 분류를 고칩니다. 분류를 지워도 안의 기보는 지워지지 않고 '분류 없음'으로 갑니다. 분류를 연 채 <b>기보 추가</b>를 누르면 그 분류로 저장되고, 분석 화면의 <b>내 기보 저장</b> 창에서도 분류를 고르거나 새로 만들 수 있습니다. 기보 분석(여러 기보)에서도 '저장할 분류'를 고를 수 있습니다.</li>
         <li><b>기보 찾기</b> — 기보가 2판 이상이면 목록 위에 찾기 칸이 나옵니다. 제목·대국자 이름·대국 날짜·결과로 찾고, 띄어 쓴 낱말은 모두 들어간 기보만 보입니다(예: <b>홍길동 2026-09</b>, <b>흑 불계</b>, <b>무승부</b>). 최근 저장순·대국 날짜순·제목순·수 많은 순으로 정렬하고, <b>분석된 것만</b>을 켜면 분석값이 저장된 기보만 봅니다. 분석 화면의 <b>내 기보 열기</b> 창에도 같은 찾기 칸이 있습니다.</li>
         <li><b>다시 저장</b> — 내 기보에서 연 기보를 저장하면 <b>덮어쓰기</b>와 <b>새로 저장</b> 중에서 고릅니다.</li>
-        <li><b>지우기</b> — 처음 화면 '내 기보' 목록이나 분석 화면 '내 기보 열기' 목록의 <b>삭제</b>. 되돌릴 수 없습니다.</li>
+        <li><b>공유</b> — 내 기보 목록에서 기보의 <b>공유</b> → <span class="chip">링크 만들기</span>를 누르면 읽기 전용 링크가 생깁니다. <b>복사</b>(폰은 <b>보내기…</b>로 카카오톡 등)해서 보내면, 받은 사람은 로그인이나 GPU 없이 그 기보와 저장된 분석(승률 그래프·후보수)을 볼 수 있습니다. 받은 사람이 회원이면 <b>내 기보 저장</b>으로 자기 기보에 복사할 수 있습니다. 공유 중인 기보는 목록에 초록색 <b>공유 중</b>으로 보이고, 눌러서 <span class="chip pink">공유 끄기</span>를 하면 그 링크는 더 이상 열리지 않습니다. 대국자 이름·결과·날짜도 함께 보이니, 다른 사람의 이름이 든 기보는 주의해서 공유하세요.</li>
+        <li><b>지우기</b> — 처음 화면 '내 기보' 목록이나 분석 화면 '내 기보 열기' 목록의 <b>삭제</b>. 되돌릴 수 없습니다(공유 링크도 함께 사라집니다).</li>
       </ul>
       <h3>기보 분석</h3>
       <p>분석 화면을 열지 않고 SGF 기보 여러 개를 한꺼번에 분석해 내 기보에 저장하는 기능입니다. 처음 화면의 <b>기보 분석</b>을 누르면 맨 위 <b>기보 첨부</b> 칸에 기보를 올리고, 그 아래에서 GPU를 고를 수 있습니다(이미 켜 둔 GPU가 있으면 그대로 씀).</p>
@@ -452,6 +456,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <li><b>이름 바꾸기</b></li>
         <li><b>비밀번호 변경</b> — 현재 비밀번호를 확인한 뒤 바꿉니다(8자 이상).</li>
         <li><b>사용 내역</b> — GPU를 쓴 기록(한 번 쓸 때마다 한 줄, 쓴 시간과 GPU)과 충전 기록.</li>
+        <li><b>앱으로 설치</b> — 사이트를 폰·PC 홈 화면에 앱처럼 설치합니다(처음 화면 아래에도 같은 칸이 있습니다). 안드로이드 Chrome·PC Chrome/Edge는 <span class="chip">설치</span> 버튼, 아이폰·아이패드는 Safari의 공유 버튼(□↑) → <b>홈 화면에 추가</b>. 설치하면 주소창 없이 열리고 분석 화면도 같은 창에서 열립니다(분석 화면 왼쪽 위 <b>‹ 홈</b>으로 돌아옴). 아이폰은 설치한 앱에서만 준비 알림을 받을 수 있습니다.</li>
         <li><b>회원 탈퇴</b> — 켜져 있는 GPU를 먼저 끄세요. 남은 잔액은 돌려받을 수 없으니 환불이 필요하면 탈퇴하기 전에 관리자에게 요청하세요.</li>
       </ul>
     </section>
@@ -471,7 +476,7 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
         <p>위쪽 막대의 <b>내 기보 저장</b>을 쓰세요. 분석값이 함께 저장돼서 처음 화면의 '내 기보'에서 GPU를 켜지 않아도 그래프와 후보수를 볼 수 있습니다(새로 분석하려면 GPU가 필요합니다). 내 기기에 파일로 두려면 <b>SGF 저장</b>을 쓰면 됩니다.</p></div></details>
       <details><summary>YZY와 결과가 조금 달라요.</summary><div>
         <p>모델과 탐색량(visits)이 같아야 결과가 비슷합니다. 특히 손해 집 수와 등급은 분석 조건에 따라 달라집니다. 같은 모델을 고르고 세기를 보통(500 visits)으로 맞춰 비교해 보세요.</p></div></details>
-      <p class="back-top"><a href="#">맨 위로</a> · <a href="./">홈으로</a></p>
+      <p class="back-top"><a href="#">맨 위로</a> · <a href="./">홈으로</a> · <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보 처리방침</a> · <a href="policy.html#refund">환불 규정</a> · <a href="licenses.html">오픈소스 고지</a></p>
     </section>
   </article>
 </main>
