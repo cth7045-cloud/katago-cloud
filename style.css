@@ -279,13 +279,10 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 /* SGF files dragged over the page: the 여러 기보 분석 card takes them */
 #batchCard.dropping { outline: 3px dashed var(--blue); outline-offset: 4px; background: #eef3ff; }
 
-/* ------------------------------------------------------------------ sign-up consent, footer, share sheet, app install, notify */
-label.check.agree { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--muted); cursor: pointer; }
-label.check.agree input { width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; flex: none; accent-color: var(--blue); }
+/* ------------------------------------------------------------------ footer, share sheet, app install, notify */
 .site-foot { margin-top: 40px; padding: 22px 0 calc(28px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); font-size: 13px; }
 .site-foot .wrap { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
 .site-foot a { color: var(--muted); font-weight: 600; }
-.site-foot a b { color: var(--ink); font-weight: 700; }
 dialog.sheet { border: 0; border-radius: 24px; padding: 24px; width: min(540px, calc(100vw - 32px)); background: var(--panel); color: var(--ink);
   box-shadow: 0 30px 80px -20px rgba(23, 26, 34, .45); }
 dialog.sheet::backdrop { background: rgba(23, 26, 34, .32); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
@@ -303,7 +300,7 @@ button.quiet.shared { color: var(--good); }
   dialog.sheet { padding: 20px; }
 }
 
-/* ------------------------------------------------------------------ reading pages: 오픈소스 고지, 이용약관·개인정보 처리방침·환불 규정 */
+/* ------------------------------------------------------------------ reading pages: 오픈소스 고지 */
 .legal { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 56px; padding-top: 36px; padding-bottom: 72px; }
 .legal .toc { position: sticky; top: 84px; align-self: start; font-size: 14px; }
 .legal .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -329,7 +326,6 @@ button.quiet.shared { color: var(--good); }
 .legal summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--blue); }
 .legal pre { white-space: pre-wrap; font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #3a404e; background: var(--soft);
   border-radius: 12px; padding: 14px; margin: 8px 0 0; }
-.legal mark.todo { background: #fff0c2; color: #6b4a00; padding: 0 4px; border-radius: 5px; font-weight: 700; }
 @media (max-width: 860px) {
   .legal { grid-template-columns: 1fr; gap: 8px; padding-top: 20px; }
   .legal .toc { position: static; margin-bottom: 12px; }

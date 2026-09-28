@@ -34,7 +34,6 @@
           <label class="field hidden" id="nameField">이름<input id="realName" autocomplete="name" minlength="2" maxlength="30"></label>
           <label class="field">이메일<input id="email" type="email" autocomplete="email" required></label>
           <label class="field">비밀번호<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
-          <label class="check agree hidden" id="agreeField"><input type="checkbox" id="agree"><span><a href="policy.html#terms" target="_blank">이용약관</a>과 <a href="policy.html#privacy" target="_blank">개인정보 처리방침</a>에 동의합니다 (필수, 만 14세 이상)</span></label>
           <button class="primary" id="authButton" type="submit">로그인</button>
           <div class="error" id="authError"></div>
         </form>
@@ -356,9 +355,6 @@
   <footer class="site-foot">
     <div class="wrap">
       <a href="guide.html">사용 가이드</a>
-      <a href="policy.html#terms">이용약관</a>
-      <a href="policy.html#privacy"><b>개인정보 처리방침</b></a>
-      <a href="policy.html#refund">환불 규정</a>
       <a href="licenses.html">오픈소스 고지</a>
       <span class="grow"></span>
       <span class="muted">© 2026 KataGo Cloud</span>
@@ -399,7 +395,6 @@ function setMode(m) {
   $("tabLogin").classList.toggle("on", m === "login"); $("tabSignup").classList.toggle("on", m === "signup");
   $("nameField").classList.toggle("hidden", m === "login");
   $("realName").required = m === "signup";   // a hidden required field would block signing in
-  $("agreeField").classList.toggle("hidden", m === "login"); $("agree").required = m === "signup";
   $("authButton").textContent = m === "login" ? "로그인" : "회원가입";
   $("password").autocomplete = m === "login" ? "current-password" : "new-password";
   $("authError").textContent = "";
