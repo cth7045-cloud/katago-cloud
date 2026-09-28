@@ -21,6 +21,8 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
+.mine-find { margin-bottom: 10px; }
+.mine-find input[type=search] { flex: 1 1 260px; min-width: 0; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
 .stack { display: grid; gap: 14px; }
@@ -237,8 +239,8 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 
 /* 여러 기보 분석: options under the file / level / start row */
 .batch-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 12px; font-size: 14px; }
-.batch-opts label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
-.batch-opts label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
+.mine-find label.check, .batch-opts label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.mine-find label.check input, .batch-opts label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
 .batch-note-opts { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .batch-opts #batchNoteName { width: 150px; }
 /* SGF files dragged over the page: the 여러 기보 분석 card takes them */
