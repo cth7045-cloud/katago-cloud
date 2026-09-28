@@ -115,7 +115,8 @@ async function load() {
     const rate = Number(s.usd_krw), admins = new Set(d.members.filter((m) => m.is_admin).map((m) => m.id));
     const cost = (x) => x.vast_cost_usd == null ? null : Math.round(Number(x.vast_cost_usd) * rate);
     const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id));
-    const paid = paidRows.reduce((a, x) => a + x.charged_krw, 0), spent = paidRows.reduce((a, x) => a + cost(x), 0);
+    const net = (x) => x.charged_krw - (x.refunded_krw || 0);   // a failed setup is refunded in full (2026-09-29)
+    const paid = paidRows.reduce((a, x) => a + net(x), 0), spent = paidRows.reduce((a, x) => a + cost(x), 0);
     $("costLine").textContent = paidRows.length
       ? `회원 사용 ${paidRows.length}건: 받은 요금 ${won(paid)} · 실제 Vast 원가 ${won(spent)} · 차익 ${won(paid - spent)}` +
         (spent > 0 ? ` (원가의 ${(paid / spent).toFixed(2)}배)` : "") + " · 최근 3일, 10분마다 갱신"
@@ -128,12 +129,12 @@ async function load() {
       const live = ACTIVE.includes(x.status);
       const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
       const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;
-      const margin = c == null || mine ? "" : `<span style="color:${x.charged_krw - c < 0 ? "var(--bad)" : "var(--good)"}">${won(x.charged_krw - c)}</span>`;
+      const margin = c == null || mine ? "" : `<span style="color:${net(x) - c < 0 ? "var(--bad)" : "var(--good)"}">${won(net(x) - c)}</span>`;
       const pill = live ? (x.status === "ready" ? "good" : "warn") : (x.status === "failed" ? "bad" : "");
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
-                    !live && x.verified_stop === false ? "삭제 미확인!" : ""].filter(Boolean).join(" · ");
+                    !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `준비 실패 환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
-        `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${won(x.charged_krw)}</td>` +
+        `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td>${when(x.created_at)}</td><td>${live ? '<span class="muted small">사용 중</span>' : x.stopped_at ? when(x.stopped_at) : ""}</td>` +
         `<td class="num">${live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : ""}</td><td class="small">${esc(note)}</td>` +
