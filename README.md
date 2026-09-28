@@ -6,7 +6,7 @@
 - `admin.html` 관리자: 잔액 충전·차감, GPU 강제 종료
 - `analysis.html` 분석 화면 (LizzieYzy Next와 같은 배치)
 - `guide.html` 사용 가이드, `licenses.html` 오픈소스 고지
-- `manifest.webmanifest`, `sw.js`, `icons/` 홈 화면에 앱으로 설치(PWA)와 GPU 준비 알림 — sw.js는 아무것도 캐시하지 않음
+- `manifest.json`, `sw.js`, `icons/` 홈 화면에 앱으로 설치(PWA)와 GPU 준비 알림 — sw.js는 아무것도 캐시하지 않음
 - 서버는 Supabase(로그인·DB·Edge Function)에 있습니다. `config.js`의 값은 공개용 키입니다.
 
 이 폴더는 KataGoVast 프로젝트의 `web/`에서 만들어집니다 (`tools/build_web.py`).
