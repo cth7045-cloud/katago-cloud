@@ -803,8 +803,14 @@ function lost() {
 // #view=1: an admin watching a member's screen (admin page "화면 보기"). Nothing goes to the GPU but pings — no board
 // changes, no searches, and no activity, so watching never keeps the member's GPU alive — and every input is blocked.
 const viewOnly = hashParams.get("view") === "1";
+let viewerKey = null;   // the watch view's own zoom keys (watchMember)
 if (viewOnly) {
-  const block = (e) => { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); };
+  const block = (e) => {
+    // the copy of the member's screen (watchMember) takes its own zoom and drag; it never reaches the analysis screen
+    if (e.target && e.target.closest && e.target.closest("#mirrorStage")) return;
+    if (e.type === "keydown" && viewerKey && viewerKey(e)) { e.stopImmediatePropagation(); e.preventDefault(); return; }
+    e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
+  };
   for (const type of ["pointerdown", "pointerup", "pointermove", "mousedown", "mouseup", "mousemove", "click", "dblclick", "contextmenu",
                       "touchstart", "touchmove", "touchend", "wheel", "keydown", "keyup", "keypress", "input", "change", "submit", "dragstart", "drop"]) {
     addEventListener(type, block, {capture: true, passive: false});
@@ -3093,14 +3099,31 @@ function watchMember(channel) {
   channel.subscribe(status => { if (status === "SUBSCRIBED") beat(); });
   setInterval(beat, 4000);
   const stage = document.createElement("div"), frame = document.createElement("iframe"), note = document.createElement("div"), finger = document.createElement("div");
-  stage.style.cssText = "position:fixed;inset:0;z-index:9990;background:#e3e6ec;overflow:hidden";
+  stage.id = "mirrorStage";
+  stage.style.cssText = "position:fixed;inset:0;z-index:9990;background:#e3e6ec;overflow:hidden;touch-action:none;cursor:grab";
   frame.setAttribute("sandbox", "allow-same-origin");   // no scripts run in the copy
   frame.setAttribute("title", "회원 화면");
   frame.style.cssText = "position:absolute;left:0;top:0;border:0;transform-origin:0 0;background:#fff;box-shadow:0 12px 40px rgba(23,26,34,.28);pointer-events:none";
-  note.style.cssText = "position:absolute;left:12px;right:12px;top:10px;text-align:center;font-size:13px;color:#4a5263";
+  note.style.cssText = "position:absolute;left:0;right:0;top:0;height:36px;line-height:36px;padding:0 132px 0 12px;z-index:1;background:rgba(227,230,236,.94);" +
+    "text-align:center;font-size:13px;color:#4a5263;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
   finger.style.cssText = "position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;pointer-events:none;opacity:0;" +
     "border:2px solid #e5484d;background:rgba(229,72,77,.22);transition:opacity .35s,transform .12s";
-  stage.append(note, frame, finger);
+  // Zoom (user request 2026-09-28): the copy always fits the window, so the browser's own zoom did nothing. Wheel or
+  // pinch zooms around the pointer (up to 6x), dragging moves the view, a double click/tap or "맞춤" fits it again.
+  const tools = document.createElement("div");
+  tools.style.cssText = "position:absolute;right:10px;top:5px;display:flex;gap:4px;z-index:2";
+  const tool = (text, title, fn) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = text; b.title = title;
+    b.style.cssText = "min-width:30px;height:26px;padding:0 8px;border:1px solid #c9ced8;border-radius:999px;background:#fff;color:#2a3140;font:600 13px/1 inherit;cursor:pointer";
+    b.addEventListener("click", e => { e.stopPropagation(); fn(); });
+    b.addEventListener("pointerdown", e => e.stopPropagation());
+    tools.appendChild(b); return b;
+  };
+  tool("−", "축소 (Ctrl −)", () => zoomAt(1 / 1.25));
+  const zoomBtn = tool("맞춤", "화면에 맞추기 (Ctrl 0, 두 번 클릭)", () => resetZoom());
+  tool("＋", "확대 (Ctrl +, 휠, 두 손가락)", () => zoomAt(1.25));
+  stage.append(note, frame, finger, tools);
   document.body.appendChild(stage);
   const head = document.head.cloneNode(true); head.querySelectorAll("script").forEach(s => s.remove());
   frame.srcdoc = `<!doctype html><html lang="ko"><head><base href="${location.href.split("#")[0].replace(/"/g, "&quot;")}">${head.innerHTML}</head><body></body></html>`;
@@ -3108,14 +3131,76 @@ function watchMember(channel) {
   const pics = new Map();   // canvas id -> number of the picture shown
   const viewTag = $("viewTag"), tagText = viewTag ? viewTag.textContent : "";
   frame.onload = () => { ready = true; for (const [id, url] of early) picture(id, url); early.clear(); drain(); };
+  let zoom = 1, panX = 0, panY = 0;   // on top of the fitted size; pan = offset from the centred position
+  const base = () => Math.min((innerWidth - 24) / size.w, (innerHeight - 36 - 24) / size.h);
   function fit() {
     if (!size) return;
     const W = innerWidth, H = innerHeight - 36;
-    scale = Math.min((W - 24) / size.w, (H - 24) / size.h);
-    left = (W - size.w * scale) / 2; top = 36 + (H - size.h * scale) / 2;
+    scale = base() * zoom;
+    const w = size.w * scale, h = size.h * scale;
+    // a zoomed copy may move until its edge reaches the window's edge (12px margin); a smaller one stays centred
+    const cx = (W - w) / 2, cy = 36 + (H - h) / 2;
+    panX = w > W - 24 ? Math.min(Math.max(panX, W - 12 - w - cx), 12 - cx) : 0;
+    panY = h > H - 24 ? Math.min(Math.max(panY, 36 + H - 12 - h - cy), 48 - cy) : 0;
+    left = cx + panX; top = cy + panY;
     Object.assign(frame.style, {width: size.w + "px", height: size.h + "px", transform: `translate(${left}px,${top}px) scale(${scale})`});
+    zoomBtn.textContent = zoom > 1.001 ? Math.round(zoom * 100) + "%" : "맞춤";
   }
+  function zoomAt(f, x = innerWidth / 2, y = 36 + (innerHeight - 36) / 2) {
+    if (!size) return;
+    const next = Math.min(6, Math.max(1, zoom * f));
+    if (next === zoom) return;
+    const px = (x - left) / scale, py = (y - top) / scale;   // the member's-screen point under the pointer stays there
+    zoom = next;
+    const s = base() * zoom, W = innerWidth, H = innerHeight - 36;
+    panX = x - px * s - (W - size.w * s) / 2; panY = y - py * s - (36 + (H - size.h * s) / 2);
+    fit();
+  }
+  function resetZoom() { zoom = 1; panX = panY = 0; fit(); }
   addEventListener("resize", fit);
+  viewerKey = e => {
+    if (stage.hidden || !(e.ctrlKey || e.metaKey)) return false;
+    if (e.key === "+" || e.key === "=") zoomAt(1.25);
+    else if (e.key === "-" || e.key === "_") zoomAt(1 / 1.25);
+    else if (e.key === "0") resetZoom();
+    else return false;
+    return true;
+  };
+  stage.addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomAt(Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0025)), e.clientX, e.clientY);
+  }, {passive: false});
+  const pts = new Map();   // pointers down on the stage: one drags, two pinch
+  let pinch = null, lastTap = 0, gesture = null;   // gesture: this touch so far (moved, or had two fingers = not a tap)
+  stage.addEventListener("pointerdown", e => {
+    if (!pts.size) gesture = {x: e.clientX, y: e.clientY, multi: false};
+    else if (gesture) gesture.multi = true;
+    pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    try { stage.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    stage.style.cursor = "grabbing";
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = {d: Math.hypot(a.x - b.x, a.y - b.y), z: zoom}; }
+  });
+  stage.addEventListener("pointermove", e => {
+    const p = pts.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (pts.size === 1) { panX += dx; panY += dy; fit(); }
+    else if (pinch) {
+      const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch.d > 10) zoomAt(pinch.z * d / pinch.d / zoom, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    }
+  });
+  const up = e => {
+    if (!pts.delete(e.pointerId)) return;
+    if (pts.size < 2) pinch = null;
+    if (!pts.size) stage.style.cursor = "grab";
+    if (!pts.size && e.type === "pointerup" && e.pointerType !== "mouse" && gesture) {   // a double tap fits the copy again
+      const tap = !gesture.multi && Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y) < 12;
+      if (tap && Date.now() - lastTap < 300) { resetZoom(); lastTap = 0; } else lastTap = tap ? Date.now() : 0;
+    }
+  };
+  stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+  stage.addEventListener("dblclick", () => resetZoom());
   function label() {
     const age = Math.round((Date.now() - fresh) / 1000);
     note.textContent = !size ? "회원 화면을 기다리는 중…"
