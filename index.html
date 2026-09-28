@@ -102,7 +102,7 @@
           <span class="hub-sub" id="hubStudy"></span>
         </a>
       </nav>
-      <!-- 홈 화면에 앱으로 설치: shown until installed or closed (내 정보 keeps the same button) -->
+      <!-- 홈 화면에 앱으로 설치: always shown outside the app (as on the login page and 내 정보) -->
       <div class="panel install-card hidden" id="installCard">
         <span class="app-icon" aria-hidden="true"></span>
         <div class="grow">
@@ -110,7 +110,6 @@
           <div class="small muted" data-install-how>주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</div>
         </div>
         <button class="primary" type="button" data-install>설치</button>
-        <button class="quiet" type="button" id="installHide" aria-label="닫기">닫기</button>
       </div>
     </div>
 
@@ -1087,24 +1086,21 @@ function installHow() {
   if (android) return "브라우저 메뉴(⋮) → '홈 화면에 추가' 또는 '앱 설치'를 누르세요.";
   return "Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕)을 누르세요. 이미 설치했다면 같은 자리의 '앱에서 열기'로 열 수 있습니다.";
 }
+// Shown everywhere (login page, start page, 내 정보) unless the site is running as the installed app: the member may
+// have removed the app and want it back. Inside the app it is hidden completely.
 function showInstall() {
-  let hidden = false; try { hidden = localStorage.getItem("kgv.installHide") === "1"; } catch { /* private mode */ }
-  const can = !standalone && (installEvent || iOS || android);
-  $("installCard").classList.toggle("hidden", !can || hidden);
-  $("installPanel").classList.toggle("hidden", standalone || !(installEvent || iOS || android || matchMedia("(pointer: fine)").matches));
-  $("installAuth").classList.toggle("hidden", standalone);   // the login page always offers it (to install again after removing)
+  for (const id of ["installCard", "installPanel", "installAuth"]) $(id).classList.toggle("hidden", standalone);
   document.querySelectorAll("[data-install-how]").forEach((el) => { el.textContent = installHow(); });
   document.querySelectorAll("[data-install]").forEach((b) => b.classList.toggle("hidden", !installEvent));
 }
 addEventListener("beforeinstallprompt", (ev) => { ev.preventDefault(); installEvent = ev; showInstall(); });
-addEventListener("appinstalled", () => { installEvent = null; $("installCard").classList.add("hidden"); $("installPanel").classList.add("hidden"); toast("앱으로 설치했습니다. 홈 화면의 KataGo Cloud로 여세요."); });
+addEventListener("appinstalled", () => { installEvent = null; showInstall(); toast("앱으로 설치했습니다. 홈 화면의 KataGo Cloud로 여세요."); });
 document.querySelectorAll("[data-install]").forEach((b) => { b.onclick = async () => {
   if (!installEvent) return;
   installEvent.prompt();
   try { await installEvent.userChoice; } catch { /* dismissed */ }
   installEvent = null; showInstall();
 }; });
-$("installHide").onclick = () => { try { localStorage.setItem("kgv.installHide", "1"); } catch { /* private mode */ } showInstall(); };
 showInstall();
 
 setMode("login");
