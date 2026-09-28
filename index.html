@@ -1067,6 +1067,7 @@ function openPage(url) { if (standalone) location.href = url; else window.open(u
 if (standalone) for (const id of ["analysisLink", "openAnalysis"]) $(id).removeAttribute("target");
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
+let installed = false;   // installed from this page just now (until the next reload the page cannot tell otherwise)
 const ua = navigator.userAgent;
 const iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const android = /Android/.test(ua);
@@ -1074,6 +1075,8 @@ const android = /Android/.test(ua);
 const inApp = /KAKAOTALK/i.test(ua) || /NAVER\(inapp/i.test(ua);
 function installHow() {
   if (inApp) return "카카오톡·네이버 앱 안에서는 설치할 수 없습니다. 크롬에서 이 사이트를 열어 설치해 주세요.";
+  if (installed) return android ? "설치했습니다. 홈 화면의 KataGo Cloud 아이콘으로 여세요."
+    : "설치했습니다. 바탕화면이나 시작 메뉴의 KataGo Cloud로 여세요.";
   if (installEvent) return "주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.";
   if (iOS) return /CriOS|FxiOS|EdgiOS/.test(ua) ? "Safari로 이 사이트를 연 뒤 아래쪽 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요."
     : "아래쪽(아이패드는 위쪽) 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요.";
@@ -1088,11 +1091,11 @@ function showInstall() {
   document.querySelectorAll("[data-install]").forEach((b) => b.classList.toggle("hidden", !installEvent));
 }
 addEventListener("beforeinstallprompt", (ev) => { ev.preventDefault(); installEvent = ev; showInstall(); });
-addEventListener("appinstalled", () => { installEvent = null; showInstall(); toast("앱으로 설치했습니다. 홈 화면의 KataGo Cloud로 여세요."); });
+addEventListener("appinstalled", () => { installEvent = null; installed = true; showInstall(); toast("앱으로 설치했습니다. 홈 화면의 KataGo Cloud로 여세요."); });
 document.querySelectorAll("[data-install]").forEach((b) => { b.onclick = async () => {
   if (!installEvent) return;
   installEvent.prompt();
-  try { await installEvent.userChoice; } catch { /* dismissed */ }
+  try { if ((await installEvent.userChoice).outcome === "accepted") installed = true; } catch { /* dismissed */ }
   installEvent = null; showInstall();
 }; });
 showInstall();
