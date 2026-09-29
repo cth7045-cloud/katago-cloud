@@ -95,7 +95,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <h2>실행 중이거나 최근 GPU</h2>
       <p class="muted small lead" id="costLine"></p>
       <div class="table-wrap"><table>
-        <thead><tr><th>회원</th><th>상태</th><th title="GPU · 모델 · 지역">GPU · 모델</th><th class="num" title="회원 요금 · Vast 원가($)">시간당</th><th title="시작 시각 · 사용 시간(부팅 포함)">시작</th><th class="num">받은 요금</th>
+        <thead><tr><th>회원</th><th>상태</th><th title="GPU · 지역 / 모델">GPU · 모델</th><th class="num" title="회원 요금 · Vast 원가($)">시간당</th><th title="시작 시각 · 사용 시간(부팅 포함)">시작</th><th class="num">받은 요금</th>
           <th class="num" title="Vast가 실제로 청구한 금액(GPU·디스크·다운로드·업로드) × 환율. 10분마다 갱신, 최근 3일 세션만">실제 원가</th><th class="num">차익</th><th>메모</th><th></th></tr></thead>
         <tbody id="sessionRows"></tbody>
       </table></div>
@@ -304,7 +304,7 @@ async function load() {
                     !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `준비 실패 환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
       return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${label}</span></td>` +
-        `<td>${esc(x.gpu_name || "")}<span class="sub">${esc([models[x.id] ? MODEL_NAMES[models[x.id].model_id] || models[x.id].model_name : "", x.region].filter(Boolean).join(" · "))}</span></td>` +
+        `<td>${esc([x.gpu_name, x.region].filter(Boolean).join(" · "))}<span class="sub">${esc(models[x.id] ? MODEL_NAMES[models[x.id].model_id] || models[x.id].model_name : "")}</span></td>` +
         `<td class="num">${won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
         `<td title="${x.stopped_at ? "종료 " + when(x.stopped_at) : ""}">${when(x.created_at)}<span class="sub">${used}${live ? " (사용 중)" : ""}</span></td>` +
         `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
@@ -332,7 +332,7 @@ async function load() {
 
 // GPU·모델별 속도: the admin picks a model; rows sort fastest first
 const MODEL_NAMES = { "transformer-large": "Transformer 대형", "transformer-medium": "Transformer 중형", "transformer-small": "Transformer 소형",
-  "model-cnn-b40-latest": "CNN 40b", "model-cnn-b28-latest": "CNN 28b", "model-muon-b28": "CNN 28b Muon", "model-cnn-b18-latest": "CNN 18b" };
+  "model-cnn-b40-latest": "CNN b40", "model-cnn-b28-latest": "CNN b28", "model-muon-b28": "CNN b28 Muon", "model-cnn-b18-latest": "CNN b18" };
 let speedRows = [];
 const modelName = (r) => r.model_name || MODEL_NAMES[r.model_id] || r.model_id;
 function showSpeed() {
@@ -361,14 +361,14 @@ const fileName = (url) => decodeURIComponent(String(url).split("/").pop()).repla
 const idFrom = (name) => name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "model";
 const mb = (n) => (n ? `${Math.round(n / 1e6).toLocaleString()}MB` : "");
 // Network file names -> words the admin reads (user request 2026-09-29): Transformer 대형·중형·소형 by channels,
-// CNN by blocks (18b, 28b, 40b), and how heavy it is.
+// CNN by blocks (b18, b28, b40), and how heavy it is.
 function describeNet(file) {
   const f = String(file).toLowerCase(), b = +(/b(\d+)c\d+/.exec(f)?.[1] || 0), c = +(/b\d+c(\d+)/.exec(f)?.[1] || 0);
   if (/(^|[-_])tf\d|tflrs/.test(f)) {
     const size = c >= 768 ? "대형" : c >= 512 ? "중형" : "소형";
     return { label: `Transformer ${size}`, tier: { 대형: "무겁지만 가장 강한 크기", 중형: "중간 정도 크기", 소형: "가볍고 빠른 크기" }[size] };
   }
-  if (b) return { label: `CNN ${b}b`, tier: b >= 40 ? "무겁지만 가장 강한 크기" : b >= 28 ? "중간 정도 크기" : "가볍고 빠른 크기" };
+  if (b) return { label: `CNN b${b}`, tier: b >= 40 ? "무겁지만 가장 강한 크기" : b >= 28 ? "중간 정도 크기" : "가볍고 빠른 크기" };
   return { label: fileName(file), tier: "" };
 }
 const dateOnly = (v) => when(v).replace(/ \d\d:\d\d$/, "");
