@@ -159,7 +159,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 
     <section class="tab" data-tab="engine" hidden>
     <div class="panel" id="enginePanel">
-      <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">KataGo 엔진·모델</h2><button class="quiet" id="checkUpdates">새 버전 확인</button></div>
+      <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">KataGo 엔진·모델</h2><button class="quiet" id="multiTest" title="목록에서 가장 싼 2~4장 GPU로 기본 모델을 설치·속도 측정 후 자동 종료">여러 장 GPU 시험</button><button class="quiet" id="checkUpdates">새 버전 확인</button></div>
       <p class="muted small">매일 새벽 5시에 새 엔진·가중치를 찾아 '새 버전 알림'에 올립니다(저절로 바뀌지 않음). <span id="engCheck"></span></p>
       <p class="small" style="margin:0 0 4px"><span class="pill">① 시험 준비</span> → <span class="pill">② 시험 대여</span> 가장 싼 GPU로 설치·속도 측정 후 자동 종료(수십 원) → <span class="pill good">③ 적용</span> 엔진은 '적용', 모델은 상태를 '회원에게 보임'으로</p>
       <h3 class="eng-h">엔진</h3>
@@ -430,10 +430,11 @@ const rpc = async (fn, args, done) => {
   await loadEngine(); return true;
 };
 async function testRental(body, what) {
-  if (!confirm(`${what}\n\n지금 목록에서 가장 싼 GPU를 빌려 설치하고 KataGo 벤치마크로 속도를 잰 뒤 자동으로 끕니다.\n보통 5~10분, 관리자 잔액에서 원가(수십 원)가 나갑니다. 진행은 위 'GPU 목록'과 홈 화면에 보입니다.\n\n시작할까요?`)) return;
+  if (!confirm(`${what}\n\n지금 목록에서 가장 싼 ${body.multi ? "여러 장 GPU(2~4장)" : "GPU"}를 빌려 설치하고 KataGo 벤치마크로 속도를 잰 뒤 자동으로 끕니다.\n보통 5~10분, 관리자 잔액에서 원가(수십 원)가 나갑니다. 진행은 위 'GPU 목록'과 홈 화면에 보입니다.\n\n시작할까요?`)) return;
   try { await api("/admin/engine-test", body); toast("시험 대여를 시작했습니다. 끝나면 결과가 여기에 나타납니다."); load(); }
   catch (e) { toast(e.message, true); }
 }
+$("multiTest").onclick = () => testRental({ multi: true }, "여러 장 GPU + 기본 모델 (카드를 모두 쓰는지 확인)");
 $("enginePanel").addEventListener("input", (ev) => { if (ev.target.closest("#modelRows, #modelAdd")) engDirty = true; });
 $("engineBox").onclick = async (ev) => {
   const b = ev.target.closest("button"); if (!b) return;
