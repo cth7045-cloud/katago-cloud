@@ -202,7 +202,7 @@
           <button class="quiet" id="batchClear">목록 비우기</button>
         </div>
         <p class="muted small" id="batchNote" style="margin:0 0 14px"></p>
-        <p class="muted small hide-sm" style="margin:-8px 0 14px">컴퓨터에서는 SGF 파일을 이 화면에 끌어다 놓아도 됩니다.</p>
+        <p class="muted small hide-sm" style="margin:-8px 0 14px">SGF와 타이젬 기보(GIB)를 넣을 수 있습니다. 컴퓨터에서는 파일을 이 화면에 끌어다 놓아도 됩니다.</p>
         <div class="row">
           <label class="btn" id="batchPick">기보 파일 추가<input type="file" id="batchFiles" accept=".sgf,.gib,application/x-go-sgf" multiple hidden></label>
           <button type="button" id="foxOpen">한큐 기보 불러오기</button>
@@ -733,7 +733,7 @@ function batchShow() {
   if (batchQueued && ready && !running) { batchQueued = false; toast("GPU가 준비돼 예약한 기보 분석을 시작합니다."); return startBatch(); }
   $("batchNote").textContent = running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
     : batchQueued ? "GPU가 준비되면 자동으로 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 닫지 마세요."
-    : ready ? "SGF 기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
+    : ready ? "SGF·GIB 기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
     : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
     : "아래에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
   const done = batchRun.filter((f) => f.state === "saved").length;
