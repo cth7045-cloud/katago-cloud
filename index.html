@@ -526,6 +526,9 @@ async function refresh() {
   $("hubGpu").textContent = session ? `${session.gpu_name || "GPU"} · ${state}` : `잔액 ${won(balance)}`;
   $("hubGpu").classList.toggle("live", !!session);
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
+  // 분석 화면 with a ready GPU opens on it, so the board left there comes back (the page also goes there by itself)
+  $("analysisLink").href = session && session.status === "ready" && session.web_url && session.web_token
+    ? `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}` : "analysis.html";
   watchReady(s && s[0]);
   batchShow();
   // GPU use: one line per session (its per-minute charges add up to charged_krw)

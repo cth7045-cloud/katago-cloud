@@ -245,8 +245,6 @@ body.dropping::after { content: "여기에 놓으면 기보를 엽니다"; posit
   border: 3px dashed var(--blue); border-radius: 22px; background: rgba(232, 238, 255, .82); color: var(--blue); font-size: 22px; font-weight: 700; pointer-events: none; }
 #gpuMeter { gap: 8px; padding-right: 5px; }
 #gpuMeter button { min-height: 26px; padding: 2px 10px; font-size: 12px; }
-#gpuJoin { background: #e8eeff; color: var(--blue); font-weight: 700; }
-#gpuJoin:hover { background: #dce5ff; }
 .center { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
 #board { display: block; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
   box-shadow: 0 2px 4px rgba(90, 60, 20, .12), 0 30px 60px -24px rgba(120, 80, 20, .45); }
@@ -479,7 +477,7 @@ button.primary:hover { background: var(--blue-deep); }
   <label class="check" id="graphLabel"><input type="checkbox" id="showGraph"> 승률 그래프</label>
   <span class="spacer"></span>
   <span class="status" id="vps"></span>
-  <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuJoin" hidden>이 GPU로 연결</button><button id="gpuStop" class="pink">GPU 종료</button></span>
+  <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button></span>
   <span class="status" id="connStatus"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
   <input type="file" id="fileInput" accept=".sgf,.gib,application/x-go-sgf" hidden>
 </header>
@@ -3146,14 +3144,18 @@ async function watchGpu() {
   // Opened without a GPU (the top bar's 분석 화면, a saved game, 기보 추가) while the member has one running: show it
   // here, to join or stop it (user report 2026-09-28: a member closed the GPU's screen and found no way to stop it).
   const mine = !token;
+  // Opened plainly (the top bar's 분석 화면, 앱 아이콘) while the member's GPU is ready: go straight to it, so the board
+  // left there (kept by the GPU's bridge) comes back as it was (user request 2026-09-29; the "이 GPU로 연결" button is gone).
+  // Only when the page opens: never pulls away a board the member started here, nor 기보 기록 / a 내 기보 / a shared game.
+  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("notes") && !batchMode;
   async function tick() {
     const cols = "status,charged_krw,instance_created_at,created_at,web_url,web_token,gpu_name";
     const {data: s} = await (mine ? site.sb.from("gpu_sessions").select(cols).in("status", LIVE).order("created_at", {ascending: false})
       : site.sb.from("gpu_sessions").select(cols).eq("web_token", token)).limit(1).maybeSingle();
     if (!s) { $("gpuMeter").hidden = true; return; }   // not logged in on this browser, or not this member's GPU
     const joinable = mine && s.status === "ready" && GPU_URL.test(s.web_url || "") && s.web_token;
-    $("gpuJoin").hidden = !joinable;
-    if (joinable) $("gpuJoin").onclick = () => window.open(`analysis.html?v=${Date.now()}#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`, "_blank", "noopener");
+    if (first && joinable) { location.replace(`analysis.html?v=${Date.now()}#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`); return; }
+    first = false;
     if (!mine && GPU_URL.test(s.web_url || "") && s.web_url !== remoteGpu) {   // the GPU restarted its tunnel: follow the new address
       remoteGpu = s.web_url;
       history.replaceState(null, "", `#u=${encodeURIComponent(remoteGpu)}&t=${encodeURIComponent(token)}`);
