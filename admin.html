@@ -37,7 +37,9 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 .eng-box .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-radius: 14px; background: var(--soft, #f3f5f9); }
 .eng-box .line b { min-width: 64px; }
 /* 새 버전 알림·모델 목록: 카드(폰에서 표가 세로로 길게 늘어지던 것, 2026-09-29) */
-.cards { display: grid; gap: 8px; }
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.card, .card .top > * { min-width: 0; }
+.card .elo { color: var(--ink); font-weight: 700; }
 .card { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 14px; border-radius: 16px; background: var(--soft); }
 .card .info { flex: 1 1 300px; min-width: 0; }
 .card .title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 700; }
@@ -46,7 +48,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 .card .btns button { min-height: 36px; padding: 6px 14px; }
 .card .pill { font-size: 12px; padding: 1px 9px; }
 .card.model .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; }
-.card.model input.name { flex: 1 1 160px; min-width: 0; max-width: 260px; }
+.card.model input.name { flex: 1 1 140px; width: 0; min-width: 0; max-width: 260px; }
 .card.model select { min-width: 0; }
 .card.model .arrows button { padding: 2px 8px; min-height: 32px; background: transparent; }
 .card.model label.def { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -412,7 +414,7 @@ async function loadEngine() {
       `<input class="name" value="${esc(m.name)}" maxlength="30" aria-label="보일 이름">` +
       `<select class="status" aria-label="상태">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}"${v === m.status ? " selected" : ""}${v === "on" && !m.sha256 ? " disabled" : ""}>${t}</option>`).join("")}</select>` +
       `<label class="def" title="회원 화면에서 처음 골라져 있는 모델"><input type="radio" name="defModel" value="${esc(m.id)}"${m.id === c.default_model ? " checked" : ""}${m.status !== "on" ? " disabled" : ""}> 기본</label></div>` +
-      `<div class="info"><div class="desc" title="${esc(m.url)}">${esc([d.label, d.tier, m.sha256 ? mb(m.size) : "파일 확인 전"].filter(Boolean).join(" · "))}</div>` +
+      `<div class="info"><div class="desc" title="${esc(m.url)}">${m.elo ? `<b class="elo">Elo ${Math.round(Number(m.elo)).toLocaleString()}</b> · ` : ""}${esc([d.label, d.tier, m.sha256 ? mb(m.size) : "파일 확인 전"].filter(Boolean).join(" · "))}</div>` +
       `<div class="desc">${resultText(res.filter((r) => r.model_id === m.id))}</div></div>` +
       `<div class="btns"><button class="primary" data-save>저장</button><button class="quiet" data-test>시험 대여</button><button class="danger" data-del>삭제</button></div></div>`;
   }).join("");
