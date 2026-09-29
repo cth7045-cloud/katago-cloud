@@ -36,15 +36,29 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 .eng-box { display: grid; gap: 8px; }
 .eng-box .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-radius: 14px; background: var(--soft, #f3f5f9); }
 .eng-box .line b { min-width: 64px; }
-#modelRows input.name { width: 100%; min-width: 130px; max-width: 220px; }
-#modelRows select { min-width: 0; }
-#modelRows .arrows button { padding: 2px 8px; min-height: 0; }
-#modelRows td, #updateRows td { vertical-align: middle; }
-.file { max-width: 220px; overflow-wrap: anywhere; }
-#modelRows .file { margin-top: 4px; }
-#modelRows td, #updateRows td { white-space: normal; }
-#modelRows td:nth-child(5) { max-width: 230px; }
-#modelRows td:last-child > div { white-space: nowrap; }
+/* 새 버전 알림·모델 목록: 카드(폰에서 표가 세로로 길게 늘어지던 것, 2026-09-29) */
+.cards { display: grid; gap: 8px; }
+.card { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 14px; border-radius: 16px; background: var(--soft); }
+.card .info { flex: 1 1 300px; min-width: 0; }
+.card .title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 700; }
+.card .desc { margin-top: 3px; font-size: 13px; color: var(--muted); }
+.card .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.card .btns button { min-height: 36px; padding: 6px 14px; }
+.card .pill { font-size: 12px; padding: 1px 9px; }
+.card.model .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; }
+.card.model input.name { flex: 1 1 160px; min-width: 0; max-width: 260px; }
+.card.model select { min-width: 0; }
+.card.model .arrows button { padding: 2px 8px; min-height: 32px; background: transparent; }
+.card.model label.def { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.card.model .info { flex: 1 1 260px; }
+.empty { color: var(--muted); padding: 8px 2px; }
+@media (max-width: 640px) {
+  .card { padding: 10px 12px; gap: 6px 8px; }
+  .card .info { flex-basis: 100%; }
+  .card .btns { margin-left: 0; }
+  .card .btns button { min-height: 32px; padding: 4px 12px; font-size: 14px; }
+  .card.model input.name { max-width: none; }
+}
 </style>
 </head>
 <body>
@@ -148,16 +162,10 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <h3 class="eng-h">엔진</h3>
       <div id="engineBox" class="eng-box"></div>
       <h3 class="eng-h">새 버전 알림</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>종류</th><th>이름</th><th>나온 날</th><th>설명</th><th></th></tr></thead>
-        <tbody id="updateRows"></tbody>
-      </table></div>
+      <div id="updateRows" class="cards"></div>
       <h3 class="eng-h">모델 목록</h3>
       <p class="muted small">회원 화면에 이 순서로 보입니다. 이름·상태를 고친 뒤 그 줄의 '저장'. '시험'은 관리자에게만 '(시험)'으로 보이고, '파일 확인 전' 모델은 시험 대여를 한 번 해야 회원에게 보일 수 있습니다.</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>순서</th><th>이름 · 파일</th><th>상태</th><th title="처음 고른 상태로 보이는 모델">기본</th><th>시험·사용 결과</th><th></th></tr></thead>
-        <tbody id="modelRows"></tbody>
-      </table></div>
+      <div id="modelRows" class="cards"></div>
       <form id="modelAdd" class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
         <input id="addUrl" placeholder="모델 파일 주소 (katagotraining 또는 KataGo GitHub의 .bin.gz)" style="flex:2 1 320px" required>
         <input id="addName" placeholder="보일 이름 (30자까지)" maxlength="30" style="flex:1 1 160px" required>
@@ -347,6 +355,18 @@ const STATUS = { on: "회원에게 보임", off: "숨김", test: "시험(관리�
 const fileName = (url) => decodeURIComponent(String(url).split("/").pop()).replace(/\.bin\.gz$/, "");
 const idFrom = (name) => name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "model";
 const mb = (n) => (n ? `${Math.round(n / 1e6).toLocaleString()}MB` : "");
+// Network file names -> words the admin reads (user request 2026-09-29): Transformer 대형·중형·소형 by channels,
+// CNN by blocks (18b, 28b, 40b), and how heavy it is.
+function describeNet(file) {
+  const f = String(file).toLowerCase(), b = +(/b(\d+)c\d+/.exec(f)?.[1] || 0), c = +(/b\d+c(\d+)/.exec(f)?.[1] || 0);
+  if (/(^|[-_])tf\d|tflrs/.test(f)) {
+    const size = c >= 768 ? "대형" : c >= 512 ? "중형" : "소형";
+    return { label: `Transformer ${size}`, tier: { 대형: "무겁지만 가장 강한 크기", 중형: "중간 정도 크기", 소형: "가볍고 빠른 크기" }[size] };
+  }
+  if (b) return { label: `CNN ${b}b`, tier: b >= 40 ? "무겁지만 가장 강한 크기" : b >= 28 ? "중간 정도 크기" : "가볍고 빠른 크기" };
+  return { label: fileName(file), tier: "" };
+}
+const dateOnly = (v) => when(v).replace(/ \d\d:\d\d$/, "");
 function resultText(rows) {
   if (!rows.length) return '<span class="muted">아직 없음</span>';
   const ready = rows.reduce((a, r) => a + Number(r.ready), 0), failed = rows.reduce((a, r) => a + Number(r.failed), 0);
@@ -359,7 +379,6 @@ async function loadEngine() {
   const { data, error } = await sb.rpc("admin_engine");
   if (error) { $("engineBox").innerHTML = `<div class="error">엔진 정보를 불러오지 못했습니다: ${esc(error.message)}</div>`; return; }
   eng = data; engDirty = false;
-  $("updCount").hidden = !eng.updates.length; $("updCount").textContent = eng.updates.length;
   for (const m of eng.models) MODEL_NAMES[m.id] = m.name;
   const c = eng.config, res = eng.results;
   $("engCheck").textContent = c.checked_at ? `마지막 확인 ${when(c.checked_at)} (${c.check_result || ""})` : "";
@@ -369,21 +388,34 @@ async function loadEngine() {
   $("engineBox").innerHTML = line("사용 중", c.applied, "") +
     (c.test ? line("시험 중", c.test, `<button class="quiet" data-eng-test>시험 대여</button><button class="primary" data-eng="apply">적용</button><button class="quiet" data-eng="clear">시험 취소</button>`) : "") +
     (c.previous ? line("이전", c.previous, `<button class="quiet" data-eng="rollback">이 버전으로 되돌리기</button>`) : "");
-  $("updateRows").innerHTML = eng.updates.map((u) => {
-    const i = u.info, what = u.kind === "engine" ? "엔진" : "가중치";
-    const desc = u.kind === "engine" ? `${esc(i.file)}${i.page ? ` · <a href="${esc(i.page)}" target="_blank" rel="noopener">바뀐 점</a>` : ""}`
-      : [i.source, i.elo ? `Elo ${i.elo}` : "", i.strongest ? "지금 가장 강함" : "", mb(i.size), i.note].filter(Boolean).map(esc).join(" · ");
-    return `<tr><td>${what}</td><td class="file">${esc(u.key)}</td><td>${i.published ? when(i.published) : when(u.found_at)}</td><td class="small">${desc}</td>` +
-      `<td style="white-space:nowrap"><button class="quiet" data-try="${u.id}">시험 준비</button> <button class="quiet" data-dismiss="${u.id}">숨기기</button></td></tr>`;
-  }).join("") || `<tr><td colspan="5" class="muted">새 버전이 없습니다.</td></tr>`;
+  // the same file as a model in use (a release re-attaching it) is not new
+  const inUse = new Set(eng.models.map((m) => fileName(m.url)));
+  const updates = eng.updates.filter((u) => u.kind === "engine" || !inUse.has(fileName(u.info.url || u.key)));
+  $("updCount").hidden = !updates.length; $("updCount").textContent = updates.length;
+  $("updateRows").innerHTML = updates.map((u) => {
+    const i = u.info, btns = `<div class="btns"><button class="quiet" data-try="${u.id}">시험 준비</button><button class="quiet" data-dismiss="${u.id}">숨기기</button></div>`;
+    if (u.kind === "engine") {
+      return `<div class="card"><div class="info"><div class="title"><span class="pill">엔진</span>KataGo ${esc(i.version)}</div>` +
+        `<div class="desc">새 엔진${i.published ? ` · ${dateOnly(i.published)} 공개` : ""}${i.page ? ` · <a href="${esc(i.page)}" target="_blank" rel="noopener">바뀐 점 보기</a>` : ""}</div></div>${btns}</div>`;
+    }
+    const d = describeNet(i.url || u.key);
+    const what = i.strongest ? "지금 가장 센 버전" : /katagotraining/.test(i.source || "") ? "가장 최근에 학습된 버전" : "KataGo 공식 배포 파일";
+    const desc = [i.elo ? `Elo ${Math.round(i.elo).toLocaleString()}` : "", what, d.tier, i.published ? `${dateOnly(i.published)} 공개` : "", mb(i.size)].filter(Boolean).join(" · ");
+    return `<div class="card"><div class="info" title="${esc(u.key)}"><div class="title"><span class="pill">가중치</span>${esc(d.label)}` +
+      `${i.strongest ? ' <span class="pill good">가장 셈</span>' : ""}</div><div class="desc">${esc(desc)}</div></div>${btns}</div>`;
+  }).join("") || `<div class="empty">새 버전이 없습니다.</div>`;
   const n = eng.models.length;
-  $("modelRows").innerHTML = eng.models.map((m, k) => `<tr data-id="${esc(m.id)}">` +
-    `<td class="arrows" style="white-space:nowrap"><button class="quiet" data-move="-1"${k === 0 ? " disabled" : ""} aria-label="위로">▲</button><button class="quiet" data-move="1"${k === n - 1 ? " disabled" : ""} aria-label="아래로">▼</button></td>` +
-    `<td><input class="name" value="${esc(m.name)}" maxlength="30"><div class="file small muted" title="${esc(m.url)}">${esc(fileName(m.url))} · ${m.sha256 ? mb(m.size) : "파일 확인 전"}</div></td>` +
-    `<td><select class="status">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}"${v === m.status ? " selected" : ""}${v === "on" && !m.sha256 ? " disabled" : ""}>${t}</option>`).join("")}</select></td>` +
-    `<td><input type="radio" name="defModel" value="${esc(m.id)}"${m.id === c.default_model ? " checked" : ""}${m.status !== "on" ? " disabled" : ""}></td>` +
-    `<td class="small">${resultText(res.filter((r) => r.model_id === m.id))}</td>` +
-    `<td><div style="display:flex;gap:6px"><button class="primary" data-save>저장</button><button class="quiet" data-test>시험 대여</button><button class="danger" data-del>삭제</button></div></td></tr>`).join("");
+  $("modelRows").innerHTML = eng.models.map((m, k) => {
+    const d = describeNet(m.url);
+    return `<div class="card model" data-id="${esc(m.id)}"><div class="top">` +
+      `<span class="arrows"><button class="quiet" data-move="-1"${k === 0 ? " disabled" : ""} aria-label="위로">▲</button><button class="quiet" data-move="1"${k === n - 1 ? " disabled" : ""} aria-label="아래로">▼</button></span>` +
+      `<input class="name" value="${esc(m.name)}" maxlength="30" aria-label="보일 이름">` +
+      `<select class="status" aria-label="상태">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}"${v === m.status ? " selected" : ""}${v === "on" && !m.sha256 ? " disabled" : ""}>${t}</option>`).join("")}</select>` +
+      `<label class="def" title="회원 화면에서 처음 골라져 있는 모델"><input type="radio" name="defModel" value="${esc(m.id)}"${m.id === c.default_model ? " checked" : ""}${m.status !== "on" ? " disabled" : ""}> 기본</label></div>` +
+      `<div class="info"><div class="desc" title="${esc(m.url)}">${esc([d.label, d.tier, m.sha256 ? mb(m.size) : "파일 확인 전"].filter(Boolean).join(" · "))}</div>` +
+      `<div class="desc">${resultText(res.filter((r) => r.model_id === m.id))}</div></div>` +
+      `<div class="btns"><button class="primary" data-save>저장</button><button class="quiet" data-test>시험 대여</button><button class="danger" data-del>삭제</button></div></div>`;
+  }).join("");
 }
 const rpc = async (fn, args, done) => {
   const { error } = await sb.rpc(fn, args);
@@ -413,13 +445,13 @@ $("updateRows").onclick = async (ev) => {
     if (confirm(`엔진 ${u.key}을(를) 시험 엔진으로 둘까요? 회원에게는 아직 바뀌지 않습니다.`)) await rpc("admin_update_try", { p_update: u.id }, "시험 엔진으로 두었습니다. '시험 대여'로 확인하세요.");
     return;
   }
-  const name = prompt(`'${u.key}'을(를) 모델 목록에 시험으로 넣습니다.\n회원에게 보일 이름(30자까지):`, u.key.replace(/^kata1-/, "").slice(0, 30));
+  const name = prompt(`${describeNet(u.info.url || u.key).label}${u.info.strongest ? "(가장 센 버전)" : ""}을(를) 모델 목록에 '시험'으로 넣습니다.\n회원에게 보일 이름(30자까지):`, (describeNet(u.info.url || u.key).label + (u.info.strongest ? " (가장 셈)" : u.info.source === "katagotraining.org" ? " (최신)" : "")).slice(0, 30));
   if (!name) return;
   await rpc("admin_update_try", { p_update: u.id, p_id: idFrom(fileName(u.info.url)), p_name: name.trim().slice(0, 30) }, "모델 목록에 '시험'으로 넣었습니다. '시험 대여'로 확인하세요.");
 };
 $("modelRows").onclick = async (ev) => {
   const b = ev.target.closest("button, input[type=radio]"); if (!b) return;
-  const tr = b.closest("tr"), id = tr.dataset.id, m = eng.models.find((x) => x.id === id);
+  const tr = b.closest("[data-id]"), id = tr.dataset.id, m = eng.models.find((x) => x.id === id);
   if (b.type === "radio") return rpc("admin_default_model", { p_id: id }, `기본 모델을 '${m.name}'(으)로 정했습니다.`);
   if (b.dataset.save !== undefined) {
     const name = tr.querySelector(".name").value.trim(), status = tr.querySelector(".status").value;
