@@ -16,6 +16,10 @@
 // reported as an inset, so it covered the bottom buttons (user report 2026-09-30, installed app, tablet landscape).
 if (!(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)))
   document.querySelector('meta[name="viewport"]').content = "width=device-width, initial-scale=1";
+// The page's height is the window's measured height, not 100dvh: an installed app on a Samsung tablet (landscape) laid
+// the bottom buttons out under the taskbar (user report 2026-09-30). Long-press the connection status for the numbers.
+function setAppHeight() { document.documentElement.style.setProperty("--app-h", (visualViewport ? visualViewport.height : innerHeight) + "px"); }
+setAppHeight(); addEventListener("resize", setAppHeight); if (window.visualViewport) visualViewport.addEventListener("resize", setAppHeight);
 </script>
 <title>KataGo 분석</title>
 <meta name="robots" content="noindex">
@@ -43,7 +47,7 @@ if (!(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "M
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { font: 14px/1.4 var(--ui-font); color: var(--ink); overflow: hidden; background: var(--paper);
-  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100dvh; -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: var(--app-h, 100dvh); -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
 button, select, input { font: inherit; color: var(--ink); }
 button { font-weight: 600; background: var(--soft); border: 0; border-radius: 999px; padding: 5px 14px; min-height: 34px; white-space: nowrap; cursor: pointer;
   transition: transform .18s var(--ease), background-color .18s, color .18s; }
@@ -159,7 +163,7 @@ details.menu .items button:hover { background: var(--soft); }
 #menuOpen { display: none; }
 
 /* menu sheet (portrait only): the tools that don't fit under the board, moved here by placeMenuItems() */
-dialog.sheet { margin: 0 0 0 auto; width: min(340px, 88vw); height: 100dvh; max-height: 100dvh; border-radius: 24px 0 0 24px; }
+dialog.sheet { margin: 0 0 0 auto; width: min(340px, 88vw); height: var(--app-h, 100dvh); max-height: var(--app-h, 100dvh); border-radius: 24px 0 0 24px; }
 dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .35s var(--ease); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(48px); } }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: calc(14px + env(safe-area-inset-top)) 14px 6px 22px; }
@@ -3082,6 +3086,19 @@ if (!GPU_HOST.test(location.hostname)) {
 }
 
 // ------------------------------------------------------------------ layout & render loop
+// 화면 크기 진단: 연결 상태를 1초 길게 누르면 창·화면 높이와 시스템 표시줄 여백을 알림 줄에 보여 줌(기기별 잘림 원인 찾기용).
+{
+  let t = 0;
+  const probe = css => { const d = document.createElement("div"); d.style.cssText = "position:fixed;visibility:hidden;left:0;top:0;width:1px;" + css; document.body.append(d); const h = d.getBoundingClientRect().height; d.remove(); return Math.round(h); };
+  const show = () => {
+    const m = matchMedia("(display-mode: standalone)").matches ? "앱" : "브라우저";
+    $("err").textContent = `화면 진단 · ${m} · 창 ${innerWidth}×${innerHeight} · 보이는 영역 ${visualViewport ? Math.round(visualViewport.height) : "-"} · 100dvh ${probe("height:100dvh")} · 100vh ${probe("height:100vh")}` +
+      ` · 화면 ${screen.width}×${screen.height}(사용 가능 ${screen.availHeight}) · 배율 ${devicePixelRatio} · 아래 여백 ${probe("height:env(safe-area-inset-bottom)")} · 페이지 높이 ${document.body.getBoundingClientRect().height}` +
+      ` · 아래줄 끝 ${Math.round(document.querySelector(".toolbar").getBoundingClientRect().bottom)}`;
+  };
+  $("connStatus").addEventListener("pointerdown", () => { clearTimeout(t); t = setTimeout(show, 1000); });
+  for (const e of ["pointerup", "pointerleave", "pointercancel"]) $("connStatus").addEventListener(e, () => clearTimeout(t));
+}
 function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }
 function layout() {
   placeMenuItems();
