@@ -304,7 +304,7 @@ async function load() {
                     !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `준비 실패 환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
       return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${label}</span></td>` +
-        `<td>${esc([x.gpu_name, x.region].filter(Boolean).join(" · "))}<span class="sub">${esc(models[x.id] ? MODEL_NAMES[models[x.id].model_id] || models[x.id].model_name : "")}</span></td>` +
+        `<td>${esc([x.gpu_name, x.region].filter(Boolean).join(" · "))}<span class="sub">${esc(models[x.id] ? models[x.id].model_name || MODEL_NAMES[models[x.id].model_id] : "")}</span></td>` +
         `<td class="num">${won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
         `<td title="${x.stopped_at ? "종료 " + when(x.stopped_at) : ""}">${when(x.created_at)}<span class="sub">${used}${live ? " (사용 중)" : ""}</span></td>` +
         `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +

@@ -529,13 +529,15 @@ async function refresh() {
 }
 const recent = (s) => Date.now() - new Date(s.stopped_at || s.created_at).getTime() < 10 * 60_000;
 
+// the model list's name now, so a rename shows at once; the name saved at rental time otherwise (2026-09-29)
+const currentModelName = (s) => ([...$("model").options].find((o) => o.value === s.model_id)?.textContent || s.model_name || "").replace(/ \(시험\)$/, "");
 function showSession(s) {
   $("sessionCard").classList.toggle("hidden", !s);
   $("startCard").classList.toggle("hidden", !!session);
   if (!s) return;
   const st = s.status, ready = st === "ready", live = ACTIVE.includes(st);
   $("sessionCard").classList.toggle("is-ready", ready);
-  $("sessionTitle").textContent = `${s.gpu_name || "GPU"} · ${s.region || ""} · ${s.model_name || ""}`;
+  $("sessionTitle").textContent = `${s.gpu_name || "GPU"} · ${s.region || ""} · ${currentModelName(s)}`;
   const pill = { creating: ["대여 중", "warn"], booting: ["부팅 중", "warn"], setup: ["설치 중", "warn"], ready: ["사용 가능", "good"],
                  stopping: ["종료 중", "warn"], stopped: ["종료됨", ""], failed: ["실패", "bad"] }[st] || [st, ""];
   $("sessionPill").textContent = pill[0]; $("sessionPill").className = "pill " + pill[1];
