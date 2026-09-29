@@ -971,7 +971,7 @@ function onMessage(msg) {
     if (q.t0 == null) { q.t0 = now; q.v0 = v; }
     else if (now - q.t0 > 200) {
       const vps = Math.round((v - q.v0) * 1000 / (now - q.t0));
-      $("vps").textContent = `${vps} visits/s`;
+      if (analyzing) $("vps").textContent = `${vps} visits/s`;   // a report still in flight after 분석 정지 keeps the 0
       reportSpeed(vps, now - q.t0, v - q.v0);
     }
   }
@@ -1074,6 +1074,7 @@ function setAnalyzing(on) {
   analyzing = on;
   $("analyze").classList.toggle("on", on); $("analyze").textContent = on ? "■ 분석 정지" : "▶ 분석 시작";
   $("hint").textContent = on ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
+  if (!on && $("vps").textContent) $("vps").textContent = "0 visits/s";   // stopped: not the last speed (user request 2026-09-29)
 }
 $("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
 const runAuto = () => startAuto(lineThrough(cur).every(analysed));   // everything analysed at this level = 재분석
