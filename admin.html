@@ -424,7 +424,7 @@ async function loadEngine() {
 }
 const rpc = async (fn, args, done) => {
   const { error } = await sb.rpc(fn, args);
-  if (error) { toast(error.message, true); return false; }
+  if (error) { toast(error.message, true); await loadEngine(); return false; }   // back to what is really saved
   if (done) toast(done);
   await loadEngine(); return true;
 };
