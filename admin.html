@@ -8,6 +8,30 @@
 <meta name="theme-color" content="#fafbfd">
 <link rel="stylesheet" href="style.css">
 <style>
+/* 2026-09-29 가독성: 요약 카드 + 탭(GPU / 회원·잔액 / 엔진·모델 / 요금 설정), 짧은 날짜, 한국어 상태 */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { display: block; min-height: 0; background: var(--panel); border-radius: 20px; padding: 16px 18px; box-shadow: var(--shadow); text-align: left; cursor: pointer; border: 0; font: inherit; color: inherit; }
+.kpi:hover { box-shadow: 0 0 0 2px var(--blue) inset, var(--shadow); }
+.kpi span { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
+.kpi b { display: block; font-size: 24px; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.kpi small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.atabs { position: sticky; top: 60px; z-index: 10; display: flex; gap: 6px; padding: 5px; margin-bottom: 16px; background: #e9edf5; border-radius: 16px; overflow-x: auto; }
+.atabs button { flex: 1 0 auto; background: transparent; color: var(--muted); font-weight: 700; }
+.atabs button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(23, 26, 34, .14); }
+.atabs button .n { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 12px; line-height: 20px; }
+section.tab[hidden] { display: none; }
+.panel .lead { margin: -6px 0 14px; }
+td .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13px; }
+.bar .icon-btn { font-size: 18px; padding-inline: 12px; }
+@media (max-width: 760px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi { padding: 12px 14px; } .kpi b { font-size: 20px; }
+  .atabs { top: 56px; gap: 2px; padding: 4px; }
+  .atabs button { flex: 1 1 auto; padding-inline: 6px; font-size: 14px; min-height: 38px; }
+  .atabs button .n { margin-left: 3px; min-width: 18px; padding: 0 5px; line-height: 18px; }
+}
+@media (max-width: 420px) { .bar .brand { font-size: 0; gap: 0; } }
 .eng-h { margin: 18px 0 8px; font-size: 15px; }
 .eng-box { display: grid; gap: 8px; }
 .eng-box .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-radius: 14px; background: var(--soft, #f3f5f9); }
@@ -30,12 +54,52 @@
       <a class="brand" href="index.html"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
       <a href="admin.html" class="on">관리자</a>
       <a href="index.html">내 화면</a>
-      <button class="quiet" id="reload">새로고침</button>
+      <button class="quiet icon-btn" id="reload" title="새로고침" aria-label="새로고침">↻</button>
     </div>
   </header>
   <div class="wrap app">
     <div class="error" id="err"></div>
 
+    <!-- 한눈에 보기: 누르면 그 탭으로 -->
+    <div class="kpis">
+      <button class="kpi" data-go="gpu"><span>사용 중 GPU</span><b id="kLive">–</b><small id="kLiveSub"></small></button>
+      <button class="kpi" data-go="members"><span>관리자 잔액</span><b id="kFunds">–</b><small id="kFundsSub">Vast 잔액 − 회원 잔액</small></button>
+      <button class="kpi" data-go="members"><span>회원 잔액 합계</span><b id="kMembers">–</b><small id="kMembersSub"></small></button>
+      <button class="kpi" data-go="gpu"><span>최근 3일 차익</span><b id="kMargin">–</b><small id="kMarginSub"></small></button>
+    </div>
+    <nav class="atabs" id="tabs" role="tablist">
+      <button data-tab="gpu" role="tab">GPU</button>
+      <button data-tab="members" role="tab">회원·잔액</button>
+      <button data-tab="engine" role="tab">엔진·모델<span class="n" id="updCount" hidden></span></button>
+      <button data-tab="price" role="tab">요금 설정</button>
+    </nav>
+
+    <section class="tab" data-tab="gpu">
+    <div class="panel">
+      <h2>실행 중이거나 최근 GPU</h2>
+      <p class="muted small lead" id="costLine"></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>회원</th><th>상태</th><th>GPU</th><th class="num" title="회원 요금 · Vast 원가($)">시간당</th><th title="시작 시각 · 사용 시간(부팅 포함)">시작</th><th class="num">받은 요금</th>
+          <th class="num" title="Vast가 실제로 청구한 금액(GPU·디스크·다운로드·업로드) × 환율. 10분마다 갱신, 최근 3일 세션만">실제 원가</th><th class="num">차익</th><th>메모</th><th></th></tr></thead>
+        <tbody id="sessionRows"></tbody>
+      </table></div>
+      <nav class="pager" id="sessionPager" aria-label="GPU 목록 페이지"></nav>
+    </div>
+
+    <div class="panel">
+      <h2>GPU·모델별 속도</h2>
+      <p class="muted small lead">회원이 실시간 분석을 돌릴 때 10초마다 잰 visits/s입니다. '벤치마크'는 GPU 준비·시험 대여 때 KataGo가 잰 값입니다.</p>
+      <label class="field" style="max-width:260px">모델<select id="speedModel"><option value="">전체</option></select></label>
+      <div class="table-wrap"><table>
+        <thead><tr><th>GPU</th><th class="num">평균 visits/s</th><th>모델</th><th class="num">최고</th><th class="num" title="측정한 대여 수 · 기록 횟수">대여·기록</th><th class="num">스레드</th><th>마지막 측정</th><th>출처</th></tr></thead>
+        <tbody id="speedRows"></tbody>
+      </table></div>
+      <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
+    </div>
+
+    </section>
+
+    <section class="tab" data-tab="members" hidden>
     <div class="panel">
       <h2>잔액 충전·차감</h2>
       <form id="topupForm" class="admin-form">
@@ -45,45 +109,42 @@
         <label class="field">메모<input id="tNote" maxlength="100" placeholder="예: 계좌이체 1만원"></label>
         <button class="primary" type="submit">적용</button>
       </form>
-      <p class="muted small" id="settingsLine"></p>
     </div>
 
     <div class="panel">
-      <h2>요금 설정</h2>
-      <form id="priceForm" class="admin-form">
-        <label class="field">환율 (원/$, Vast 크레딧 살 때 실제 환율)<input id="pRate" type="number" step="0.01" min="500" max="5000" required></label>
-        <label class="field">회원 가격 배율 (원가의 몇 배)<input id="pMarkup" type="number" step="0.001" min="1" max="5" required></label>
-        <p class="muted small" id="pExample" style="margin:0; align-self:center"></p>
-        <button class="primary" type="submit">저장</button>
-      </form>
-      <p class="muted small">회원 시간당 요금 = Vast 가격 × 환율 × 배율(10원 단위 올림). 저장한 뒤 새로 켜는 GPU부터 적용되고, 사용 중인 GPU는 시작할 때의 요금 그대로입니다. 관리자는 항상 원가(배율 1)입니다.</p>
-    </div>
-
-    <div class="panel">
-      <h2>실행 중이거나 최근 GPU</h2>
-      <p class="muted small" id="costLine"></p>
+      <h2>회원 <span class="muted small" id="memberCount"></span></h2>
       <div class="table-wrap"><table>
-        <thead><tr><th>회원</th><th>상태</th><th>GPU</th><th class="num">시간당</th><th class="num">Vast $/h</th><th class="num">차감</th>
-          <th class="num" title="Vast가 실제로 청구한 금액(GPU·디스크·다운로드·업로드) × 환율. 10분마다 갱신, 최근 3일 세션만">실제 원가</th><th class="num">차익</th><th>시작</th><th>종료</th><th class="num" title="시작부터 종료까지(사용 중이면 지금까지). GPU 부팅 시간 포함">사용 시간</th><th>메모</th><th></th></tr></thead>
-        <tbody id="sessionRows"></tbody>
+        <thead><tr><th>이름</th><th>이메일</th><th class="num">잔액</th><th>가입</th></tr></thead>
+        <tbody id="memberRows"></tbody>
       </table></div>
-      <nav class="pager" id="sessionPager" aria-label="GPU 목록 페이지"></nav>
     </div>
 
     <div class="panel">
-      <h2>GPU·모델별 속도</h2>
-      <p class="muted small">회원이 분석 화면에서 실시간 분석을 5초 넘게 돌리면 그때의 visits/s가 10초에 한 번 기록됩니다(자동분석·대국 리포트와 함께 돌 때는 빼고). 평균은 대여마다의 평균을 다시 평균한 값입니다. '준비 때 측정'은 예전에 GPU를 준비하며 KataGo 벤치마크로 잰 값입니다.</p>
-      <label class="field" style="max-width:260px">모델<select id="speedModel"><option value="">전체</option></select></label>
+      <h2>최근 입출금</h2>
+      <p class="muted small lead">관리자가 직접 충전·회수한 기록만 보입니다. GPU 요금은 'GPU' 탭에 있습니다.</p>
       <div class="table-wrap"><table>
-        <thead><tr><th>GPU</th><th class="num">평균 visits/s</th><th>모델</th><th class="num">최고</th><th class="num" title="측정한 대여 수 · 기록 횟수">대여·기록</th><th class="num">스레드</th><th>마지막 측정</th><th>출처</th></tr></thead>
-        <tbody id="speedRows"></tbody>
+        <thead><tr><th>시각</th><th>회원</th><th>종류</th><th>내용</th><th class="num">금액</th></tr></thead>
+        <tbody id="ledgerRows"></tbody>
       </table></div>
-      <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
+      <nav class="pager" id="ledgerPager" aria-label="입출금 목록 페이지"></nav>
     </div>
 
+    <div class="panel">
+      <h2>탈퇴 회원</h2>
+      <p class="muted small lead">탈퇴한 회원의 기록과 넘어온 잔액입니다. 영구 삭제는 되돌릴 수 없습니다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>이름</th><th>이메일</th><th>가입</th><th>탈퇴</th><th class="num">넘어온 잔액</th><th></th></tr></thead>
+        <tbody id="formerRows"></tbody>
+      </table></div>
+    </div>
+
+    </section>
+
+    <section class="tab" data-tab="engine" hidden>
     <div class="panel" id="enginePanel">
       <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">KataGo 엔진·모델</h2><button class="quiet" id="checkUpdates">새 버전 확인</button></div>
-      <p class="muted small">새 엔진과 가중치는 매일 새벽 5시에 KataGo GitHub와 katagotraining.org에서 찾아 아래 '새 버전 알림'에 올립니다. 저절로 바뀌지는 않습니다. <b>시험 준비</b> → <b>시험 대여</b>(가장 싼 GPU로 설치·벤치마크 후 자동 종료, 원가 수십 원) → 결과가 괜찮으면 <b>적용</b>(엔진) 또는 상태를 <b>회원에게 보임</b>(모델)으로 바꾸세요. <span id="engCheck"></span></p>
+      <p class="muted small">매일 새벽 5시에 새 엔진·가중치를 찾아 '새 버전 알림'에 올립니다(저절로 바뀌지 않음). <span id="engCheck"></span></p>
+      <p class="small" style="margin:0 0 4px"><span class="pill">① 시험 준비</span> → <span class="pill">② 시험 대여</span> 가장 싼 GPU로 설치·속도 측정 후 자동 종료(수십 원) → <span class="pill good">③ 적용</span> 엔진은 '적용', 모델은 상태를 '회원에게 보임'으로</p>
       <h3 class="eng-h">엔진</h3>
       <div id="engineBox" class="eng-box"></div>
       <h3 class="eng-h">새 버전 알림</h3>
@@ -92,7 +153,7 @@
         <tbody id="updateRows"></tbody>
       </table></div>
       <h3 class="eng-h">모델 목록</h3>
-      <p class="muted small">회원 화면의 모델 목록 순서 그대로입니다. 이름·상태를 고친 뒤 그 줄의 '저장'을 누르세요. '시험'은 관리자에게만 보입니다(홈 화면 모델 목록에 '(시험)'). 파일 확인(SHA-256) 전인 모델은 시험 대여를 한 번 해야 회원에게 보일 수 있습니다.</p>
+      <p class="muted small">회원 화면에 이 순서로 보입니다. 이름·상태를 고친 뒤 그 줄의 '저장'. '시험'은 관리자에게만 '(시험)'으로 보이고, '파일 확인 전' 모델은 시험 대여를 한 번 해야 회원에게 보일 수 있습니다.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>순서</th><th>이름 · 파일</th><th>상태</th><th title="처음 고른 상태로 보이는 모델">기본</th><th>시험·사용 결과</th><th></th></tr></thead>
         <tbody id="modelRows"></tbody>
@@ -104,36 +165,49 @@
       </form>
     </div>
 
+    </section>
+
+    <section class="tab" data-tab="price" hidden>
     <div class="panel">
-      <h2>회원</h2>
-      <div class="table-wrap"><table>
-        <thead><tr><th>이름</th><th>이메일</th><th class="num">잔액</th><th>가입</th></tr></thead>
-        <tbody id="memberRows"></tbody>
-      </table></div>
+      <h2>요금 설정</h2>
+      <form id="priceForm" class="admin-form">
+        <label class="field">환율 (원/$, Vast 크레딧 살 때 실제 환율)<input id="pRate" type="number" step="0.01" min="500" max="5000" required></label>
+        <label class="field">회원 가격 배율 (원가의 몇 배)<input id="pMarkup" type="number" step="0.001" min="1" max="5" required></label>
+        <p class="muted small" id="pExample" style="margin:0; align-self:center"></p>
+        <button class="primary" type="submit">저장</button>
+      </form>
+      <p class="muted small">회원 시간당 요금 = Vast 가격 × 환율 × 배율(10원 단위 올림). 새로 켜는 GPU부터 적용됩니다. 관리자는 항상 원가입니다.</p>
+      <p class="muted small" id="settingsLine"></p>
     </div>
 
-    <div class="panel">
-      <h2>탈퇴 회원</h2>
-      <p class="muted small">탈퇴한 회원의 사용·입출금 기록은 여기에 남습니다. 남은 잔액은 탈퇴할 때 관리자 계정으로 넘어옵니다. 영구 삭제하면 그 회원의 기록이 모두 지워지고 되돌릴 수 없습니다.</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>이름</th><th>이메일</th><th>가입</th><th>탈퇴</th><th class="num">넘어온 잔액</th><th></th></tr></thead>
-        <tbody id="formerRows"></tbody>
-      </table></div>
-    </div>
+    </section>
 
-    <div class="panel">
-      <h2>최근 입출금</h2>
-      <p class="muted small">관리자가 직접 충전하거나 회수한 기록만 보입니다. GPU 사용 요금은 위 GPU 목록에 있습니다.</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>시각</th><th>회원</th><th>종류</th><th>내용</th><th class="num">금액</th></tr></thead>
-        <tbody id="ledgerRows"></tbody>
-      </table></div>
-      <nav class="pager" id="ledgerPager" aria-label="입출금 목록 페이지"></nav>
-    </div>
   </div>
 </main>
 <script type="module">
-import { $, api, esc, sb, toast, when, won } from "./app.js";
+import { $, api, esc, sb, toast, won } from "./app.js";
+
+// short dates: "9/29 17:28" (the year only when it is not this year)
+const when = (iso) => {
+  const d = new Date(String(iso ?? "").replace(" UTC", "Z").replace(" ", "T"));
+  if (!iso || isNaN(d)) return iso ? String(iso).slice(0, 10) : "";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear() !== new Date().getFullYear() ? d.getFullYear() + "/" : ""}${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const STATE = { creating: ["준비 중", "warn"], booting: ["준비 중", "warn"], setup: ["설치 중", "warn"], ready: ["사용 중", "good"],
+                stopping: ["끄는 중", "warn"], stopped: ["종료", ""], failed: ["실패", "bad"] };
+
+// tabs (remembered in the address: admin.html#engine)
+const TABS = ["gpu", "members", "engine", "price"];
+function showTab(name) {
+  if (!TABS.includes(name)) name = "gpu";
+  for (const sec of document.querySelectorAll("section.tab")) sec.hidden = sec.dataset.tab !== name;
+  for (const b of $("tabs").children) { const on = b.dataset.tab === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); }
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+}
+$("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) showTab(b.dataset.tab); };
+document.querySelector(".kpis").onclick = (ev) => { const b = ev.target.closest("[data-go]"); if (b) { showTab(b.dataset.go); $("tabs").scrollIntoView({ block: "start", behavior: "smooth" }); } };
+showTab(location.hash.slice(1));
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
@@ -178,7 +252,14 @@ async function load() {
       || `<tr><td colspan="6" class="muted">없음</td></tr>`;
     const s = d.settings;
     if (!priceDirty) { $("pRate").value = Number(s.usd_krw); $("pMarkup").value = Number(s.markup); showExample(); }
-    $("settingsLine").textContent = `요금 = Vast 가격 × 환율 ${Number(s.usd_krw).toLocaleString()}원 × 수수료 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 필요 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간 · 관리자는 Vast 잔액 − 회원 잔액 안에서 원가 사용`;
+    $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
+    const plain = d.members.filter((m) => !m.is_admin), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
+    $("memberCount").textContent = `${d.members.length}명`;
+    $("kLive").textContent = `${live.length}대`;
+    $("kLiveSub").textContent = live.length ? live.map((x) => `${whoName(x.user_id, x.former_member)} ${x.gpu_name || ""}`).join(", ") : "켜진 GPU 없음";
+    $("kFunds").textContent = funds?.krw != null ? won(funds.krw) : "확인 불가";
+    $("kMembers").textContent = won(plain.reduce((a, m) => a + Number(m.balance_krw || 0), 0));
+    $("kMembersSub").textContent = `회원 ${plain.length}명`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
       `<td class="muted small">${esc(m.email)}</td><td class="num">${m.is_admin && funds?.krw != null
         ? `<span title="Vast ${won(funds.totalKrw)} − 회원 잔액 ${won(funds.membersKrw)}">${won(funds.krw)}</span>` : won(m.balance_krw)}</td>` +
@@ -189,6 +270,8 @@ async function load() {
     const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id));
     const net = (x) => x.charged_krw - (x.refunded_krw || 0);   // a failed setup is refunded in full (2026-09-29)
     const paid = paidRows.reduce((a, x) => a + net(x), 0), spent = paidRows.reduce((a, x) => a + cost(x), 0);
+    $("kMargin").textContent = paidRows.length ? won(paid - spent) : "–";
+    $("kMarginSub").textContent = paidRows.length ? `받은 ${won(paid)} · 원가 ${won(spent)}` : "기록 없음";
     $("costLine").textContent = paidRows.length
       ? `회원 사용 ${paidRows.length}건: 받은 요금 ${won(paid)} · 실제 Vast 원가 ${won(spent)} · 차익 ${won(paid - spent)}` +
         (spent > 0 ? ` (원가의 ${(paid / spent).toFixed(2)}배)` : "") + " · 최근 3일, 10분마다 갱신"
@@ -203,19 +286,22 @@ async function load() {
       const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
       const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;
       const margin = c == null || mine ? "" : `<span style="color:${net(x) - c < 0 ? "var(--bad)" : "var(--good)"}">${won(net(x) - c)}</span>`;
-      const pill = live ? (x.status === "ready" ? "good" : "warn") : (x.status === "failed" ? "bad" : "");
+      const [label, pill] = STATE[x.status] ?? [x.status, ""];
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `준비 실패 환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
-      return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${esc(x.status)}</span></td><td>${esc(x.gpu_name || "")} ${esc(x.region || "")}</td>` +
-        `<td class="num">${won(x.price_krw_per_hour)}</td><td class="num">$${Number(x.vast_price_usd).toFixed(3)}</td><td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
+      const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
+      return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${label}</span></td>` +
+        `<td>${esc(x.gpu_name || "")}<span class="sub">${esc(x.region || "")}</span></td>` +
+        `<td class="num">${won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
+        `<td title="${x.stopped_at ? "종료 " + when(x.stopped_at) : ""}">${when(x.created_at)}<span class="sub">${used}${live ? " (사용 중)" : ""}</span></td>` +
+        `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
-        `<td>${when(x.created_at)}</td><td>${live ? '<span class="muted small">사용 중</span>' : x.stopped_at ? when(x.stopped_at) : ""}</td>` +
-        `<td class="num">${live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : ""}</td><td class="small">${esc(note)}</td>` +
+        `<td class="note">${esc(note)}</td>` +
         `<td style="white-space:nowrap">${x.status === "ready" && x.web_url && x.web_token && !mine
           // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing)
           ? `<a class="btn" target="_blank" rel="noopener" href="analysis.html?v=${Date.now()}#u=${encodeURIComponent(x.web_url)}&t=${encodeURIComponent(x.web_token)}&view=1">화면 보기</a> ` : ""}` +
         `${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
-    }).join("") || `<tr><td colspan="13" class="muted">없음</td></tr>`; };
+    }).join("") || `<tr><td colspan="10" class="muted">없음</td></tr>`; };
     showPage("session");
     // what an admin did by hand: 충전(topup, +) and 회수(adjust, −)
     const KIND = { topup: "충전", adjust: "회수" };
@@ -249,7 +335,7 @@ function showSpeed() {
 render.speed = (list) => { $("speedRows").innerHTML = list.map((r) => `<tr><td>${esc(r.gpu_name)}</td><td class="num"><b>${Number(r.avg_vps).toLocaleString()}</b></td>` +
   `<td>${esc(modelName(r))}</td><td class="num">${Number(r.best_vps).toLocaleString()}</td>` +
   `<td class="num">${r.source === "use" ? `${r.sessions} · ${r.samples}` : ""}</td><td class="num">${r.threads ?? ""}</td><td>${when(r.last_at)}</td>` +
-  `<td class="small muted">${r.source === "use" ? "실사용" : "준비 때 측정"}</td></tr>`).join("")
+  `<td class="small muted">${r.source === "use" ? "실사용" : "벤치마크"}</td></tr>`).join("")
   || `<tr><td colspan="8" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
 $("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
 
@@ -273,6 +359,7 @@ async function loadEngine() {
   const { data, error } = await sb.rpc("admin_engine");
   if (error) { $("engineBox").innerHTML = `<div class="error">엔진 정보를 불러오지 못했습니다: ${esc(error.message)}</div>`; return; }
   eng = data; engDirty = false;
+  $("updCount").hidden = !eng.updates.length; $("updCount").textContent = eng.updates.length;
   for (const m of eng.models) MODEL_NAMES[m.id] = m.name;
   const c = eng.config, res = eng.results;
   $("engCheck").textContent = c.checked_at ? `마지막 확인 ${when(c.checked_at)} (${c.check_result || ""})` : "";
