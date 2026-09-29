@@ -615,7 +615,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="sp-sub">본선의 수를 하나씩 AI의 판단과 비교합니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
-  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 초반은 50수까지, 중반은 150수까지입니다. 분석 세기(빠름 250 · 보통 500 · 정밀 1000 · 초정밀 5000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
+  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 이미 결판난 국면(두기 전 승률 5% 미만·95% 넘음)의 수는 승률을 10% 넘게 잃지 않았으면 실수·악수로 치지 않습니다(오답노트도 같음). 초반은 50수까지, 중반은 150수까지입니다(19줄 기준, 작은 판은 넓이만큼 줄임). 분석 세기(빠름 250 · 보통 500 · 정밀 1000 · 초정밀 5000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
 </dialog>
 
 <div class="main">
@@ -1937,7 +1937,16 @@ async function openMineKifu(id) {
 // 1, 2, 3... right answers in a row; a wrong answer makes it due again at once.
 const NOTE_MAX = 300, REVIEW_DAYS = [1, 3, 7, 14, 30, 60];
 const NOTE_LEVELS = {small: [2, 5], normal: [4, 10], big: [8, 20]};   // points or win-rate %p lost
-const GOOD_POINTS = 1.5, GOOD_WR = 3;   // this close to the AI's first choice counts as right too (a 500-visit score wobbles ~1 point)
+const GOOD_POINTS = 1.5, GOOD_WR = 3;
+// A game already decided (user feedback 2026-09-29: 'every move under 4 points was suggested once the game was gone'):
+// when the mover's win rate before the move is under 5% or over 95%, KataGo stops caring about points and 4~8 point
+// "losses" are everywhere, so such a move is no mistake — unless it threw away more than 10% of win rate (a won game
+// turned by one move). 251 problems then: 168 came from decided positions; this rule keeps 93.
+const DECIDED_WR = 5, TURN_WR = 10;
+function decidedMove(n, loss) {
+  const before = nodeStats(n.parent);
+  return !!before && (before.wr < DECIDED_WR || before.wr > 100 - DECIDED_WR) && loss.wr < TURN_WR;
+}   // this close to the AI's first choice counts as right too (a 500-visit score wobbles ~1 point)
 // 초반·중반·종반 by the move number: on 19x19 up to 50, up to 150, the rest; smaller boards by their area
 // (13x13: 23 and 70, 9x9: 11 and 34)
 const PHASES = [["opening", "초반", 50], ["middle", "중반", 150], ["end", "종반", Infinity]];
@@ -1959,7 +1968,7 @@ function noteMistakes(side = segValue("noteSide"), level = $("noteLevel").value,
   // the AI's own first choice is no mistake, even when the next position looks worse (search noise; 대국 리포트 calls it AI의 수)
   return lineThrough(from).filter(n => n.move && (!side || n.move.c === side) && candidates(n.parent).length && candidates(n.parent)[0].move !== noteMove(n))
     .map(n => ({n, loss: moveLoss(n)}))
-    .filter(r => r.loss && (r.loss.points >= pts || r.loss.wr >= wr));
+    .filter(r => r.loss && (r.loss.points >= pts || r.loss.wr >= wr) && !decidedMove(r.n, r.loss));
 }
 function showNoteMistakes() {
   noteRows = noteMistakes();
@@ -2211,6 +2220,7 @@ function moveGrade(n) {   // {grade, points} for an analysed move, or null
   const best = candidates(n.parent)[0], points = Math.max(0, loss.points), wr = Math.max(0, loss.wr);
   const [mp, mw] = NOTE_LEVELS.normal, [bp, bw] = NOTE_LEVELS.big;
   const grade = best && best.move === noteMove(n) ? "ai" : points <= GOOD_POINTS && wr <= GOOD_WR ? "good"
+    : decidedMove(n, loss) ? "inacc"   // the game was already decided: no 실수/악수, as 오답노트 leaves it out
     : points >= bp || wr >= bw ? "blunder" : points >= mp || wr >= mw ? "mistake" : "inacc";
   return {grade, points};
 }
