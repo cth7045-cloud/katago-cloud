@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fafbfd">
 <title>사용 가이드 · KataGo Cloud</title>
-<meta name="description" content="KataGo Cloud 사용 가이드: GPU 빌리기, 요금, 분석 화면, 자동분석·대국 리포트, AI대국, 기보 불러오기.">
+<meta name="description" content="KataGo Cloud 사용 가이드: 충전, GPU 빌리기, 요금, 분석 화면, 자동분석·대국 리포트, AI대국, 내 기보, 기보 분석, 오답노트.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-/* guide: a quiet reading page; the one visual moment is the diagram of the analysis screen */
+/* guide: short sections, each led by a one-line summary and a real screenshot; long explanations fold into 자세히 */
 .guide { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 56px; padding-top: 36px; padding-bottom: 96px; }
 .toc { position: sticky; top: 84px; align-self: start; font-size: 14px; }
 .toc b { display: block; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
@@ -20,21 +20,22 @@
 .toc a { display: block; padding: 6px 12px; border-radius: 10px; color: var(--muted); font-weight: 600; }
 .toc a:hover { background: var(--soft); color: var(--ink); text-decoration: none; }
 .toc a.on { background: var(--cyan-soft); color: var(--blue-deep); }
-.doc { max-width: 740px; }
-.doc h1 { font-size: clamp(34px, 4.6vw, 52px); font-weight: 800; letter-spacing: -.04em; line-height: 1.08; margin: 0 0 14px; }
-.doc .lede { margin-bottom: 8px; }
-.doc section { padding-top: 40px; scroll-margin-top: 72px; }
-.doc h2 { font-size: 26px; font-weight: 800; letter-spacing: -.03em; margin: 0 0 12px; }
-.doc h3 { font-size: 18px; font-weight: 750; letter-spacing: -.02em; margin: 28px 0 8px; }
+.doc { max-width: 760px; }
+.doc h1 { font-size: clamp(34px, 4.6vw, 52px); font-weight: 800; letter-spacing: -.04em; line-height: 1.08; margin: 0 0 12px; }
+.doc section { padding-top: 56px; scroll-margin-top: 72px; }
+.doc h2 { font-size: 28px; font-weight: 800; letter-spacing: -.03em; margin: 0 0 6px; }
+.doc h3 { font-size: 18px; font-weight: 750; letter-spacing: -.02em; margin: 30px 0 8px; }
 .doc p, .doc li { color: #3a404e; }
 .doc p { margin: 0 0 12px; }
-.doc ul, .doc ol.steps-list { margin: 0 0 12px; padding-left: 20px; }
-.doc li { margin: 4px 0; }
+.doc ul, .doc ol { margin: 0 0 12px; padding-left: 20px; }
+.doc li { margin: 6px 0; }
 .doc li::marker { color: var(--muted); }
 .doc b { color: var(--ink); }
+.sum { font-size: 17px; color: var(--muted) !important; margin: 0 0 18px !important; }
 kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px; border-radius: 7px; background: var(--panel);
   box-shadow: inset 0 -2px 0 var(--line), 0 0 0 1px var(--line); color: var(--ink); white-space: nowrap; }
-.chip { display: inline-block; font-size: 14px; font-weight: 600; padding: 2px 11px; border-radius: 999px; background: var(--soft); color: var(--ink); white-space: nowrap; }
+.chip { display: inline-block; font-size: 14px; font-weight: 600; padding: 1px 10px; border-radius: 999px; background: var(--soft); color: var(--ink); white-space: nowrap; }
+.chip.blue { background: var(--blue); color: #fff; }
 .chip.pink { background: #fdeced; color: var(--bad); }
 .tip { margin: 16px 0; padding: 14px 18px; border-radius: 16px; background: var(--cyan-soft); color: #1d4a57; font-size: 15px; }
 .tip.warn { background: #fff4df; color: #6b4a00; }
@@ -44,31 +45,56 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
 .doc table td:first-child { white-space: nowrap; font-weight: 600; color: var(--ink); }
 .doc table th:first-child { width: 1%; }
 
-/* real screenshots of the analysis screen; the numbers on the big one match the list under it */
-.shot { margin: 20px 0 8px; }
+/* 한눈에: four steps as cards */
+.quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 22px 0 8px; padding: 0; list-style: none; counter-reset: q; }
+.quick li { margin: 0; padding: 18px 18px 16px; border-radius: 20px; background: var(--panel); box-shadow: var(--shadow); counter-increment: q; }
+.quick li::before { content: counter(q); display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 800; font-size: 14px; margin-bottom: 10px; }
+.quick li > b { display: block; font-size: 17px; margin-bottom: 4px; }
+.quick .desc { display: block; font-size: 14.5px; color: var(--muted); line-height: 1.7; }
+.quick .desc b { color: var(--ink); }
+
+/* screenshots */
+.fig { margin: 18px 0; }
+.fig img { display: block; width: 100%; height: auto; border-radius: 16px; box-shadow: 0 0 0 1px var(--line), 0 18px 40px -22px rgba(23, 26, 34, .45); background: var(--panel); }
+.fig figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.fig.phone { max-width: 320px; }
+.fig a.zoom { display: block; cursor: zoom-in; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 28px; align-items: start; margin: 12px 0 8px; }
+.split .fig { margin: 0; }
+.split > div > :first-child { margin-top: 0; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 18px 0; align-items: start; max-width: 620px; }
+.duo .fig { margin: 0; }
+
+/* the analysis screen with numbered pins */
 .shot-img { position: relative; display: block; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 20px 44px -22px rgba(23, 26, 34, .45); }
-.shot-img img { display: block; width: 100%; height: auto; }
+.shot-img img { display: block; width: 100%; height: auto; border-radius: 0; box-shadow: none; }
 .pin { position: absolute; transform: translate(-50%, -50%); min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center;
   background: var(--blue); color: #fff; font: 700 12px/1 "SUIT Variable", system-ui, sans-serif; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(23, 26, 34, .35); }
-.shot figcaption, .phones figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; }
-.legend { margin: 14px 0 0; padding-left: 26px; }
-.legend li { margin: 7px 0; padding-left: 4px; }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; margin: 14px 0 0; padding-left: 22px; }
+.legend li { margin: 3px 0; padding-left: 2px; font-size: 15px; }
 .legend li::marker { color: var(--blue); font-weight: 700; }
-.phones { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 20px; margin: 16px 0 12px; align-items: start; }
-.phones figure { margin: 0; }
-.phones img { display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 0 0 1px var(--line), 0 16px 36px -20px rgba(23, 26, 34, .45); }
 
 /* a candidate move, drawn like the board draws it */
-.cand-demo { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; margin: 16px 0; padding: 18px 20px; border-radius: 20px; background: #e9bd6f; }
+.cand-demo { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin: 16px 0; padding: 18px 20px; border-radius: 20px; background: #e9bd6f; }
 .stone-c { position: relative; width: 74px; height: 74px; border-radius: 50%; display: grid; align-content: center; justify-items: center; line-height: 1.05; flex: none;
   font-family: "Open Sans", sans-serif; font-weight: 600; color: #000; }
-.stone-c .wr { font-size: 18px; } .stone-c .v { font-size: 13px; font-family: inherit; font-weight: 400; } .stone-c .ld { font-size: 13px; }
+.stone-c .wr { font-size: 18px; } .stone-c .v { font-size: 13px; font-weight: 400; } .stone-c .ld { font-size: 13px; }
 .stone-c.best { background: rgba(0, 217, 217, .85); box-shadow: 0 0 0 3px rgb(0, 0, 255); }
 .stone-c.good { background: rgba(80, 217, 0, .7); box-shadow: 0 0 0 1px rgba(0, 0, 0, .3); }
 .stone-c.weak { background: rgba(217, 60, 0, .35); box-shadow: 0 0 0 1px rgba(0, 0, 0, .2); }
 .stone-c i { position: absolute; top: -2px; right: -4px; font: 700 12px/1 "Open Sans", sans-serif; background: rgb(255, 200, 0); padding: 2px 4px; }
 .cand-demo dl { margin: 0; display: grid; gap: 4px; font-size: 14px; color: #3b2a0e; }
 .cand-demo dt { font-weight: 700; display: inline; } .cand-demo dd { display: inline; margin: 0; }
+
+/* 자세히: long explanations, folded */
+details.more { margin: 12px 0; border-radius: 14px; background: var(--soft); }
+details.more > summary { cursor: pointer; list-style: none; padding: 11px 16px; font-weight: 700; font-size: 14.5px; color: var(--ink); display: flex; gap: 8px; align-items: center; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "›"; font-size: 18px; line-height: 1; color: var(--muted); transition: transform .2s var(--ease); }
+details.more[open] > summary::before { transform: rotate(90deg); }
+details.more > div { padding: 0 18px 14px; }
+details.more > div > :last-child { margin-bottom: 0; }
+details.more .table-wrap { margin: 4px 0 8px; }
 
 .faq details { border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); margin: 0 0 10px; }
 .faq summary { cursor: pointer; list-style: none; padding: 14px 18px; font-weight: 700; color: var(--ink); display: flex; gap: 10px; }
@@ -81,10 +107,19 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
 
 @media (max-width: 860px) {
   .guide { grid-template-columns: 1fr; gap: 8px; padding-top: 20px; }
-  .toc { position: static; margin-bottom: 20px; }
+  .toc { position: static; margin-bottom: 12px; }
   .toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
   .toc a { padding: 5px 12px; background: var(--soft); border-radius: 999px; font-size: 13px; }
   .pin { min-width: 17px; height: 17px; padding: 0 3px; font-size: 10px; box-shadow: 0 0 0 1.5px #fff; }
+  .split { grid-template-columns: 1fr; gap: 16px; }
+  .split .fig.phone, .fig.phone { max-width: 230px; margin-left: auto; margin-right: auto; }
+  .legend { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .quick { grid-template-columns: 1fr; }
+  .duo { gap: 10px; }
+  .fig figcaption { font-size: 12px; }
+  .doc section { padding-top: 44px; }
 }
 </style>
 </head>
@@ -100,16 +135,20 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
   <nav class="toc" aria-label="목차">
     <b>목차</b>
     <ol>
-      <li><a href="#start">시작하기</a></li>
+      <li><a href="#start">한눈에 보기</a></li>
+      <li><a href="#home">처음 화면</a></li>
+      <li><a href="#charge">충전</a></li>
       <li><a href="#gpu">GPU 빌리기</a></li>
-      <li><a href="#price">요금과 자동 종료</a></li>
+      <li><a href="#price">요금·자동 종료</a></li>
       <li><a href="#screen">분석 화면</a></li>
-      <li><a href="#read">후보수 읽는 법</a></li>
       <li><a href="#control">조작법</a></li>
       <li><a href="#analysis">분석 기능</a></li>
-      <li><a href="#strength">대국 리포트</a></li>
+      <li><a href="#report">대국 리포트</a></li>
       <li><a href="#game">AI대국</a></li>
-      <li><a href="#kifu">기보</a></li>
+      <li><a href="#kifu">내 기보</a></li>
+      <li><a href="#batch">기보 분석</a></li>
+      <li><a href="#notes">학습방·오답노트</a></li>
+      <li><a href="#app">앱 설치·알림</a></li>
       <li><a href="#devices">여러 기기</a></li>
       <li><a href="#account">내 정보</a></li>
       <li><a href="#faq">자주 묻는 질문</a></li>
@@ -118,80 +157,116 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
 
   <article class="doc">
     <h1>사용 가이드</h1>
-    <p class="lede">KataGo Cloud는 GPU를 잠깐 빌려 KataGo를 돌리고, 브라우저에서 YZY(LizzieYzy)와 같은 화면으로 바둑을 분석하는 서비스입니다. 폰·태블릿·PC 어디서든 됩니다.</p>
+    <p class="sum">GPU를 잠깐 빌려 KataGo로 바둑을 분석하는 서비스입니다. 폰·태블릿·PC 브라우저에서 모두 됩니다.</p>
 
     <!-- ================================================================ -->
-    <section id="start">
-      <h2>시작하기</h2>
-      <ol class="steps-list">
-        <li><b>회원가입</b> — 첫 화면에서 <span class="chip">회원가입</span>을 누르고 이름, 이메일, 비밀번호(8자 이상)를 넣습니다. 가입하면 바로 로그인됩니다.</li>
-        <li><b>충전</b> — 요금은 미리 충전한 잔액에서 나갑니다. 위쪽 막대의 <b>충전</b>을 누르면 카카오톡 오픈채팅 QR 코드가 나옵니다(폰에서는 <span class="chip">카카오톡 오픈채팅 열기</span>). 오픈채팅으로 관리자에게 충전할 금액을 알려 주세요. 충전되면 <b>GPU 대여</b> 화면 위쪽 <b>내 잔액</b>에 금액이 보입니다.</li>
-        <li><b>GPU 시작</b> — 처음 화면의 <b>GPU 대여</b>를 누르고 GPU 목록에서 하나를 골라 <span class="chip">이 GPU로 시작</span>을 누릅니다.</li>
-        <li><b>분석 화면 열기</b> — 보통 1~3분 뒤 준비가 끝나면 <span class="chip">분석 화면 열기</span> 버튼이 나타납니다. 새 탭에서 분석 화면이 열립니다. 기다리는 동안 다른 탭이나 앱에 가 있어도 됩니다 — GPU를 시작할 때 알림을 허용하면(또는 내 GPU 칸의 <span class="chip">🔔 준비되면 알림 받기</span>) 준비가 끝나거나 실패했을 때 알림이 오고, 탭 제목에도 ●가 붙습니다(사이트 탭을 열어 둔 동안만).</li>
-        <li><b>GPU 종료</b> — 다 쓰면 반드시 <span class="chip pink">GPU 종료</span>를 누르세요. 그 순간 요금이 멈춥니다.</li>
+    <section id="start" style="padding-top:8px">
+      <h2>한눈에 보기</h2>
+      <ol class="quick">
+        <li><b>충전하기</b><span class="desc">위쪽 <b>충전</b> → 카카오톡 오픈채팅으로 관리자에게 금액을 알려 주세요.</span></li>
+        <li><b>GPU 시작</b><span class="desc">처음 화면 <b>GPU 대여</b> → GPU 하나를 누르고 <span class="chip blue">이 GPU로 시작</span>. 보통 1~3분이면 준비됩니다.</span></li>
+        <li><b>분석하기</b><span class="desc"><span class="chip blue">분석 화면 열기</span> → 기보를 열거나 돌을 두고 <span class="chip">▶ 분석 시작</span>.</span></li>
+        <li><b>꼭 끄기</b><span class="desc">다 쓰면 <span class="chip pink">GPU 종료</span>. 누르는 순간 요금이 멈춥니다.</span></li>
       </ol>
-      <h3>앱으로 설치</h3>
-      <p>사이트를 폰·PC 홈 화면에 앱처럼 설치할 수 있습니다. 로그인 화면과 처음 화면 아래의 <b>홈 화면에 앱으로 설치</b> 칸을 보세요(앱을 지운 뒤 다시 설치할 수 있게 브라우저에서는 늘 보이고, 설치한 앱 안에서만 숨겨집니다). 카카오톡·네이버 앱 안에서 링크를 열었다면 그 안에서는 설치할 수 없으니 크롬에서 사이트를 열어 설치하세요. 삼성 인터넷으로 설치하면 Google Play 프로텍트의 보안 경고가 뜨니 안드로이드에서는 크롬으로 설치하세요. 안드로이드 Chrome·PC Chrome/Edge는 <span class="chip">설치</span> 버튼, 아이폰·아이패드는 Safari의 공유 버튼(□↑) → <b>홈 화면에 추가</b>. 설치하면 주소창 없이 열리고 분석 화면도 같은 창에서 열립니다(분석 화면 왼쪽 위 <b>‹ 홈</b>으로 돌아옴). 아이폰은 설치한 앱에서만 준비 알림을 받을 수 있습니다.</p>
+      <div class="tip">요금은 <b>쓴 분만큼만</b> 나갑니다. 예: 시간당 170원 GPU를 30분 쓰면 85원. 깜빡하고 안 꺼도 <b>10분 동안 분석이 없으면</b> 저절로 꺼집니다.</div>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="home">
+      <h2>처음 화면</h2>
+      <p class="sum">로그인하면 네 가지 버튼이 나옵니다.</p>
+      <figure class="fig"><img src="guide/hub.webp" width="1200" height="748" alt="처음 화면: GPU 대여, 기보 분석, 내 기보, 학습방 네 버튼" loading="lazy"></figure>
+      <ul>
+        <li><b>GPU 대여</b> — GPU를 빌려 분석 화면에서 직접 분석합니다. 잔액과 켜진 GPU도 여기서 봅니다.</li>
+        <li><b>기보 분석</b> — 분석 화면을 열지 않고 기보 여러 개를 한꺼번에 분석해 저장합니다. → <a href="#batch">기보 분석</a></li>
+        <li><b>내 기보</b> — 저장한 기보를 GPU 없이 다시 봅니다. → <a href="#kifu">내 기보</a></li>
+        <li><b>학습방</b> — 내 실수로 만든 오답노트를 풉니다. → <a href="#notes">학습방·오답노트</a></li>
+      </ul>
+      <p>위쪽 막대의 <b>분석 화면</b>을 누르면 GPU 없이 빈 분석 화면이 열립니다. 저장된 기보 보기·기보 기록은 GPU 없이도 됩니다.</p>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="charge">
+      <h2>충전</h2>
+      <div class="split">
+        <div>
+          <p class="sum">요금은 미리 충전한 잔액에서 나갑니다.</p>
+          <ol>
+            <li>위쪽 막대의 <b>충전</b>을 누릅니다.</li>
+            <li>QR 코드를 찍거나(PC) <span class="chip">카카오톡 오픈채팅 열기</span>를 누릅니다(폰).</li>
+            <li>오픈채팅에서 관리자에게 충전할 금액을 알려 주세요.</li>
+            <li>충전되면 <b>GPU 대여</b> 화면의 <b>내 잔액</b>에 보입니다.</li>
+          </ol>
+        </div>
+        <figure class="fig phone"><img src="guide/charge.webp" width="700" height="1436" alt="잔액 충전 화면: 카카오톡 오픈채팅 QR 코드와 열기 버튼" loading="lazy"></figure>
+      </div>
     </section>
 
     <!-- ================================================================ -->
     <section id="gpu">
       <h2>GPU 빌리기</h2>
-      <p><b>GPU 대여</b> 화면의 <b>GPU 시작</b> 칸에는 지금 빌릴 수 있는 GPU 중 가격에 비해 성능과 안정성이 좋은 것만 추려서 보여 줍니다. 반응이 느린 먼 지역(중국·호주·미국·유럽 등)은 뺐습니다.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>칸</th><th>뜻</th></tr></thead>
-          <tbody>
-            <tr><td>지역</td><td>GPU가 있는 곳입니다. <b>한국</b>에 가까울수록 착수 후 분석이 빨리 뜹니다.</td></tr>
-            <tr><td>GPU</td><td>그래픽카드 이름입니다. 숫자가 클수록(예: 3060 &lt; 5070 Ti &lt; 5090) 대체로 빠르고 비쌉니다.</td></tr>
-            <tr><td>VRAM</td><td>그래픽카드 메모리입니다. 목록에 있는 GPU는 모두 KataGo에 충분합니다.</td></tr>
-            <tr><td>시간당</td><td>1시간 쓸 때의 요금입니다. GPU 값에 저장 공간 값까지 넣은 금액이고, 실제로는 쓴 분만큼만 나갑니다.</td></tr>
-            <tr><td>성능/$</td><td>가격 대비 성능입니다. Vast가 잰 GPU 성능 점수를 시간당 요금(달러)으로 나눈 값이라, 높을수록 같은 돈으로 더 많이 탐색합니다. 싸고 적당히 빠른 GPU를 고를 때 보세요.</td></tr>
-            <tr><td>CPU</td><td>CPU 코어 수입니다. 폰에서는 숨겨집니다.</td></tr>
-          </tbody>
-        </table>
+      <div class="split">
+        <div>
+          <p class="sum">목록에서 GPU를 누르고 <span class="chip blue">이 GPU로 시작</span>.</p>
+          <ul>
+            <li><b>지역</b> — 한국에 가까울수록 반응이 빠릅니다.</li>
+            <li><b>GPU</b> — 숫자가 클수록 빠르고 비쌉니다(3060 &lt; 5070 Ti &lt; 5090).</li>
+            <li><b>시간당</b> — 1시간 요금. 실제로는 쓴 분만큼만.</li>
+            <li><b>성능/$</b> — 가격 대비 성능. 높을수록 같은 돈으로 더 많이 봅니다.</li>
+            <li><b>⚡</b> — 최근에 써 본 서버라 더 빨리(보통 1분 안팎) 켜집니다.</li>
+            <li><b>모델</b> — 잘 모르겠으면 기본값(Transformer 대형).</li>
+          </ul>
+        </div>
+        <figure class="fig phone"><img src="guide/gpu-list.webp" width="700" height="1253" alt="GPU 시작 목록: 지역, GPU, VRAM, 시간당, 성능/$ 칸과 이 GPU로 시작 버튼" loading="lazy"></figure>
       </div>
-      <h3>모델 고르기</h3>
-      <p>목록 위 <b>모델</b>에서 KataGo 신경망을 고릅니다. 기본값은 <b>Transformer 대형</b>입니다. 큰 모델일수록 한 수를 더 정확하게 보지만 설치가 조금 오래 걸리고 1초에 볼 수 있는 수(visits/s)가 줄어듭니다. 잘 모르겠으면 기본값을 쓰세요.</p>
-      <h3>시작부터 준비까지</h3>
-      <p>줄을 누르면 그 아래에 <span class="chip">이 GPU로 시작</span>이 나타납니다. 누르면 요금을 한 번 더 확인하고, GPU를 빌린 뒤 세 단계가 차례로 채워집니다.</p>
-      <ol class="steps-list">
-        <li><b>GPU 빌리기·부팅</b> — GPU를 빌리고 켜는 중입니다.</li>
-        <li><b>KataGo 설치·검증</b> — GPU가 KataGo와 모델을 받아 설치하고, 분석 엔진을 켜서 실제로 분석해 보며 제대로 도는지 확인합니다. 그동안 웹 연결도 함께 준비합니다.</li>
-        <li><b>분석 준비 완료</b> — <span class="chip">분석 화면 열기</span>가 빛나며 나타납니다.</li>
-      </ol>
-      <div class="tip warn">고른 GPU를 다른 사람이 먼저 빌려 가면, 같은 지역의 같은 GPU 중 시간당 요금이 같거나 10원까지 비싼 것을 자동으로 대신 빌립니다(최대 4대까지 시도). 그래도 없어서 <b>다른 사람이 먼저 빌려 갔다는 안내</b>가 뜨면 요금은 나가지 않았습니다. 목록이 새로 고쳐지니 다른 GPU를 고르세요. 빌리지 못한 GPU는 1시간, 빌렸지만 준비에 실패한 GPU는 24시간 동안 목록에서 빠집니다.</div>
-      <p>한 계정은 한 번에 GPU 하나만 쓸 수 있습니다. 쓰는 동안에는 <b>GPU 대여</b> 화면에 <b>내 GPU</b> 카드가 보이고, 지금까지 쓴 시간과 요금이 표시됩니다.</p>
+      <h3>준비 과정</h3>
+      <div class="duo">
+        <figure class="fig"><img src="guide/gpu-setup.webp" width="700" height="913" alt="준비 중인 GPU 카드: 빌리기·부팅, 설치·검증, 준비 완료 세 단계" loading="lazy"><figcaption>세 단계가 차례로 채워집니다</figcaption></figure>
+        <figure class="fig"><img src="guide/gpu-ready.webp" width="700" height="845" alt="준비된 GPU 카드: 분석 화면 열기와 GPU 종료 버튼" loading="lazy"><figcaption>준비되면 <b>분석 화면 열기</b>가 나타납니다</figcaption></figure>
+      </div>
+      <p>기다리는 동안 다른 앱에 가 있어도 됩니다. 알림을 허용하면 준비가 끝날 때 알려 줍니다(<a href="#app">앱 설치·알림</a>).</p>
+      <details class="more"><summary>자세히: 목록에 뜨는 GPU, 대신 빌리기, 실패했을 때</summary><div>
+        <ul>
+          <li>지금 빌릴 수 있는 GPU 가운데 가격에 비해 성능·안정성이 좋은 것만 추려 보여 줍니다. 반응이 느린 먼 지역(중국·호주·미국·유럽 등)은 뺐습니다.</li>
+          <li><b>VRAM</b>은 그래픽카드 메모리입니다. 목록의 GPU는 모두 KataGo에 충분합니다. <b>CPU</b> 칸은 폰에서 숨겨집니다.</li>
+          <li>큰 모델일수록 한 수를 더 정확하게 보지만, 설치가 조금 오래 걸리고 1초에 보는 수(visits/s)가 줄어듭니다.</li>
+          <li>고른 GPU를 다른 사람이 먼저 빌려 가면, 같은 지역·같은 GPU 중 시간당 10원까지 비싼 것을 자동으로 대신 빌립니다(최대 4대 시도). 그래도 없으면 "먼저 빌려 갔다"는 안내가 뜨고 요금은 나가지 않습니다.</li>
+          <li>빌리지 못한 GPU는 1시간, 빌렸지만 준비에 실패한 GPU는 24시간 동안 목록에서 빠집니다.</li>
+          <li>한 계정은 한 번에 GPU 하나만 씁니다. 쓰는 동안 <b>GPU 대여</b> 화면에 <b>내 GPU</b> 카드와 쓴 시간·요금이 보입니다.</li>
+        </ul>
+      </div></details>
     </section>
 
     <!-- ================================================================ -->
     <section id="price">
       <h2>요금과 자동 종료</h2>
+      <p class="sum">쓴 시간만큼 목록의 시간당 요금으로 계산하고, 1분마다 잔액에서 빠집니다.</p>
+      <div class="table-wrap"><table>
+        <tbody>
+          <tr><td>계산</td><td>시간당 170원 × 30분 = 85원(1원 미만은 올림). 준비하는 1~3분도 포함됩니다.</td></tr>
+          <tr><td>시작 조건</td><td>그 GPU로 약 15분 쓸 만큼의 잔액이 있어야 합니다.</td></tr>
+          <tr><td>준비 실패</td><td>한 번도 사용 가능이 되지 못하고 실패하면 요금을 <b>전부 자동 환불</b>합니다(사용 내역에 "준비 실패 환불").</td></tr>
+        </tbody>
+      </table></div>
+      <h3>저절로 꺼지는 경우</h3>
       <ul>
-        <li>요금은 GPU를 빌린 순간부터 <b>1분 단위</b>로 잔액에서 차감됩니다. 준비하는 1~3분도 포함됩니다.</li>
-<li>쓴 시간만큼 목록의 <b>시간당 요금 그대로</b> 계산합니다. 예를 들어 시간당 170원 GPU를 30분 쓰면 85원입니다(1원 미만은 올림).</li>
-        <li>시작하려면 잔액이 그 GPU로 <b>약 15분</b> 쓸 만큼은 있어야 합니다.</li>
-        <li>준비 도중 실패하면(설치 실패·준비 시간 초과 등, 한 번도 "사용 가능"이 되지 못한 경우) GPU가 삭제된 뒤 그 대여 요금을 <b>전부 자동으로 돌려드립니다</b>. 사용 내역에 "준비 실패 환불"로 보입니다. 준비 중에 직접 종료한 경우는 쓴 시간만큼 나갑니다.</li>
-      </ul>
-      <h3>GPU가 스스로 꺼지는 경우</h3>
-      <p>켜 둔 채 잊어버려도 요금이 계속 나가지 않도록, 아래 경우에는 GPU가 자동으로 꺼지고 삭제됩니다.</p>
-      <ul>
-        <li><b>10분 동안 분석 요청이 없을 때</b> — 분석 화면 탭만 열어 두는 것은 사용으로 치지 않습니다. 수를 두거나 넘기며 분석하면 계속 켜져 있습니다. 자동분석·대국 리포트·기보 분석이 도는 동안은 오래 걸려도 사용 중으로 칩니다.</li>
+        <li><b>10분 동안 분석 요청이 없을 때</b> — 탭만 열어 둔 것은 사용으로 치지 않습니다. 자동분석·대국 리포트·기보 분석이 도는 동안은 사용 중입니다.</li>
         <li><b>잔액이 0원이 됐을 때</b></li>
-        <li><b>준비가 너무 오래 걸릴 때</b> — GPU에 문제가 있는 것으로 보고 끕니다.</li>
+        <li><b>준비가 너무 오래 걸릴 때</b> — 문제가 있는 GPU로 보고 끕니다.</li>
       </ul>
       <h3>직접 끄기</h3>
-      <p><b>GPU 대여</b> 화면의 <span class="chip pink">GPU 종료</span>, 또는 분석 화면의 <span class="chip pink">GPU 종료</span>를 누르세요. 분석 화면에서는 PC·태블릿 가로 화면이면 위쪽 막대에, 폰 세로 화면이면 <span class="chip">☰ 메뉴</span> 맨 위 <b>GPU</b> 칸에 있고, 지금까지 쓴 시간과 요금도 함께 보입니다(사이트에 로그인된 브라우저에서만). GPU 없이 연 분석 화면(위쪽 <b>분석 화면</b> 링크, 내 기보 열기 등)에서도 켜 둔 GPU가 있으면 같은 자리에 <b>켜진 GPU</b>로 보이고, <span class="chip">이 GPU로 연결</span>(새 탭)이나 <span class="chip pink">GPU 종료</span>를 누를 수 있습니다. 삭제가 확인되면 요금이 멈추고, 사용 내역은 <a href="./#me">내 정보</a>에서 볼 수 있습니다.</p>
-      <div class="tip"><b>다 쓰면 바로 끄는 것이 가장 쌉니다.</b> 브라우저 탭을 닫는 것만으로는 GPU가 곧바로 꺼지지 않습니다(10분 뒤 자동 종료).</div>
+      <p><span class="chip pink">GPU 종료</span>는 세 곳에 있습니다: <b>GPU 대여</b> 화면 · 분석 화면 위쪽 막대(PC) · 폰 분석 화면의 <span class="chip">☰ 메뉴</span> 맨 위 <b>GPU</b> 칸. GPU 없이 연 분석 화면에서도 켜진 GPU가 있으면 같은 자리에 보입니다.</p>
+      <div class="tip warn"><b>탭을 닫아도 GPU는 바로 꺼지지 않습니다</b>(10분 뒤 자동 종료). 다 쓰면 바로 끄는 것이 가장 쌉니다.</div>
     </section>
 
     <!-- ================================================================ -->
     <section id="screen">
       <h2>분석 화면</h2>
-      <p>배치는 YZY와 같습니다. PC·태블릿 가로 화면에서는 아래처럼 보입니다.</p>
-      <figure class="shot">
+      <p class="sum">배치는 LizzieYzy(YZY)와 같습니다. 수를 넘기면 후보수가 바뀌고, 후보수에 마우스를 올리면(폰은 길게 누르면) 예상 수순이 보입니다.</p>
+      <figure class="fig"><img src="guide/analysis-demo.webp" width="1120" height="680" alt="움직이는 화면: 수를 넘기며 후보수가 바뀌고, 후보수에 마우스를 올려 참고도를 보는 모습" loading="lazy"><figcaption>움직이는 예시 — 수 넘기기 → 1순위 후보 참고도 → 2순위 후보 참고도</figcaption></figure>
+      <figure class="fig">
         <a class="shot-img" href="guide/analysis-landscape.webp" target="_blank" rel="noopener" title="크게 보기">
-          <img src="guide/analysis-landscape.webp" width="2040" height="1230" alt="분석 화면(가로). 위쪽 막대, 왼쪽 정보 칸, 가운데 바둑판과 후보수, 오른쪽 변화도·후보표·미리보기 판, 아래쪽 버튼 막대">
+          <img src="guide/analysis-landscape.webp" width="2040" height="1230" alt="분석 화면(가로)의 각 부분에 번호를 붙인 그림" loading="lazy">
           <span class="pin" style="left:11.6%;top:3%">1</span>
           <span class="pin" style="left:1.4%;top:8.4%">2</span>
           <span class="pin" style="left:1.4%;top:19.3%">3</span>
@@ -203,288 +278,336 @@ kbd { font: 600 13px/1 "SUIT Variable", system-ui, sans-serif; padding: 4px 8px;
           <span class="pin" style="left:76%;top:51.2%">9</span>
           <span class="pin" style="left:1.6%;top:93.4%">10</span>
         </a>
-        <figcaption>실제 분석 화면(PC 가로). 58수째를 분석하는 중이고, 후보표 1순위를 눌러 오른쪽 아래 판에 그 수순을 띄운 모습입니다. 누르면 크게 볼 수 있습니다.</figcaption>
+        <figcaption>PC 가로 화면. 누르면 크게 볼 수 있습니다.</figcaption>
       </figure>
       <ol class="legend">
-        <li><b>위쪽 막대</b> — 파일(SGF·내 기보·오답노트), 내 기보 저장(사이트에 로그인된 브라우저에서만), AI대국, 기보 불러오기, 대국 리포트, 접바둑·덤, 형세·후보수보기, 돌 놓기(흑·백·번갈아). 오른쪽 끝은 초당 탐색 수(visits/s), GPU 사용 시간·요금과 GPU 종료(로그인된 브라우저에서만), 연결 상태(초록 점 = GPU와 연결됨, 숫자 = 응답 시간).</li>
-        <li><b>사석·덤</b> — 흑·백이 따낸 돌 수, 덤, 한국룰. 가운데 초록 점은 지금 차례입니다.</li>
-        <li><b>승률 칸</b> — 왼쪽 흑·오른쪽 백 승률과 수 번호, 리드(몇 집 앞서는지), 마지막 수로 승률·집을 얼마나 잃었는지.</li>
-        <li><b>승률 그래프</b> — 파란 선은 흑 승률, 분홍 선은 리드. 빨간 점이 지금 수이고, 그래프를 누르면 그 수로 갑니다.</li>
-        <li><b>대국 정보</b> — 대국자·결과·날짜·덤, 엔진 상태(생각 중/멈춤), 지금 국면의 승률·리드·방문 수, 기보 댓글.</li>
-        <li><b>바둑판</b> — 후보수(색 동그라미)와 참고도. 읽는 법은 <a href="#read">후보수 읽는 법</a>을 보세요.</li>
-        <li><b>변화도</b> — 기보의 갈래. 점을 누르면 그 수로 갑니다.</li>
-        <li><b>후보표</b> — 후보수를 순서대로: 승률, 비짓(탐색 수), 비중(탐색 비율 %), 리드.</li>
-        <li><b>미리보기 판</b> — 후보표에서 고른 수의 예상 수순을 번호로 보여 줍니다.</li>
-        <li><b>아래쪽 막대</b> — 분석 시작/정지, 자동분석, 수순 이동, 패스, 주 변화로 지정, 수순·좌표, 바둑판초기화, 지우기.</li>
+        <li><b>위쪽 막대</b> — 파일·저장·AI대국·기보 불러오기·대국 리포트 등</li>
+        <li><b>사석·덤</b> — 따낸 돌, 덤, 지금 차례</li>
+        <li><b>승률 칸</b> — 흑·백 승률, 리드(몇 집 앞섬)</li>
+        <li><b>승률 그래프</b> — 누르면 그 수로 이동</li>
+        <li><b>대국 정보</b> — 대국자·결과, 엔진 상태</li>
+        <li><b>바둑판</b> — 후보수와 참고도</li>
+        <li><b>변화도</b> — 기보의 갈래</li>
+        <li><b>후보표</b> — 승률·비짓·비중·리드</li>
+        <li><b>미리보기 판</b> — 고른 후보의 수순</li>
+        <li><b>아래쪽 막대</b> — 분석 시작, 수순 이동, 편집</li>
       </ol>
-      <h3>휴대폰(세로 화면)</h3>
-      <p>세로 화면에서는 바둑판을 크게 보여 주기 위해 위쪽에는 초당 탐색 수(visits/s)만 두고, 바둑판 → 승률 막대 → 수순 이동 버튼 순으로 놓습니다. 나머지 기능은 모두 오른쪽 아래 <span class="chip">☰ 메뉴</span> 안에 있습니다. 메뉴는 GPU·기보·대국·분석·보기·편집 여섯 칸으로 나뉩니다.</p>
-      <div class="phones">
-        <figure><img src="guide/analysis-portrait.webp" width="780" height="1244" alt="휴대폰 분석 화면: 바둑판, 승률 막대, 수순 이동 버튼, 분석 정지와 메뉴 버튼"><figcaption>휴대폰 화면</figcaption></figure>
-        <figure><img src="guide/analysis-menu.webp" width="780" height="1688" alt="휴대폰 메뉴: GPU 연결 상태와 사용 시간·요금·GPU 종료, 기보, 대국 칸"><figcaption>☰ 메뉴를 연 모습(맨 위 GPU 칸의 시간·요금은 예시)</figcaption></figure>
-      </div>
-      <ul>
-        <li>맨 위 <b>GPU</b> 칸에서 연결 상태(응답 시간, 여러 기기면 기기 수), 지금까지 쓴 시간·요금을 보고 <span class="chip pink">GPU 종료</span>를 누를 수 있습니다.</li>
-<li><b>보기</b> 칸에서 승률 막대와 승률 그래프를 켜고 끌 수 있습니다(기본: 막대 켬, 그래프 끔).</li>
-        <li>수순·좌표·세기·돌 놓기 버튼은 눌러도 메뉴가 닫히지 않아 여러 번 바꿔 볼 수 있습니다.</li>
-      </ul>
-    </section>
 
-    <!-- ================================================================ -->
-    <section id="read">
-      <h2>후보수 읽는 법</h2>
-      <p>분석을 켜면 KataGo가 둘 만한 곳(최대 10곳)에 색 동그라미가 뜹니다.</p>
+      <h3>후보수 읽는 법</h3>
       <div class="cand-demo" aria-hidden="true">
         <div class="stone-c best"><i>1</i><span class="wr">56.2</span><span class="v">3.4k</span><span class="ld">1.8</span></div>
         <div class="stone-c good"><i>2</i><span class="wr">54.9</span><span class="v">812</span><span class="ld">1.1</span></div>
         <div class="stone-c weak"><i>3</i><span class="wr">48.0</span><span class="v">40</span><span class="ld">-0.6</span></div>
         <dl>
-          <div><dt>윗줄</dt> <dd>그 수를 두면 두는 쪽의 승률(%)</dd></div>
-          <div><dt>가운데</dt> <dd>탐색한 횟수(visits, k=1000)</dd></div>
-          <div><dt>아랫줄</dt> <dd>두는 쪽이 앞서는 집 수(리드)</dd></div>
+          <div><dt>윗줄</dt> <dd>두는 쪽 승률(%)</dd></div>
+          <div><dt>가운데</dt> <dd>탐색 횟수(k=1000)</dd></div>
+          <div><dt>아랫줄</dt> <dd>두는 쪽이 앞서는 집 수</dd></div>
         </dl>
       </div>
       <ul>
-        <li><b>하늘색에 파란 테두리</b> = KataGo가 가장 좋다고 보는 수(1순위, “블루스팟”).</li>
-        <li>나머지는 많이 탐색한 수일수록 초록, 적게 탐색할수록 빨강·옅은 색입니다.</li>
-        <li>노란 네모 숫자는 순서(1~9위)입니다.</li>
-        <li>후보수 위에 마우스를 올리면(폰은 길게 누르면) 그 수 이후의 예상 수순이 번호와 함께 <b>참고도</b>로 보입니다.</li>
+        <li><b>하늘색 + 파란 테두리</b> = AI 1순위("블루스팟"). 초록일수록 많이 본 수, 빨강·옅을수록 덜 본 수입니다.</li>
+        <li>노란 숫자는 순위(1~9)입니다.</li>
       </ul>
-      <p>승률과 리드는 표시하는 순간 <b>차례인 쪽</b> 기준입니다. 왼쪽 승률 칸과 그래프는 흑·백 각각의 승률을 보여 줍니다.</p>
+
+      <h3>휴대폰(세로 화면)</h3>
+      <div class="split">
+        <div>
+          <p>바둑판을 크게 보여 주고, 나머지 기능은 오른쪽 아래 <span class="chip">☰ 메뉴</span>에 모았습니다.</p>
+          <ul>
+            <li>메뉴는 <b>GPU · 기보 · 대국 · 분석 · 보기 · 편집</b> 여섯 칸입니다.</li>
+            <li>맨 위 <b>GPU</b> 칸: 연결 상태, 쓴 시간·요금, <span class="chip pink">GPU 종료</span>.</li>
+            <li><b>보기</b> 칸에서 승률 막대·그래프를 켜고 끕니다.</li>
+          </ul>
+        </div>
+        <figure class="fig phone"><img src="guide/analysis-portrait.webp" width="780" height="1244" alt="휴대폰 분석 화면" loading="lazy"></figure>
+      </div>
+      <details class="more"><summary>자세히: 메뉴 화면 그림, 각 칸의 버튼</summary><div>
+        <figure class="fig phone"><img src="guide/analysis-menu.webp" width="780" height="1688" alt="휴대폰 메뉴: GPU, 기보, 대국 칸" loading="lazy"><figcaption>☰ 메뉴(GPU 칸의 시간·요금은 예시)</figcaption></figure>
+        <ul>
+          <li><b>위쪽 막대(PC)</b>: 파일(SGF·내 기보·오답노트), 내 기보 저장, AI대국, 기보 불러오기, 대국 리포트, 바둑판 크기, 접바둑·덤, 형세·후보수보기, 돌 놓기(흑·백·번갈아). 오른쪽 끝은 초당 탐색 수(visits/s), GPU 시간·요금·종료, 연결 상태(초록 점 = 연결됨, 숫자 = 응답 시간).</li>
+          <li><b>아래쪽 막대(PC)</b>: 분석 시작/정지, 자동분석, 수순 이동, 패스, 주 변화로 지정, 수순·좌표, 바둑판초기화, 지우기.</li>
+          <li>폰 메뉴에서 수순·좌표·세기·돌 놓기 버튼은 눌러도 메뉴가 닫히지 않아 여러 번 바꿔 볼 수 있습니다.</li>
+          <li>승률과 리드는 표시하는 순간 <b>차례인 쪽</b> 기준입니다. 왼쪽 승률 칸과 그래프는 흑·백 각각의 승률입니다.</li>
+        </ul>
+      </div></details>
     </section>
 
     <!-- ================================================================ -->
     <section id="control">
       <h2>조작법</h2>
-      <h3>마우스·키보드</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>동작</th><th>하는 일</th></tr></thead>
-          <tbody>
-            <tr><td>바둑판 클릭</td><td>그 자리에 돌을 둡니다. 이미 둔 수와 다르면 새 변화가 생깁니다.</td></tr>
-            <tr><td>후보수 위에 올리기</td><td>참고도(예상 수순)를 봅니다.</td></tr>
-            <tr><td>바둑판 꾹 누르기(0.2초)</td><td>폰의 길게 누르기와 같습니다. 그 자리의 참고도가 고정돼, 포인터를 치워도 남습니다(누른 채 움직이면 따라감). 다른 곳을 한 번 누르면 풀립니다.</td></tr>
-            <tr><td>바둑판 오른쪽 클릭</td><td>한 수 뒤로(YZY와 같음). 터치패드는 두 손가락 톡.</td></tr>
-            <tr><td>마우스 휠</td><td>아래로 = 다음 수, 위로 = 이전 수.</td></tr>
-            <tr><td>노트북 터치패드 두 손가락 위아래</td><td>폰과 같습니다. 손가락을 아래로 = 다음 수, 위로 = 이전 수. (Windows 터치패드 설정의 스크롤 방향을 바꿔 두었다면 반대로 움직입니다.)</td></tr>
-            <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>이전 수 / 다음 수</td></tr>
-            <tr><td><kbd>Home</kbd> <kbd>End</kbd></td><td>처음 / 끝으로</td></tr>
-            <tr><td><kbd>Space</kbd></td><td>분석 시작 / 멈춤</td></tr>
-            <tr><td>승률 그래프 클릭</td><td>누른 위치의 수로 이동</td></tr>
-            <tr><td>변화도 클릭</td><td>누른 수로 이동(다른 갈래로도)</td></tr>
-            <tr><td>후보표 한 번 / 두 번 클릭</td><td>한 번은 그 후보의 수순을 미리보기 판에, 두 번은 그 수를 둡니다.</td></tr>
-            <tr><td>수 번호 + <span class="chip">수순 이동</span></td><td>입력한 수로 바로 이동(<kbd>Enter</kbd>도 됨)</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <h3>터치(폰·태블릿)</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>동작</th><th>하는 일</th></tr></thead>
-          <tbody>
-            <tr><td>바둑판 짧게 톡</td><td>돌을 둡니다.</td></tr>
-            <tr><td>바둑판 길게 누르기</td><td>그 자리 후보수의 참고도를 봅니다. 누른 채 움직이면 따라가고, 손을 떼도 참고도가 남습니다. 다른 곳을 누르면 사라집니다.</td></tr>
-            <tr><td>두 손가락 위아래</td><td>손가락을 내리면 다음 수, 올리면 이전 수</td></tr>
-            <tr><td>세 손가락 짧게 톡</td><td>한 수 뒤로</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <p class="sum">누르면 두고, 올리거나 길게 누르면 참고도, 휠·두 손가락으로 수를 넘깁니다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>하고 싶은 일</th><th>PC(마우스·키보드)</th><th>폰·태블릿(터치)</th></tr></thead>
+        <tbody>
+          <tr><td>돌 두기</td><td>바둑판 클릭</td><td>짧게 톡</td></tr>
+          <tr><td>참고도 보기</td><td>후보수 위에 올리기 · 꾹 누르면(0.2초) 고정</td><td>길게 누르기(떼도 남음, 다른 곳 누르면 사라짐)</td></tr>
+          <tr><td>다음 / 이전 수</td><td><kbd>→</kbd> <kbd>←</kbd> · 휠 아래/위</td><td>두 손가락 아래로 / 위로</td></tr>
+          <tr><td>한 수 뒤로</td><td>바둑판 오른쪽 클릭</td><td>세 손가락 짧게 톡</td></tr>
+          <tr><td>처음 / 끝</td><td><kbd>Home</kbd> <kbd>End</kbd></td><td><span class="chip">|&lt;</span> <span class="chip">&gt;|</span> 버튼</td></tr>
+          <tr><td>분석 시작 / 멈춤</td><td><kbd>Space</kbd></td><td><span class="chip">▶ 분석 시작</span></td></tr>
+          <tr><td>원하는 수로</td><td colspan="2">승률 그래프·변화도를 누르거나, 수 번호를 적고 <span class="chip">수순 이동</span></td></tr>
+        </tbody>
+      </table></div>
+      <details class="more"><summary>자세히: 노트북 터치패드, 후보표</summary><div>
+        <ul>
+          <li>노트북 터치패드는 폰과 같게 움직입니다: 두 손가락 아래로 = 다음 수, 두 손가락 톡 = 한 수 뒤로, 꾹 누르기 = 참고도 고정. (Windows 스크롤 방향을 바꿔 두었다면 반대로 움직입니다.)</li>
+          <li>후보표 한 번 클릭 = 그 후보의 수순을 미리보기 판에, 두 번 클릭 = 그 수를 둡니다.</li>
+          <li>이미 둔 수와 다른 곳에 두면 새 변화(갈래)가 생깁니다.</li>
+        </ul>
+      </div></details>
     </section>
 
     <!-- ================================================================ -->
     <section id="analysis">
       <h2>분석 기능</h2>
-      <h3>분석 시작</h3>
-      <p><span class="chip">▶ 분석 시작</span>을 누르면 지금 보는 국면을 멈출 때까지 계속 분석합니다. 수를 넘기면 새 국면을 바로 분석합니다. 위쪽 막대의 <b>N visits/s</b>는 1초에 몇 번 탐색하는지입니다.</p>
-      <h3>자동분석과 세기</h3>
-      <p><span class="chip">자동분석</span>은 첫 수부터 지금 보는 수까지 모든 국면을 차례로 분석해 승률 그래프를 채웁니다. 세기는 네 가지입니다.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>세기</th><th>한 수에 쓰는 탐색</th></tr></thead>
-          <tbody>
-            <tr><td>빠름</td><td>250 visits — 대강 흐름을 볼 때</td></tr>
-            <tr><td>보통</td><td>500 visits — 기본값</td></tr>
-            <tr><td>정밀</td><td>1000 visits — 오래 걸리지만 더 정확</td></tr>
-            <tr><td>초정밀</td><td>5000 visits — 정밀보다 약 5배 오래 걸림(한 판에 수십 분이 걸릴 수 있음). 중요한 대국을 꼼꼼히 볼 때</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <p class="sum"><span class="chip">▶ 분석 시작</span>은 지금 국면을 계속 분석하고, <span class="chip">자동분석</span>은 한 판 전체를 차례로 분석해 그래프를 채웁니다.</p>
+      <h3>세기(자동분석·대국 리포트 공통)</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>세기</th><th>한 수에</th><th>쓰임</th></tr></thead>
+        <tbody>
+          <tr><td>빠름</td><td>250 visits</td><td>흐름만 볼 때</td></tr>
+          <tr><td>보통</td><td>500 visits</td><td>기본값 · 275수 한 판 약 2분(RTX 3060)</td></tr>
+          <tr><td>정밀</td><td>1000 visits</td><td>더 정확</td></tr>
+          <tr><td>초정밀</td><td>5000 visits</td><td>중요한 대국 · 정밀보다 약 5배 오래(한 판 약 20분)</td></tr>
+        </tbody>
+      </table></div>
       <ul>
-        <li>PC 가로 화면에서는 <span class="chip">자동분석</span>을 누르면 세기 목록이 뜨고, 고르는 순간 시작합니다. 폰에서는 메뉴의 <b>분석</b> 칸에 세기 버튼이 따로 있습니다.</li>
-        <li>진행 중에는 버튼이 <b>■ 자동분석 취소 n/N</b>으로 바뀌고, 누르면 도중에 멈춥니다. 그때까지 분석된 수의 결과는 남습니다.</li>
-        <li>고른 세기 이상으로 이미 분석된 수는 건너뜁니다. 모두 분석돼 있으면 버튼이 <span class="chip">재분석</span>으로 바뀌고, 누르면 전부 다시 분석합니다.</li>
-        <li>세기는 자동분석과 대국 리포트가 함께 씁니다. 그래서 자동분석을 해 두면 대국 리포트는 기다리지 않고 바로 나옵니다(반대도 마찬가지).</li>
+        <li>이미 그 세기 이상 분석된 수는 건너뜁니다. 다 분석돼 있으면 버튼이 <span class="chip">재분석</span>이 됩니다.</li>
+        <li>진행 중 버튼(<b>■ 자동분석 취소 n/N</b>)을 누르면 멈추고, 그때까지의 결과는 남습니다.</li>
       </ul>
-      <h3>보기 설정</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>버튼</th><th>하는 일</th></tr></thead>
-          <tbody>
-            <tr><td>형세</td><td>바둑판에 흑·백 영역을 칠하고, 승률 칸에 “형세 흑 N집 우세 · 영역 흑 a · 백 b”를 보여 줍니다.</td></tr>
-            <tr><td>후보수보기</td><td>후보수 동그라미를 켜고 끕니다.</td></tr>
-            <tr><td>수순</td><td>누를 때마다 <b>전체 수순 번호</b> → <b>마지막 수 번호만</b> → <b>끔</b>으로 바뀝니다.</td></tr>
-            <tr><td>좌표</td><td>바둑판 가장자리 좌표(A~T, 1~19)를 켜고 끕니다.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <h3>돌 두기와 편집</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>버튼</th><th>하는 일</th></tr></thead>
-          <tbody>
-            <tr><td>● ○ ◐</td><td>위쪽 막대의 돌 모양 버튼. 흑만 / 백만 / 번갈아(기본) 놓기. 사활 문제나 배치를 만들 때 흑만·백만을 씁니다. 폰은 메뉴 <b>대국</b> 칸의 “돌 놓기”.</td></tr>
-            <tr><td>바둑판</td><td><b>19줄 · 13줄 · 9줄</b>. 고르면 그 크기의 빈 판에서 새로 시작합니다(둔 수가 있으면 먼저 묻습니다). 폰은 ☰ 메뉴 "대국" 칸. SGF·내 기보·공유 링크는 기보에 적힌 크기로 열리고, 저장할 때도 크기가 함께 저장됩니다. 9줄은 접바둑이 5점까지(네 귀 화점 + 천원). 덤은 판 크기와 상관없이 기본 6.5집. 오답노트·대국 리포트의 초반·중반·종반은 판 넓이에 맞춰 나눕니다(13줄: 23수·70수, 9줄: 11수·34수까지).</td></tr>
-            <tr><td>접바둑 · 덤</td><td>호선, 정선(덤 없음) 또는 2~9점 접바둑. 접바둑을 고르면 표준 자리에 흑돌을 놓고 백부터 두며, 덤은 0.5가 됩니다. 덤 칸에서 <b>덤</b>(백이 받음) 또는 <b>역덤</b>(흑이 받음)을 고르고 집 수를 적습니다.</td></tr>
-            <tr><td>PDA (접바둑 보정)</td><td>치수나 덤 때문에 한쪽이 크게 불리하면, KataGo가 직접 접바둑을 둘 때와 같은 방식으로 불리한 쪽이 더 적극적으로 두도록 보정합니다(치수·덤을 집으로 환산해 자동으로 정하며 끌 수 없습니다). 일반 분석에서는 불리한 쪽(보통 백) 차례에, AI대국에서는 AI 차례에만 적용되고, 내 차례에는 원래 값이 보입니다. 적용 중이면 아래 막대와 댓글에 “PDA 값”이 표시되며, 승률 그래프·자동분석·대국 리포트는 항상 보정 없는 값을 씁니다.</td></tr>
-            <tr><td>패스</td><td>차례를 넘깁니다.</td></tr>
-            <tr><td>주 변화로 지정</td><td>지금 보는 갈래를 기보의 본선으로 올립니다. 자동분석·대국 리포트는 본선을 따라갑니다.</td></tr>
-            <tr><td>지우기</td><td>지금 수와 그 뒤의 수를 지웁니다.</td></tr>
-            <tr><td>바둑판초기화</td><td>기보를 지우고 빈 호선 판(덤 6.5)으로 돌아갑니다.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h3>보기와 편집</h3>
+      <div class="table-wrap"><table>
+        <tbody>
+          <tr><td>형세</td><td>흑·백 영역을 칠하고 "형세 흑 N집 우세"를 보여 줍니다.</td></tr>
+          <tr><td>후보수보기 · 수순 · 좌표</td><td>후보수 켜고 끄기 · 수 번호(전체 → 마지막 수만 → 끔) · 가장자리 좌표</td></tr>
+          <tr><td>바둑판</td><td><b>19줄 · 13줄 · 9줄</b>. 고르면 그 크기의 빈 판으로 새로 시작합니다.</td></tr>
+          <tr><td>접바둑 · 덤</td><td>호선 · 정선 · 2~9점(9줄은 5점까지). 덤 또는 역덤, 기본 6.5집.</td></tr>
+          <tr><td>● ○ ◐</td><td>흑만 / 백만 / 번갈아 놓기(배치·사활 만들 때)</td></tr>
+          <tr><td>패스 · 지우기</td><td>차례 넘기기 · 지금 수와 그 뒤를 지우기</td></tr>
+          <tr><td>주 변화로 지정</td><td>보고 있는 갈래를 본선으로(자동분석·리포트는 본선을 따라감)</td></tr>
+          <tr><td>바둑판초기화</td><td>빈 호선 판(덤 6.5)으로</td></tr>
+        </tbody>
+      </table></div>
+      <details class="more"><summary>자세히: 판 크기, PDA(접바둑 보정)</summary><div>
+        <ul>
+          <li><b>판 크기</b>: 둔 수가 있으면 먼저 묻습니다. SGF·내 기보·공유 링크는 기보에 적힌 크기로 열리고, 저장할 때 크기도 함께 저장됩니다. 초반·중반·종반은 판 넓이에 맞춰 나눕니다(19줄 50·150수, 13줄 23·70수, 9줄 11·34수까지).</li>
+          <li><b>PDA</b>: 치수나 덤 때문에 한쪽이 크게 불리하면, KataGo가 직접 접바둑을 둘 때처럼 불리한 쪽이 더 적극적으로 두도록 보정합니다(자동, 끌 수 없음). 일반 분석은 불리한 쪽 차례, AI대국은 AI 차례에만 적용되고 아래 막대에 "PDA 값"이 보입니다. 승률 그래프·자동분석·대국 리포트는 보정 없는 값을 씁니다.</li>
+          <li>위쪽 막대의 <b>N visits/s</b>는 1초에 몇 번 탐색하는지입니다. 자동분석이 함께 돌면 GPU를 나눠 써서 느려집니다.</li>
+        </ul>
+      </div></details>
     </section>
 
     <!-- ================================================================ -->
-    <section id="strength">
+    <section id="report">
       <h2>대국 리포트</h2>
-      <p><span class="chip">대국 리포트</span>는 한 판의 본선을 수마다 분석해서, 흑과 백이 둔 수를 AI의 판단과 비교해 보여 줍니다. 단·급은 매기지 않습니다(한 판만으로는 기력을 알기 어렵습니다).</p>
+      <p class="sum">한 판을 수마다 AI와 비교해, 흑·백이 얼마나 AI처럼 뒀는지와 어디서 손해 봤는지 보여 줍니다.</p>
+      <figure class="fig"><img src="guide/report.webp" width="1300" height="829" alt="대국 리포트: 흑·백 AI 일치율, 평균 손해, 다섯 등급 개수, 초반·중반·종반 표" loading="lazy"><figcaption>실제 대국을 보통 세기로 분석한 리포트(대국자 이름은 가림)</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>등급</th><th>기준(한 수에 잃은 것)</th></tr></thead>
+        <tbody>
+          <tr><td>AI의 수</td><td>AI 1순위와 같은 수</td></tr>
+          <tr><td>좋은 수</td><td>1.5집 · 승률 3% 이내</td></tr>
+          <tr><td>평범</td><td>좋은 수와 실수 사이</td></tr>
+          <tr><td>실수</td><td>4집 또는 승률 10% 이상</td></tr>
+          <tr><td>악수</td><td>8집 또는 승률 20% 이상</td></tr>
+        </tbody>
+      </table></div>
       <ul>
-        <li>흑·백 카드 맨 위에 <b>AI 일치율</b>(AI 1순위와 같은 수를 둔 비율)과 <b>평균 손해</b>(한 수에 평균 몇 집을 잃었는지)가 나옵니다.</li>
-        <li>수마다 다섯 등급으로 나눠 개수와 비율을 보여 줍니다.
-          <table>
-            <tr><td>AI의 수</td><td>AI 1순위와 같은 수</td></tr>
-            <tr><td>좋은 수</td><td>손해 1.5집·승률 3% 이내 (오답노트에서 정답으로 치는 기준)</td></tr>
-            <tr><td>평범</td><td>좋은 수와 실수 사이</td></tr>
-            <tr><td>실수</td><td>4집 또는 승률 10% 이상 손해 (오답노트 '실수' 기준)</td></tr>
-            <tr><td>악수</td><td>8집 또는 승률 20% 이상 손해 (오답노트 '큰 실수만' 기준)</td></tr>
-          </table></li>
-        <li>아래 표는 <b>초반(50수까지) · 중반(150수까지) · 종반</b>마다 AI 일치율, 평균 손해, 실수·악수 수를 나눠 보여 줍니다. 어느 단계에서 약한지 보고, 그 단계의 오답노트 문제를 풀어 보세요.</li>
-        <li>275수 한 판을 보통으로 분석하면 RTX 3060 기준 약 2분, 초정밀이면 그 10배쯤(약 20분) 걸립니다. 창을 닫아도 계속 진행되고(버튼에 <b>대국 리포트 n/N</b>), 끝나면 아래 막대에 알림이 뜹니다. 도중에 멈추려면 리포트 창의 <span class="chip">분석 취소</span>를 누르세요. 그때까지 분석된 수로 리포트를 보여 주고, 다시 누르면 남은 수부터 이어서 분석합니다. 자동분석을 해 둔 기보처럼 모든 수가 이미 분석돼 있으면 세기를 묻지 않고 바로 결과가 나옵니다(다시 하려면 창의 <span class="chip">다시 분석</span>).</li>
-        <li>결과가 있을 때 <span class="chip">다시 분석</span>을 누르면 지금 세기로 모든 수를 다시 분석합니다. 세기가 높을수록 손해 값이 덜 흔들립니다.</li>
+        <li>이미 결판난 국면(두기 전 승률 5% 미만·95% 넘음)의 수는 승률을 10% 넘게 잃지 않았으면 실수로 치지 않습니다.</li>
+        <li>아래 표에서 <b>초반·중반·종반</b> 중 어디가 약한지 보고, 그 단계의 오답노트를 풀어 보세요.</li>
       </ul>
-      <div class="tip">손해는 AI가 본 형세 차이라 <b>검토 참고용</b>입니다. 이미 크게 이기거나 진 판에서는 큰 손해도 승률이 거의 안 변해서 등급이 낮게 나올 수 있습니다.</div>
+      <details class="more"><summary>자세히: 걸리는 시간, 취소, 다시 분석</summary><div>
+        <ul>
+          <li>분석되지 않은 수가 있으면 세기를 고르고 분석부터 합니다. 창을 닫아도 계속 진행되고(버튼에 <b>대국 리포트 n/N</b>), 끝나면 아래 막대에 알림이 뜹니다.</li>
+          <li>도중에 <span class="chip">분석 취소</span>를 누르면 그때까지 분석된 수로 리포트를 보여 주고, 다시 누르면 남은 수부터 이어서 합니다.</li>
+          <li>모든 수가 이미 분석돼 있으면(자동분석을 해 둔 기보 등) 바로 결과가 나옵니다. <span class="chip">다시 분석</span>은 지금 세기로 전부 다시 합니다.</li>
+          <li>단·급은 매기지 않습니다. 손해는 AI가 본 형세 차이라 검토 참고용이며, 세기가 높을수록 덜 흔들립니다.</li>
+        </ul>
+      </div></details>
     </section>
 
     <!-- ================================================================ -->
     <section id="game">
       <h2>AI대국</h2>
-      <p><span class="chip">AI대국</span>을 누르면 설정 창이 뜹니다.</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>설정</th><th>내용</th></tr></thead>
-          <tbody>
-            <tr><td>대국</td><td><b>AI와 대국</b>(내가 한쪽을 둠) 또는 <b>AI끼리 대국</b>(구경)</td></tr>
-            <tr><td>시작</td><td><b>새 대국</b> 또는 지금 판에서 <b>이어서 두기</b></td></tr>
-            <tr><td>내 돌</td><td>흑 / 백 / 무작위</td></tr>
-            <tr><td>바둑판 · 접바둑 · 덤</td><td>새 대국일 때 19줄·13줄·9줄, 호선·정선·접바둑(9줄은 5점까지), 덤 또는 역덤</td></tr>
-            <tr><td>대국자</td><td>흑·백 이름(기보 저장 때 들어감)</td></tr>
-            <tr><td>AI세팅</td><td>“<b>N초당 한 수</b>”(생각 시간) 또는 “<b>N visits당 한 수</b>”(탐색량). AI끼리면 흑·백 따로 정합니다.</td></tr>
-            <tr><td>초반 무작위</td><td>10·20·40수까지 상위 3후보 중 하나를 골라 매번 다른 판이 되게 합니다.</td></tr>
-            <tr><td>AI 기권</td><td>켜 두면 LizzieYzy와 같은 규칙으로 AI가 돌을 던집니다: 150수 이후 연속 2수 동안 AI 승률이 5% 미만일 때. 접바둑·역덤처럼 불리한 쪽을 든 AI는 치수만큼 따라잡을 시간을 두고, 형세가 그보다 크게 뒤질 때만 돌을 던집니다.</td></tr>
-            <tr><td>AI분석 보기</td><td>흑 차례 / 백 차례에 바둑판 위 후보수와 승률을 보여 줄지. 둘 다 끄면 승률 막대·승률 그래프·후보표·댓글의 승률까지 모두 숨깁니다. 사람과 둘 때는 기본으로 꺼져 있습니다.</td></tr>
-          </tbody>
-        </table>
+      <div class="split">
+        <div>
+          <p class="sum">KataGo와 두거나, AI끼리 두는 것을 구경합니다.</p>
+          <ul>
+            <li><b>대국</b>: AI와 대국 / AI끼리 대국</li>
+            <li><b>시작</b>: 새 대국 / 지금 판에서 이어서 두기</li>
+            <li><b>바둑판·접바둑·덤</b>: 19·13·9줄, 호선·정선·접바둑</li>
+            <li><b>AI세팅</b>: "N초당 한 수" 또는 "N visits당 한 수"</li>
+            <li><b>AI분석 보기</b>: 대국 중 후보수·승률을 보여 줄지(사람과 둘 때 기본 끔)</li>
+          </ul>
+          <p>AI는 1순위 수를 둡니다. 양쪽이 연달아 패스하면 끝나고 KataGo 판정이 결과로 남습니다.</p>
+        </div>
+        <figure class="fig phone"><img src="guide/aigame.webp" width="700" height="1199" alt="AI대국 설정 창" loading="lazy"></figure>
       </div>
-      <p>AI는 분석의 1순위 수(블루스팟)를 둡니다. AI 차례에는 바둑판을 눌러도 돌이 놓이지 않습니다. 양쪽이 연달아 패스하면 끝나고 KataGo 판정이 결과로 기록됩니다. 대국 중에는 버튼이 <span class="chip">■ 대국 중지</span>로 바뀝니다. 설정은 다음에도 그대로 남습니다.</p>
+      <details class="more"><summary>자세히: 초반 무작위, AI 기권</summary><div>
+        <ul>
+          <li><b>초반 무작위</b>: 10·20·40수까지 상위 3후보 중 하나를 골라 매번 다른 판이 되게 합니다.</li>
+          <li><b>AI 기권</b>: 켜 두면 LizzieYzy와 같은 규칙으로 돌을 던집니다(150수 이후 연속 2수 동안 AI 승률 5% 미만). 접바둑·역덤처럼 불리한 쪽을 든 AI는 치수만큼 따라잡을 시간을 둡니다.</li>
+          <li>대국 중 버튼은 <span class="chip">■ 대국 중지</span>가 되고, 설정은 다음에도 남습니다.</li>
+        </ul>
+      </div></details>
     </section>
 
     <!-- ================================================================ -->
     <section id="kifu">
-      <h2>기보</h2>
-      <h3>파일 메뉴</h3>
+      <h2>내 기보</h2>
+      <div class="split">
+        <div>
+          <p class="sum">분석한 기보를 계정에 저장해 두고, GPU 없이 언제든 다시 봅니다.</p>
+          <ul>
+            <li><b>저장</b>: 분석 화면 위쪽 파란 <span class="chip blue">내 기보 저장</span>. 승률·후보수도 함께 저장됩니다(100판까지).</li>
+            <li><b>보기</b>: 처음 화면 <b>내 기보</b> → 분류 카드 → 기보를 누르면 저장된 분석과 함께 열립니다.</li>
+            <li><b>이어서 분석</b>: GPU가 켜져 있으면 그 GPU로 열리고, 모자란 수만 분석합니다.</li>
+            <li><b>분류</b>: <b>＋ 새 분류</b>로 "한큐 기보", "오프라인 대국"처럼 나눠 둡니다(30개까지).</li>
+            <li><b>찾기</b>: 이름·날짜·결과로 찾습니다(예: <b>홍길동 2026-09</b>, <b>흑 불계</b>, <b>9줄</b>).</li>
+          </ul>
+        </div>
+        <figure class="fig phone"><img src="guide/mine.webp" width="700" height="1628" alt="내 기보 화면: 분류 카드(전체 기보, 한큐 기보, 프로 기보 등)와 새 분류" loading="lazy"></figure>
+      </div>
+      <h3>저장 창</h3>
+      <figure class="fig" style="max-width:460px"><img src="guide/save.webp" width="690" height="585" alt="내 기보에 저장 창: 제목, 분류, 기보 저장·오답노트 만들기 체크" loading="lazy"></figure>
       <ul>
-        <li><b>SGF 열기</b> — 내 기기의 SGF 파일을 엽니다. 컴퓨터에서는 SGF 파일을 분석 화면에 <b>끌어다 놓아도</b> 열립니다(언제든, 한 번에 한 개).</li>
-        <li><b>SGF 저장</b> — 지금 기보를 SGF로 내려받습니다. 분석값(승률·리드·후보수 20개와 수순)도 함께 저장돼서, 다음에 열면 다시 분석하지 않아도 그래프와 후보수가 보입니다.</li>
-        <li><b>SGF 복사 / 붙여넣기</b> — 클립보드로 주고받습니다. 다른 프로그램이나 메신저의 SGF를 붙여넣을 때 편합니다.</li>
-        <li><b>내 기보 열기</b> — 아래 '내 기보'를 보세요. 저장은 파일 메뉴가 아니라 위쪽 막대의 <b>내 기보 저장</b> 버튼입니다.</li>
-        <li><b>오답노트에 담기 / 오답노트</b> — 아래 '오답노트'를 보세요.</li>
+        <li><b>기보 저장 · 오답노트 만들기</b> 중 체크한 것만 만듭니다. 오답노트를 체크하면 이 기보의 실수 목록이 열립니다.</li>
+        <li>GPU가 켜져 있으면 <b>다 끝나면 GPU 끄기</b>도 보입니다. 자동분석 중이면 <span class="chip">끝나면 저장</span> — 분석이 끝나는 대로 저장하고 GPU를 끕니다.</li>
       </ul>
-      <h3>내 기보</h3>
-      <p>분석한 기보를 사이트 계정에 저장해 두고 언제든 다시 여는 기능입니다. 위쪽 막대(폰도 위쪽)의 파란 <b>내 기보 저장</b> 버튼을 누르면 지금 기보가 분석값(승률·리드·후보수 20개와 수순)과 함께 저장됩니다. 저장 창에서 <b>기보 저장</b> · <b>오답노트 만들기</b> 가운데 체크한 것만 만들어집니다. 오답노트 만들기를 체크하면 이 기보의 실수 목록이 열려 담을 실수를 바로 오답노트에 넣을 수 있습니다(분석된 수가 있을 때만). 버튼을 누를 때만 저장되고, 계정마다 <b>100판</b>까지 저장할 수 있습니다.</p>
+      <details class="more"><summary>자세히: 기보 추가(GPU 없이 기록), 공유, SGF, 한큐 기보 불러오기</summary><div>
+        <ul>
+          <li><b>＋ 기보 추가</b>: 빈 판과 <b>기보 정보</b> 창(바둑판 크기, 흑·백 이름, 날짜, 결과)이 열립니다. 판을 눌러 두고 <b>내 기보 저장</b>. GPU를 켜지 않아 요금이 들지 않습니다. 잘못 둔 수는 그 수에서 <b>지우기</b>.</li>
+          <li><b>공유</b>: 목록의 <b>공유</b> → <span class="chip">링크 만들기</span> → 복사(폰은 보내기…). 받은 사람은 로그인·GPU 없이 기보와 분석을 봅니다. <span class="chip pink">공유 끄기</span>하면 링크가 막힙니다. 대국자 이름도 보이니 주의하세요.</li>
+          <li><b>다시 저장</b>: 내 기보에서 연 기보는 <b>덮어쓰기</b> / <b>새로 저장</b>을 고릅니다. <b>삭제</b>는 되돌릴 수 없습니다.</li>
+          <li><b>SGF</b>: 파일 메뉴에서 SGF 열기·저장·복사·붙여넣기. 저장한 SGF에는 분석값도 들어 있어 다시 열면 그래프가 보입니다. PC에서는 SGF 파일을 분석 화면에 끌어다 놓아도 열립니다.</li>
+          <li><b>기보 불러오기(한큐바둑)</b>: 닉네임을 검색하면 최근 대국 약 100판이 나오고, 누르면 바둑판에 열립니다. 타이젬 개인 기보는 타이젬 프로그램에서 SGF로 저장한 뒤 여세요.</li>
+          <li>기보를 누르면 대국자 이름·결과를 판 옆 대국자 칸이나 파일 → <b>기보 정보…</b>에서 고칠 수 있습니다.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="batch">
+      <h2>기보 분석</h2>
+      <p class="sum">기보 여러 개를 분석 화면 없이 한꺼번에 분석해 내 기보에 저장합니다. 처음 화면 <b>기보 분석</b>.</p>
+      <div class="duo">
+        <figure class="fig"><img src="guide/analyze.webp" width="700" height="1253" alt="기보 첨부 칸: 기보 파일 추가, 한큐 기보 불러오기, 세기, 저장할 분류, 분석 시작" loading="lazy"><figcaption>① 기보를 넣고 ② 세기·분류를 고르고 ③ 분석 시작</figcaption></figure>
+        <figure class="fig"><img src="guide/fox.webp" width="700" height="1486" alt="한큐바둑 기보 창: 닉네임 검색, 대국 목록 체크, 선택한 기보 추가" loading="lazy"><figcaption><b>한큐 기보 불러오기</b>: 닉네임 검색 → 여러 판 체크 → 추가</figcaption></figure>
+      </div>
+      <ol>
+        <li><span class="chip">기보 파일 추가</span>로 SGF를 여러 개 고르거나, <span class="chip">한큐 기보 불러오기</span>로 대국을 체크해 넣습니다. PC에서는 파일을 화면에 끌어다 놓아도 됩니다.</li>
+        <li>세기와 저장할 분류를 고릅니다.</li>
+        <li><span class="chip blue">분석 시작</span>. GPU를 빌리는 중이면 <span class="chip">준비되면 분석 시작</span>으로 예약됩니다.</li>
+      </ol>
+      <div class="tip warn"><b>끝날 때까지 그 탭을 열어 두세요.</b> 닫거나 새로고침하면 멈춥니다. 다른 화면(내 기보·학습방)으로 가는 것은 괜찮습니다.</div>
+      <details class="more"><summary>자세히: 오답노트도 만들기, 다 끝나면 GPU 끄기, 취소</summary><div>
+        <ul>
+          <li><b>오답노트도 만들기</b>: 저장하면서 실수를 바로 담습니다. 누구의 실수(흑·백 / 흑만 / 백만 / <b>내 이름 쪽만</b> — 적은 이름이 대국자에 든 쪽)와 기준을 고릅니다.</li>
+          <li><b>다 끝나면 GPU 끄기</b>(기본 켬): 모두 끝나면 GPU를 끄고 삭제합니다. <span class="chip pink">분석 취소</span>로 멈췄을 때는 끄지 않습니다.</li>
+          <li>취소해도 이미 저장된 기보는 남고, 다시 시작하면 저장 안 된 것만 분석합니다.</li>
+          <li>한큐 기보는 분석 화면의 기보 불러오기처럼 <b>본선만</b> 분석하고, 제목은 대국자·날짜입니다. 이미 넣은 대국은 "추가됨"으로 보입니다.</li>
+          <li>같은 파일을 다시 분석하면 내 기보에 한 판 더 저장됩니다.</li>
+        </ul>
+      </div></details>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="notes">
+      <h2>학습방 · 오답노트</h2>
+      <p class="sum">분석한 기보의 실수를 문제로 모아 다시 풉니다. GPU 없이 풀 수 있습니다.</p>
+      <div class="duo">
+        <figure class="fig"><img src="guide/study.webp" width="700" height="955" alt="학습방: 오늘 복습할 문제 수, 복습하기, 초반·중반·종반 버튼" loading="lazy"><figcaption>학습방 — 오늘 복습할 문제, 단계별로 풀기</figcaption></figure>
+        <figure class="fig"><img src="guide/notes-list.webp" width="700" height="1361" alt="오답노트 목록: 단계 선택, 오늘 복습, 전체 풀기, 문제 목록" loading="lazy"><figcaption>오답노트 목록</figcaption></figure>
+      </div>
+      <h3>담기</h3>
       <ul>
-        <li><b>GPU 없이 보기</b> — 처음 화면의 <b>내 기보</b>를 눌러 나오는 목록에서 기보를 누르면 GPU를 켜지 않아도 저장된 승률 그래프·후보수·수순을 보며 복기할 수 있습니다. 새로 분석하지는 않습니다.</li>
-        <li><b>이어서 분석</b> — GPU가 켜져 있을 때 기보를 누르면(또는 분석 화면의 <b>내 기보 열기</b>) 그 GPU로 열립니다. 자동분석·대국 리포트는 이미 그 세기 이상으로 분석된 수를 건너뛰니, 모자란 부분만 분석됩니다.</li>
-        <li><b>다 끝나면 GPU 끄기</b> — GPU가 켜져 있으면 저장 창에 이 칸이 보입니다(창을 열 때마다 꺼진 상태). 체크하면 저장이 끝나는 대로(오답노트 만들기도 골랐으면 담기 창을 닫는 대로) GPU를 끄고 삭제합니다. <b>자동분석이나 대국 리포트가 도는 중</b>이면 버튼이 <span class="chip">끝나면 저장</span>으로 바뀌고, 분석이 끝까지 끝나면 그때 저장하고(오답노트는 담기 창에서 마지막으로 고른 기준으로 바로 담음) GPU를 끕니다. 분석을 취소하거나 연결이 끊기거나 다른 기보를 열면 저장도 끄기도 하지 않습니다. 초정밀 자동분석을 걸어 두고 자리를 비울 때 쓰세요.</li>
-        <li><b>기보 추가(GPU 없이 기록)</b> — 내 기보 목록 위의 <b>＋ 기보 추가</b>를 누르면 새 탭에 빈 판이 열리고 <b>기보 정보</b> 창(바둑판 19·13·9줄, 흑·백 이름, 날짜, 결과)이 뜹니다. 판을 눌러 흑·백 차례로 두고(잘못 둔 수는 그 수에서 아래쪽 분홍 <b>지우기</b>를 누르면 그 수부터 뒤가 지워집니다) <b>내 기보 저장</b>을 누르면 저장됩니다. GPU를 켜지 않으니 요금이 들지 않고, 나중에 GPU를 켜고 목록에서 열면 이어서 분석할 수 있습니다. 대국자·결과는 파일 → <b>기보 정보…</b> 또는 판 옆 대국자 칸을 눌러 언제든 고칠 수 있습니다.</li>
-        <li><b>분류</b> — 기보를 내가 정한 분류(예: 타이젬 기보, 오프라인 기보)로 나눠 둡니다. 처음 화면의 <b>내 기보</b>를 누르면 분류가 카드로 보입니다(전체 기보 · 내가 만든 분류들 · 분류 없음, 카드마다 판 수와 최근 기보). <b>＋ 새 분류</b> 카드로 만들고(30개까지), 카드를 누르면 그 분류의 기보 목록이 열립니다. 목록의 <b>분류</b> 칸에서 기보를 다른 분류로 옮기고, 분류 목록 위의 <b>이름 바꾸기</b>·<b>분류 지우기</b>로 분류를 고칩니다. 분류를 지워도 안의 기보는 지워지지 않고 '분류 없음'으로 갑니다. 분류를 연 채 <b>기보 추가</b>를 누르면 그 분류로 저장되고, 분석 화면의 <b>내 기보 저장</b> 창에서도 분류를 고르거나 새로 만들 수 있습니다. 기보 분석(여러 기보)에서도 '저장할 분류'를 고를 수 있습니다.</li>
-        <li><b>기보 찾기</b> — 기보가 2판 이상이면 목록 위에 찾기 칸이 나옵니다. 제목·대국자 이름·대국 날짜·결과로 찾고, 띄어 쓴 낱말은 모두 들어간 기보만 보입니다(예: <b>홍길동 2026-09</b>, <b>흑 불계</b>, <b>무승부</b>). 최근 저장순·대국 날짜순·제목순·수 많은 순으로 정렬하고, <b>분석된 것만</b>을 켜면 분석값이 저장된 기보만 봅니다. 분석 화면의 <b>내 기보 열기</b> 창에도 같은 찾기 칸이 있습니다.</li>
-        <li><b>다시 저장</b> — 내 기보에서 연 기보를 저장하면 <b>덮어쓰기</b>와 <b>새로 저장</b> 중에서 고릅니다.</li>
-        <li><b>공유</b> — 내 기보 목록에서 기보의 <b>공유</b> → <span class="chip">링크 만들기</span>를 누르면 읽기 전용 링크가 생깁니다. <b>복사</b>(폰은 <b>보내기…</b>로 카카오톡 등)해서 보내면, 받은 사람은 로그인이나 GPU 없이 그 기보와 저장된 분석(승률 그래프·후보수)을 볼 수 있습니다. 받은 사람이 회원이면 <b>내 기보 저장</b>으로 자기 기보에 복사할 수 있습니다. 공유 중인 기보는 목록에 초록색 <b>공유 중</b>으로 보이고, 눌러서 <span class="chip pink">공유 끄기</span>를 하면 그 링크는 더 이상 열리지 않습니다. 대국자 이름·결과·날짜도 함께 보이니, 다른 사람의 이름이 든 기보는 주의해서 공유하세요.</li>
-        <li><b>지우기</b> — 처음 화면 '내 기보' 목록이나 분석 화면 '내 기보 열기' 목록의 <b>삭제</b>. 되돌릴 수 없습니다(공유 링크도 함께 사라집니다).</li>
+        <li>기보를 자동분석한 뒤 <b>내 기보 저장</b>에서 <b>오답노트 만들기</b>(또는 파일 메뉴 <b>오답노트에 담기</b>).</li>
+        <li>누구의 실수인지와 기준(작은 실수까지 2집·5% / 실수 4집·10% / 큰 실수만 8집·20%)을 고르고, 담을 수를 체크합니다.</li>
+        <li>이미 결판난 국면의 수는 빠집니다(이긴 판을 한 수로 뒤집은 수는 남음). 계정마다 300문제까지.</li>
       </ul>
-      <h3>기보 분석</h3>
-      <p>분석 화면을 열지 않고 SGF 기보 여러 개를 한꺼번에 분석해 내 기보에 저장하는 기능입니다. 처음 화면의 <b>기보 분석</b>을 누르면 맨 위 <b>기보 첨부</b> 칸에 기보를 올리고, 그 아래에서 GPU를 고를 수 있습니다(이미 켜 둔 GPU가 있으면 그대로 씀).</p>
+      <h3>풀기</h3>
+      <div class="duo">
+        <figure class="fig"><img src="guide/quiz-ask.webp" width="700" height="1149" alt="오답노트 문제: 실수 직전 국면, AI라면 어디에 둘까요" loading="lazy"><figcaption>실수 직전 국면에서 바둑판을 눌러 답합니다</figcaption></figure>
+        <figure class="fig"><img src="guide/quiz-answer.webp" width="700" height="1256" alt="답을 본 뒤: AI 후보수와 처음 둔 수의 빨간 ✕" loading="lazy"><figcaption>답하면 AI 후보수와 처음 둔 수(빨간 ✕)가 보입니다</figcaption></figure>
+      </div>
       <ul>
-        <li><span class="chip">기보 파일 추가</span>로 SGF 파일을 여러 개 고르고(여러 번 눌러 더할 수 있음, GPU 준비 중에도 미리 골라 둘 수 있음, 컴퓨터에서는 파일들을 이 화면에 끌어다 놓아도 됨 — 분석이 도는 중에는 안 받음), 세기(빠름·보통·정밀·초정밀)를 고른 뒤 <span class="chip">분석 시작</span>을 누르세요. 기보마다 본선 전체를 자동분석과 같은 방식으로 분석하고, 끝나는 대로 내 기보에 저장합니다.</li>
-        <li><span class="chip">한큐 기보 불러오기</span> — 한큐바둑 닉네임을 검색하면 최근 대국 약 100판이 나옵니다. 분석할 대국에 체크(여러 개, 맨 위 칸은 모두 고르기)하고 <b>선택한 기보 추가</b>를 누르면 기보 파일처럼 목록에 들어갑니다. 분석 화면의 기보 불러오기와 같게 본선만 분석하고, 저장 제목은 대국자·날짜입니다. 이미 넣은 대국은 "추가됨"으로 표시됩니다.</li>
-        <li>저장 제목은 대국자 이름과 날짜(없으면 파일 이름)입니다. 목록에 기보마다 진행 상황(분석 중 n/N · 저장함 · 오류)이 보입니다.</li>
-        <li><b>GPU가 준비되기 전에도 시작을 예약할 수 있습니다.</b> GPU를 빌리는 중(부팅·설치 중)에 <span class="chip">준비되면 분석 시작</span>을 누르면, 준비되는 순간 저절로 분석을 시작합니다. 그동안 내 기보·학습방 같은 다른 화면으로 가도 됩니다. 다시 누르면 예약이 풀리고, GPU가 꺼지면 예약도 취소됩니다.</li>
-        <li><b>끝날 때까지 그 창을 열어 두세요.</b> 창을 닫거나 새로고침하면 멈춥니다. 도중에 멈추려면 <span class="chip pink">분석 취소</span> — 이미 저장된 기보는 남고, 다시 <span class="chip">분석 시작</span>을 누르면 저장 안 된 기보만 처음부터 분석합니다.</li>
-        <li><b>오답노트도 만들기</b> — 체크하면 기보를 저장하면서 실수를 오답노트에 바로 담습니다. 누구의 실수를 담을지(흑·백 모두 / 흑만 / 백만 / <b>내 이름 쪽만</b>)와 기준(작은 실수까지 · 실수 · 큰 실수만)을 고르세요. '내 이름 쪽만'은 적어 둔 이름(예: 한큐 닉네임)이 흑·백 대국자 이름에 들어 있는 쪽의 수만 담고, 이름이 어느 쪽에도 없는 기보는 건너뜁니다. 이미 담긴 문제는 다시 담지 않습니다.</li>
-        <li><b>다 끝나면 GPU 끄기</b> — 체크해 두면(기본) 모든 기보가 끝나는 대로 GPU를 끄고 삭제해 요금이 멈춥니다. <span class="chip pink">분석 취소</span>로 멈췄을 때는 끄지 않습니다.</li>
-        <li>같은 파일을 다시 분석하면 내 기보에 한 판이 더 저장됩니다(계정마다 100판까지).</li>
+        <li>AI 1순위나, 그와 1.5집(승률 3%) 안쪽인 수를 두면 정답입니다.</li>
+        <li>맞히면 1·3·7·14·30·60일 뒤에 다시 나오고, 틀리면 바로 복습 목록에 남습니다.</li>
+        <li>아래 칸에 <b>메모</b>를 적어 두면 문제와 함께 저장됩니다. <b>그만하기</b>를 누르면 보던 기보로 돌아갑니다.</li>
       </ul>
-      <h3>오답노트</h3>
-      <p>분석한 기보에서 내가 둔 실수를 문제로 모아 두고, 다시 풀어 보며 익히는 기능입니다. GPU 없이도 풀 수 있습니다.</p>
+    </section>
+
+    <!-- ================================================================ -->
+    <section id="app">
+      <h2>앱 설치 · 준비 알림</h2>
+      <p class="sum">홈 화면에 앱처럼 설치하면 주소창 없이 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>기기</th><th>설치 방법</th></tr></thead>
+        <tbody>
+          <tr><td>안드로이드</td><td><b>크롬</b>에서 사이트를 열고 설치 칸의 <span class="chip">설치</span> 또는 메뉴(⋮) → 앱 설치</td></tr>
+          <tr><td>아이폰·아이패드</td><td><b>Safari</b> 공유 버튼(□↑) → <b>홈 화면에 추가</b></td></tr>
+          <tr><td>PC</td><td>Chrome·Edge 주소창 오른쪽 설치 아이콘(⊕)</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tip warn">카카오톡·네이버 앱 안에서는 설치할 수 없습니다. 크롬에서 열어 설치하세요. <b>삼성 인터넷</b>으로 설치하면 Google Play 프로텍트 경고가 뜨니 안드로이드는 크롬을 쓰세요.</div>
       <ul>
-        <li><b>담기</b> — 기보를 자동분석한 뒤 파일 메뉴(폰은 ☰ 메뉴의 기보 칸)의 <b>오답노트에 담기</b>를 누릅니다. 흑·백 중 누구의 실수인지와 기준(작은 실수까지 / 실수 / 큰 실수만)을 고르면, 그만큼 손해 본 수가 둔 수·AI 최선·손해 집 수와 함께 나옵니다. 이미 결판난 국면(두기 전 승률 5% 미만이거나 95% 넘음)의 수는 빠집니다. 그때는 AI가 집 수를 신경 쓰지 않아 몇 집 손해가 흔하기 때문입니다. 다만 한 수로 승률을 10% 넘게 잃은 수(이긴 판을 뒤집은 수)는 남습니다. 고른 수들이 문제가 됩니다. 이미 담긴 문제는 건너뛰고, 계정마다 <b>300문제</b>까지 담을 수 있습니다.</li>
-        <li><b>풀기</b> — 파일 메뉴의 <b>오답노트</b>나 처음 화면 <b>학습방</b>의 <b>복습하기</b>를 누릅니다. 실수하기 직전 국면이 후보수 없이 나오면 바둑판을 눌러 답합니다. AI가 가장 먼저 고른 수나, 그 수와 1.5집(승률 3%) 안쪽인 수를 두면 정답입니다.</li>
-        <li><b>초반 · 중반 · 종반</b> — 문제는 실수한 수 번호로 나뉩니다. 50수까지 초반, 150수까지 중반, 그 뒤는 종반입니다. 오답노트 목록 위에서 단계를 고르면 그 단계 문제만 보이고, 오늘 복습·전체 풀기도 그 단계 문제만 풉니다. 학습방의 오답노트 칸에서도 단계별로 바로 열 수 있습니다.</li>
-        <li><b>답을 고른 뒤</b> — AI 후보수가 나타나고, 처음 둔 수는 빨간 ✕, 내 답은 동그라미로 표시됩니다. 후보수에 마우스를 올리면(폰은 길게 누르면) 수순이 보입니다. 아래 칸에 <b>메모</b>를 적어 두면 문제와 함께 저장됩니다.</li>
-        <li><b>복습 일정</b> — 맞히면 1·3·7·14·30·60일 뒤에 다시 나오고, 틀리면 바로 복습 목록에 남습니다. <b>오늘 복습</b>은 날짜가 된 문제만, <b>전체 풀기</b>는 모든 문제를 냅니다. 문제를 누르면 그 문제만 풉니다.</li>
-        <li><b>그만하기</b>를 누르면 풀기 전에 보던 기보로 돌아갑니다. 푸는 동안에는 GPU 분석을 멈추고, 다른 기기의 바둑판도 바꾸지 않습니다.</li>
+        <li>설치 칸은 로그인 화면과 처음 화면 아래에 있고, 설치한 앱 안에서는 보이지 않습니다.</li>
+        <li><b>준비 알림</b>: GPU를 시작할 때 알림을 허용하거나 내 GPU 칸의 <span class="chip">🔔 준비되면 알림 받기</span>. 준비가 끝나거나 실패하면 알림이 오고 탭 제목에 ●가 붙습니다(사이트 탭이 열려 있는 동안). 아이폰은 설치한 앱에서만 알림이 옵니다.</li>
+        <li>설치한 앱에서는 분석 화면이 같은 창에서 열리고, 왼쪽 위 <b>‹ 홈</b>으로 돌아옵니다.</li>
       </ul>
-      <h3>기보 불러오기(한큐바둑)</h3>
-      <p><span class="chip">기보 불러오기</span>에서 한큐바둑(野狐) <b>닉네임</b>을 검색하면 최근 대국 약 100판이 나옵니다. 줄을 누르면 그 판이 바둑판에 열리고, 대국자·단·결과·날짜가 왼쪽 대국 정보에 채워집니다.</p>
-      <div class="tip warn">타이젬 개인 기보는 타이젬의 보호 장치 때문에 불러올 수 없습니다. 타이젬 프로그램에서 SGF로 저장한 뒤 <b>SGF 열기</b>를 쓰세요.</div>
     </section>
 
     <!-- ================================================================ -->
     <section id="devices">
       <h2>여러 기기에서 함께 보기</h2>
-      <p>한 계정의 분석 판은 하나입니다. 노트북에서 GPU를 켜고 분석하다가 같은 계정으로 폰에서 분석 화면을 열면, 노트북 화면과 <b>같은 판</b>이 뜨고 서로 따라 움직입니다. 기기 수 제한은 없습니다.</p>
+      <p class="sum">한 계정의 분석 판은 하나입니다. 노트북과 폰에서 같이 열면 같은 판이 서로 따라 움직입니다.</p>
       <ul>
-        <li>한쪽에서 두거나 수를 넘기면 다른 기기도 같은 수로 갑니다.</li>
-        <li>실시간 분석은 판마다 하나만 돕니다. 어느 기기에서든 켜고 끌 수 있고, 분석을 돌리던 기기가 나가면 남은 기기가 이어받습니다.</li>
-        <li>연결 상태에 지금 붙어 있는 <b>기기 N대</b>가 보입니다(가로 화면은 위쪽 막대, 폰은 ☰ 메뉴 맨 위 GPU 칸).</li>
-        <li>폰에서 열 때는 폰 브라우저로 사이트에 로그인한 뒤 <b>GPU 대여</b> 화면의 <span class="chip">분석 화면 열기</span>를 누르세요.</li>
+        <li>폰에서도 같은 계정으로 로그인한 뒤 <b>GPU 대여</b> → <span class="chip blue">분석 화면 열기</span>.</li>
+        <li>한쪽에서 두거나 수를 넘기면 다른 기기도 같은 수로 갑니다. 실시간 분석은 판마다 하나만 돕니다.</li>
+        <li>연결 상태에 붙어 있는 <b>기기 N대</b>가 보입니다. 기기 수 제한은 없습니다.</li>
       </ul>
     </section>
 
     <!-- ================================================================ -->
     <section id="account">
       <h2>내 정보</h2>
-      <p>홈 위쪽 <a href="./#me">내 정보</a>에서 할 수 있는 일입니다.</p>
+      <p class="sum">위쪽 막대 <a href="./#me">내 정보</a>에서 합니다.</p>
       <ul>
-        <li><b>이름 바꾸기</b></li>
-        <li><b>비밀번호 변경</b> — 현재 비밀번호를 확인한 뒤 바꿉니다(8자 이상).</li>
-        <li><b>사용 내역</b> — GPU를 쓴 기록(한 번 쓸 때마다 한 줄, 쓴 시간과 GPU)과 충전 기록.</li>
-        <li><b>회원 탈퇴</b> — 켜져 있는 GPU를 먼저 끄세요. 남은 잔액은 돌려받을 수 없으니 환불이 필요하면 탈퇴하기 전에 관리자에게 요청하세요.</li>
+        <li><b>이름 바꾸기 · 비밀번호 변경</b>(현재 비밀번호 확인, 8자 이상)</li>
+        <li><b>사용 내역</b> — GPU를 쓴 기록(한 번에 한 줄)과 충전·환불 기록</li>
+        <li><b>회원 탈퇴</b> — 켜진 GPU를 먼저 끄세요. 남은 잔액 환불은 탈퇴하기 <b>전에</b> 관리자에게 요청하세요.</li>
       </ul>
     </section>
 
     <!-- ================================================================ -->
     <section id="faq" class="faq">
       <h2>자주 묻는 질문</h2>
-      <details><summary>“분석 화면 열기”가 안 나타나요.</summary><div>
-        <p>보통 1~3분 걸립니다. 목록에서 <span class="chip">⚡빠른 시작</span>이 붙은 GPU는 최근에 써 본 서버라 더 빨리(보통 1분 안팎) 켜집니다. 처음 쓰는 서버는 프로그램을 내려받느라 1~2분 더 걸릴 수 있습니다. <b>GPU 대여</b> 화면의 세 단계 중 어디까지 왔는지 보세요. 너무 오래 걸리면 GPU가 스스로 꺼지고 “실패”로 표시됩니다. 그때는 다른 GPU를 골라 다시 시작하세요.</p></div></details>
+      <details><summary>"분석 화면 열기"가 안 나타나요.</summary><div>
+        <p>보통 1~3분 걸립니다. ⚡가 붙은 GPU는 보통 1분 안팎이고, 처음 쓰는 서버는 1~2분 더 걸릴 수 있습니다. 너무 오래 걸리면 GPU가 스스로 꺼지고 "실패"로 표시되며 요금은 자동으로 돌려드립니다. 다른 GPU로 다시 시작하세요.</p></div></details>
       <details><summary>연결이 끊겼다고 나와요.</summary><div>
-        <p>폰 화면이 꺼지거나 네트워크가 바뀌면 잠깐 끊겼다가 자동으로 다시 붙습니다. 화면으로 돌아오면 바로 연결을 확인하고, GPU의 접속 주소가 바뀌어도 사이트에 로그인된 브라우저는 새 주소로 알아서 옮겨 붙습니다. 계속 끊겨 있으면 <b>GPU 대여</b> 화면에서 GPU가 아직 “사용 가능”인지 보세요. 10분 동안 쓰지 않아 자동으로 꺼졌을 수 있습니다.</p></div></details>
+        <p>폰 화면이 꺼지거나 네트워크가 바뀌면 잠깐 끊겼다가 자동으로 다시 붙습니다. 계속 끊겨 있으면 <b>GPU 대여</b> 화면에서 GPU가 아직 "사용 가능"인지 보세요. 10분 동안 쓰지 않아 자동으로 꺼졌을 수 있습니다.</p></div></details>
       <details><summary>분석이 느려요.</summary><div>
-        <p>위쪽 막대의 visits/s를 보세요. 자동분석이나 대국 리포트가 도는 동안에는 GPU를 나눠 쓰므로 실시간 분석이 느려집니다. 더 빠른 GPU(5070 Ti, 5090 등)나 작은 모델을 고르면 빨라집니다.</p></div></details>
+        <p>위쪽 visits/s를 보세요. 자동분석·대국 리포트가 함께 돌면 GPU를 나눠 써서 느려집니다. 더 빠른 GPU(5070 Ti, 5090 등)나 작은 모델을 고르면 빨라집니다.</p></div></details>
       <details><summary>탭을 닫았는데 요금이 나가나요?</summary><div>
-        <p>탭을 닫아도 GPU는 켜져 있다가 10분 동안 분석 요청이 없으면 스스로 꺼집니다. 그 사이의 요금은 나가니, 다 썼으면 <b>GPU 종료</b>를 누르세요.</p></div></details>
+        <p>탭을 닫아도 GPU는 켜져 있다가 10분 동안 분석이 없으면 스스로 꺼집니다. 그 사이 요금은 나가니 다 썼으면 <b>GPU 종료</b>를 누르세요.</p></div></details>
       <details><summary>분석 결과를 나중에 다시 보고 싶어요.</summary><div>
-        <p>위쪽 막대의 <b>내 기보 저장</b>을 쓰세요. 분석값이 함께 저장돼서 처음 화면의 '내 기보'에서 GPU를 켜지 않아도 그래프와 후보수를 볼 수 있습니다(새로 분석하려면 GPU가 필요합니다). 내 기기에 파일로 두려면 <b>SGF 저장</b>을 쓰면 됩니다.</p></div></details>
+        <p><b>내 기보 저장</b>을 쓰세요. 처음 화면 '내 기보'에서 GPU 없이 그래프와 후보수를 볼 수 있습니다. 파일로 두려면 <b>SGF 저장</b>.</p></div></details>
+      <details><summary>오답노트에 문제가 너무 많이(적게) 들어가요.</summary><div>
+        <p>담기 창의 기준을 바꿔 보세요: 작은 실수까지(2집·5%) / 실수(4집·10%) / 큰 실수만(8집·20%). 이미 결판난 국면의 수는 자동으로 빠집니다. 담을 수만 체크해서 넣을 수도 있습니다.</p></div></details>
       <details><summary>YZY와 결과가 조금 달라요.</summary><div>
-        <p>모델과 탐색량(visits)이 같아야 결과가 비슷합니다. 특히 손해 집 수와 등급은 분석 조건에 따라 달라집니다. 같은 모델을 고르고 세기를 보통(500 visits)으로 맞춰 비교해 보세요.</p></div></details>
+        <p>모델과 탐색량(visits)이 같아야 결과가 비슷합니다. 같은 모델을 고르고 세기를 보통(500 visits)으로 맞춰 비교해 보세요.</p></div></details>
       <p class="back-top"><a href="#">맨 위로</a> · <a href="./">홈으로</a> · <a href="licenses.html">오픈소스 고지</a></p>
     </section>
   </article>
 </main>
 
 <script>
+// every screenshot opens full size when tapped (small on a phone)
+for (const img of document.querySelectorAll(".fig img")) {
+  if (img.closest("a")) continue;
+  const a = document.createElement("a"); a.className = "zoom"; a.href = img.src; a.target = "_blank"; a.rel = "noopener"; a.title = "크게 보기";
+  img.replaceWith(a); a.append(img);
+}
 // highlight the section being read in the table of contents
 const links = [...document.querySelectorAll(".toc a")];
 const byId = new Map(links.map(a => [a.hash.slice(1), a]));
