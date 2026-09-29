@@ -123,6 +123,9 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
 .status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .status:not(:empty) { background: var(--soft); border-radius: 999px; padding: 5px 12px; }
 .status:empty { display: none; }
+/* visits/s: a fixed width with same-width digits. Its width followed the number, so on a phone the top bar wrapped
+   onto a second line and back as the speed changed and the board jumped up and down (user report 2026-09-29). */
+#vps { font-variant-numeric: tabular-nums; min-width: calc(13ch + 24px); justify-content: center; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
 .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(31, 157, 85, .16); }
 details.menu { position: relative; }
@@ -407,6 +410,7 @@ button.primary:hover { background: var(--blue-deep); }
   body { grid-template-rows: auto auto minmax(0, 1fr); overflow-y: auto; }   /* scrolls only if a very short screen still overflows */
   .main { display: flex; flex-direction: column; padding: 0; gap: 0; }
   .brand span:last-child { display: none; }
+  #vps:not(:empty) { font-size: 12px; padding: 5px 8px; min-width: 96px; }   /* fits beside 내 기보 저장 on a 360px phone */
   .center { order: 1; }
   .left { order: 2; padding: 8px 8px 0; }
   #capBox, #graphBox, .comment, .right { display: none; }
@@ -666,7 +670,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="pass">패스</button>
   <button id="promote">주 변화로 지정</button>
   <button id="nums">수순</button>
-  <button id="coords" class="on">좌표</button>
+  <button id="coords">좌표</button>
   <button id="resetBoard" class="pink">바둑판초기화</button>
   <button id="deleteNode" class="pink">지우기</button>
   <span class="error" id="err"></span>
@@ -2386,7 +2390,11 @@ function woodPaint(ctx) {
 // laid out in device pixels so every line and stone edge lands on a whole screen pixel.
 // k = device pixels per CSS pixel; line widths scale with it like Java's HiDPI strokes.
 function geometry(avail0, bigMargin, k = 1) {  // calculatePixelMargins + setupSizeParameters
-  const ratio = bigMargin ? 0.055 : 0.03;
+  // YZY's margins (5.5% with coordinates, 3% without) are sized for 19x19. On 13x13 and 9x9 the squares are bigger, so
+  // the edge stones ran off the board (user report 2026-09-29, coordinates off): keep the margin the same number of
+  // squares on every size (c = margin / square; 19x19 with coordinates is as before, without them a little wider so the
+  // edge stones and their shadows keep a gap).
+  const c = bigMargin ? 1.112 : 0.62, ratio = Math.max(bigMargin ? 0.055 : 0.03, c / (N - 1 + 2 * c));
   let bw = Math.floor(avail0) + 1, margin, avail;
   do { bw--; margin = T(ratio * bw); avail = bw - 2 * margin; } while (bw > 40 && (avail - 1) % (N - 1) !== 0);
   const sq = T((avail - 1) / (N - 1));
