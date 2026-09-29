@@ -359,3 +359,6 @@ button.quiet.shared { color: var(--good); }
 .pager button { min-width: 40px; min-height: 40px; padding: 6px 10px; background: transparent; color: var(--muted); box-shadow: none; }
 .pager button.on { color: var(--blue-deep); background: var(--soft); }
 .pager button:disabled { opacity: .35; cursor: default; transform: none; }
+
+/* 9줄·13줄 games in the 내 기보 list */
+.size-tag { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 6px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 600; vertical-align: 1px; }

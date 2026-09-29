@@ -542,14 +542,22 @@ $("stopButton").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ 내 기보 (saved on the analysis screen)
+// 9줄·13줄 games carry a small tag in the lists (a 19x19 game shows none)
+const sizeWord = (k) => (k.board_size && k.board_size !== 19 ? `${k.board_size}줄` : "");
+const sizeTag = (k) => (sizeWord(k) ? `<span class="size-tag">${sizeWord(k)}</span>` : "");
 let mine = [], folders = [];   // folders: the member's own 분류 (kifu_folders)
 let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" (분류 없음) | a folder id; null = the folder cards
-// share_token (기보 공유, DB 20260929b): until that column exists the list loads without it and 공유 stays hidden
-let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token", canShare = true;
+// share_token (기보 공유, DB 20260929b): until that column exists the list loads without it and 공유 stays hidden;
+// board_size (9줄·13줄, DB 20260929e) likewise: without it every game shows as 19x19
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size", canShare = true;
 async function loadMine() {
   let [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && /board_size/.test(error.message || "")) {
+    KIFU_COLS = KIFU_COLS.replace(",board_size", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error && canShare && /share_token/.test(error.message || "")) {
     canShare = false; KIFU_COLS = KIFU_COLS.replace(",share_token", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
@@ -576,7 +584,7 @@ function showMine() {
   const rows = mine.map((k, i) => ({ k, i })).filter(({ k }) => {
     if (curFolder === "none" ? k.folder_id && folderName(k.folder_id) : curFolder !== "all" && k.folder_id !== curFolder) return false;
     if (onlyAnalyzed && !k.analyzed) return false;
-    const hay = [k.title, k.black, k.white, k.game_date, resultWords(k.result), when(k.updated_at), folderName(k.folder_id)].join(" ").toLowerCase();
+    const hay = [k.title, k.black, k.white, k.game_date, resultWords(k.result), when(k.updated_at), folderName(k.folder_id), sizeWord(k)].join(" ").toLowerCase();
     return words.every((w) => hay.includes(w));
   });
   const by = {
@@ -591,7 +599,7 @@ function showMine() {
   const filtered = words.length || onlyAnalyzed;
   $("mineShown").textContent = filtered ? `${rows.length}판 찾음` : "";
   $("mineRows").innerHTML = rows.map(({ k, i }) =>
-    `<tr class="pick" data-open="${i}"><td><b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
+    `<tr class="pick" data-open="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
     `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${esc(k.game_date || "")}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
     `<td class="folder-col"><select data-move="${i}" aria-label="분류 옮기기">${opts(k.folder_id)}</select></td>` +
     `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
@@ -783,7 +791,8 @@ addEventListener("beforeunload", (e) => { if (batchFrame || batchQueued) { e.pre
 // 오답노트: how many problems are due today; solved on the analysis screen (no GPU needed)
 async function loadNotesCard() {   // 학습방: 오답노트 (and the start page's 학습방 line)
   const now = new Date(), isDue = (n) => new Date(n.due_at) <= now;
-  const { data, error } = await sb.from("mistake_notes").select("due_at,move_no");
+  let { data, error } = await sb.from("mistake_notes").select("due_at,move_no,board_size");
+  if (error && /board_size/.test(error.message || "")) ({ data, error } = await sb.from("mistake_notes").select("due_at,move_no"));
   $("notesOpen").classList.toggle("hidden", !!error);
   $("notesPhases").classList.toggle("hidden", !!error || !data.length);
   if (error) $("notesInfo").textContent = "오답노트를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
@@ -793,9 +802,11 @@ async function loadNotesCard() {   // 학습방: 오답노트 (and the start pag
       ? `오늘 복습할 문제 ${due}개 · 전체 ${data.length}문제`
       : "분석 화면의 파일 메뉴 → '오답노트에 담기'로 분석한 기보의 실수를 문제로 모아 다시 풀 수 있습니다.";
     $("notesOpen").textContent = due ? `복습하기 (${due})` : "오답노트 열기";
-    // 초반·중반·종반 by move number, as on the analysis screen (up to 50, up to 150, the rest)
+    // 초반·중반·종반 by move number, as on the analysis screen (19x19: up to 50, up to 150, the rest; smaller boards
+    // by their area — 13x13: 23 and 70, 9x9: 11 and 34)
+    const cut = (upTo, size) => (upTo === Infinity ? upTo : Math.round((upTo * (size || 19) ** 2) / 361));
     const phases = [["opening", "초반", 50], ["middle", "중반", 150], ["end", "종반", Infinity]].map(([v, name, upTo], i, all) => {
-      const mine = data.filter((n) => n.move_no <= upTo && (!i || n.move_no > all[i - 1][2]));
+      const mine = data.filter((n) => n.move_no <= cut(upTo, n.board_size) && (!i || n.move_no > cut(all[i - 1][2], n.board_size)));
       return { v, name, all: mine.length, due: mine.filter(isDue).length };
     });
     $("notesPhases").innerHTML = phases.map((p) =>

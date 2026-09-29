@@ -184,6 +184,7 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #openNotes { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h13v18H5zM9 3v18M12 8h3M12 12h3'/></svg>"); }
 #menuBody #kifuOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8M12 12v8M9 17l3 3 3-3'/></svg>"); }
 #menuBody #newGame { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
+#menuBody #sizeLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
 #menuBody #handicapLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='7' cy='7' r='3'/><circle cx='17' cy='7' r='3'/><circle cx='7' cy='17' r='3'/><circle cx='17' cy='17' r='3'/></svg>"); }
 #menuBody #komiLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 4v8M8 8h8M8 19h8'/></svg>"); }
 #menuBody #pass { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h12M12 7l5 5-5 5M20 5v14'/></svg>"); }
@@ -292,6 +293,7 @@ dialog[open] { animation: arrive .35s var(--ease); }
 #noteSide button { flex: none; white-space: nowrap; padding: 4px 14px; }
 #notesPhase { flex: 1; }
 #notesPhase button { white-space: nowrap; }
+.sz { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 6px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 600; }
 #notesRows .ph { margin-left: 6px; color: var(--muted); font-size: 12px; }
 #noteAddRows tr, #notesRows tr { cursor: pointer; }
 #notesDlg th:first-child, #notesRows td.t { text-align: left; padding-left: 18px; }
@@ -456,6 +458,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="kifuOpen">기보 불러오기</button>
   <button id="strengthOpen">대국 리포트</button>
   <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div>
+  <label class="check" id="sizeLabel"><span class="menu-text">바둑판</span><select id="boardSize" aria-label="바둑판 크기"><option value="19">19줄</option><option value="13">13줄</option><option value="9">9줄</option></select></label>
   <label class="check" id="handicapLabel">접바둑 <select id="handicap"><option value="0">호선</option><option value="1">정선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select></label>
   <label class="check" id="komiLabel"><span class="menu-text">덤</span><select id="komiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select> <input type="number" id="komi" value="6.5" step="0.5" min="0" max="150" aria-label="덤 집 수"></label>
   <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
@@ -566,6 +569,7 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="gd-row"><span>대국</span><div class="seg" id="gdKind"><button data-v="human" class="on">AI와 대국</button><button data-v="ai">AI끼리 대국</button></div></div>
     <div class="gd-row"><span>시작</span><div class="seg" id="gdFrom"><button data-v="new" class="on">새 대국</button><button data-v="continue">이어서 두기</button></div></div>
     <div class="gd-row" data-for="human"><span>내 돌</span><div class="seg" id="gdColor"><button data-v="B" class="on">흑</button><button data-v="W">백</button><button data-v="R">무작위</button></div></div>
+    <div class="gd-row" data-for="new"><span>바둑판</span><select id="gdSize" aria-label="바둑판 크기"><option value="19">19줄</option><option value="13">13줄</option><option value="9">9줄</option></select></div>
     <div class="gd-row" data-for="new"><span>접바둑 · 덤</span><div class="gd-pair gd-pair-komi">
       <select id="gdHandicap" aria-label="접바둑"><option value="0">호선</option><option value="1">정선</option><option value="2">2점</option><option value="3">3점</option><option value="4">4점</option><option value="5">5점</option><option value="6">6점</option><option value="7">7점</option><option value="8">8점</option><option value="9">9점</option></select>
       <div class="gd-komi"><select id="gdKomiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select><input type="number" id="gdKomi" step="0.5" min="0" max="150" aria-label="덤 집 수"></div></div></div>
@@ -590,6 +594,7 @@ button.primary:hover { background: var(--blue-deep); }
     <h2>기보 정보</h2>
     <div class="gd-row"><span>대국자</span><div class="gd-pair">
       <input type="text" id="infoB" placeholder="흑 이름" maxlength="100" autocomplete="off"><input type="text" id="infoW" placeholder="백 이름" maxlength="100" autocomplete="off"></div></div>
+    <div class="gd-row"><span>바둑판</span><select id="infoSize" aria-label="바둑판 크기"><option value="19">19줄</option><option value="13">13줄</option><option value="9">9줄</option></select></div>
     <div class="gd-row"><span>날짜</span><input type="text" id="infoDate" placeholder="2026-09-28" maxlength="40" autocomplete="off"></div>
     <div class="gd-row"><span>결과</span><div class="gd-pair">
       <select id="infoWho" aria-label="이긴 쪽"><option value="">미정</option><option value="B">흑 승</option><option value="W">백 승</option><option value="0">무승부</option></select>
@@ -683,7 +688,10 @@ button.primary:hover { background: var(--blue-deep); }
 
 <script>
 "use strict";
-const N = 19, LETTERS = "ABCDEFGHJKLMNOPQRST", UNLIMITED_VISITS = 1000000000;
+// 9줄·13줄·19줄 (2026-09-29): one board at a time, so its size is one value; a new root (makeRoot) sets it
+let N = 19;
+const SIZES = [19, 13, 9], HANDICAP_MAX = {19: 9, 13: 9, 9: 5};
+const LETTERS = "ABCDEFGHJKLMNOPQRST", UNLIMITED_VISITS = 1000000000;
 const UI_FONT = getComputedStyle(document.documentElement).getPropertyValue("--ui-font").trim();
 const WR_FONT = "'Open Sans', " + UI_FONT;   // YZY: fonts/OpenSans-Semibold.ttf
 const WR_WEIGHT = 600;
@@ -695,7 +703,8 @@ const other = c => c === "B" ? "W" : "B";
 const T = Math.trunc;
 
 // ------------------------------------------------------------------ game tree
-function makeRoot(setup = {B: [], W: []}, toPlay = "B") {
+function makeRoot(setup = {B: [], W: []}, toPlay = "B", size = N) {
+  setSize(size);
   const grid = new Int8Array(N * N), num = new Int16Array(N * N);
   for (const [x, y] of setup.B) grid[idx(x, y)] = 1;
   for (const [x, y] of setup.W) grid[idx(x, y)] = 2;
@@ -1191,6 +1200,10 @@ for (const id of ["gdKind", "gdFrom", "gdColor"]) $(id).addEventListener("click"
 for (const row of [$("gdAi1"), $("gdAi2")]) row.querySelector(".gd-mode").onchange = ev => { row.querySelector(".gd-value").value = ev.target.value === "time" ? 3 : 500; };
 const komiForHandicap = n => n === 1 ? 0 : n ? 0.5 : 6.5;   // 정선: no komi; handicap: half a point, so there are no draws
 $("gdHandicap").onchange = () => setKomiOf("gdKomiSign", "gdKomi", komiForHandicap(+$("gdHandicap").value));
+$("gdSize").onchange = () => {
+  const had = $("gdHandicap").value; limitHandicap($("gdHandicap"), +$("gdSize").value);
+  if ($("gdHandicap").value !== had) $("gdHandicap").onchange();
+};
 function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
 function saveGameForm() {
   const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
@@ -1210,7 +1223,8 @@ function loadGameForm() {
 $("newGame").onclick = () => {
   if (game) { if (confirm("AI 대국을 멈출까요? (지금까지 둔 수는 남습니다)")) stopGame("대국을 멈췄습니다."); return; }
   loadGameForm();
-  $("gdHandicap").value = $("handicap").value; setKomiOf("gdKomiSign", "gdKomi", komi()); $("gdNameB").value = $("gdNameW").value = "";
+  $("gdSize").value = String(N); $("gdHandicap").value = $("handicap").value; limitHandicap($("gdHandicap"), N);
+  setKomiOf("gdKomiSign", "gdKomi", komi()); $("gdNameB").value = $("gdNameW").value = "";
   gameForm(); $("gameDlg").showModal();
 };
 $("gdCancel").onclick = () => $("gameDlg").close();
@@ -1221,6 +1235,7 @@ $("gdGo").onclick = () => {
   const ai = vsHuman ? {[other(mine)]: aiRule($("gdAi1"))} : {B: aiRule($("gdAi1")), W: aiRule($("gdAi2"))};
   if (segValue("gdFrom") === "new") {
     const n = +$("gdHandicap").value;
+    setSize(+$("gdSize").value);
     $("handicap").value = handicapShown = String(n); setKomi(komiOf("gdKomiSign", "gdKomi") || 0);
     root = handicapRoot(n);
     const nm = (id, fallback) => $(id).value.trim() || fallback;
@@ -1245,10 +1260,26 @@ $("nums").onclick = () => {
 $("coords").onclick = () => { $("coords").classList.toggle("on"); layout(); };
 $("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { if (+$("handicap").value) setKomi(6.5); $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); } };
 // 접바둑: black's stones on the usual star points, white moves first
-const STAR = {tr: [15, 3], bl: [3, 15], br: [15, 15], tl: [3, 3], c: [9, 9], l: [3, 9], r: [15, 9], t: [9, 3], b: [9, 15]};
+// star points: the 4th line from the edge (3rd on 9x9) and the middle
+const starLines = () => { const lo = N >= 13 ? 3 : 2; return [lo, (N - 1) / 2, N - 1 - lo]; };
+function starXY(k) {
+  const [lo, mid, hi] = starLines();
+  return {tr: [hi, lo], bl: [lo, hi], br: [hi, hi], tl: [lo, lo], c: [mid, mid], l: [lo, mid], r: [hi, mid], t: [mid, lo], b: [mid, hi]}[k];
+}
 const HANDICAP_POINTS = {2: "tr bl", 3: "tr bl br", 4: "tr bl br tl", 5: "tr bl br tl c", 6: "tr bl br tl l r",
                          7: "tr bl br tl l r c", 8: "tr bl br tl l r t b", 9: "tr bl br tl l r t b c"};
-function handicapRoot(n) { return HANDICAP_POINTS[n] ? makeRoot({B: HANDICAP_POINTS[n].split(" ").map(k => STAR[k]), W: []}, "W") : makeRoot(); }
+function handicapRoot(n) { return HANDICAP_POINTS[n] && n <= HANDICAP_MAX[N] ? makeRoot({B: HANDICAP_POINTS[n].split(" ").map(starXY), W: []}, "W") : makeRoot(); }
+// 판 크기: a 9x9 board takes at most 5 handicap stones (the four corners and the middle)
+function limitHandicap(sel, n) {
+  if (!sel) return;
+  for (const o of sel.options) o.disabled = +o.value > HANDICAP_MAX[n];
+  if (+sel.value > HANDICAP_MAX[n]) sel.value = "0";
+}
+function setSize(n) {
+  N = SIZES.includes(n) ? n : 19;
+  if ($("boardSize")) $("boardSize").value = String(N);
+  limitHandicap($("handicap"), N);
+}
 let handicapShown = "0";
 $("handicap").onchange = () => {
   if (root.children.length && !confirm("접바둑으로 새로 시작할까요? (현재 기보는 사라집니다)")) { $("handicap").value = handicapShown; return; }
@@ -1256,6 +1287,21 @@ $("handicap").onchange = () => {
   const n = +handicapShown; root = handicapRoot(n);
   setKomi(komiForHandicap(n));
   clearAnalysis(root); goTo(root);
+};
+// 판 크기: a new empty board of that size (asks first when there are moves), keeping the typed game info
+function newSize(n) {
+  const had = $("handicap").value, info = root.children.length ? {} : root.info;
+  setSize(n);
+  if ($("handicap").value !== had) setKomi(komiForHandicap(0));   // 9x9 has no 6~9 stone handicap: back to 호선
+  handicapShown = $("handicap").value;
+  root = handicapRoot(+handicapShown); root.info = info;
+  goTo(root);
+}
+$("boardSize").onchange = () => {
+  const n = +$("boardSize").value;
+  if (n === N) return;
+  if (root.children.length && !confirm(`${n}줄 바둑판으로 새로 시작할까요? (현재 기보는 사라집니다)`)) { $("boardSize").value = String(N); return; }
+  newSize(n);
 };
 $("deleteNode").onclick = () => { if (!cur.parent) return; const p = cur.parent; p.children.splice(p.children.indexOf(cur), 1); goTo(p); };
 function komiChanged() {   // old results used the old komi; a negative number typed in flips 덤 <-> 역덤
@@ -1308,10 +1354,11 @@ function expandPoints(vals) {
 }
 function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main line only, like YZY
   const t = parseSgf(text), first = t.nodes[0] || {};
-  if (first.SZ && parseInt(first.SZ[0], 10) !== 19) throw new Error("19줄 기보만 지원합니다");
+  const size = first.SZ ? parseInt(first.SZ[0], 10) : 19;
+  if (!SIZES.includes(size)) throw new Error("9줄·13줄·19줄 기보만 지원합니다");
   const firstMove = t.nodes.slice(1).find(n => n.B || n.W) || (t.vars[0] && t.vars[0].nodes.find(n => n.B || n.W)) || {};
   const toPlay = first.PL ? (first.PL[0] === "W" ? "W" : "B") : firstMove.W ? "W" : "B";
-  const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, toPlay);
+  const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, toPlay, size);
   const ha = parseInt((first.HA || ["0"])[0], 10);
   $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : 0);
   newRoot.comment = (first.C || [""])[0];
@@ -1355,7 +1402,7 @@ function unpackAnalysis(text) {
 function toSgf(withAnalysis = true, upTo = null) {   // upTo: only the moves leading to that node (오답노트)
   const c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
   const esc = s => s.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
-  let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[19]RU[Korean]KM[${komi()}]`;
+  let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[${N}]RU[Korean]KM[${komi()}]`;
   if (root.setup.B.length) head += "AB" + root.setup.B.map(([x, y]) => `[${c(x, y)}]`).join("");
   if (root.setup.W.length) head += "AW" + root.setup.W.map(([x, y]) => `[${c(x, y)}]`).join("");
   if (+$("handicap").value && root.setup.B.length === +$("handicap").value) head += `HA[${$("handicap").value}]`;
@@ -1409,8 +1456,8 @@ function mergeSgf(text) {
   const t = parseSgf(text), first = t.nodes[0] || {};
   const key = pts => pts.map(p => p.join(",")).sort().join(" ");
   const toPlay = first.PL && first.PL[0] === "W" ? "W" : "B";
-  if (key(expandPoints(first.AB)) !== key(root.setup.B) || key(expandPoints(first.AW)) !== key(root.setup.W) || toPlay !== root.toPlay) {
-    loadSgf(text); return;   // a different start (new game, handicap): a new tree
+  if ((first.SZ ? parseInt(first.SZ[0], 10) : 19) !== N || key(expandPoints(first.AB)) !== key(root.setup.B) || key(expandPoints(first.AW)) !== key(root.setup.W) || toPlay !== root.toPlay) {
+    loadSgf(text); return;   // a different start (new game, handicap, board size): a new tree
   }
   const km = first.KM ? parseFloat(first.KM[0]) : 6.5;
   if (km !== komi()) { setKomi(km); clearAnalysis(root); }
@@ -1719,7 +1766,7 @@ async function mineRow(title) {   // the saved_kifu row for the game on screen, 
   const data = zip ? await gzip64(sgf) : sgf;
   if (data.length > 2e6) return null;
   return {title, black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60), game_date: cut(root.info.DT, 40),
-          ...mineStats(), encoding: zip ? "gzip-b64" : "plain", data};
+          ...mineStats(), ...(await sizeColumn() ? {board_size: N} : {}), encoding: zip ? "gzip-b64" : "plain", data};
 }
 
 // ------------------------------------------------------------------ 여러 기보 분석 (the website's GPU page runs this screen hidden)
@@ -1795,19 +1842,36 @@ if (batchMode) addEventListener("message", ev => {
 // (10 minutes) and delete the GPU mid-way (초정밀: a game takes ~20 minutes). While one runs, ask something cheap now and then.
 setInterval(() => { if (autoId || strengthId || batchQ) send({id: "keep", action: "query_version"}); }, 120000);
 
+// board_size (DB 20260929e, 9줄·13줄): lists read it when the column is there and without it before that is applied;
+// saving writes it once the column is known to be there (before that, a 9x9 game is saved without it: its SGF still
+// says SZ[9], so it opens right, only the list shows no '9줄')
+let boardSizeCol = null;   // null = not asked yet
+async function selectSized(build, cols) {
+  let res = await build(cols + ",board_size");
+  if (res.error) { boardSizeCol = false; res = await build(cols); } else boardSizeCol = true;
+  return res;
+}
+async function sizeColumn() {
+  if (boardSizeCol === null) {
+    const c = await mineClient();
+    if (c) boardSizeCol = !(await c.from("saved_kifu").select("board_size").limit(1)).error;
+  }
+  return !!boardSizeCol;
+}
+const sizeTag = k => k.board_size && k.board_size !== 19 ? `<span class="sz">${k.board_size}줄</span>` : "";
 function mineMsg(text, bad = false) { $("mineMsg").textContent = text; $("mineMsg").classList.toggle("bad", bad); }
 async function loadMineList() {
   const c = await mineClient(); if (!c) return;
   mineMsg("불러오는 중…");
   const [{data, error}] = await Promise.all([
-    c.from("saved_kifu").select("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id").order("updated_at", {ascending: false}),
+    selectSized(cols => c.from("saved_kifu").select(cols).order("updated_at", {ascending: false}), "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id"),
     loadMineFolders(c)]);
   if (error) { mineMsg("목록을 불러오지 못했습니다: " + error.message, true); return; }
   mineList = data || [];
   $("mineCount").textContent = `${mineList.length} / 100판`;
   const day = iso => new Date(iso).toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"});
   $("mineRows").innerHTML = mineList.map((k, i) =>
-    `<tr data-i="${i}" data-folder="${mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
+    `<tr data-i="${i}" data-folder="${mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name, k.board_size && k.board_size !== 19 ? k.board_size + "줄" : ""].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${sizeTag(k)}${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
     `<td class="w">${escHtml(resultText(k.result || ""))}</td><td>${k.moves}</td><td>${k.analyzed}</td><td class="w">${day(k.updated_at)}</td>` +
     `<td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
   mineMsg(mineList.length ? "기보를 누르면 저장된 분석과 함께 열립니다." : "저장한 기보가 없습니다. 분석한 기보를 파일 메뉴의 '내 기보에 저장'으로 저장하세요.");
@@ -1868,9 +1932,11 @@ async function openMineKifu(id) {
 const NOTE_MAX = 300, REVIEW_DAYS = [1, 3, 7, 14, 30, 60];
 const NOTE_LEVELS = {small: [2, 5], normal: [4, 10], big: [8, 20]};   // points or win-rate %p lost
 const GOOD_POINTS = 1.5, GOOD_WR = 3;   // this close to the AI's first choice counts as right too (a 500-visit score wobbles ~1 point)
-// 초반·중반·종반 by the move number (19x19): up to 50, up to 150, the rest
+// 초반·중반·종반 by the move number: on 19x19 up to 50, up to 150, the rest; smaller boards by their area
+// (13x13: 23 and 70, 9x9: 11 and 34)
 const PHASES = [["opening", "초반", 50], ["middle", "중반", 150], ["end", "종반", Infinity]];
-const phaseOf = moveNo => PHASES.find(p => moveNo <= p[2]);
+const phaseCut = (upTo, size = 19) => upTo === Infinity ? upTo : Math.round(upTo * size * size / 361);
+const phaseOf = (moveNo, size = 19) => PHASES.find(p => moveNo <= phaseCut(p[2], size));
 let noteRows = [], noteList = [], noteAll = [];
 function moveLoss(n) {   // what the move at n cost the player who made it, or null until both positions are analysed
   const a = n.move && n.parent && nodeStats(n.parent), b = nodeStats(n);
@@ -1943,11 +2009,13 @@ async function insertNotes(c, picked, title) {   // [added, tried]: problems alr
   const {count, error: countError} = await c.from("mistake_notes").select("id", {count: "exact", head: true});
   if (countError) throw countError;
   if (count + picked.length > NOTE_MAX) throw new Error(`오답노트는 ${NOTE_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, NOTE_MAX - count)}문제만 더 담을 수 있습니다.`);
+  const sized = await sizeColumn();
   const rows = await Promise.all(picked.map(async ({n, loss}) => {
     const sgf = toSgf(false, n.parent), played = noteMove(n);
     return {title, color: n.move.c, move_no: n.depth, played, best: candidates(n.parent)[0].move,
             loss_points: Math.round(loss.points * 10) / 10, loss_wr: Math.round(loss.wr * 10) / 10,
-            sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${komi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
+            ...(sized ? {board_size: N} : {}),
+            sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${N !== 19 ? N + "|" : ""}${komi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
   }));
   const {data, error} = await c.from("mistake_notes").upsert(rows, {onConflict: "user_id,pos_key", ignoreDuplicates: true}).select("id");
   if (error) throw error;
@@ -1965,8 +2033,8 @@ function notesMsg(text, bad = false) { $("notesMsg").textContent = text; $("note
 async function loadNotes() {
   const c = await mineClient(); if (!c) return;
   notesMsg("불러오는 중…");
-  const {data, error} = await c.from("mistake_notes").select("id,title,color,move_no,played,loss_points,tries,correct,streak,due_at,memo")
-    .order("due_at", {ascending: true});
+  const {data, error} = await selectSized(cols => c.from("mistake_notes").select(cols).order("due_at", {ascending: true}),
+    "id,title,color,move_no,played,loss_points,tries,correct,streak,due_at,memo");
   if (error) { notesMsg("오답노트를 불러오지 못했습니다: " + error.message, true); return; }
   noteAll = data || [];
   showNotes();
@@ -1975,15 +2043,15 @@ function showNotes() {
   const phase = segValue("notesPhase");
   $("notesPhase").querySelectorAll("button").forEach(b => {
     const p = PHASES.find(x => x[0] === b.dataset.v);
-    b.textContent = `${p ? p[1] : "전체"} ${noteAll.filter(k => !p || phaseOf(k.move_no) === p).length}`;
+    b.textContent = `${p ? p[1] : "전체"} ${noteAll.filter(k => !p || phaseOf(k.move_no, k.board_size) === p).length}`;
   });
-  noteList = noteAll.filter(k => !phase || phaseOf(k.move_no)[0] === phase);
+  noteList = noteAll.filter(k => !phase || phaseOf(k.move_no, k.board_size)[0] === phase);
   const due = noteList.filter(isDue).length;
   $("notesCount").textContent = `${noteAll.length} / ${NOTE_MAX}문제`;
   $("notesReview").textContent = `오늘 복습 ${due}`; $("notesReview").disabled = !due; $("notesAll").disabled = !noteList.length;
   $("notesRows").innerHTML = noteList.map((k, i) =>
-    `<tr data-i="${i}"${isDue(k) ? ' class="due"' : ""}><td class="t" title="${escHtml(k.title + (k.memo ? " · " + k.memo : ""))}">${escHtml(k.title)}</td>` +
-    `<td>${k.move_no} ${colorName(k.color)}${phase ? "" : `<span class="ph">${phaseOf(k.move_no)[1]}</span>`}</td><td class="w loss">${lossText(k.loss_points)}</td><td>${k.correct}/${k.tries}</td>` +
+    `<tr data-i="${i}"${isDue(k) ? ' class="due"' : ""}><td class="t" title="${escHtml(k.title + (k.memo ? " · " + k.memo : ""))}">${sizeTag(k)}${escHtml(k.title)}</td>` +
+    `<td>${k.move_no} ${colorName(k.color)}${phase ? "" : `<span class="ph">${phaseOf(k.move_no, k.board_size)[1]}</span>`}</td><td class="w loss">${lossText(k.loss_points)}</td><td>${k.correct}/${k.tries}</td>` +
     `<td class="w">${dueText(k)}</td><td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
   notesMsg(noteList.length ? `복습할 문제 ${due}개 · 문제를 누르면 그 문제만 풉니다. 맞히면 1·3·7·14·30·60일 뒤에 다시 나옵니다.`
     : noteAll.length ? "이 단계에는 담은 문제가 없습니다."
@@ -2025,7 +2093,7 @@ async function startQuiz(list) {
   if (strengthId) { say("대국 리포트 분석이 끝난 뒤에 풀 수 있습니다(기보가 바뀌면 분석이 멈춥니다).", true); return; }
   if (!quiz) {   // the board being studied comes back when the problems end
     if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
-    quiz = {prev: {root, cur, komi: komi(), handicap: $("handicap").value}, pending: null};
+    quiz = {prev: {root, cur, komi: komi(), handicap: $("handicap").value, size: N}, pending: null};
     document.body.classList.add("quiz"); $("quizBar").hidden = false;
   }
   quiz.list = list; quiz.i = 0; quiz.right = 0;
@@ -2045,7 +2113,7 @@ async function showProblem() {
   quiz.node.analysis = null;   // shown only after the answer
   goTo(quiz.node);
   $("err").textContent = "";
-  $("quizSub").textContent = `${k.title} · ${phaseOf(k.move_no)[1]} ${k.move_no}수째 · AI라면 어디에 둘까요? 바둑판을 눌러 답하세요`;
+  $("quizSub").textContent = `${k.title} · ${phaseOf(k.move_no, k.board_size)[1]} ${k.move_no}수째 · AI라면 어디에 둘까요? 바둑판을 눌러 답하세요`;
 }
 function gradeAnswer(k, an, move) {
   const cands = an.moveInfos.filter(m => m.visits > 0).sort((p, q) => p.order - q.order), best = cands[0];
@@ -2104,7 +2172,7 @@ function endQuiz() {
   saveQuizMemo();
   const {prev, pending} = quiz;
   quiz = null; document.body.classList.remove("quiz"); $("quizBar").hidden = true;
-  root = prev.root; setKomi(prev.komi); $("handicap").value = handicapShown = prev.handicap;
+  setSize(prev.size); root = prev.root; setKomi(prev.komi); $("handicap").value = handicapShown = prev.handicap;
   if (pending) applyState(pending);   // another device changed the shared board meanwhile: follow it
   else goTo(prev.cur);
   $("err").textContent = "";
@@ -2199,7 +2267,7 @@ function renderStrength() {
     const bar = GRADES.map(([g, , c]) => `<i style="width:${count(g) / n * 100}%;background:${c}" title="${escHtml(GRADES.find(x => x[0] === g)[1])} ${count(g)}"></i>`).join("");
     const grades = GRADES.map(([g, label, c]) => `<div style="--c:${c}"><span>${label}</span><b>${count(g)}</b><em>${pct(count(g), n)}%</em></div>`).join("");
     const phases = PHASES.map(([, label, upTo], i) => {
-      const ps = xs.filter(x => x.no <= upTo && (!i || x.no > PHASES[i - 1][2]));
+      const ps = xs.filter(x => x.no <= phaseCut(upTo, N) && (!i || x.no > phaseCut(PHASES[i - 1][2], N)));
       const bad = ps.filter(x => x.grade === "mistake" || x.grade === "blunder").length;
       return ps.length ? `<tr><td>${label}</td><td>${ps.length}</td><td>${pct(ps.filter(x => x.grade === "ai").length, ps.length)}%</td><td>${avg(ps)}집</td><td>${bad}</td></tr>` : "";
     }).join("");
@@ -2306,7 +2374,7 @@ function geometry(avail0, bigMargin, k = 1) {  // calculatePixelMargins + setupS
   let bw = Math.floor(avail0) + 1, margin, avail;
   do { bw--; margin = T(ratio * bw); avail = bw - 2 * margin; } while (bw > 40 && (avail - 1) % (N - 1) !== 0);
   const sq = T((avail - 1) / (N - 1));
-  return {size: bw, margin, avail, sq, r: sq < 4 ? 1 : T(sq / 2) - 1, k};
+  return {size: bw, margin, avail, sq, r: sq < 4 ? 1 : T(sq / 2) - 1, k, n: N};
 }
 function fillCircle(ctx, cx, cy, r) { ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r + .5, 0, Math.PI * 2); ctx.fill(); }
 function strokeCircle(ctx, cx, cy, r, width) { ctx.lineWidth = width; ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r, 0, Math.PI * 2); ctx.stroke(); }
@@ -2331,7 +2399,9 @@ function drawGoban(ctx, G, coords) {
     ctx.fillRect(m + sq * i - o, m, w, avail);
   }
   const star = T(T(0.015 * size) / 2);
-  for (const a of [3, 9, 15]) for (const b of [3, 9, 15]) fillCircle(ctx, m + sq * a, m + sq * b, star);
+  const [lo, mid, hi] = starLines();   // 19x19: nine star points; 13x13 and 9x9: the four corners and the middle
+  const pts = N === 19 ? [lo, mid, hi].flatMap(a => [lo, mid, hi].map(b => [a, b])) : [[lo, lo], [lo, hi], [hi, lo], [hi, hi], [mid, mid]];
+  for (const [a, b] of pts) fillCircle(ctx, m + sq * a, m + sq * b, star);
   if (coords) for (let i = 0; i < N; i++) {
     const mh = T(r * 4 / 5);
     jString(ctx, UI_FONT, 400, LETTERS[i], m + sq * i + .5, T(m * 4 / 10), mh, r, "#000");
@@ -2872,6 +2942,8 @@ function openInfo(note = "") {
   closeMenus();
   const i = root.info, m = /^\s*([BW])\s*\+\s*(.*)$/i.exec(i.RE || "");
   $("infoB").value = i.PB || ""; $("infoW").value = i.PW || ""; $("infoDate").value = i.DT || "";
+  $("infoSize").value = String(N); $("infoSize").disabled = root.children.length > 0 || !!game || !!quiz;   // only an empty board changes size
+  $("infoSize").title = $("infoSize").disabled ? "수를 두기 전에만 바꿀 수 있습니다. 바꾸려면 새 판에서 고르세요." : "";
   $("infoWho").value = m ? m[1].toUpperCase() : /^(0|draw|jigo)$/i.test((i.RE || "").trim()) ? "0" : "";
   $("infoHow").value = !m ? "" : /^r(esign)?$/i.test(m[2].trim()) ? "불계" : m[2].trim();
   $("infoHow").disabled = !/^[BW]$/.test($("infoWho").value);
@@ -2885,6 +2957,7 @@ $("gameInfo").onclick = () => { if (!viewOnly) openInfo(); };
 $("gameInfo").title = "눌러서 대국자·날짜·결과 고치기";
 $("infoForm").onsubmit = ev => {
   ev.preventDefault();
+  if (!$("infoSize").disabled && +$("infoSize").value !== N) newSize(+$("infoSize").value);
   const i = root.info, set = (k, v) => { v = v.trim(); if (v) i[k] = v; else delete i[k]; };
   set("PB", $("infoB").value); set("PW", $("infoW").value); set("DT", $("infoDate").value);
   const who = $("infoWho").value, how = $("infoHow").value.trim();
@@ -2903,7 +2976,7 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // and they go back to the bars in landscape.
 const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "editInfo", "kifuOpen", "openMine", "addNote", "openNotes"]],
-              ["대국", ["newGame", "handicapLabel", "komiLabel", "pass", "placeRow"]],
+              ["대국", ["newGame", "sizeLabel", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
               ["편집", ["promote", "deleteNode", "resetBoard"]],
@@ -2968,7 +3041,9 @@ function schedule() {
   if (pending) return; pending = true;
   requestAnimationFrame(() => { pending = false; render(); });
 }
-function render() { if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
+function render() {
+  if (boardG && boardG.n !== N) { layout(); return; }   // the board size changed: its lines and margins are laid out anew
+  if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
 // Re-lay out only when the window (or a bar's height, now that the bars wrap) really changes;
 // text/table updates must not clear the canvases.
 let lastSize = "";
