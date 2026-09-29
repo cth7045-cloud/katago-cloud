@@ -10,6 +10,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+// viewport-fit=cover (drawing under the system bars, with env(safe-area-inset-*) keeping the bars clear) only on
+// iPhone / iPad. On Android, Chrome then also draws under the navigation bar, and a Samsung tablet's taskbar is not
+// reported as an inset, so it covered the bottom buttons (user report 2026-09-30, installed app, tablet landscape).
+if (!(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)))
+  document.querySelector('meta[name="viewport"]').content = "width=device-width, initial-scale=1";
+</script>
 <title>KataGo 분석</title>
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.json">
