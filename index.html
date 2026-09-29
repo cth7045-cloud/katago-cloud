@@ -204,7 +204,7 @@
         <p class="muted small" id="batchNote" style="margin:0 0 14px"></p>
         <p class="muted small hide-sm" style="margin:-8px 0 14px">컴퓨터에서는 SGF 파일을 이 화면에 끌어다 놓아도 됩니다.</p>
         <div class="row">
-          <label class="btn" id="batchPick">기보 파일 추가<input type="file" id="batchFiles" accept=".sgf,application/x-go-sgf" multiple hidden></label>
+          <label class="btn" id="batchPick">기보 파일 추가<input type="file" id="batchFiles" accept=".sgf,.gib,application/x-go-sgf" multiple hidden></label>
           <button type="button" id="foxOpen">한큐 기보 불러오기</button>
           <select id="batchLevel" aria-label="분석 세기">
             <option value="fast">빠름 · 한 수 250 visits</option>
@@ -755,7 +755,7 @@ function batchShow() {
     `<td class="num" style="${f.text.length > 14 ? "white-space:normal;min-width:9em" : "white-space:nowrap"};color:${color[f.state] || "var(--muted)"}">${esc(f.text)}</td></tr>`).join("");
 }
 function batchAdd(files) {   // → how many SGF files were added
-  const sgf = [...files].filter((f) => /\.sgf$/i.test(f.name));
+  const sgf = [...files].filter((f) => /\.(sgf|gib)$/i.test(f.name));
   for (const file of sgf) batchFiles.push({ file, state: "new", text: "대기" });
   batchShow(); return sgf.length;
 }
@@ -777,7 +777,7 @@ addEventListener("drop", (e) => {
   e.preventDefault(); $("batchCard").classList.remove("dropping");
   if (!batchOpen()) return;
   const k = batchAdd(e.dataTransfer.files), skipped = e.dataTransfer.files.length - k;
-  toast(k ? `기보 ${k}개를 더했습니다` + (skipped ? ` (SGF가 아닌 파일 ${skipped}개는 뺐습니다)` : "") : "SGF 기보 파일만 더할 수 있습니다", !k);
+  toast(k ? `기보 ${k}개를 더했습니다` + (skipped ? ` (SGF·GIB가 아닌 파일 ${skipped}개는 뺐습니다)` : "") : "SGF·GIB 기보 파일만 더할 수 있습니다", !k);
 });
 $("batchLevel").onchange = batchShow;
 // 한큐 기보 불러오기: the same search as the analysis screen's (the kgv server asks Fox for the member), but several games

@@ -447,7 +447,7 @@ button.primary:hover { background: var(--blue-deep); }
   <details class="menu" id="fileMenu">
     <summary>파일</summary>
     <div class="items">
-      <button id="openSgf">SGF 열기…</button>
+      <button id="openSgf">SGF·GIB 열기…</button>
       <button id="saveSgf">SGF 저장</button>
       <button id="copySgf">SGF 복사</button>
       <button id="pasteSgf">SGF 붙여넣기</button>
@@ -481,7 +481,7 @@ button.primary:hover { background: var(--blue-deep); }
   <span class="status" id="vps"></span>
   <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuJoin" hidden>이 GPU로 연결</button><button id="gpuStop" class="pink">GPU 종료</button></span>
   <span class="status" id="connStatus"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
-  <input type="file" id="fileInput" accept=".sgf,application/x-go-sgf" hidden>
+  <input type="file" id="fileInput" accept=".sgf,.gib,application/x-go-sgf" hidden>
 </header>
 
 <dialog id="kifuDlg" aria-label="기보 불러오기">
@@ -1359,7 +1359,46 @@ function expandPoints(vals) {
   }
   return out;
 }
+// 타이젬 기보(.gib): \HS … \HE 머리글([GAMEBLACKNAME=이름 (8단)] 등) + \GS … \GE 수순("STO 0 번호 색 x y", 색 1 흑·2 백,
+// x 열·y 행 0부터, "SKI 0 번호" 한 수 쉼, "INI 0 1 접바둑돌수 …"). 공제(덤)는 10배 값(65 = 6.5집). SGF로 바꿔 그대로 연다.
+const isGib = text => /^\s*\\HS/.test(text) && text.includes("\\GS");
+function gibToSgf(text) {
+  const head = {};
+  for (const m of text.matchAll(/\\\[([A-Z]+)=([^\r\n]*?)\\\]/g)) head[m[1]] = m[2].trim();
+  const sub = (k, key) => ((head[k] || "").match(new RegExp(`(?:^|,)${key}:([^,]*)`)) || [])[1];
+  const n = parseInt(sub("GAMEINFOMAIN", "LINE"), 10) || 19;
+  const c = (x, y) => String.fromCharCode(97 + x, 97 + y);
+  const esc = v => String(v).replace(/[\\\]]/g, "\\$&");
+  let sgf = `(;GM[1]FF[4]CA[UTF-8]SZ[${n}]`;
+  for (const [side, key] of [["B", "GAMEBLACKNAME"], ["W", "GAMEWHITENAME"]]) {
+    const m = (head[key] || "").match(/^(.*?)\s*\(([^()]*)\)$/);
+    if (head[key]) sgf += `P${side}[${esc(m ? m[1] : head[key])}]` + (m ? `${side}R[${esc(m[2])}]` : "");
+  }
+  const km = parseInt(head.GAMEGONGJE ?? sub("GAMEINFOMAIN", "GONGJE"), 10);
+  const d = (head.GAMEDATE || "").split("-").map(s => parseInt(s, 10));
+  if (d.length >= 3 && d[0]) sgf += `DT[${d[0]}-${String(d[1]).padStart(2, "0")}-${String(d[2]).padStart(2, "0")}]`;
+  if (head.GAMENAME) sgf += `EV[${esc(head.GAMENAME)}]`;
+  const r = (head.GAMERESULT || "").match(/^(흑|백)\s*(?:(불계)|(시간)|(\d+)\s*집(반)?)/);
+  if (r) sgf += `RE[${r[1] === "흑" ? "B" : "W"}+${r[2] ? "R" : r[3] ? "T" : +r[4] + (r[5] ? .5 : 0)}]`;
+  let ha = 0, moves = "";
+  for (const line of text.slice(text.indexOf("\\GS")).split(/\r?\n/)) {
+    const p = line.trim().split(/\s+/);
+    if (p[0] === "INI") ha = parseInt(p[3], 10) || 0;
+    else if (p[0] === "STO" && p.length >= 6) {
+      const x = +p[4], y = +p[5];
+      if (x >= 0 && x < n && y >= 0 && y < n) moves += `;${p[3] === "2" ? "W" : "B"}[${c(x, y)}]`;
+    } else if (p[0] === "SKI") moves += `;${moves.lastIndexOf(";B") > moves.lastIndexOf(";W") ? "W" : "B"}[]`;
+  }
+  if (!Number.isNaN(km)) sgf += `KM[${ha >= 2 ? 0 : km / 10}]`;
+  if (ha >= 2 && ha <= 9 && n >= 9) {
+    const lo = n >= 13 ? 3 : 2, hi = n - 1 - lo, mid = (n - 1) / 2;
+    const pt = {tr: c(hi, lo), bl: c(lo, hi), br: c(hi, hi), tl: c(lo, lo), c: c(mid, mid), l: c(lo, mid), r: c(hi, mid), t: c(mid, lo), b: c(mid, hi)};
+    sgf += `HA[${ha}]AB` + HANDICAP_POINTS[ha].split(" ").map(k => `[${pt[k]}]`).join("") + "PL[W]";
+  }
+  return sgf + moves + ")";
+}
 function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main line only, like YZY
+  if (isGib(text)) text = gibToSgf(text);
   const t = parseSgf(text), first = t.nodes[0] || {};
   const size = first.SZ ? parseInt(first.SZ[0], 10) : 19;
   if (!SIZES.includes(size)) throw new Error("9줄·13줄·19줄 기보만 지원합니다");
@@ -1516,9 +1555,9 @@ addEventListener("dragleave", ev => { if (!ev.relatedTarget) document.body.class
 addEventListener("drop", async ev => {
   if (!dragsFiles(ev)) return;
   ev.preventDefault(); document.body.classList.remove("dropping");
-  const files = [...ev.dataTransfer.files], f = files.find(x => /\.sgf$/i.test(x.name));
+  const files = [...ev.dataTransfer.files], f = files.find(x => /\.(sgf|gib)$/i.test(x.name));
   if (quiz) { $("err").textContent = "오답노트 문제를 푸는 중에는 기보를 열 수 없습니다"; return; }
-  if (!f) { $("err").textContent = "SGF 기보 파일만 열 수 있습니다"; return; }
+  if (!f) { $("err").textContent = "SGF·GIB 기보 파일만 열 수 있습니다"; return; }
   await openSgfFile(f);
   if (files.length > 1 && !$("err").textContent) $("err").textContent = `기보는 한 번에 하나만 열 수 있어 ${f.name}을(를) 열었습니다`;
 });
@@ -1826,7 +1865,7 @@ async function runBatch(files, lvl, notes, folder = null) {
     if (ok === null) continue;   // told already
     try {
       const named = root.info.PB || root.info.PW || root.info.DT;
-      const row = await mineRow((named ? mineDefaultTitle() : files[k].name.replace(/\.sgf$/i, "")).slice(0, 100));
+      const row = await mineRow((named ? mineDefaultTitle() : files[k].name.replace(/\.(sgf|gib)$/i, "")).slice(0, 100));
       if (!row) { tell("error", {text: "분석 포함 2MB가 넘어 저장하지 못했습니다"}); continue; }
       row.folder_id = folder;
       const {error} = c ? await c.from("saved_kifu").insert(row) : {error: {message: "로그인이 필요합니다"}};
