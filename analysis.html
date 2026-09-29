@@ -863,7 +863,8 @@ if (viewOnly) {
   tag.id = "viewTag";
   tag.textContent = "관리자 보기 · 조작할 수 없습니다";
   tag.style.cssText = "position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9999;padding:6px 14px;border-radius:999px;" +
-    "background:rgba(20,24,34,.78);color:#fff;font-size:13px;pointer-events:none;white-space:nowrap";
+    "background:rgba(20,24,34,.78);color:#fff;font-size:13px;line-height:1.4;pointer-events:none;white-space:pre-line;text-align:center;" +
+    "width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box";   // two short lines on a phone instead of one cut off
   document.body.appendChild(tag);
   document.title = "보기 전용 · " + document.title;
 }
@@ -3374,7 +3375,7 @@ function watchMember(channel) {
   setTimeout(() => {   // a member's page from before this feature never sends its screen: show the shared board instead
     if (size) return;
     stage.hidden = true;
-    if (viewTag) viewTag.textContent = "회원 화면을 받지 못해 바둑판·분석만 보입니다 · 회원 화면이 꺼져 있거나 예전 화면이면 새로고침 후 보입니다";
+    if (viewTag) viewTag.textContent = "회원 화면을 받지 못해 바둑판·분석만 보입니다\n(회원이 분석 화면을 안 보고 있거나 예전 화면)";
   }, 15000);
   onMirror = st => {
     if (!st) return;
