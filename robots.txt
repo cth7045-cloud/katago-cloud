@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://katago-cloud.onrender.com/sitemap.xml
