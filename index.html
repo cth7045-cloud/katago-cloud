@@ -158,6 +158,8 @@
         </div>
         <div class="options">
           <label class="field">모델<select id="model"></select></label>
+          <!-- admins, while an engine is being tried (관리자 화면 'KataGo 엔진·모델') -->
+          <label class="check hidden" id="testEngineLabel"><input type="checkbox" id="testEngine"> <span id="testEngineText">시험 엔진으로 켜기</span></label>
         </div>
         <div class="table-wrap scroll-box">
           <table>
@@ -952,8 +954,11 @@ async function loadOffers() {
     offers = r.offers;
     const sel = $("model"), keep = sel.value;
     sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
-    sel.value = keep || "transformer-large";
+    sel.value = keep || r.defaultModel || "transformer-large";
     if (!sel.value) sel.selectedIndex = 0;
+    $("testEngineLabel").classList.toggle("hidden", !r.testEngine);
+    if (r.testEngine) $("testEngineText").textContent = `시험 엔진 ${r.testEngine}로 켜기 (지금 ${r.engine})`;
+    else $("testEngine").checked = false;
     $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td>${esc(o.region).replace("/", "/<wbr>")}</td><td>${esc(o.gpu)}${o.fast ? ` <span class="pill good fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1분 안팎)">⚡<span class="hide-sm">빠른 시작</span></span>` : ""}</td>` +
       `<td class="num">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
       `<td class="num">${o.perfPerDollar ? Math.round(o.perfPerDollar) : "-"}</td><td class="num hide-sm">${o.cpuCores}</td></tr>`).join("")
@@ -986,7 +991,8 @@ $("startButton").onclick = async () => {
   $("startButton").disabled = true; $("startError").textContent = "";
   try {
     askNotify();   // 준비 알림: asked once, while the member is clicking
-    await api("/start", { offer_id: picked.id, machine_id: picked.machineId, seen_price_usd: picked.price, gpu: picked.gpu, region: picked.region, model_id: $("model").value });
+    await api("/start", { offer_id: picked.id, machine_id: picked.machineId, seen_price_usd: picked.price, gpu: picked.gpu, region: picked.region, model_id: $("model").value,
+      ...($("testEngine").checked ? { test_engine: true } : {}) });
     toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
     await refresh();
   } catch (err) {

@@ -7,6 +7,21 @@
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <meta name="theme-color" content="#fafbfd">
 <link rel="stylesheet" href="style.css">
+<style>
+.eng-h { margin: 18px 0 8px; font-size: 15px; }
+.eng-box { display: grid; gap: 8px; }
+.eng-box .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-radius: 14px; background: var(--soft, #f3f5f9); }
+.eng-box .line b { min-width: 64px; }
+#modelRows input.name { width: 100%; min-width: 130px; max-width: 220px; }
+#modelRows select { min-width: 0; }
+#modelRows .arrows button { padding: 2px 8px; min-height: 0; }
+#modelRows td, #updateRows td { vertical-align: middle; }
+.file { max-width: 220px; overflow-wrap: anywhere; }
+#modelRows .file { margin-top: 4px; }
+#modelRows td, #updateRows td { white-space: normal; }
+#modelRows td:nth-child(5) { max-width: 230px; }
+#modelRows td:last-child > div { white-space: nowrap; }
+</style>
 </head>
 <body>
 <main>
@@ -64,6 +79,29 @@
         <tbody id="speedRows"></tbody>
       </table></div>
       <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
+    </div>
+
+    <div class="panel" id="enginePanel">
+      <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">KataGo 엔진·모델</h2><button class="quiet" id="checkUpdates">새 버전 확인</button></div>
+      <p class="muted small">새 엔진과 가중치는 매일 새벽 5시에 KataGo GitHub와 katagotraining.org에서 찾아 아래 '새 버전 알림'에 올립니다. 저절로 바뀌지는 않습니다. <b>시험 준비</b> → <b>시험 대여</b>(가장 싼 GPU로 설치·벤치마크 후 자동 종료, 원가 수십 원) → 결과가 괜찮으면 <b>적용</b>(엔진) 또는 상태를 <b>회원에게 보임</b>(모델)으로 바꾸세요. <span id="engCheck"></span></p>
+      <h3 class="eng-h">엔진</h3>
+      <div id="engineBox" class="eng-box"></div>
+      <h3 class="eng-h">새 버전 알림</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>종류</th><th>이름</th><th>나온 날</th><th>설명</th><th></th></tr></thead>
+        <tbody id="updateRows"></tbody>
+      </table></div>
+      <h3 class="eng-h">모델 목록</h3>
+      <p class="muted small">회원 화면의 모델 목록 순서 그대로입니다. 이름·상태를 고친 뒤 그 줄의 '저장'을 누르세요. '시험'은 관리자에게만 보입니다(홈 화면 모델 목록에 '(시험)'). 파일 확인(SHA-256) 전인 모델은 시험 대여를 한 번 해야 회원에게 보일 수 있습니다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>순서</th><th>이름 · 파일</th><th>상태</th><th title="처음 고른 상태로 보이는 모델">기본</th><th>시험·사용 결과</th><th></th></tr></thead>
+        <tbody id="modelRows"></tbody>
+      </table></div>
+      <form id="modelAdd" class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+        <input id="addUrl" placeholder="모델 파일 주소 (katagotraining 또는 KataGo GitHub의 .bin.gz)" style="flex:2 1 320px" required>
+        <input id="addName" placeholder="보일 이름 (30자까지)" maxlength="30" style="flex:1 1 160px" required>
+        <button class="quiet" type="submit">모델 직접 추가</button>
+      </form>
     </div>
 
     <div class="panel">
@@ -215,6 +253,117 @@ render.speed = (list) => { $("speedRows").innerHTML = list.map((r) => `<tr><td>$
   || `<tr><td colspan="8" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
 $("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
 
+// ------------------------------------------------------------------ KataGo 엔진·모델 (engine_models / engine_config / engine_updates)
+// Loaded on its own (not in the 15 s refresh) so a name being typed is never overwritten; refreshed after each action
+// and every 30 s while nothing in the panel is being edited.
+let eng = null, engDirty = false;
+const STATUS = { on: "회원에게 보임", off: "숨김", test: "시험(관리자만)" };
+const fileName = (url) => decodeURIComponent(String(url).split("/").pop()).replace(/\.bin\.gz$/, "");
+const idFrom = (name) => name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "model";
+const mb = (n) => (n ? `${Math.round(n / 1e6).toLocaleString()}MB` : "");
+function resultText(rows) {
+  if (!rows.length) return '<span class="muted">아직 없음</span>';
+  const ready = rows.reduce((a, r) => a + Number(r.ready), 0), failed = rows.reduce((a, r) => a + Number(r.failed), 0);
+  const vps = rows.map((r) => Number(r.vps)).filter((v) => v > 0), err = rows.find((r) => r.last_error)?.last_error;
+  return `준비 성공 ${ready} · 실패 <span style="color:${failed ? "var(--bad)" : "inherit"}">${failed}</span>` +
+    (vps.length ? ` · 평균 ${Math.round(vps.reduce((a, v) => a + v, 0) / vps.length).toLocaleString()} visits/s` : "") +
+    (err ? `<div class="small" style="color:var(--bad)">${esc(err.slice(0, 160))}</div>` : "");
+}
+async function loadEngine() {
+  const { data, error } = await sb.rpc("admin_engine");
+  if (error) { $("engineBox").innerHTML = `<div class="error">엔진 정보를 불러오지 못했습니다: ${esc(error.message)}</div>`; return; }
+  eng = data; engDirty = false;
+  for (const m of eng.models) MODEL_NAMES[m.id] = m.name;
+  const c = eng.config, res = eng.results;
+  $("engCheck").textContent = c.checked_at ? `마지막 확인 ${when(c.checked_at)} (${c.check_result || ""})` : "";
+  const line = (label, e, buttons) => `<div class="line"><b>${label}</b><span>${esc(e.version)}</span>` +
+    (e.applied_at ? `<span class="muted small">${when(e.applied_at)} 적용</span>` : e.published ? `<span class="muted small">${when(e.published)} 공개</span>` : "") +
+    `<span class="small">${resultText(res.filter((r) => r.engine_version === e.version))}</span><span class="grow"></span>${buttons}</div>`;
+  $("engineBox").innerHTML = line("사용 중", c.applied, "") +
+    (c.test ? line("시험 중", c.test, `<button class="quiet" data-eng-test>시험 대여</button><button class="primary" data-eng="apply">적용</button><button class="quiet" data-eng="clear">시험 취소</button>`) : "") +
+    (c.previous ? line("이전", c.previous, `<button class="quiet" data-eng="rollback">이 버전으로 되돌리기</button>`) : "");
+  $("updateRows").innerHTML = eng.updates.map((u) => {
+    const i = u.info, what = u.kind === "engine" ? "엔진" : "가중치";
+    const desc = u.kind === "engine" ? `${esc(i.file)}${i.page ? ` · <a href="${esc(i.page)}" target="_blank" rel="noopener">바뀐 점</a>` : ""}`
+      : [i.source, i.elo ? `Elo ${i.elo}` : "", i.strongest ? "지금 가장 강함" : "", mb(i.size), i.note].filter(Boolean).map(esc).join(" · ");
+    return `<tr><td>${what}</td><td class="file">${esc(u.key)}</td><td>${i.published ? when(i.published) : when(u.found_at)}</td><td class="small">${desc}</td>` +
+      `<td style="white-space:nowrap"><button class="quiet" data-try="${u.id}">시험 준비</button> <button class="quiet" data-dismiss="${u.id}">숨기기</button></td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="muted">새 버전이 없습니다.</td></tr>`;
+  const n = eng.models.length;
+  $("modelRows").innerHTML = eng.models.map((m, k) => `<tr data-id="${esc(m.id)}">` +
+    `<td class="arrows" style="white-space:nowrap"><button class="quiet" data-move="-1"${k === 0 ? " disabled" : ""} aria-label="위로">▲</button><button class="quiet" data-move="1"${k === n - 1 ? " disabled" : ""} aria-label="아래로">▼</button></td>` +
+    `<td><input class="name" value="${esc(m.name)}" maxlength="30"><div class="file small muted" title="${esc(m.url)}">${esc(fileName(m.url))} · ${m.sha256 ? mb(m.size) : "파일 확인 전"}</div></td>` +
+    `<td><select class="status">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}"${v === m.status ? " selected" : ""}${v === "on" && !m.sha256 ? " disabled" : ""}>${t}</option>`).join("")}</select></td>` +
+    `<td><input type="radio" name="defModel" value="${esc(m.id)}"${m.id === c.default_model ? " checked" : ""}${m.status !== "on" ? " disabled" : ""}></td>` +
+    `<td class="small">${resultText(res.filter((r) => r.model_id === m.id))}</td>` +
+    `<td><div style="display:flex;gap:6px"><button class="primary" data-save>저장</button><button class="quiet" data-test>시험 대여</button><button class="danger" data-del>삭제</button></div></td></tr>`).join("");
+}
+const rpc = async (fn, args, done) => {
+  const { error } = await sb.rpc(fn, args);
+  if (error) { toast(error.message, true); return false; }
+  if (done) toast(done);
+  await loadEngine(); return true;
+};
+async function testRental(body, what) {
+  if (!confirm(`${what}\n\n지금 목록에서 가장 싼 GPU를 빌려 설치하고 KataGo 벤치마크로 속도를 잰 뒤 자동으로 끕니다.\n보통 5~10분, 관리자 잔액에서 원가(수십 원)가 나갑니다. 진행은 위 'GPU 목록'과 홈 화면에 보입니다.\n\n시작할까요?`)) return;
+  try { await api("/admin/engine-test", body); toast("시험 대여를 시작했습니다. 끝나면 결과가 여기에 나타납니다."); load(); }
+  catch (e) { toast(e.message, true); }
+}
+$("enginePanel").addEventListener("input", (ev) => { if (ev.target.closest("#modelRows, #modelAdd")) engDirty = true; });
+$("engineBox").onclick = async (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.engTest !== undefined) return testRental({ test_engine: true }, `시험 엔진 ${eng.config.test.version} + 기본 모델`);
+  const act = b.dataset.eng, v = act === "rollback" ? eng.config.previous?.version : eng.config.test?.version;
+  const ask = { apply: `엔진 ${v}을(를) 적용할까요?\n새로 켜는 GPU부터 이 엔진을 씁니다. 문제가 있으면 '이 버전으로 되돌리기'로 돌아갈 수 있습니다.`,
+                rollback: `엔진을 ${v}(으)로 되돌릴까요? 새로 켜는 GPU부터 적용됩니다.`, clear: `시험 엔진 ${v}을(를) 목록에서 뺄까요?` }[act];
+  if (confirm(ask)) await rpc("admin_engine_action", { p_action: act }, "바꿨습니다.");
+};
+$("updateRows").onclick = async (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.dismiss) return rpc("admin_update_dismiss", { p_update: Number(b.dataset.dismiss) }, "숨겼습니다.");
+  const u = eng.updates.find((x) => String(x.id) === b.dataset.try); if (!u) return;
+  if (u.kind === "engine") {
+    if (confirm(`엔진 ${u.key}을(를) 시험 엔진으로 둘까요? 회원에게는 아직 바뀌지 않습니다.`)) await rpc("admin_update_try", { p_update: u.id }, "시험 엔진으로 두었습니다. '시험 대여'로 확인하세요.");
+    return;
+  }
+  const name = prompt(`'${u.key}'을(를) 모델 목록에 시험으로 넣습니다.\n회원에게 보일 이름(30자까지):`, u.key.replace(/^kata1-/, "").slice(0, 30));
+  if (!name) return;
+  await rpc("admin_update_try", { p_update: u.id, p_id: idFrom(fileName(u.info.url)), p_name: name.trim().slice(0, 30) }, "모델 목록에 '시험'으로 넣었습니다. '시험 대여'로 확인하세요.");
+};
+$("modelRows").onclick = async (ev) => {
+  const b = ev.target.closest("button, input[type=radio]"); if (!b) return;
+  const tr = b.closest("tr"), id = tr.dataset.id, m = eng.models.find((x) => x.id === id);
+  if (b.type === "radio") return rpc("admin_default_model", { p_id: id }, `기본 모델을 '${m.name}'(으)로 정했습니다.`);
+  if (b.dataset.save !== undefined) {
+    const name = tr.querySelector(".name").value.trim(), status = tr.querySelector(".status").value;
+    return rpc("admin_model_save", { p: { id, name, status } }, "저장했습니다.");
+  }
+  if (b.dataset.move) {   // the two swap places; every model is numbered 10, 20, ... in the new order
+    const order = [...eng.models], k = order.indexOf(m), j = k + Number(b.dataset.move);
+    if (!order[j]) return;
+    [order[k], order[j]] = [order[j], order[k]];
+    for (const [i, x] of order.entries()) {
+      if (x.sort === (i + 1) * 10) continue;
+      const { error } = await sb.rpc("admin_model_save", { p: { id: x.id, sort: (i + 1) * 10 } });
+      if (error) { toast(error.message, true); break; }
+    }
+    return loadEngine();
+  }
+  if (b.dataset.test !== undefined) return testRental({ model_id: id }, `모델 '${m.name}' + 사용 중인 엔진 ${eng.config.applied.version}`);
+  if (b.dataset.del !== undefined && confirm(`'${m.name}'을(를) 목록에서 지울까요? 회원 화면에서도 사라집니다.`)) return rpc("admin_model_delete", { p_id: id }, "지웠습니다.");
+};
+$("modelAdd").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const url = $("addUrl").value.trim(), name = $("addName").value.trim();
+  if (await rpc("admin_model_save", { p: { id: idFrom(fileName(url)), name, url } }, "모델 목록에 '시험'으로 넣었습니다. '시험 대여'로 파일을 확인하세요.")) { $("addUrl").value = ""; $("addName").value = ""; }
+};
+$("checkUpdates").onclick = async () => {
+  $("checkUpdates").disabled = true;
+  try { const r = await api("/admin/check-updates", {}); toast(r.result); await loadEngine(); }
+  catch (e) { toast(e.message, true); }
+  finally { $("checkUpdates").disabled = false; }
+};
+
 // pricing: what an RTX 3060 at $0.0622/h would cost a member with the values being typed (same rounding as the server)
 let priceDirty = false;
 function showExample() {
@@ -269,7 +418,11 @@ $("formerRows").onclick = async (ev) => {
 $("reload").onclick = load;
 
 const { data } = await sb.auth.getSession();
-if (!data.session) location.href = "index.html"; else { load(); setInterval(load, 15000); }
+if (!data.session) location.href = "index.html";
+else {
+  load(); setInterval(load, 15000);
+  loadEngine(); setInterval(() => { if (!engDirty && !$("enginePanel").contains(document.activeElement)) loadEngine(); }, 30000);
+}
 </script>
 </body>
 </html>
