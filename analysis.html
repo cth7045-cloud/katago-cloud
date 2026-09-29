@@ -1802,7 +1802,13 @@ async function runBatch(files, lvl, notes, folder = null) {
   const c = await mineClient();
   for (let k = 0; k < files.length && !batchStop; k++) {
     const tell = (what, extra = {}) => parent.postMessage({batch: what, k, ...extra}, location.origin);
-    try { loadSgf(await readSgfFile(files[k])); } catch (err) { tell("error", {text: "SGF 오류: " + err.message}); continue; }
+    const f = files[k];
+    try {
+      if (typeof f.text === "string") {   // 한큐 기보 from the website's list: read as 기보 불러오기 reads it
+        loadSgf(f.text, !!f.main);
+        if (f.info && !root.info.PB && !root.info.PW) Object.assign(root.info, f.info);
+      } else loadSgf(await readSgfFile(f));
+    } catch (err) { tell("error", {text: "SGF 오류: " + err.message}); continue; }
     let ok;
     while ((ok = await batchAnalyse(tell)) === false) {   // dropped: wait for the connection (it reconnects by itself), then the rest
       if (batchStop) break;

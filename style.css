@@ -362,3 +362,11 @@ button.quiet.shared { color: var(--good); }
 
 /* 9줄·13줄 games in the 내 기보 list */
 .size-tag { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 6px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 600; vertical-align: 1px; }
+
+/* 한큐 기보 불러오기 (기보 분석): a list with a box per game */
+dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
+.fox-list { max-height: min(52vh, 460px); }
+.fox-list td, .fox-list th { padding: 9px 8px; }
+.fox-list tr.pick { cursor: pointer; }
+.fox-list td:nth-child(3), .fox-list td:nth-child(4) { white-space: normal; }
+@media (max-width: 640px) { .fox-list td, .fox-list th { padding: 8px 4px; font-size: 13px; } }

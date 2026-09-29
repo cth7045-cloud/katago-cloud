@@ -191,6 +191,7 @@
         <p class="muted small hide-sm" style="margin:-8px 0 14px">컴퓨터에서는 SGF 파일을 이 화면에 끌어다 놓아도 됩니다.</p>
         <div class="row">
           <label class="btn" id="batchPick">기보 파일 추가<input type="file" id="batchFiles" accept=".sgf,application/x-go-sgf" multiple hidden></label>
+          <button type="button" id="foxOpen">한큐 기보 불러오기</button>
           <select id="batchLevel" aria-label="분석 세기">
             <option value="fast">빠름 · 한 수 250 visits</option>
             <option value="normal" selected>보통 · 한 수 500 visits</option>
@@ -345,6 +346,22 @@
   </section>
 
   <!-- 기보 공유 링크 (내 기보 → 공유) -->
+  <dialog id="foxDlg" class="sheet fox-dlg" aria-label="한큐바둑 기보 불러오기">
+    <div class="stack">
+      <div class="row"><h2 class="grow" style="margin:0">한큐바둑 기보</h2><button class="quiet" id="foxClose">닫기</button></div>
+      <form class="row" id="foxForm">
+        <input type="text" id="foxName" class="grow" placeholder="한큐바둑 닉네임" autocomplete="off" enterkeyhint="search" maxlength="40" aria-label="한큐바둑 닉네임">
+        <button type="submit">검색</button>
+      </form>
+      <p class="muted small" id="foxMsg" style="margin:0">닉네임을 검색하면 최근 대국 약 100판이 나옵니다. 분석할 대국을 여러 개 고르세요.</p>
+      <div class="scroll-box fox-list hidden" id="foxTable">
+        <table><thead><tr><th><input type="checkbox" id="foxAll" aria-label="모두 고르기"></th><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th class="num hide-sm">수</th></tr></thead>
+          <tbody id="foxRows"></tbody></table>
+      </div>
+      <div class="row"><span class="muted small grow" id="foxCount"></span><button class="primary" id="foxAdd" disabled>선택한 기보 추가</button></div>
+    </div>
+  </dialog>
+
   <dialog id="shareDlg" class="sheet">
     <form method="dialog" class="stack">
       <div class="row"><h2 class="grow" style="margin:0">기보 공유</h2><button class="quiet" value="close" aria-label="닫기">닫기</button></div>
@@ -706,7 +723,7 @@ function batchShow() {
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
   const nameMissing = $("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim();
   $("batchStart").disabled = !running && !batchQueued && !(session && session.status !== "stopping" && todo && !nameMissing);
-  for (const id of ["batchFiles", "batchLevel", ...BATCH_FORM]) $(id).disabled = running;
+  for (const id of ["batchFiles", "batchLevel", "foxOpen", ...BATCH_FORM]) $(id).disabled = running;
   $("batchNoteSide").closest(".batch-note-opts").classList.toggle("hidden", !$("batchNotes").checked);
   $("batchNoteName").classList.toggle("hidden", $("batchNoteSide").value !== "name");
   $("batchPick").style.opacity = running ? ".45" : "";
@@ -743,6 +760,76 @@ addEventListener("drop", (e) => {
   toast(k ? `기보 ${k}개를 더했습니다` + (skipped ? ` (SGF가 아닌 파일 ${skipped}개는 뺐습니다)` : "") : "SGF 기보 파일만 더할 수 있습니다", !k);
 });
 $("batchLevel").onchange = batchShow;
+// 한큐 기보 불러오기: the same search as the analysis screen's (the kgv server asks Fox for the member), but several games
+// can be picked; each game's record is fetched right away and waits in the list like an added file. When analysed it is
+// read like the analysis screen reads it: main line only (commentary records have hundreds of variations), and the
+// list's players, result and date when the record has no names.
+let foxGames = [];
+const foxAdded = (g) => batchFiles.some((f) => f.fox && f.fox.id === g.id);
+function foxShow() {
+  $("foxTable").classList.toggle("hidden", !foxGames.length);
+  $("foxRows").innerHTML = foxGames.map((g, i) => {
+    const added = foxAdded(g);
+    return `<tr class="${added ? "muted" : "pick"}" data-i="${i}"><td><input type="checkbox" data-g="${i}"${added ? " disabled" : ""} aria-label="${esc(g.date)} 대국 고르기"></td>` +
+      `<td>${esc(g.date.slice(0, 10))}</td><td>${esc(g.black)}</td><td>${esc(g.white)}</td><td>${added ? "추가됨" : esc(g.result)}</td><td class="num hide-sm">${g.moves}</td></tr>`;
+  }).join("");
+  foxCount();
+}
+function foxCount() {
+  const boxes = [...$("foxRows").querySelectorAll("input:not(:disabled)")], n = boxes.filter((b) => b.checked).length;
+  $("foxAll").checked = !!boxes.length && n === boxes.length; $("foxAll").disabled = !boxes.length;
+  $("foxCount").textContent = foxGames.length ? `${n}판 고름` : "";
+  $("foxAdd").disabled = !n; $("foxAdd").textContent = n ? `선택한 기보 ${n}판 추가` : "선택한 기보 추가";
+}
+$("foxOpen").onclick = () => {
+  try { $("foxName").value ||= localStorage.getItem("kgv.foxName") || ""; } catch { /* storage blocked */ }
+  foxShow(); $("foxDlg").showModal();
+  if (!foxGames.length) $("foxName").focus();
+};
+$("foxClose").onclick = () => $("foxDlg").close();
+$("foxDlg").addEventListener("click", (e) => { if (e.target === $("foxDlg")) $("foxDlg").close(); });   // backdrop
+$("foxForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("foxName").value.trim(); if (!name) return;
+  try { localStorage.setItem("kgv.foxName", name); } catch { /* storage blocked */ }
+  $("foxMsg").textContent = "찾는 중…"; $("foxMsg").style.color = "";
+  try {
+    const r = await api(`/kifu/fox/user?name=${encodeURIComponent(name)}`);
+    foxGames = r.games || [];
+    $("foxMsg").textContent = foxGames.length ? `${r.user.name} (${r.user.dan}) · ${foxGames.length}판 · 분석할 대국을 고르세요.` : `${r.user.name}: 공개된 대국이 없습니다.`;
+  } catch (err) { foxGames = []; $("foxMsg").textContent = err.message; $("foxMsg").style.color = "var(--bad)"; }
+  foxShow();
+};
+$("foxRows").addEventListener("click", (e) => {   // the whole row toggles its box
+  const tr = e.target.closest("tr"); if (!tr) return;
+  const box = tr.querySelector("input"); if (box.disabled) return;
+  if (e.target !== box) box.checked = !box.checked;
+  foxCount();
+});
+$("foxAll").onchange = () => { $("foxRows").querySelectorAll("input:not(:disabled)").forEach((b) => { b.checked = $("foxAll").checked; }); foxCount(); };
+$("foxAdd").onclick = async () => {
+  const picked = [...$("foxRows").querySelectorAll("input:checked:not(:disabled)")].map((b) => foxGames[+b.dataset.g]);
+  if (!picked.length) return;
+  $("foxAdd").disabled = true;
+  let done = 0, failed = 0, taken = 0;
+  const items = [];
+  const next = async () => {   // four at a time, kept in the list's order
+    while (taken < picked.length) {
+      const i = taken++, g = picked[i];
+      try {
+        const r = await api(`/kifu/fox/game?id=${encodeURIComponent(g.id)}`);
+        items[i] = { file: { name: `한큐 ${g.date.slice(0, 10)} ${g.black} vs ${g.white}` }, state: "new", text: "대기",
+          fox: { id: g.id, sgf: r.sgf, info: { PB: g.black, PW: g.white, RE: g.result, DT: g.date.slice(0, 10) } } };
+        done++;
+      } catch { failed++; }
+      $("foxMsg").textContent = `기보 받는 중… ${done + failed}/${picked.length}`;
+    }
+  };
+  await Promise.all([next(), next(), next(), next()]);
+  batchFiles.push(...items.filter(Boolean)); batchShow();
+  $("foxDlg").close();
+  toast(`한큐 기보 ${done}판을 더했습니다` + (failed ? ` (${failed}판은 받지 못했습니다)` : ""), !done);
+};
 $("batchClear").onclick = () => { batchFiles = []; batchShow(); };
 $("batchStart").onclick = () => {
   if (batchFrame) { batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin); return; }
@@ -761,7 +848,7 @@ function startBatch() {
   fr.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden";
   fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
   const notes = $("batchNotes").checked ? { side: $("batchNoteSide").value, name: $("batchNoteName").value, level: $("batchNoteLevel").value } : null;
-  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => f.file), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null }, location.origin);
+  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null }, location.origin);
   fr.src = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&batch=1`;
   document.body.appendChild(fr); batchFrame = fr; batchShow();
 }
