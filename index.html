@@ -477,6 +477,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 // ------------------------------------------------------------------ data
 let vastBalance = null, vastAt = 0;   // admins: the operator's Vast balance is their balance (checked once a minute)
+let lastModel = null, modelTouched = false, defaultModel = null;   // the model list's start (pickModel)
 async function refresh() {
   const [{ data: p }, { data: s }, { data: l }] = await Promise.all([
     sb.from("profiles").select("*").single(),
@@ -485,6 +486,9 @@ async function refresh() {
   ]);
   if (!p) return;
   profile = p;
+  // the model this member rented last (any device) is picked next time (user request 2026-09-29); not an admin test rental
+  const last = (s || []).find((x) => x.model_id && !x.auto_test);
+  if (last && last.model_id !== lastModel) { lastModel = last.model_id; pickModel(); }
   if (p.is_admin && Date.now() - vastAt > 60_000) {
     vastAt = Date.now();
     api("/admin/vast").then((v) => { vastBalance = v; refresh(); }).catch(() => {});
@@ -946,6 +950,13 @@ $("mineRows").onclick = async (ev) => {
 };
 
 // ------------------------------------------------------------------ offers / start
+// The model list starts on the member's last model (while they have not changed it here), else the admin's default.
+function pickModel() {
+  const sel = $("model"), has = (id) => id && [...sel.options].some((o) => o.value === id);
+  if (modelTouched && has(sel.value)) return;
+  sel.value = [lastModel, defaultModel, "transformer-large"].find(has) || sel.options[0]?.value || "";
+}
+$("model").addEventListener("change", () => { modelTouched = true; });
 async function loadOffers() {
   picked = null; updatePick();   // takes the start bar out of the table before the rows are replaced
   $("offerRows").innerHTML = `<tr><td colspan="6" class="muted">불러오는 중…</td></tr>`;
@@ -954,8 +965,8 @@ async function loadOffers() {
     offers = r.offers;
     const sel = $("model"), keep = sel.value;
     sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
-    sel.value = keep || r.defaultModel || "transformer-large";
-    if (!sel.value) sel.selectedIndex = 0;
+    defaultModel = r.defaultModel;
+    sel.value = keep; pickModel();
     $("testEngineLabel").classList.toggle("hidden", !r.testEngine);
     if (r.testEngine) $("testEngineText").textContent = `시험 엔진 ${r.testEngine}로 켜기 (지금 ${r.engine})`;
     else $("testEngine").checked = false;
