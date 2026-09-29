@@ -973,13 +973,13 @@ function onMessage(msg) {
   schedule();
 }
 // GPU·모델별 속도 (admin page, 2026-09-29): the live analysis's visits/s goes to the database with this GPU's token
-// (report_speed: counted only while the rental is ready, one report per 20 s per rental). Only a clean measure: the
+// (report_speed: counted only while the rental is ready, one report per 8 s per rental; sent every 10 s). Only a clean measure: the
 // search ran at least 5 s (past its warm-up) and nothing else of this screen shares the GPU (자동분석, 대국 리포트,
 // 여러 기보 분석). Website only (the GPU's own page has no database access); an admin watching never reports.
 let speedAt = -Infinity;
 function reportSpeed(vps, ms, visits) {
   if (!token || viewOnly || batchMode || GPU_HOST.test(location.hostname)) return;
-  if (ms < 5000 || visits < 500 || autoId || strengthId || batchQ || performance.now() - speedAt < 60000) return;
+  if (ms < 5000 || visits < 500 || autoId || strengthId || batchQ || performance.now() - speedAt < 10000) return;
   speedAt = performance.now();
   import("./app.js").then(({ sb }) => sb.rpc("report_speed", { p_token: token, p_vps: vps })).catch(() => {});
 }
