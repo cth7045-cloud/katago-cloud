@@ -87,10 +87,7 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 #saveDo label.check.off { opacity: .45; }
 .home-back { font-weight: 700; font-size: 14px; padding: 5px 10px; border-radius: 999px; background: var(--soft, #f1f4f9); color: inherit; text-decoration: none; white-space: nowrap; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
-.mark { position: relative; width: 24px; height: 16px; flex: none; }
-.mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 16px; height: 16px; border-radius: 50%; }
-.mark::before { left: 0; background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
-.mark::after { left: 8px; background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
+.mark { width: 24px; height: 24px; flex: none; border-radius: 6px; background: url(icons/icon-light-192.png) center / cover; }   /* 앱 아이콘과 같은 그림(2026-09-30) */
 /* 빠름 / 보통 / 정밀 / 초정밀 next to 자동분석 and 대국 리포트 (one shared setting) */
 .lvl { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
 div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
@@ -471,8 +468,9 @@ button.primary:hover { background: var(--blue-deep); }
   .lvl:has(button.on[data-l="ultra"])::after, .level-pop button em { color: #ff9a5c; }
   body.dropping::after { background: rgba(22, 34, 74, .88); color: var(--blue-deep); }
   dialog::backdrop { background: rgba(0, 0, 0, .5); }
-  .mark::after, .stone-seg i.w, .stone-seg i.bw::after, .gi-stone.w { box-shadow: none; }
-  .mark::before, .stone-seg i.b, .stone-seg i.bw::before, .gi-stone.b { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
+  .stone-seg i.w, .stone-seg i.bw::after, .gi-stone.w { box-shadow: none; }
+  .mark { background-image: url(icons/icon-dark-192.png); }
+  .stone-seg i.b, .stone-seg i.bw::before, .gi-stone.b { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
 }
 </style>
 </head>

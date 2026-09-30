@@ -117,10 +117,7 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 .bar .brand, .bar button { white-space: nowrap; }
 .bar a:not(.brand):hover { background: var(--soft); text-decoration: none; }
 .bar a.on { background: var(--cyan-soft); }
-.mark { position: relative; width: 26px; height: 18px; flex: none; }
-.mark::before, .mark::after { content: ""; position: absolute; top: 0; width: 18px; height: 18px; border-radius: 50%; }
-.mark::before { left: 0; background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); }
-.mark::after { left: 9px; background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23, 26, 34, .12); }
+.mark { width: 26px; height: 26px; flex: none; border-radius: 7px; background: url(icons/icon-light-192.png) center / cover; }   /* 앱 아이콘과 같은 그림(2026-09-30) */
 
 /* ------------------------------------------------------------------ logged out: hero */
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-areas: "copy board" "card board";
@@ -398,8 +395,9 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
   .hub-icon.gpu { color: #4fd8ec; }
   .hub-icon.kifu .bs { fill: #05070c; }
   .hub-icon.kifu .ws { stroke: #05070c; }
-  .mark::before, .move.black { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
-  .mark::after, .move.white { box-shadow: none; }
+  .move.black { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
+  .move.white { box-shadow: none; }
+  .mark { background-image: url(icons/icon-dark-192.png); }
   .move.white { color: #171a22; }
   .panel.leave { border-color: #4a2329; background: #1f1418; }
   #toast { background: rgba(44, 53, 76, .96); }
