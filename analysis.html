@@ -473,6 +473,38 @@ button.primary:hover { background: var(--blue-deep); }
   .stone-seg i.b, .stone-seg i.bw::before, .gi-stone.b { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
 }
 </style>
+<script>
+// 화면 밝기(2026-09-30): 내 정보에서 고른 값(localStorage "kc-theme" = "light" | "dark", 없으면 기기 설정)을 적용한다.
+// 다크 색은 CSS의 @media (prefers-color-scheme: dark) 안에 있으므로, 고른 값이 있으면 그 조건을 all / not all로 바꿔 끼운다.
+// head의 스타일시트 뒤에 두어야 한다(그래야 시트가 다 읽힌 뒤, 화면이 그려지기 전에 돈다). 사이트의 theme.js와 같은 코드.
+(function () {
+  const sys = matchMedia("(prefers-color-scheme: dark)"), seen = new Set(), rules = [], subs = [];
+  const pref = () => { try { const v = localStorage.getItem("kc-theme"); return v === "light" || v === "dark" ? v : ""; } catch { return ""; } };
+  const dark = () => { const p = pref(); return p ? p === "dark" : sys.matches; };
+  function apply() {
+    const p = pref(), d = dark();
+    document.documentElement.dataset.theme = d ? "dark" : "light";
+    for (const sh of document.styleSheets) {
+      let list; try { list = sh.cssRules; } catch { continue; }   // 다른 곳(글꼴)의 시트는 읽을 수 없음
+      for (const r of list) if (r instanceof CSSMediaRule && !seen.has(r) && /prefers-color-scheme:\s*dark/.test(r.media.mediaText)) { seen.add(r); rules.push([r, r.media.mediaText]); }
+    }
+    for (const [r, orig] of rules) r.media.mediaText = p ? (d ? "all" : "not all") : orig;
+    for (const el of document.querySelectorAll('meta[name="theme-color"][media], link[rel~="icon"][media]')) {
+      const orig = el.dataset.media || (el.dataset.media = el.media), isDark = orig.includes("dark");
+      el.media = p ? (isDark === d ? "all" : "not all") : orig;
+    }
+  }
+  const changed = () => { apply(); for (const f of subs) f(); };
+  window.kcTheme = {
+    pref, dark,
+    set(v) { try { v ? localStorage.setItem("kc-theme", v) : localStorage.removeItem("kc-theme"); } catch {} changed(); },
+    onChange(f) { subs.push(f); },
+  };
+  sys.addEventListener("change", () => { if (!pref()) changed(); });
+  addEventListener("storage", (e) => { if (e.key === "kc-theme") changed(); });   // 다른 탭에서 바꿨을 때
+  apply();
+})();
+</script>
 </head>
 <body>
 <header class="menubar">
@@ -2790,18 +2822,18 @@ mainEl.addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(
 // ------------------------------------------------------------------ left panels (LizzieFrame.drawCaptured / drawMoveStatistics)
 const capCv = $("cap"), statCv = $("stat");
 let capCtx, statCtx, capW, capH, statW, statH;
-// 다크모드(기기 설정을 따름, 2026-09-30): 판 옆 그림(사석·승률 막대·그래프·변화도)의 색. 바둑판과 돌 그림은 그대로.
-const darkScheme = matchMedia("(prefers-color-scheme: dark)");
+// 다크모드(기기 설정 또는 내 정보에서 고른 값, 2026-09-30): 판 옆 그림(사석·승률 막대·그래프·변화도)의 색. 바둑판과 돌 그림은 그대로.
+const isDark = () => window.kcTheme ? kcTheme.dark() : matchMedia("(prefers-color-scheme: dark)").matches;
 let TH;
 function readTheme() {
-  TH = darkScheme.matches
+  TH = isDark()
     ? {ink: "#e8ecf4", muted: "#98a2b8", line: "#263049", frame: "rgba(232,236,244,.35)", grid: "rgba(232,236,244,.14)",
        stoneB: "#05070c", node: "#3a4258", branch: "#3a4258", curDot: "#fff", wr: "#5b85ff"}
     : {ink: "#171a22", muted: "#687082", line: "#e8ebf2", frame: "rgba(23,26,34,.25)", grid: "rgba(23,26,34,.12)",
        stoneB: "#000", node: "#d5d9e1", branch: "#c3c8d3", curDot: "#000", wr: "#2c5cf6"};
 }
 readTheme();
-darkScheme.addEventListener("change", () => { readTheme(); if (typeof boardG !== "undefined" && boardG) render(); });
+window.kcTheme?.onChange(() => { readTheme(); if (typeof boardG !== "undefined" && boardG) render(); });
 function panelFont(ctx, size) { ctx.font = `400 ${T(size)}px ${UI_FONT}`; }
 function drawCaptured() {
   if (!capCtx) return;
@@ -2812,7 +2844,7 @@ function drawCaptured() {
   let bd, wd; if (cur.toPlay === "B") { wd = small; bd = T(small * 3 / 2); } else { bd = small; wd = T(small * 3 / 2); }
   diam = T(diam * 3 / 2); bd = T(bd * 3 / 2); wd = T(wd * 3 / 2);
   g.fillStyle = TH.stoneB; g.beginPath(); g.ellipse(T(W / 4) - T(bd / 2) + bd / 2, T((diam - bd) / 2) + bd / 2, bd / 2, bd / 2, 0, 0, Math.PI * 2); g.fill();
-  if (darkScheme.matches) { g.strokeStyle = TH.frame; g.lineWidth = 1; g.stroke(); }
+  if (isDark()) { g.strokeStyle = TH.frame; g.lineWidth = 1; g.stroke(); }
   g.fillStyle = "#fff"; g.beginPath(); g.ellipse(T(W * 3 / 4) - T(wd / 2) + wd / 2, T((diam - wd) / 2) + wd / 2, wd / 2, wd / 2, 0, 0, Math.PI * 2); g.fill();
   g.strokeStyle = TH.frame; g.lineWidth = 1; g.stroke();
   const sd = T(H / 4) < 10 ? T(H / 4) : 10;

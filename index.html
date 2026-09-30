@@ -30,6 +30,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script>document.documentElement.classList.add("js")</script>
+<script src="theme.js"></script>
 </head>
 <body>
 <main>
@@ -327,6 +328,16 @@
           <label class="field">이름<input id="meName" autocomplete="name" minlength="2" maxlength="30" required></label>
           <button class="primary" type="submit">이름 저장</button>
         </form>
+      </div>
+
+      <div class="panel">
+        <h2>화면</h2>
+        <div class="seg" id="themeSeg" role="group" aria-label="화면 밝기">
+          <button type="button" data-theme="">기기 설정</button>
+          <button type="button" data-theme="light">밝게</button>
+          <button type="button" data-theme="dark">어둡게</button>
+        </div>
+        <p class="muted small" style="margin:10px 0 0">기기 설정을 고르면 휴대폰·PC의 다크 모드 설정을 따릅니다. 이 기기에서만 적용되고, 분석 화면도 같이 바뀝니다.</p>
       </div>
 
       <div class="panel">
@@ -1083,6 +1094,10 @@ async function busy(form, fn) {
   button.disabled = true;
   try { await fn(); } finally { button.disabled = false; }
 }
+// 화면 밝기(theme.js): 기기 설정 따라가기 / 밝게 / 어둡게
+function showTheme() { for (const b of $("themeSeg").children) b.setAttribute("aria-pressed", String(b.dataset.theme === kcTheme.pref())); }
+$("themeSeg").onclick = (ev) => { const b = ev.target.closest("button"); if (b) kcTheme.set(b.dataset.theme); };
+kcTheme.onChange(showTheme); showTheme();
 $("nameForm").onsubmit = (ev) => {
   ev.preventDefault();
   busy(ev.target, async () => {

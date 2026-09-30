@@ -367,8 +367,13 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
 .fox-list tr.pick { cursor: pointer; }
 .fox-list td:nth-child(3), .fox-list td:nth-child(4) { white-space: normal; }
 @media (max-width: 640px) { .fox-list td, .fox-list th { padding: 8px 4px; font-size: 13px; } }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--soft); border-radius: 999px; }
+.seg button { background: transparent; color: var(--muted); min-height: 38px; padding: 7px 16px; box-shadow: none; }
+.seg button:hover { background: transparent; color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(23, 26, 34, .14); }
+@media (max-width: 640px) { .seg { display: grid; grid-template-columns: repeat(3, 1fr); } .seg button { padding-inline: 8px; } }
 
-/* 다크모드: 기기 설정을 따름(2026-09-30). 색은 :root 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판 그림은 그대로. */
+/* 다크모드: 기기 설정 또는 내 정보에서 고른 값을 따름(theme.js, 2026-09-30). 색은 :root 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판 그림은 그대로. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -407,4 +412,7 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
   dialog.sheet::backdrop { background: rgba(0, 0, 0, .5); }
   .app-icon { background-image: url(icons/icon-dark-192.png); box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .7); }
   .legal p, .legal li, .legal pre { color: #c5ccda; }
+  .seg { background: #0a0f1c; }
+  .seg button:hover { background: transparent; }
+  .seg button[aria-pressed="true"] { background: #26304a; box-shadow: none; }
 }
