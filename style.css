@@ -291,7 +291,7 @@ dialog.sheet[open] { animation: unfold .35s var(--ease); }
 button.quiet.shared { color: var(--good); }
 .install-card { display: flex; align-items: center; gap: 16px; margin-top: 22px; flex-wrap: wrap; }
 .install-card b { display: block; font-size: 17px; }
-.app-icon { width: 52px; height: 52px; flex: none; border-radius: 13px; background: url(icons/icon-192.png) center / cover; box-shadow: 0 6px 16px -8px rgba(23, 26, 34, .45); }
+.app-icon { width: 52px; height: 52px; flex: none; border-radius: 13px; background: url(icons/icon-light-192.png) center / cover; box-shadow: 0 6px 16px -8px rgba(23, 26, 34, .45); }
 .notify-row { margin-top: 10px; padding: 8px 4px 8px 14px; border-radius: 14px; background: var(--cyan-soft); }
 .notify-row button { color: var(--blue-deep); }
 @media (max-width: 640px) {
@@ -370,3 +370,43 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
 .fox-list tr.pick { cursor: pointer; }
 .fox-list td:nth-child(3), .fox-list td:nth-child(4) { white-space: normal; }
 @media (max-width: 640px) { .fox-list td, .fox-list th { padding: 8px 4px; font-size: 13px; } }
+
+/* 다크모드: 기기 설정을 따름(2026-09-30). 색은 :root 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판 그림은 그대로. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #0c1222; --panel: #151c2e; --ink: #e8ecf4; --muted: #98a2b8; --line: #263049; --soft: #1c2438;
+    --blue: #4f7bff; --blue-deep: #9db8ff; --cyan: #22c7e0; --cyan-soft: #133340;
+    --good: #3fcf82; --bad: #ff6b70; --warn: #e8a33d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 18px 40px -18px rgba(0, 0, 0, .65);
+  }
+  button:hover, .btn:hover { background: #253049; }
+  button.primary:hover, .btn.primary:hover { background: #3d69f0; }
+  button.danger, .pill.bad { background: #3a1d22; }
+  button.danger:hover { background: #4a2329; }
+  .pill.good { background: #123524; }
+  .pill.warn { background: #3a2c10; }
+  .bar { background: rgba(12, 18, 34, .78); border-bottom-color: rgba(255, 255, 255, .06); }
+  .folder-card, .hub-tile { box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 18px 40px -24px rgba(0, 0, 0, .7); }
+  .folder-card:hover, .hub-tile:hover { box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 26px 50px -20px rgba(0, 0, 0, .8); }
+  .folder-card.add { border-color: #34405c; }
+  .hub-icon.folder { background: #1b2748; }
+  .hub-icon.folder.c1, .hub-icon.kifu { background: #3a2c14; color: #e6b866; }
+  .hub-icon.folder.c2, .hub-icon.study { background: #133524; }
+  .hub-icon.folder.c3, .hub-icon.batch { background: #25204a; color: #a99bff; }
+  .hub-icon.folder.c4 { background: #3d1a29; color: #ff8fb6; }
+  .hub-icon.gpu { color: #4fd8ec; }
+  .hub-icon.kifu .bs { fill: #05070c; }
+  .hub-icon.kifu .ws { stroke: #05070c; }
+  .mark::before, .move.black { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
+  .mark::after, .move.white { box-shadow: none; }
+  .move.white { color: #171a22; }
+  .panel.leave { border-color: #4a2329; background: #1f1418; }
+  #toast { background: rgba(44, 53, 76, .96); }
+  #batchCard.dropping { background: #16224a; }
+  #batchWarn { color: #ff9a5c !important; }
+  dialog.sheet { box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7); }
+  dialog.sheet::backdrop { background: rgba(0, 0, 0, .5); }
+  .app-icon { background-image: url(icons/icon-dark-192.png); box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .7); }
+  .legal p, .legal li, .legal pre { color: #c5ccda; }
+}

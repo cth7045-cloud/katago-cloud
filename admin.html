@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KataGo Cloud 관리자</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<meta name="theme-color" content="#fafbfd">
+<link rel="icon" href="icons/icon-dark-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icons/icon-light-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="style.css">
 <style>
 /* 2026-09-29 가독성: 요약 카드 + 탭(GPU / 회원·잔액 / 엔진·모델 / 요금 설정), 짧은 날짜, 한국어 상태 */
@@ -61,6 +63,10 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .card .btns { margin-left: 0; }
   .card .btns button { min-height: 32px; padding: 4px 12px; font-size: 14px; }
   .card.model input.name { max-width: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .atabs { background: #1c2438; }
+  .atabs button.on { box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
 }
 </style>
 </head>

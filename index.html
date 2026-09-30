@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#fafbfd">
+<meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
 <title>KataGo Cloud · 카타고 바둑 AI 분석 (전용 GPU)</title>
 <meta name="description" content="카타고(KataGo) 바둑 AI 분석을 폰·태블릿·PC 브라우저에서. 내 전용 GPU를 쓰는 동안만 1분 단위로 빌려, 설치 없이 YZY 같은 화면으로 기보 분석·자동분석·AI대국·오답노트를 할 수 있습니다.">
 <meta name="google-site-verification" content="v_UsQmxqr3uJaiWiaClnY8N9-bGIqpBK8MPSFXmRUFs">
@@ -14,12 +15,13 @@
 <meta property="og:title" content="KataGo Cloud · 카타고 바둑 AI 분석">
 <meta property="og:description" content="카타고(KataGo) 바둑 AI 분석을 폰·태블릿·PC 브라우저에서. 내 전용 GPU를 쓰는 동안만 1분 단위로 빌려, 설치 없이 YZY 같은 화면으로 기보 분석·자동분석·AI대국·오답노트를 할 수 있습니다.">
 <meta property="og:url" content="https://katago-cloud.onrender.com/">
-<meta property="og:image" content="https://katago-cloud.onrender.com/icons/icon-512.png">
+<meta property="og:image" content="https://katago-cloud.onrender.com/icons/icon-light-512-maskable.png">
 <meta name="twitter:card" content="summary">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"KataGo Cloud","alternateName":"카타고 클라우드","url":"https://katago-cloud.onrender.com/","applicationCategory":"GameApplication","operatingSystem":"Web","inLanguage":"ko","description":"카타고(KataGo) 바둑 AI 분석을 내 전용 GPU로. 쓰는 동안만 1분 단위 요금."}</script>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-dark-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icons/icon-light-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="icons/icon-light-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KataGo Cloud">
@@ -1143,7 +1145,7 @@ function alertMember(title, body) {
   if (document.visibilityState === "visible") return;
   document.title = `● ${title} · ${baseTitle}`;
   if (notifyState() !== "granted") return;
-  const opts = { body, tag: "kgv-gpu", icon: "icons/icon-192.png", badge: "icons/badge-96.png", data: { url: location.pathname + "#gpu" } };
+  const opts = { body, tag: "kgv-gpu", icon: "icons/icon-light-192.png", badge: "icons/badge-96.png", data: { url: location.pathname + "#gpu" } };
   // Android Chrome only shows notifications through the service worker (new Notification() throws there)
   (navigator.serviceWorker?.getRegistration() || Promise.resolve(null))
     .then((reg) => reg ? reg.showNotification(title, opts) : new Notification(title, opts))

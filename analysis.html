@@ -24,8 +24,11 @@ setAppHeight(); addEventListener("resize", setAppHeight); if (window.visualViewp
 <title>KataGo 분석</title>
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#f3f5f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icons/icon-dark-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icons/icon-light-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="icons/icon-light-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KataGo Cloud">
@@ -446,6 +449,30 @@ button.primary:hover { background: var(--blue-deep); }
   #quizBar { grid-column: 1 / -1; }
   #quizBar button { width: auto; padding: 2px 16px; }
   #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
+}
+/* 다크모드: 기기 설정을 따름(2026-09-30). 색은 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판·돌 그림은 그대로. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #0c1222; --panel: #151c2e; --ink: #e8ecf4; --muted: #98a2b8; --line: #263049; --soft: #1c2438;
+    --blue: #4f7bff; --blue-deep: #9db8ff; --cyan: #22c7e0; --cyan-soft: #133340; --good: #3fcf82; --bad: #ff6b70;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 30px -16px rgba(0, 0, 0, .6);
+  }
+  button:hover, details.menu[open] > summary, details.menu > summary:hover { background: #253049; }
+  button.on { box-shadow: inset 0 0 0 1px rgba(34, 199, 224, .45); }
+  button.pink { background: #3a1d22; }
+  button.pink:hover { background: #4a2329; }
+  #analyze:hover, button.primary:hover { background: #3d69f0; }
+  #analyze.on { background: var(--ink); color: var(--paper); }
+  .menubar, .toolbar { background: rgba(21, 28, 46, .82); border-color: rgba(255, 255, 255, .06); }
+  #saveMine:not([hidden]) { background: #1b2748; color: var(--blue-deep); }
+  #saveMine:hover { background: #22305a; }
+  div.lvl button:hover, .stone-seg button:hover, .seg button:hover { background: rgba(255, 255, 255, .08); }
+  .lvl:has(button.on[data-l="ultra"])::after, .level-pop button em { color: #ff9a5c; }
+  body.dropping::after { background: rgba(22, 34, 74, .88); color: var(--blue-deep); }
+  dialog::backdrop { background: rgba(0, 0, 0, .5); }
+  .mark::after, .stone-seg i.w, .stone-seg i.bw::after, .gi-stone.w { box-shadow: none; }
+  .mark::before, .stone-seg i.b, .stone-seg i.bw::before, .gi-stone.b { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
 }
 </style>
 </head>
@@ -2765,23 +2792,36 @@ mainEl.addEventListener("touchcancel", () => { if (tg && tg.timer) clearTimeout(
 // ------------------------------------------------------------------ left panels (LizzieFrame.drawCaptured / drawMoveStatistics)
 const capCv = $("cap"), statCv = $("stat");
 let capCtx, statCtx, capW, capH, statW, statH;
+// 다크모드(기기 설정을 따름, 2026-09-30): 판 옆 그림(사석·승률 막대·그래프·변화도)의 색. 바둑판과 돌 그림은 그대로.
+const darkScheme = matchMedia("(prefers-color-scheme: dark)");
+let TH;
+function readTheme() {
+  TH = darkScheme.matches
+    ? {ink: "#e8ecf4", muted: "#98a2b8", line: "#263049", frame: "rgba(232,236,244,.35)", grid: "rgba(232,236,244,.14)",
+       stoneB: "#05070c", node: "#3a4258", branch: "#3a4258", curDot: "#fff", wr: "#5b85ff"}
+    : {ink: "#171a22", muted: "#687082", line: "#e8ebf2", frame: "rgba(23,26,34,.25)", grid: "rgba(23,26,34,.12)",
+       stoneB: "#000", node: "#d5d9e1", branch: "#c3c8d3", curDot: "#000", wr: "#2c5cf6"};
+}
+readTheme();
+darkScheme.addEventListener("change", () => { readTheme(); if (typeof boardG !== "undefined" && boardG) render(); });
 function panelFont(ctx, size) { ctx.font = `400 ${T(size)}px ${UI_FONT}`; }
 function drawCaptured() {
   if (!capCtx) return;
   const g = capCtx, W = capW, H = capH;
   g.clearRect(0, 0, W, H);
-  g.fillStyle = "#e8ebf2"; g.fillRect(T(W / 2) - 1, 10, 1, H - 20);
+  g.fillStyle = TH.line; g.fillRect(T(W / 2) - 1, 10, 1, H - 20);
   let diam = T(Math.min(T(W / 2), H) / 3); const small = T(diam / 2);
   let bd, wd; if (cur.toPlay === "B") { wd = small; bd = T(small * 3 / 2); } else { bd = small; wd = T(small * 3 / 2); }
   diam = T(diam * 3 / 2); bd = T(bd * 3 / 2); wd = T(wd * 3 / 2);
-  g.fillStyle = "#000"; g.beginPath(); g.ellipse(T(W / 4) - T(bd / 2) + bd / 2, T((diam - bd) / 2) + bd / 2, bd / 2, bd / 2, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = TH.stoneB; g.beginPath(); g.ellipse(T(W / 4) - T(bd / 2) + bd / 2, T((diam - bd) / 2) + bd / 2, bd / 2, bd / 2, 0, 0, Math.PI * 2); g.fill();
+  if (darkScheme.matches) { g.strokeStyle = TH.frame; g.lineWidth = 1; g.stroke(); }
   g.fillStyle = "#fff"; g.beginPath(); g.ellipse(T(W * 3 / 4) - T(wd / 2) + wd / 2, T((diam - wd) / 2) + wd / 2, wd / 2, wd / 2, 0, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = "rgba(23,26,34,.25)"; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = TH.frame; g.lineWidth = 1; g.stroke();
   const sd = T(H / 4) < 10 ? T(H / 4) : 10;
   g.fillStyle = analyzing ? "#1f9d55" : "#e0484d"; g.beginPath(); g.ellipse(T(W / 2) - 1, T(H * 7 / 26) + T((diam - sd) / 2) + sd / 2, sd / 2, sd / 2, 0, 0, Math.PI * 2); g.fill();
-  jString(g, UI_FONT, 400, "사석:" + cur.caps.B, T(W / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#171a22");
-  jString(g, UI_FONT, 400, "사석:" + cur.caps.W, T(W * 3 / 4), H * 28 / 32, T(H / 6), W * 3 / 10, "#171a22");
-  panelFont(g, Math.max(11, H * .18)); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  jString(g, UI_FONT, 400, "사석:" + cur.caps.B, T(W / 4), H * 28 / 32, T(H / 6), W * 3 / 10, TH.ink);
+  jString(g, UI_FONT, 400, "사석:" + cur.caps.W, T(W * 3 / 4), H * 28 / 32, T(H / 6), W * 3 / 10, TH.ink);
+  panelFont(g, Math.max(11, H * .18)); g.fillStyle = TH.ink; g.textAlign = "center"; g.textBaseline = "alphabetic";
   g.fillText(String(komi()), T(W / 2) - 1, T(H * 7 / 8));
   g.fillText("한국룰", T(W / 2) - 1, T(H * 3 / 10));
 }
@@ -2791,10 +2831,10 @@ function drawStatistics() {
   g.clearRect(0, 0, W, H);
   x += 12; y += 4; W -= 24; H -= 8;
   if (analysisHidden()) {   // move number only, like before any analysis
-    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "middle";
+    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = TH.ink; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(cur.depth), x + W / 2, y + H / 6);
     const t = quiz ? "오답노트 · 답을 고르면 분석이 보입니다" : "AI 대국 중 · 분석 숨김";
-    const f = fitFont(g, UI_FONT, 400, t, T(H / 4), W * 20 / 21); g.fillStyle = "#687082"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    const f = fitFont(g, UI_FONT, 400, t, T(H / 4), W * 20 / 21); g.fillStyle = TH.muted; g.textAlign = "left"; g.textBaseline = "alphabetic";
     g.fillText(t, x, y + T(H * 17 / 20) + f.h / 2);
     return;
   }
@@ -2821,12 +2861,12 @@ function drawStatistics() {
     const lead = curS && (cur.toPlay === "B" ? curS.score : -curS.score);
     text = `형세 ${lead >= 0 ? "흑" : "백"} ${Math.abs(lead).toFixed(1)}집 우세 · 영역 흑 ${Math.round(b)} · 백 ${Math.round(w)}`;
   }
-  { const f = fitFont(g, UI_FONT, 400, text, T(H / 4), W * 20 / 21); g.fillStyle = "#687082"; g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillText(text, x, y + T(H * 17 / 20) + f.h / 2); }
+  { const f = fitFont(g, UI_FONT, 400, text, T(H / 4), W * 20 / 21); g.fillStyle = TH.muted; g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillText(text, x, y + T(H * 17 / 20) + f.h / 2); }
   if (valid || validLast) {
     const maxW = W, bW = T(blackWR * maxW / 100), wW = T(whiteWR * maxW / 100), barY = y + T(H / 3), barX = x, barH = T(H / 3);
     g.fillStyle = "#fff"; g.fillRect(barX + bW, barY, wW, barH);
-    g.fillStyle = "#171a22"; g.fillRect(barX, barY, bW, barH);
-    g.strokeStyle = "rgba(23,26,34,.25)"; g.lineWidth = 1; g.strokeRect(barX + .5, barY + .5, maxW - 1, barH - 1);
+    g.fillStyle = TH.stoneB; g.fillRect(barX, barY, bW, barH);
+    g.strokeStyle = TH.frame; g.lineWidth = 1; g.strokeRect(barX + .5, barY + .5, maxW - 1, barH - 1);
     if (valid && validLast) {  // change-of-winrate arrow
       const gain = 100 - lastWR - curWR, blackLast = cur.toPlay === "B" ? 100 - lastWR : lastWR;
       const lastX = barX + T(blackLast * maxW / 100), posW = barX + bW, dX = Math.min(posW, lastX), dW = Math.abs(posW - lastX);
@@ -2848,7 +2888,7 @@ function drawStatistics() {
     panelFont(g, Math.min(maxW * .63, H) * .24);
     const m = g.measureText("0"), fh = Math.round(m.fontBoundingBoxAscent ?? 10) - Math.round(m.fontBoundingBoxDescent ?? 3);
     const base = y + barH - T((barH - fh) / 2);
-    g.fillStyle = "#171a22"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+    g.fillStyle = TH.ink; g.textAlign = "left"; g.textBaseline = "alphabetic";
     const sB = blackWR.toFixed(1) + "%", sW = whiteWR.toFixed(1) + "%", mvn = String(cur.depth);
     g.fillText(sB, barX + 4, base);
     g.fillText(sW, barX + maxW - g.measureText(sW).width - 4, base);
@@ -2858,20 +2898,20 @@ function drawStatistics() {
     for (let i = 1; i <= 3; i++) { const lx = barX + T(i * T(maxW / 4)) + .5; g.beginPath(); g.moveTo(lx, barY); g.lineTo(lx, barY + barH); g.stroke(); }
     g.setLineDash([]);
   } else {
-    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = "#171a22"; g.textAlign = "center"; g.textBaseline = "middle";
+    panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = TH.ink; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(cur.depth), x + W / 2, y + H / 6);
   }
 }
 
 // ------------------------------------------------------------------ win-rate graph (WinrateGraph.java, normal mode)
 const graphCv = $("graph"); let graphCtx, graphW = 280, graphH = 150;
-const WR_LINE = "#2c5cf6", WR_MISS = "#9db2f8", SCORE_LINE = "rgb(230,70,200)";
+const WR_MISS = "#9db2f8", SCORE_LINE = "rgb(230,70,200)";
 function drawGraph() {
   if (!graphCtx) return;
   const g = graphCtx; let posx = 8, posy = 0, width = graphW, height = graphH;
   g.clearRect(0, 0, width, height);
   posy += 2; width -= 16; height -= 4;
-  g.strokeStyle = "rgba(23,26,34,.12)"; g.lineWidth = 1; g.setLineDash([4, 4]);
+  g.strokeStyle = TH.grid; g.lineWidth = 1; g.setLineDash([4, 4]);
   for (let i = 1; i <= 3; i++) { const yy = posy + height - T(height * (i * 25) / 100) + .5; g.beginPath(); g.moveTo(posx, yy); g.lineTo(posx + width, yy); g.stroke(); }
   g.setLineDash([]);
   if (analysisHidden()) return;
@@ -2889,15 +2929,15 @@ function drawGraph() {
   // win rate (black perspective), 1.7 px; gaps drawn dashed in the miss colour
   g.lineWidth = 1.7;
   for (let j = 1; j < pts.length; j++) { const a = pts[j - 1], b = pts[j]; if (b.k - a.k >= 25) continue;
-    const gap = b.k - a.k > 1 && line.slice(a.k + 1, b.k).some(n => !n.pdaAn); g.strokeStyle = gap ? WR_MISS : WR_LINE; g.setLineDash(gap ? [4, 4] : []);
+    const gap = b.k - a.k > 1 && line.slice(a.k + 1, b.k).some(n => !n.pdaAn); g.strokeStyle = gap ? WR_MISS : TH.wr; g.setLineDash(gap ? [4, 4] : []);
     g.beginPath(); g.moveTo(X(a.k), Yw(a.wr)); g.lineTo(X(b.k), Yw(b.wr)); g.stroke(); }
   g.setLineDash([]);
   // current move: dot + value
   const cs = nodeStats(cur);
   if (cs) {
     const cx = X(cur.depth), cy = Math.max(posy + 3, Math.min(posy + height - 3, Yw(cs.blackWr)));
-    g.fillStyle = WR_LINE; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
-    g.font = `700 16px ${UI_FONT}`; g.fillStyle = cur.toPlay === "B" ? WR_LINE : "#171a22"; g.textBaseline = "alphabetic";
+    g.fillStyle = TH.wr; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
+    g.font = `700 16px ${UI_FONT}`; g.fillStyle = cur.toPlay === "B" ? TH.wr : TH.ink; g.textBaseline = "alphabetic";
     const s = cs.blackWr.toFixed(1), sw = g.measureText(s).width;
     const tx = Math.min(Math.max(cx - sw / 2, 0), graphW - sw);
     const ty = cs.blackWr > 50 ? (cs.blackWr > 90 ? cy + 18 : cy - 6) : (cs.blackWr < 10 ? cy - 6 : cy + 18);
@@ -2920,10 +2960,10 @@ const BLUNDER_T = [-24, -12, -6, -3, -1, 3, 100];
 const BLUNDER_C = [[155, 25, 150], [208, 16, 19], [200, 140, 50], [180, 180, 0], [140, 202, 34], [0, 220, 0], [0, 230, 230]];
 function blunderColor(node) {
   const a = node.parent && nodeStats(node.parent), b = nodeStats(node);
-  if (!a || !b || !node.move) return "#d5d9e1";
+  if (!a || !b || !node.move) return TH.node;
   const diff = (100 - b.wr) - a.wr;   // mover's win-rate change
   const k = BLUNDER_T.findIndex(t => t >= diff);
-  return k >= 0 ? `rgb(${BLUNDER_C[k].join(",")})` : "#d5d9e1";
+  return k >= 0 ? `rgb(${BLUNDER_C[k].join(",")})` : TH.node;
 }
 let treeHits = [];
 function drawTree() {
@@ -2944,7 +2984,7 @@ function drawTree() {
   treeHits = [];
   for (const [nd] of cells) if (nd.parent) {  // lines
     const [x, y] = pos(nd), [px, py] = pos(nd.parent);
-    g.strokeStyle = trunk.has(nd) ? "#171a22" : "#c3c8d3"; g.lineWidth = 1; g.beginPath();
+    g.strokeStyle = trunk.has(nd) ? TH.ink : TH.branch; g.lineWidth = 1; g.beginPath();
     if (x === px) { g.moveTo(x + 5.5, py + DOT); g.lineTo(x + 5.5, y); }
     else { g.moveTo(px + 5.5 + 5, py + 5.5); g.lineTo(x + 5.5 - XS + 5, py + 5.5); g.lineTo(x + 5.5, y + 5.5); }
     g.stroke();
@@ -2958,7 +2998,7 @@ function drawTree() {
     }
     g.fillStyle = blunderColor(nd); g.beginPath(); g.arc(x + 5.5, y + 5.5, DOT / 2, 0, Math.PI * 2); g.fill();
     if (!trunk.has(nd)) { g.fillStyle = "rgba(0,0,0,.153)"; g.fill(); }
-    if (nd === cur) { g.fillStyle = "#000"; g.beginPath(); g.arc(x + 5.5, y + 5.5, CENTER / 2, 0, Math.PI * 2); g.fill(); }
+    if (nd === cur) { g.fillStyle = TH.curDot; g.beginPath(); g.arc(x + 5.5, y + 5.5, CENTER / 2, 0, Math.PI * 2); g.fill(); }
   }
   const [cx, cy] = pos(cur);
   // whole rows/lanes only: centring exactly left a half-cut dot at the edge (tablet report 2026-09-27)

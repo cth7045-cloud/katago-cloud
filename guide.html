@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#fafbfd">
+<meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
 <title>사용 가이드 · KataGo Cloud</title>
 <meta name="description" content="KataGo Cloud 사용 가이드: 충전, GPU 빌리기, 요금, 분석 화면, 자동분석·대국 리포트, AI대국, 내 기보, 기보 분석, 오답노트.">
 <link rel="canonical" href="https://katago-cloud.onrender.com/guide.html">
@@ -13,11 +14,12 @@
 <meta property="og:title" content="사용 가이드 · KataGo Cloud">
 <meta property="og:description" content="KataGo Cloud 사용 가이드: 충전, GPU 빌리기, 요금, 분석 화면, 자동분석·대국 리포트, AI대국, 내 기보, 기보 분석, 오답노트.">
 <meta property="og:url" content="https://katago-cloud.onrender.com/guide.html">
-<meta property="og:image" content="https://katago-cloud.onrender.com/icons/icon-512.png">
+<meta property="og:image" content="https://katago-cloud.onrender.com/icons/icon-light-512-maskable.png">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-dark-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icons/icon-light-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="icons/icon-light-180.png">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
@@ -129,6 +131,14 @@ details.more .table-wrap { margin: 4px 0 8px; }
   .duo { gap: 10px; }
   .fig figcaption { font-size: 12px; }
   .doc section { padding-top: 44px; }
+}
+@media (prefers-color-scheme: dark) {
+  .doc p, .doc li { color: #c5ccda; }
+  .chip.pink { background: #3a1d22; }
+  .tip { color: #a8e6f0; }
+  .tip.warn { background: #3a2c10; color: #f0c878; }
+  .pin { box-shadow: 0 0 0 2px var(--paper), 0 2px 6px rgba(0, 0, 0, .5); }
+  .fig img, .shot-img { box-shadow: 0 0 0 1px var(--line), 0 18px 40px -22px rgba(0, 0, 0, .7); }
 }
 </style>
 </head>
