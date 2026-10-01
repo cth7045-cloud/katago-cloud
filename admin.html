@@ -64,6 +64,17 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .card .btns button { min-height: 32px; padding: 4px 12px; font-size: 14px; }
   .card.model input.name { max-width: none; }
 }
+.atabs button[data-tab="gpu"], .atabs button[data-tab="charges"] { white-space: nowrap; }
+.charge-list { display: grid; gap: 10px; }
+.charge-item { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-radius: 16px; background: var(--soft); }
+.charge-item .amt { font-size: 20px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.charge-item .req { flex: 1 1 180px; min-width: 0; }
+.charge-item .req > b { display: block; }
+.charge-item .req .muted b { font-weight: 700; color: var(--ink); }
+#pushTest[hidden], #pushOn[hidden], #pushOff[hidden] { display: none; }
+.charge-item .btns { display: flex; gap: 6px; margin-left: auto; }
+.charge-item .btns button { min-height: 38px; }
+.wrap-row { flex-wrap: wrap; }
 @media (prefers-color-scheme: dark) {
   .atabs { background: #1c2438; }
   .atabs button.on { box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
@@ -93,6 +104,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     </div>
     <nav class="atabs" id="tabs" role="tablist">
       <button data-tab="gpu" role="tab">GPU</button>
+      <button data-tab="charges" role="tab">충전<span class="n" id="chargeCount" hidden></span></button>
       <button data-tab="members" role="tab">회원·잔액</button>
       <button data-tab="engine" role="tab">엔진·모델<span class="n" id="updCount" hidden></span></button>
       <button data-tab="price" role="tab">요금 설정</button>
@@ -121,6 +133,42 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
     </div>
 
+    </section>
+
+    <!-- 충전 요청 (2026-09-30): members ask on the site; approving adds the money once (admin_charge_decide) -->
+    <section class="tab" data-tab="charges" hidden>
+    <div class="panel">
+      <h2>확인 중인 요청</h2>
+      <p class="muted small lead">입금을 확인한 뒤 승인하면 그 금액이 바로 회원 잔액에 들어갑니다. 48시간 동안 처리하지 않으면 요청이 저절로 만료됩니다.</p>
+      <div class="charge-list" id="chargePending"></div>
+    </div>
+
+    <div class="panel">
+      <h2>이 기기에서 알림 받기</h2>
+      <p class="muted small lead" id="pushNote">새 충전 요청이 오면 이 기기에 알림이 뜹니다.</p>
+      <div class="row wrap-row">
+        <button class="primary" type="button" id="pushOn">이 기기에서 알림 받기</button>
+        <button type="button" id="pushTest" hidden>시험 알림 보내기</button>
+        <button class="quiet" type="button" id="pushOff" hidden>이 기기 알림 끄기</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>입금 계좌 안내</h2>
+      <p class="muted small lead">충전을 요청한 회원에게만 보입니다(요청이 확인 중일 때만).</p>
+      <form id="accountForm" class="inline-form">
+        <label class="field">회원에게 보일 문구<input id="accountText" maxlength="300" placeholder="예: OO은행 000-0000-0000 (예금주 홍길동)"></label>
+        <button class="primary" type="submit">저장</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>최근 처리한 요청</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>요청</th><th>회원</th><th>입금자명</th><th class="num">금액</th><th>결과</th></tr></thead>
+        <tbody id="chargeDone"></tbody>
+      </table></div>
+    </div>
     </section>
 
     <section class="tab" data-tab="members" hidden>
@@ -216,7 +264,7 @@ const STATE = { creating: ["준비 중", "warn"], booting: ["준비 중", "warn"
                 stopping: ["끄는 중", "warn"], stopped: ["종료", ""], failed: ["실패", "bad"] };
 
 // tabs (remembered in the address: admin.html#engine)
-const TABS = ["gpu", "members", "engine", "price"];
+const TABS = ["gpu", "charges", "members", "engine", "price"];
 function showTab(name) {
   if (!TABS.includes(name)) name = "gpu";
   for (const sec of document.querySelectorAll("section.tab")) sec.hidden = sec.dataset.tab !== name;
@@ -226,6 +274,7 @@ function showTab(name) {
 $("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) showTab(b.dataset.tab); };
 document.querySelector(".kpis").onclick = (ev) => { const b = ev.target.closest("[data-go]"); if (b) { showTab(b.dataset.go); $("tabs").scrollIntoView({ block: "start", behavior: "smooth" }); } };
 showTab(location.hash.slice(1));
+addEventListener("hashchange", () => showTab(location.hash.slice(1)));   // a notification tap opens #charges
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
@@ -547,12 +596,106 @@ $("formerRows").onclick = async (ev) => {
   catch (e) { toast(e.message, true); }
   load();
 };
-$("reload").onclick = load;
+// ------------------------------------------------------------------ 충전 요청 (2026-09-30)
+const CSTATE = { approved: ["승인", "good"], rejected: ["거절", "bad"], canceled: ["회원이 취소", ""], expired: ["만료", ""] };
+let chargeRows = {}, accountDirty = false;
+async function loadCharges() {
+  const { data, error } = await sb.rpc("admin_charge_requests");
+  if (error) { $("chargePending").innerHTML = `<p class="muted small" style="margin:0">${esc(error.message)}</p>`; return; }
+  const rows = data.requests || [], open = rows.filter((r) => r.status === "pending"), done = rows.filter((r) => r.status !== "pending");
+  chargeRows = Object.fromEntries(rows.map((r) => [r.id, r]));
+  $("chargeCount").hidden = !open.length; $("chargeCount").textContent = open.length;
+  $("chargePending").innerHTML = open.map((r) => `<div class="charge-item"><span class="amt">${won(r.amount_krw)}</span>` +
+    `<span class="req"><b>${esc(r.name || r.email)}</b><span class="muted small">입금자명 <b>${esc(r.depositor)}</b> · ${when(r.created_at)} · 지금 잔액 ${won(r.balance_krw)}</span></span>` +
+    `<span class="btns"><button class="primary" type="button" data-ok="${r.id}">승인</button><button class="danger" type="button" data-no="${r.id}">거절</button></span></div>`).join("")
+    || `<p class="muted small" style="margin:0">확인 중인 요청이 없습니다.</p>`;
+  $("chargeDone").innerHTML = done.slice(0, 30).map((r) => {
+    const [label, tone] = CSTATE[r.status] || [r.status, ""];
+    return `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || r.email)}</td><td>${esc(r.depositor)}</td><td class="num">${won(r.amount_krw)}</td>` +
+      `<td><span class="pill ${tone}">${label}</span>${r.reason ? ` <span class="muted small">${esc(r.reason)}</span>` : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="muted">없음</td></tr>`;
+  if (!accountDirty && document.activeElement !== $("accountText")) $("accountText").value = data.account || "";
+}
+$("chargePending").onclick = async (ev) => {
+  const b = ev.target.closest("button[data-ok], button[data-no]"); if (!b) return;
+  const approve = !!b.dataset.ok, r = chargeRows[Number(b.dataset.ok || b.dataset.no)]; if (!r) return;
+  const name = r.name || r.email;
+  let reason = null;
+  if (approve) { if (!confirm(`${name} 님의 ${won(r.amount_krw)} 충전을 승인할까요?\n입금자명: ${r.depositor}\n승인하면 잔액에 바로 들어갑니다.`)) return; }
+  else { reason = prompt(`${name} 님의 ${won(r.amount_krw)} 요청을 거절합니다.\n사유(회원에게 보입니다, 비워도 됩니다)`, ""); if (reason === null) return; }
+  for (const x of b.parentElement.children) x.disabled = true;
+  const { data, error } = await sb.rpc("admin_charge_decide", { p_id: r.id, p_approve: approve, p_reason: reason });
+  if (error) toast(error.message, true);
+  else {
+    toast(approve ? `충전했습니다. ${name} 님 잔액 ${won(data.balance_krw)}` : "거절했습니다.");
+    api("/admin/charge-decided", { id: r.id }).catch(() => {});   // the member's phone; the server retries every minute
+  }
+  loadCharges(); load();
+};
+$("accountText").oninput = () => { accountDirty = true; };
+$("accountForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const { error } = await sb.rpc("admin_set_charge_account", { p_account: $("accountText").value });
+  if (error) toast(error.message, true); else { accountDirty = false; toast("입금 계좌 안내를 저장했습니다."); }
+};
+
+// 이 기기 알림 (Web Push): the server sends a notification here when a member asks for a top-up
+const pushOk = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const unb64 = (t) => Uint8Array.from(atob(t.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+const pushReg = () => navigator.serviceWorker.register("sw.js").then(() => navigator.serviceWorker.ready);
+async function saveSub(sub) {
+  const j = sub.toJSON();
+  const { error } = await sb.rpc("push_subscribe", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_device: navigator.userAgent.slice(0, 200) });
+  if (error) throw error;
+}
+async function showPush() {
+  if (!pushOk) {
+    $("pushNote").textContent = isIOS ? "아이폰·아이패드는 Safari에서 '홈 화면에 추가'한 앱으로 이 화면을 열어야 알림을 받을 수 있습니다."
+      : "이 브라우저는 알림을 지원하지 않습니다. 크롬에서 열어 주세요.";
+    $("pushOn").hidden = true; return;
+  }
+  const sub = await (await pushReg()).pushManager.getSubscription();
+  const on = !!sub && Notification.permission === "granted";
+  if (on) saveSub(sub).catch(() => {});   // keeps the server's copy of this device fresh
+  $("pushOn").hidden = on; $("pushTest").hidden = !on; $("pushOff").hidden = !on;
+  $("pushNote").textContent = Notification.permission === "denied"
+    ? "이 기기에서 알림이 차단되어 있습니다. 휴대폰 설정(또는 브라우저 사이트 설정)에서 KataGo Cloud 알림을 허용한 뒤 다시 누르세요."
+    : on ? "이 기기에서 충전 요청 알림을 받고 있습니다."
+    : "새 충전 요청이 오면 이 기기에 알림이 뜹니다. 휴대폰은 설치한 앱(홈 화면의 KataGo Cloud)에서 켜 두는 것이 가장 확실합니다.";
+}
+$("pushOn").onclick = async () => {
+  $("pushOn").disabled = true;
+  try {
+    if (await Notification.requestPermission() !== "granted") throw new Error("알림을 허용해야 받을 수 있습니다.");
+    const { publicKey } = await api("/push/key");
+    const reg = await pushReg();
+    const sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64(publicKey) });
+    await saveSub(sub);
+    toast("이제 이 기기에서 충전 요청 알림을 받습니다.");
+  } catch (e) { toast(e.message || String(e), true); }
+  finally { $("pushOn").disabled = false; showPush(); }
+};
+$("pushOff").onclick = async () => {
+  const sub = await (await pushReg()).pushManager.getSubscription();
+  if (sub) { await sb.rpc("push_unsubscribe", { p_endpoint: sub.endpoint }); await sub.unsubscribe().catch(() => {}); }
+  toast("이 기기 알림을 껐습니다."); showPush();
+};
+$("pushTest").onclick = async () => {
+  $("pushTest").disabled = true;
+  try { const r = await api("/admin/push-test", {}); toast(r.sent ? `시험 알림을 보냈습니다(${r.sent}대).` : "알림을 받을 기기가 없습니다. '이 기기에서 알림 받기'를 다시 눌러 주세요.", !r.sent); }
+  catch (e) { toast(e.message, true); }
+  finally { $("pushTest").disabled = false; }
+};
+
+$("reload").onclick = () => { load(); loadCharges(); };
 
 const { data } = await sb.auth.getSession();
 if (!data.session) location.href = "index.html";
 else {
   load(); setInterval(load, 15000);
+  loadCharges(); setInterval(loadCharges, 15000); showPush().catch(() => {});
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") loadCharges(); });
   loadEngine(); setInterval(() => { if (!engDirty && !$("enginePanel").contains(document.activeElement)) loadEngine(); }, 30000);
 }
 </script>

@@ -1,7 +1,8 @@
 // KataGo Cloud service worker. It caches nothing: every page and file still comes from the network, so a new deploy
 // shows at once. It exists so the site can be installed as an app (홈 화면에 추가), so "GPU 준비 완료" notifications
-// can be shown (Android shows them only through a worker) and open the site when tapped, and so a page opened with
-// no connection says so instead of the browser's error page.
+// can be shown (Android shows them only through a worker) and open the site when tapped, so the admin's phone gets
+// "충전 요청" push notifications (2026-09-30), and so a page opened with no connection says so instead of the
+// browser's error page.
 const OFFLINE = `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>연결 없음 · KataGo Cloud</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#fafbfd;color:#171a22;
 font:16px/1.6 'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;text-align:center;padding:24px;box-sizing:border-box">
@@ -15,13 +16,22 @@ self.addEventListener("fetch", (ev) => {
   if (ev.request.mode !== "navigate") return;   // files, API calls, the GPU connection: untouched
   ev.respondWith(fetch(ev.request).catch(() => new Response(OFFLINE, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
 });
+// a push from the server (충전 요청 to the admins): {title, body, url, tag}
+self.addEventListener("push", (ev) => {
+  let d = {};
+  try { d = ev.data ? ev.data.json() : {}; } catch { d = { body: ev.data?.text() }; }
+  ev.waitUntil(self.registration.showNotification(d.title || "KataGo Cloud", {
+    body: d.body || "", tag: d.tag, renotify: !!d.tag, icon: "icons/icon-light-192.png", badge: "icons/badge-96.png",
+    data: { url: d.url || "./", exact: true },
+  }));
+});
 self.addEventListener("notificationclick", (ev) => {
   ev.notification.close();
   const url = new URL(ev.notification.data?.url || "./", self.registration.scope).href;
   ev.waitUntil((async () => {
     const pages = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const home = pages.find((c) => new URL(c.url).pathname === new URL(url).pathname) || pages[0];
-    if (home) { await home.focus(); return; }
+    const home = pages.find((c) => new URL(c.url).pathname === new URL(url).pathname) || (ev.notification.data?.exact ? null : pages[0]);
+    if (home) { await home.focus(); if (ev.notification.data?.exact && home.url !== url) await home.navigate(url).catch(() => {}); return; }
     await self.clients.openWindow(url);
   })());
 });

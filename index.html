@@ -299,18 +299,52 @@
       </div>
     </div>
 
-    <!-- 잔액 충전 (#charge): members ask the operator through the KakaoTalk open chat -->
+    <!-- 잔액 충전 (#charge): members ask on the site (2026-09-30); the admin approves after the money arrives -->
     <div class="wrap app hidden" id="chargeView">
       <a class="back to-hub" href="./">‹ 처음으로</a>
       <h1 class="page-title">잔액 충전</h1>
       <div class="panel charge-card">
-        <p class="charge-lead">잔액 충전은 관리자에게 문의하세요</p>
-        <p class="muted small" style="margin:0">카카오톡 오픈채팅으로 충전할 금액을 알려 주시면 안내해 드립니다.</p>
-        <img class="charge-qr" src="charge/kakao-openchat-qr.png" width="800" height="800" alt="카카오톡 오픈채팅방 QR 코드">
-        <p class="muted small hide-sm" style="margin:0">휴대폰 카메라로 QR 코드를 찍으면 오픈채팅방이 열립니다.</p>
-        <a class="btn primary charge-open" href="https://open.kakao.com/o/ssRZTShi" target="_blank" rel="noopener">카카오톡 오픈채팅 열기</a>
         <p class="small charge-balance">지금 잔액 <b id="chargeBalance">-</b></p>
+        <form id="chargeForm" class="charge-form">
+          <p class="charge-lead">충전할 금액을 고르세요</p>
+          <div class="seg charge-amounts" id="chargeAmounts" role="group" aria-label="충전 금액">
+            <button type="button" data-amount="1000">1,000원</button>
+            <button type="button" data-amount="5000">5,000원</button>
+            <button type="button" data-amount="10000">10,000원</button>
+          </div>
+          <label class="field">금액 (1,000원 단위, 최대 50,000원)<input id="chargeAmount" type="number" inputmode="numeric" min="1000" max="50000" step="1000" required></label>
+          <label class="field">입금자명<input id="chargeDepositor" maxlength="30" autocomplete="name" required></label>
+          <button class="primary" type="submit" id="chargeSubmit">충전 요청</button>
+          <p class="muted small" style="margin:0">요청하면 입금할 계좌가 나옵니다. 입금이 확인되면 관리자가 잔액을 넣어 드립니다.</p>
+          <div class="error" id="chargeError"></div>
+        </form>
+        <div class="charge-wait hidden" id="chargeOpen">
+          <span class="pill warn">입금 확인 중</span>
+          <p class="charge-lead"><span id="coAmount"></span>을 아래 계좌로 보내 주세요</p>
+          <div class="charge-account"><span id="coAccount"></span><button type="button" id="coCopy">복사</button></div>
+          <p class="small" style="margin:0">입금자명 <b id="coDepositor"></b> · <span id="coWhen"></span> 요청</p>
+          <p class="muted small" style="margin:0">입금자명이 다르면 확인이 늦어질 수 있습니다. 관리자가 확인하면 잔액이 바로 늘어납니다. 48시간 안에 확인되지 않으면 요청이 만료됩니다.</p>
+          <p class="small" style="margin:0" id="coPush"></p>
+          <button class="quiet" type="button" id="coCancel">요청 취소</button>
+        </div>
       </div>
+
+      <div class="panel hidden" id="chargeHistory">
+        <h2>최근 요청</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>요청</th><th class="num">금액</th><th>입금자명</th><th>결과</th></tr></thead>
+          <tbody id="chargeRows"></tbody>
+        </table></div>
+      </div>
+
+      <details class="panel charge-ask">
+        <summary>문의 · 카카오톡 오픈채팅</summary>
+        <div class="charge-ask-body">
+          <img class="charge-qr" src="charge/kakao-openchat-qr.png" width="800" height="800" alt="카카오톡 오픈채팅방 QR 코드" loading="lazy">
+          <p class="muted small hide-sm" style="margin:0">휴대폰 카메라로 QR 코드를 찍으면 오픈채팅방이 열립니다.</p>
+          <a class="btn primary charge-open" href="https://open.kakao.com/o/ssRZTShi" target="_blank" rel="noopener">카카오톡 오픈채팅 열기</a>
+        </div>
+      </details>
     </div>
 
     <!-- my account (#me) -->
@@ -487,7 +521,7 @@ sb.auth.onAuthStateChange((_event, s) => {
 });
 
 function leave() {
-  vastBalance = null; vastAt = 0;
+  vastBalance = null; vastAt = 0; chargeOpen = null; chargeAt = 0;
   entered = false; clearInterval(pollTimer); profile = null; delete $("balance").dataset.v;
   swap(() => { $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
@@ -526,10 +560,11 @@ async function refresh() {
   $("walletNote").textContent = p.is_admin
     ? "관리자 잔액은 Vast 잔액에서 회원들이 충전해 둔 잔액을 뺀 금액입니다. 관리자 GPU는 원가로 여기서 나가고, 0원이 되면 자동으로 꺼집니다."
     : "";
-  if (!p.is_admin) $("walletNote").innerHTML = `충전은 <a href="#charge">잔액 충전</a>에서 관리자에게 문의하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.`;
+  if (!p.is_admin) $("walletNote").innerHTML = `충전은 <a href="#charge">잔액 충전</a>에서 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.`;
   $("who").textContent = p.name || p.email;
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
   $("meBalance").textContent = won(balance); $("chargeBalance").textContent = won(balance);
+  if (!p.is_admin && (chargeOpen || !chargeAt) && Date.now() - chargeAt > 15_000) loadCharge();   // an open 충전 요청: approved yet?
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   $("adminLink").classList.toggle("hidden", !p.is_admin);
   $("chargeLink").classList.toggle("hidden", p.is_admin);   // the operator tops up members, not their own balance
@@ -1063,6 +1098,7 @@ function showPage() {
   $("meLink").classList.toggle("on", page === "meView");
   $("chargeLink").classList.toggle("on", page === "chargeView");
   if (page === "mineView") showMineFolder();
+  if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
   window.scrollTo(0, 0);
@@ -1094,6 +1130,103 @@ async function busy(form, fn) {
   button.disabled = true;
   try { await fn(); } finally { button.disabled = false; }
 }
+// ------------------------------------------------------------------ 잔액 충전 요청 (2026-09-30)
+// charge_request / charge_cancel / my_charge_requests are DB functions; /charge/notify tells the admin's phone at once
+const CH_STATE = { pending: ["확인 중", "warn"], approved: ["충전됨", "good"], rejected: ["거절", "bad"], canceled: ["취소", ""], expired: ["만료", ""] };
+let chargeOpen = null, chargeAt = 0;
+const shortWhen = (iso) => { const d = new Date(iso), p = (n) => String(n).padStart(2, "0"); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+async function loadCharge() {
+  chargeAt = Date.now();
+  const { data, error } = await sb.rpc("my_charge_requests");
+  if (error || !data) return;
+  const rows = data.requests || [], open = rows.find((r) => r.status === "pending") || null;
+  // the one we were waiting for was decided: say so wherever the member is
+  if (chargeOpen && !open) {
+    const was = rows.find((r) => r.id === chargeOpen.id);
+    if (was?.status === "approved") { toast(`${won(was.amount_krw)} 충전됐습니다.`); refresh(); }
+    else if (was?.status === "rejected") toast(`충전 요청이 거절됐습니다${was.reason ? `: ${was.reason}` : "."}`, true);
+  }
+  chargeOpen = open;
+  $("chargeForm").classList.toggle("hidden", !!open);
+  $("chargeOpen").classList.toggle("hidden", !open);
+  if (open) {
+    $("coAmount").textContent = won(open.amount_krw);
+    $("coAccount").textContent = data.account || "계좌 안내가 아직 없습니다. 아래 카카오톡 오픈채팅으로 문의해 주세요.";
+    $("coCopy").hidden = !data.account;
+    $("coDepositor").textContent = open.depositor;
+    $("coWhen").textContent = shortWhen(open.created_at);
+    showChargePush();
+  }
+  $("chargeHistory").classList.toggle("hidden", !rows.length);
+  $("chargeRows").innerHTML = rows.map((r) => {
+    const [label, tone] = CH_STATE[r.status] || [r.status, ""];
+    return `<tr><td>${shortWhen(r.created_at)}</td>` +
+      `<td class="num">${won(r.amount_krw)}</td><td>${esc(r.depositor)}</td><td><span class="pill ${tone}">${label}</span>` +
+      `${r.reason ? ` <span class="muted small">${esc(r.reason)}</span>` : ""}</td></tr>`;
+  }).join("");
+}
+// the result reaches this device as a notification (Web Push from the server) when the admin decides
+const pushOk = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+async function memberPush() {
+  if (!pushOk || Notification.permission !== "granted") return false;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const { publicKey } = await api("/push/key");
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(atob(publicKey.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)) });
+  }
+  const j = sub.toJSON();
+  const { error } = await sb.rpc("push_subscribe", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_device: navigator.userAgent.slice(0, 200) });
+  if (error) throw error;
+  return true;
+}
+function showChargePush() {
+  const p = pushOk ? Notification.permission : "unsupported";
+  $("coPush").innerHTML = p === "granted" ? "처리되면 이 기기로 알림을 보내 드립니다."
+    : p === "default" ? `<button type="button" class="btn" id="coPushOn">처리되면 알림 받기</button>`
+    : p === "denied" ? '<span class="muted">알림이 꺼져 있어 처리 결과는 이 화면에서 확인해 주세요.</span>'
+    : '<span class="muted">처리 결과는 이 화면에서 확인해 주세요.</span>';
+}
+$("coPush").onclick = async (ev) => {
+  if (ev.target.id !== "coPushOn") return;
+  try { if (await Notification.requestPermission() === "granted") await memberPush(); } catch (e) { toast(e.message || String(e), true); }
+  showChargePush();
+};
+function showChargeAmount() {
+  for (const b of $("chargeAmounts").children) b.setAttribute("aria-pressed", String(Number(b.dataset.amount) === Number($("chargeAmount").value)));
+}
+$("chargeAmounts").onclick = (ev) => { const b = ev.target.closest("button"); if (!b) return; $("chargeAmount").value = b.dataset.amount; showChargeAmount(); };
+$("chargeAmount").oninput = showChargeAmount;
+$("chargeForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  $("chargeError").textContent = "";
+  const amount = Number($("chargeAmount").value), depositor = $("chargeDepositor").value.trim();
+  if (!(amount >= 1000 && amount <= 50000 && amount % 1000 === 0)) { $("chargeError").textContent = "금액은 1,000원 ~ 50,000원, 1,000원 단위로 넣어 주세요."; return; }
+  $("chargeSubmit").disabled = true;
+  // asked here, while the tap still counts (browsers allow the prompt only right after one)
+  const asked = pushOk && Notification.permission === "default" ? Notification.requestPermission().catch(() => "default") : null;
+  try {
+    const { error } = await sb.rpc("charge_request", { p_amount: amount, p_depositor: depositor });
+    if (error) throw error;
+    api("/charge/notify", {}).catch(() => {});   // the admin's phone; the server retries every minute if this fails
+    if (asked) await asked;
+    memberPush().catch(() => {}).finally(showChargePush);
+    await loadCharge();
+    toast("충전을 요청했습니다. 안내된 계좌로 입금해 주세요.");
+  } catch (err) { $("chargeError").textContent = err.message || String(err); }
+  finally { $("chargeSubmit").disabled = false; }
+};
+$("coCancel").onclick = async () => {
+  if (!chargeOpen || !confirm(`${won(chargeOpen.amount_krw)} 충전 요청을 취소할까요?\n이미 입금했다면 취소하지 말고 기다려 주세요.`)) return;
+  const { error } = await sb.rpc("charge_cancel", { p_id: chargeOpen.id });
+  if (error) toast(error.message, true); else { chargeOpen = null; toast("요청을 취소했습니다."); }
+  loadCharge();
+};
+$("coCopy").onclick = async () => {
+  const text = $("coAccount").textContent, num = (text.match(/\d[\d-]{6,}\d/) || [text])[0];
+  try { await navigator.clipboard.writeText(num); toast(`복사했습니다: ${num}`); } catch { toast("복사하지 못했습니다. 길게 눌러 복사해 주세요.", true); }
+};
+
 // 화면 밝기(theme.js): 기기 설정 따라가기 / 밝게 / 어둡게
 function showTheme() { for (const b of $("themeSeg").children) b.setAttribute("aria-pressed", String(b.dataset.theme === kcTheme.pref())); }
 $("themeSeg").onclick = (ev) => { const b = ev.target.closest("button"); if (b) kcTheme.set(b.dataset.theme); };
