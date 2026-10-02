@@ -66,7 +66,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .card.model input.name { max-width: none; }
 }
 .atabs button[data-tab="gpu"], .atabs button[data-tab="charges"] { white-space: nowrap; }
-.charge-list { display: grid; gap: 10px; }
+.charge-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .charge-item { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-radius: 16px; background: var(--soft); }
 .charge-item .amt { font-size: 20px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .charge-item .req { flex: 1 1 180px; min-width: 0; }
@@ -75,7 +75,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 #pushTest[hidden], #pushOn[hidden], #pushOff[hidden] { display: none; }
 .charge-item .btns { display: flex; gap: 6px; margin-left: auto; }
 .charge-item .btns button { min-height: 38px; }
-.charge-item .memo { flex: 1 1 100%; min-height: 38px; }
+.charge-item .memo { flex: 1 1 100%; width: 100%; min-width: 0; min-height: 38px; }
 .memo-cell { max-width: 240px; }
 .memo-cell button { padding: 2px 8px; min-height: 0; font-size: 13px; }
 .wrap-row { flex-wrap: wrap; }
@@ -143,7 +143,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     <section class="tab" data-tab="charges" hidden>
     <div class="panel">
       <h2>확인 중인 요청</h2>
-      <p class="muted small lead">입금을 확인한 뒤 승인하면 그 금액이 바로 회원 잔액에 들어갑니다. 48시간 동안 처리하지 않으면 요청이 저절로 만료됩니다. 메모는 관리자만 봅니다.</p>
+      <p class="muted small lead">입금을 확인한 뒤 승인하면 그 금액이 바로 회원 잔액에 들어갑니다. 48시간 동안 처리하지 않으면 요청이 저절로 만료됩니다. 메모를 적으면 승인·거절 알림과 함께 그 회원에게 보입니다.</p>
       <div class="charge-list" id="chargePending"></div>
     </div>
 
@@ -613,13 +613,13 @@ async function loadCharges() {
   $("chargePending").innerHTML = open.map((r) => `<div class="charge-item"><span class="amt">${won(r.amount_krw)}</span>` +
     `<span class="req"><b>${esc(r.name || r.email)}</b><span class="muted small">입금자명 <b>${esc(r.depositor)}</b> · ${when(r.created_at)} · 지금 잔액 ${won(r.balance_krw)}</span></span>` +
     `<span class="btns"><button class="primary" type="button" data-ok="${r.id}">승인</button><button class="danger" type="button" data-no="${r.id}">거절</button></span>` +
-    `<input class="memo" data-memo="${r.id}" maxlength="200" placeholder="메모 (관리자만 보임, 비워도 됨)" value="${esc(memoDraft[r.id] ?? r.admin_memo ?? "")}"></div>`).join("")
+    `<input class="memo" data-memo="${r.id}" maxlength="200" placeholder="회원에게 보낼 메모 (비워도 됨)" value="${esc(memoDraft[r.id] ?? "")}"></div>`).join("")
     || `<p class="muted small" style="margin:0">확인 중인 요청이 없습니다.</p>`;
   $("chargeDone").innerHTML = done.slice(0, 30).map((r) => {
     const [label, tone] = CSTATE[r.status] || [r.status, ""];
     return `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || r.email)}</td><td>${esc(r.depositor)}</td><td class="num">${won(r.amount_krw)}</td>` +
-      `<td><span class="pill ${tone}">${label}</span>${r.reason ? ` <span class="muted small">${esc(r.reason)}</span>` : ""}</td>` +
-      `<td class="memo-cell">${r.admin_memo ? `<span class="small">${esc(r.admin_memo)}</span> ` : ""}<button type="button" class="quiet" data-edit="${r.id}">${r.admin_memo ? "고치기" : "메모"}</button></td></tr>`;
+      `<td><span class="pill ${tone}">${label}</span></td>` +
+      `<td class="memo-cell">${r.reason ? `<span class="small">${esc(r.reason)}</span> ` : ""}<button type="button" class="quiet" data-edit="${r.id}">${r.reason ? "고치기" : "메모"}</button></td></tr>`;
   }).join("") || `<tr><td colspan="6" class="muted">없음</td></tr>`;
   if (!accountDirty && document.activeElement !== $("accountText")) $("accountText").value = data.account || "";
 }
@@ -627,16 +627,14 @@ $("chargePending").onclick = async (ev) => {
   const b = ev.target.closest("button[data-ok], button[data-no]"); if (!b) return;
   const approve = !!b.dataset.ok, r = chargeRows[Number(b.dataset.ok || b.dataset.no)]; if (!r) return;
   const name = r.name || r.email;
-  let reason = null;
-  if (approve) { if (!confirm(`${name} 님의 ${won(r.amount_krw)} 충전을 승인할까요?\n입금자명: ${r.depositor}\n승인하면 잔액에 바로 들어갑니다.`)) return; }
-  else { reason = prompt(`${name} 님의 ${won(r.amount_krw)} 요청을 거절합니다.\n사유(회원에게 보입니다, 비워도 됩니다)`, ""); if (reason === null) return; }
-  const memo = (memoDraft[r.id] ?? "").trim();
+  const memo = (memoDraft[r.id] ?? "").trim(), memoLine = memo ? `\n회원에게 보낼 메모: ${memo}` : "\n회원에게 보낼 메모: 없음";
+  if (approve) { if (!confirm(`${name} 님의 ${won(r.amount_krw)} 충전을 승인할까요?\n입금자명: ${r.depositor}${memoLine}\n승인하면 잔액에 바로 들어갑니다.`)) return; }
+  else if (!confirm(`${name} 님의 ${won(r.amount_krw)} 요청을 거절할까요?${memoLine}`)) return;
   for (const x of b.parentElement.children) x.disabled = true;
-  const { data, error } = await sb.rpc("admin_charge_decide", { p_id: r.id, p_approve: approve, p_reason: reason });
+  const { data, error } = await sb.rpc("admin_charge_decide", { p_id: r.id, p_approve: approve, p_reason: memo || null });
   if (error) toast(error.message, true);
   else {
     delete memoDraft[r.id];
-    if (memo) { const m = await sb.rpc("admin_charge_memo", { p_id: r.id, p_memo: memo }); if (m.error) toast("처리는 됐지만 메모를 저장하지 못했습니다: " + m.error.message, true); }
     toast(approve ? `충전했습니다. ${name} 님 잔액 ${won(data.balance_krw)}` : "거절했습니다.");
     api("/admin/charge-decided", { id: r.id }).catch(() => {});   // the member's phone; the server retries every minute
   }
@@ -646,7 +644,7 @@ $("chargePending").oninput = (ev) => { const id = ev.target.dataset.memo; if (id
 $("chargeDone").onclick = async (ev) => {
   const b = ev.target.closest("button[data-edit]"); if (!b) return;
   const r = chargeRows[Number(b.dataset.edit)]; if (!r) return;
-  const memo = prompt(`${r.name || r.email} 님 ${won(r.amount_krw)} 요청의 메모 (관리자만 봅니다, 비우면 지워집니다)`, r.admin_memo || "");
+  const memo = prompt(`${r.name || r.email} 님 ${won(r.amount_krw)} 요청의 메모\n회원의 충전 화면에 보입니다(알림은 다시 가지 않습니다). 비우면 지워집니다.`, r.reason || "");
   if (memo === null) return;
   const { error } = await sb.rpc("admin_charge_memo", { p_id: r.id, p_memo: memo });
   if (error) toast(error.message, true); else { toast("메모를 저장했습니다."); loadCharges(); }

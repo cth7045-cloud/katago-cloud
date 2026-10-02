@@ -1143,7 +1143,7 @@ async function loadCharge() {
   // the one we were waiting for was decided: say so wherever the member is
   if (chargeOpen && !open) {
     const was = rows.find((r) => r.id === chargeOpen.id);
-    if (was?.status === "approved") { toast(`${won(was.amount_krw)} 충전됐습니다.`); refresh(); }
+    if (was?.status === "approved") { toast(`${won(was.amount_krw)} 충전됐습니다.${was.reason ? ` ${was.reason}` : ""}`); refresh(); }
     else if (was?.status === "rejected") toast(`충전 요청이 거절됐습니다${was.reason ? `: ${was.reason}` : "."}`, true);
   }
   chargeOpen = open;
