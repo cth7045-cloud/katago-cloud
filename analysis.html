@@ -1749,8 +1749,12 @@ $("saveMine").onclick = async () => {
   saveNotesBase = mainLine().some(n => n.move && moveLoss(n)) || analysisRunning();
   savePick = {kifu: true, notes: false, auto: false};
   try { savePick = {...savePick, ...JSON.parse(localStorage.getItem("kgv.saveDo") || "{}")}; } catch { /* storage blocked */ }
-  $("saveDoAutoRow").hidden = !canAutoFirst();
-  $("saveDoAuto").checked = !$("saveDoAutoRow").hidden && (savePick.auto || !saveNotesBase);   // nothing analysed yet: offer it ticked
+  // 먼저 자동분석 always shows (user request 2026-10-03: it had vanished while an analysis ran or the GPU reconnected):
+  // GPU idle = pick the level; an analysis running = wait for it (ticked); not connected = greyed out with the reason
+  const busy = analysisRunning();
+  $("saveDoAutoRow").hidden = viewOnly;
+  $("saveDoAuto").disabled = !canAutoFirst() && !busy;
+  $("saveDoAuto").checked = busy || (canAutoFirst() && (savePick.auto || !saveNotesBase));   // nothing analysed yet: offer it ticked
   $("saveDoKifu").checked = savePick.kifu;
   $("saveDoNotes").checked = savePick.notes;
   $("saveDoStopRow").hidden = !gpuOn(); $("saveDoStop").checked = false;   // off every time: turning the GPU off is never a leftover choice
@@ -1789,16 +1793,22 @@ $("saveFolder").onchange = async () => {
 let saveNotesBase = false, savePick = {};
 const canAutoFirst = () => !!(ws && ws.readyState === 1) && !viewOnly && !analysisRunning();   // the GPU is there and idle
 const autoTodo = () => mainLine().filter(n => !analysed(n)).length;
-const autoFirst = () => !$("saveDoAutoRow").hidden && $("saveDoAuto").checked && autoTodo() > 0;
+const autoFirst = () => !$("saveDoAutoRow").hidden && $("saveDoAuto").checked && canAutoFirst() && autoTodo() > 0;
+const waitRunning = () => !$("saveDoAutoRow").hidden && $("saveDoAuto").checked && analysisRunning();   // save when it ends
 function saveDoChanged() {
   const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked, stop = $("saveDoStop").checked && !$("saveDoStopRow").hidden;
   // 먼저 자동분석: the level buttons show while it is ticked; nothing left at this level = nothing to wait for
-  const todo = autoTodo(), autoOn = !$("saveDoAutoRow").hidden && $("saveDoAuto").checked;
+  const todo = autoTodo(), box0 = $("saveDoAuto"), autoOn = !$("saveDoAutoRow").hidden && box0.checked && canAutoFirst();
+  const running = autoId ? "자동분석" : strengthId ? "대국 리포트" : "", rq = queries.get(autoId || strengthId);
+  box0.parentElement.classList.toggle("off", box0.disabled);
   $("saveLevel").hidden = !autoOn;
-  $("saveDoAutoHint").textContent = !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
+  $("saveDoAutoHint").textContent = box0.disabled ? "GPU에 연결돼 있지 않아 지금은 자동분석을 할 수 없습니다. 연결된 뒤 다시 누르세요."
+    : running ? (box0.checked ? `지금 ${running} 중입니다${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}. 끝난 뒤 저장합니다. 끄면 지금까지 분석된 그대로 바로 저장합니다.`
+                              : `지금 ${running} 중입니다. 켜면 끝난 뒤 저장합니다.`)
+    : !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
     : todo ? `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`
     : "이 세기로 이미 모두 분석돼 있어 바로 저장합니다.";
-  const auto = autoFirst(), wait = auto || (stop && analysisRunning());
+  const auto = autoFirst(), wait = auto || ((stop || waitRunning()) && analysisRunning());
   // 오답노트: possible once something is analysed, or will be. With 다 끝나면 GPU 끄기 nobody may be there to pick, so a
   // ticked box takes every candidate; unticked, none (user request 2026-10-03: not wanting a 오답노트 is a choice too)
   const notesOk = saveNotesBase || auto, box = $("saveDoNotes");
@@ -1818,7 +1828,7 @@ function saveDoChanged() {
 }
 $("saveDo").addEventListener("change", () => {
   try {   // remember the boxes that could be changed; a greyed-out one keeps its last choice
-    for (const k of ["Kifu", "Notes", "Auto"]) if (!$("saveDo" + k).disabled && !$("saveDo" + k).closest("[hidden]")) savePick[k.toLowerCase()] = $("saveDo" + k).checked;
+    for (const k of ["Kifu", "Notes", "Auto"]) if (!$("saveDo" + k).disabled && !$("saveDo" + k).closest("[hidden]") && !(k === "Auto" && analysisRunning())) savePick[k.toLowerCase()] = $("saveDo" + k).checked;
     localStorage.setItem("kgv.saveDo", JSON.stringify(savePick));
   } catch { /* storage blocked */ }
   saveDoChanged();
@@ -1834,13 +1844,14 @@ async function saveMine(asNew) {
   const folder = $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
   try { localStorage.setItem("kgv.saveFolder", folder || ""); } catch { /* storage blocked */ }
   const auto = autoFirst();
-  if (auto || (stop && analysisRunning())) {   // save (and add the mistakes) when the analysis ends; 다 끝나면: then the GPU goes off
+  if (auto || ((stop || waitRunning()) && analysisRunning())) {   // save (and add the mistakes) when the analysis ends; 다 끝나면: then the GPU goes off
     if (auto) startAuto(false);
     if (!analysisRunning()) { say("자동분석을 시작하지 못했습니다. GPU 연결을 확인하세요.", true); return; }
     finishPlan = {kifu, notes, title, asNew, root, folder, stop};
     $("saveDlg").close();
     const what = [kifu && "저장", notes && (stop ? "오답노트 후보 모두 담기" : "오답노트 목록 열기"), stop && "GPU 끄기"].filter(Boolean).join(" → ");
-    $("err").textContent = `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${what}를 합니다`;
+    const jong = (what.charCodeAt(what.length - 1) - 0xAC00) % 28 > 0;   // 저장을 / 끄기를
+    $("err").textContent = `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${what}${jong ? "을" : "를"} 합니다`;
     return;
   }
   if (kifu) {
