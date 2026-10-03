@@ -85,6 +85,9 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 #saveDo label.check input { margin-top: 3px; flex: none; }
 #saveDo label.check small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #saveDo label.check.off { opacity: .45; }
+#saveDoAutoRow .lvl { margin: 4px 0 4px 22px; }
+#saveDoAutoRow .lvl[hidden] { display: none; }
+#saveDoAutoRow .lvl:has(button.on[data-l="ultra"]) { margin-bottom: 26px; }
 .home-back { font-weight: 700; font-size: 14px; padding: 5px 10px; border-radius: 999px; background: var(--soft, #f1f4f9); color: inherit; text-decoration: none; white-space: nowrap; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
 .mark { width: 24px; height: 24px; flex: none; border-radius: 6px; background: url(icons/icon-light-192.png) center / cover; }   /* 앱 아이콘과 같은 그림(2026-09-30) */
@@ -584,6 +587,8 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="muted" id="saveInfo"></div>
     <label class="gd-row" id="saveFolderRow"><span>분류</span><select id="saveFolder" aria-label="분류"></select></label>
     <div id="saveDo" role="group" aria-label="만들 것">
+      <div id="saveDoAutoRow"><label class="check"><input type="checkbox" id="saveDoAuto"><span>먼저 자동분석<small id="saveDoAutoHint"></small></span></label>
+        <div class="lvl" id="saveLevel" role="group" aria-label="자동분석 세기"><button type="button" data-l="fast">빠름</button><button type="button" data-l="normal">보통</button><button type="button" data-l="precise">정밀</button><button type="button" data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div></div>
       <label class="check"><input type="checkbox" id="saveDoKifu"><span>기보 저장<small>기보와 분석값을 내 기보에 저장합니다.</small></span></label>
       <label class="check"><input type="checkbox" id="saveDoNotes"><span>오답노트 만들기<small id="saveDoNotesHint"></small></span></label>
       <label class="check" id="saveDoStopRow"><input type="checkbox" id="saveDoStop"><span>다 끝나면 GPU 끄기<small id="saveDoStopHint"></small></span></label>
@@ -1068,6 +1073,7 @@ function levelButtons() {
 function setLevel(l) {
   level = l; try { localStorage.setItem("kgv.level", level); } catch { /* storage blocked */ }
   levelButtons(); if (!autoId) autoButton(); schedule();
+  if ($("saveDlg").open) saveDoChanged();   // the save window's 먼저 자동분석 counts the moves for this level
 }
 document.querySelectorAll(".lvl").forEach(g => g.addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setLevel(b.dataset.l); }));
 // Landscape: pressing 자동분석 / 대국 리포트 opens a small list of levels; picking one sets it and starts.
@@ -1736,18 +1742,17 @@ $("saveMine").onclick = async () => {
   $("saveTitle").value = again ? mineTitle : mineDefaultTitle();
   $("saveInfo").textContent = `${st.moves}수 · 분석된 국면 ${st.analyzed}개` + (again ? " · 이미 저장한 기보입니다" : "");
   $("saveMsg").textContent = ""; $("saveMsg").classList.remove("bad");
-  // only the checked ones: the game (내 기보), 오답노트 (the mistake list opens)
-  const notesOk = lineThrough(cur).some(n => n.move && moveLoss(n)) || analysisRunning();
-  $("saveDoNotesHint").textContent = notesOk ? "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요."
-    : "분석된 수가 없어 만들 수 없습니다. 자동분석을 한 뒤 다시 누르세요.";
-  let pick = {kifu: true, notes: false};
-  try { pick = {...pick, ...JSON.parse(localStorage.getItem("kgv.saveDo") || "{}")}; } catch { /* storage blocked */ }
-  for (const [k, ok] of [["Kifu", true], ["Notes", notesOk]]) {
-    const box = $("saveDo" + k); box.disabled = !ok; box.checked = ok && pick[k.toLowerCase()]; box.parentElement.classList.toggle("off", !ok);
-  }
-  if (!["Kifu", "Notes"].some(k => $("saveDo" + k).checked)) $("saveDoKifu").checked = true;   // never open with nothing to do
+  // only the checked ones: 먼저 자동분석 (at the shared level), the game (내 기보), 오답노트 (the mistake list opens)
+  saveNotesBase = lineThrough(cur).some(n => n.move && moveLoss(n)) || analysisRunning();
+  savePick = {kifu: true, notes: false, auto: false};
+  try { savePick = {...savePick, ...JSON.parse(localStorage.getItem("kgv.saveDo") || "{}")}; } catch { /* storage blocked */ }
+  $("saveDoAutoRow").hidden = !canAutoFirst();
+  $("saveDoAuto").checked = !$("saveDoAutoRow").hidden && (savePick.auto || !saveNotesBase);   // nothing analysed yet: offer it ticked
+  $("saveDoKifu").checked = savePick.kifu;
+  $("saveDoNotes").checked = savePick.notes;
   $("saveDoStopRow").hidden = !gpuOn(); $("saveDoStop").checked = false;   // off every time: turning the GPU off is never a leftover choice
   saveDoChanged();
+  if (!["Kifu", "Notes"].some(k => $("saveDo" + k).checked)) { $("saveDoKifu").checked = true; saveDoChanged(); }   // never open with nothing to do
   await fillSaveFolders(again ? mineFolder : hashFolder || (() => { try { return localStorage.getItem("kgv.saveFolder"); } catch { return null; } })());
   $("saveDlg").showModal();
 };
@@ -1778,26 +1783,40 @@ $("saveFolder").onchange = async () => {
   }
   await fillSaveFolders(data.id);
 };
+let saveNotesBase = false, savePick = {};
+const canAutoFirst = () => !!(ws && ws.readyState === 1) && !viewOnly && !analysisRunning();   // the GPU is there and idle
+const autoTodo = () => lineThrough(cur).filter(n => !analysed(n)).length;
+const autoFirst = () => !$("saveDoAutoRow").hidden && $("saveDoAuto").checked && autoTodo() > 0;
 function saveDoChanged() {
-  const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked;
-  $("saveTitle").hidden = !kifu; $("saveAsNew").hidden = !(kifu && again);
-  const wait = $("saveDoStop").checked && analysisRunning();
-  $("saveGo").textContent = (wait ? "끝나면 " : "") + (kifu ? (again ? "덮어쓰기" : "저장") : "만들기");
-  $("saveDoStopHint").textContent = analysisRunning()
-    ? `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 저장하고 GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
-    : "저장이 끝나면" + ($("saveDoNotes").checked ? "(오답노트는 담기 창을 닫으면)" : "") + " GPU를 끄고 삭제해 요금을 멈춥니다.";
-  if (!$("saveDoNotes").disabled) $("saveDoNotesHint").textContent = wait
-    ? "분석이 끝나면 목록을 따로 고르지 않고, 오답노트에 담기 창에서 마지막으로 고른 기준(누구의 실수·실수 기준)으로 바로 담습니다."
+  const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked, stop = $("saveDoStop").checked && !$("saveDoStopRow").hidden;
+  // 먼저 자동분석: the level buttons show while it is ticked; nothing left at this level = nothing to wait for
+  const todo = autoTodo(), autoOn = !$("saveDoAutoRow").hidden && $("saveDoAuto").checked;
+  $("saveLevel").hidden = !autoOn;
+  $("saveDoAutoHint").textContent = !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
+    : todo ? `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`
+    : "이 세기로 이미 모두 분석돼 있어 바로 저장합니다.";
+  const auto = autoFirst(), wait = auto || (stop && analysisRunning());
+  // 오답노트: possible once something is analysed, or will be; turning the GPU off always takes every candidate along
+  const notesOk = saveNotesBase || auto, box = $("saveDoNotes"), forced = notesOk && stop;
+  box.disabled = !notesOk || forced; box.checked = forced || (notesOk && savePick.notes);
+  box.parentElement.classList.toggle("off", !notesOk);
+  $("saveDoNotesHint").textContent = !notesOk ? "분석된 수가 없어 만들 수 없습니다. 위의 '먼저 자동분석'을 켜거나 자동분석을 한 뒤 다시 누르세요."
+    : forced ? "GPU를 끌 때는 오답노트 후보를 모두 담습니다(누구의 실수·실수 기준은 오답노트에 담기 창에서 마지막으로 고른 것)."
+    : wait ? "분석이 끝나면 이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요."
     : "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요.";
+  $("saveTitle").hidden = !kifu; $("saveAsNew").hidden = !(kifu && again);
+  $("saveGo").textContent = (auto ? "분석 후 " : wait ? "끝나면 " : "") + (kifu ? (again ? "덮어쓰기" : "저장") : "만들기");
+  $("saveDoStopHint").textContent = wait
+    ? `${auto ? "자동분석이" : autoId ? "자동분석이" : "대국 리포트가"} 끝나면 저장하고 오답노트 후보를 모두 담은 뒤 GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
+    : "저장하고 오답노트 후보를 모두 담은 뒤 GPU를 끄고 삭제해 요금을 멈춥니다.";
   $("saveGo").disabled = !["Kifu", "Notes"].some(k => $("saveDo" + k).checked);
 }
 $("saveDo").addEventListener("change", () => {
-  saveDoChanged();
   try {   // remember the boxes that could be changed; a greyed-out one keeps its last choice
-    const pick = JSON.parse(localStorage.getItem("kgv.saveDo") || "{}");
-    for (const k of ["Kifu", "Notes"]) if (!$("saveDo" + k).disabled) pick[k.toLowerCase()] = $("saveDo" + k).checked;
-    localStorage.setItem("kgv.saveDo", JSON.stringify(pick));
+    for (const k of ["Kifu", "Notes", "Auto"]) if (!$("saveDo" + k).disabled && !$("saveDo" + k).closest("[hidden]")) savePick[k.toLowerCase()] = $("saveDo" + k).checked;
+    localStorage.setItem("kgv.saveDo", JSON.stringify(savePick));
   } catch { /* storage blocked */ }
+  saveDoChanged();
 });
 $("saveCancel").onclick = () => $("saveDlg").close();
 $("saveForm").onsubmit = ev => { ev.preventDefault(); saveMine(false); };
@@ -1809,10 +1828,14 @@ async function saveMine(asNew) {
   const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle();
   const folder = $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
   try { localStorage.setItem("kgv.saveFolder", folder || ""); } catch { /* storage blocked */ }
-  if (stop && analysisRunning()) {   // 다 끝나면: save (and add the mistakes) when the analysis ends, then the GPU goes off
-    finishPlan = {kifu, notes, title, asNew, root, folder};
+  const auto = autoFirst();
+  if (auto || (stop && analysisRunning())) {   // save (and add the mistakes) when the analysis ends; 다 끝나면: then the GPU goes off
+    if (auto) startAuto(false);
+    if (!analysisRunning()) { say("자동분석을 시작하지 못했습니다. GPU 연결을 확인하세요.", true); return; }
+    finishPlan = {kifu, notes, title, asNew, root, folder, stop};
     $("saveDlg").close();
-    $("err").textContent = `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${kifu ? "저장하고 " : "오답노트를 담고 "}GPU를 끕니다`;
+    const what = [kifu && "저장", notes && (stop ? "오답노트 후보 모두 담기" : "오답노트 목록 열기"), stop && "GPU 끄기"].filter(Boolean).join(" → ");
+    $("err").textContent = `${autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${what}를 합니다`;
     return;
   }
   if (kifu) {
@@ -1822,8 +1845,18 @@ async function saveMine(asNew) {
     finally { $("saveAsNew").disabled = false; saveDoChanged(); }
   }
   $("saveDlg").close();
-  if (notes) { stopAfterNotes = stop; $("addNote").onclick(); }   // pick the mistakes; the GPU goes off when that window closes
-  else if (stop) stopGpuNow("저장을 마쳐");
+  if (stop) {   // turning the GPU off: every 오답노트 candidate goes in without the picking window (user request 2026-10-03)
+    let note = "";
+    if (notes) { try { note = await addAllNotes(c, title); } catch (err) { $("err").textContent = "오답노트를 담지 못했습니다: " + err.message + " · GPU는 켜 둡니다"; return; } }
+    stopGpuNow((kifu ? "저장을 마쳤습니다." : "") + note);
+  } else if (notes) $("addNote").onclick();   // pick the mistakes
+}
+async function addAllNotes(c, title) {   // every candidate by the criteria last picked in the 오답노트에 담기 window: what to say
+  let f = {side: "", level: "normal"};
+  try { f = {...f, ...JSON.parse(localStorage.getItem("kgv.noteForm") || "{}")}; } catch { /* storage blocked */ }
+  const picked = noteMistakes(f.side, NOTE_LEVELS[f.level] ? f.level : "normal");
+  const [added, tried] = picked.length ? await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : title).slice(0, 100)) : [0, 0];
+  return ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
 }
 async function putMine(c, title, asNew, folder = null) {   // the game on screen into 내 기보 (folder: its 분류): "" when saved, else why not
   const row = await mineRow(title);
@@ -1838,31 +1871,30 @@ async function putMine(c, title, asNew, folder = null) {   // the game on screen
   return "";
 }
 // '다 끝나면 GPU 끄기' in the save window: now, after the 오답노트 window, or once 자동분석 / 대국 리포트 ends.
-let finishPlan = null, stopAfterNotes = false;
+let finishPlan = null;
 const analysisRunning = () => !!(autoId || strengthId);
 const gpuOn = () => !$("gpuMeter").hidden && !$("gpuStop").hidden;   // this member's own GPU, running (watchGpu)
-$("noteAddDlg").addEventListener("close", () => { if (stopAfterNotes) { stopAfterNotes = false; stopGpuNow("오답노트까지 마쳐"); } });
 function finishCheck(ok) {   // an analysis ended (ok: it ran to the end; not ok: cancelled or cut off)
   if (!finishPlan) return;
-  if (!ok) { finishPlan = null; $("err").textContent = "분석이 끝까지 가지 않아 저장·GPU 끄기를 하지 않았습니다"; return; }
+  if (!ok) { const stop = finishPlan.stop; finishPlan = null; $("err").textContent = `분석이 끝까지 가지 않아 저장${stop ? "·GPU 끄기" : ""}를 하지 않았습니다`; return; }
   if (analysisRunning()) return;   // the other one is still going
   const p = finishPlan; finishPlan = null; runFinishPlan(p);
 }
 async function runFinishPlan(p) {
-  if (p.root !== root) { $("err").textContent = "다른 기보를 열어 저장·GPU 끄기를 하지 않았습니다"; return; }
+  if (p.root !== root) { $("err").textContent = `다른 기보를 열어 저장${p.stop ? "·GPU 끄기" : ""}를 하지 않았습니다`; return; }
   const c = await mineClient(); if (!c) return;
+  const keep = p.stop ? " · GPU는 켜 둡니다" : "";
   try {
-    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder); if (why) { $("err").textContent = why + " · GPU는 켜 둡니다"; return; } }
-    let note = "";
-    if (p.notes) {   // nobody may be there to pick: the choice last made in the 오답노트에 담기 window
-      let f = {side: "", level: "normal"};
-      try { f = {...f, ...JSON.parse(localStorage.getItem("kgv.noteForm") || "{}")}; } catch { /* storage blocked */ }
-      const picked = noteMistakes(f.side, NOTE_LEVELS[f.level] ? f.level : "normal");
-      const [added, tried] = picked.length ? await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : p.title).slice(0, 100)) : [0, 0];
-      note = ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
+    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder); if (why) { $("err").textContent = why + keep; return; } }
+    if (!p.stop) {   // the member is here: the mistake list opens to pick from
+      if (p.notes) $("addNote").onclick();
+      if (p.kifu) $("err").textContent = "분석이 끝나 " + $("err").textContent;
+      return;
     }
+    // GPU off: nobody may be there to pick, so every candidate by the choice last made in the 오답노트에 담기 window
+    const note = p.notes ? await addAllNotes(c, p.title) : "";
     stopGpuNow((p.kifu ? "분석이 끝나 저장했습니다." : "분석이 끝났습니다.") + note);
-  } catch (err) { $("err").textContent = "저장하지 못했습니다: " + err.message + " · GPU는 켜 둡니다"; }
+  } catch (err) { $("err").textContent = "저장하지 못했습니다: " + err.message + keep; }
 }
 async function stopGpuNow(before = "") {
   try {

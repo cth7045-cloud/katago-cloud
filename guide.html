@@ -490,10 +490,11 @@ details.more .table-wrap { margin: 4px 0 8px; }
         <figure class="fig phone"><img src="guide/mine.webp" width="700" height="1628" alt="내 기보 화면: 분류 카드(전체 기보, 한큐 기보, 프로 기보 등)와 새 분류" loading="lazy"></figure>
       </div>
       <h3>저장 창</h3>
-      <figure class="fig" style="max-width:460px"><img src="guide/save.webp" width="690" height="585" alt="내 기보에 저장 창: 제목, 분류, 기보 저장·오답노트 만들기 체크" loading="lazy"></figure>
+      <figure class="fig" style="max-width:460px"><img src="guide/save.webp" width="690" height="870" alt="내 기보에 저장 창: 제목, 분류, 먼저 자동분석과 세기(빠름·보통·정밀·초정밀), 기보 저장·오답노트 만들기·다 끝나면 GPU 끄기 체크" loading="lazy"></figure>
       <ul>
+        <li><b>먼저 자동분석</b>: GPU가 연결돼 있으면 보입니다. 세기(빠름·보통·정밀·초정밀)를 고르면 그 세기로 아직 분석되지 않은 수만 분석한 뒤 저장합니다(<span class="chip">분석 후 저장</span>). 분석된 수가 하나도 없으면 처음부터 체크돼 있습니다.</li>
         <li><b>기보 저장 · 오답노트 만들기</b> 중 체크한 것만 만듭니다. 오답노트를 체크하면 이 기보의 실수 목록이 열립니다.</li>
-        <li>GPU가 켜져 있으면 <b>다 끝나면 GPU 끄기</b>도 보입니다. 자동분석 중이면 <span class="chip">끝나면 저장</span> — 분석이 끝나는 대로 저장하고 GPU를 끕니다.</li>
+        <li>GPU가 켜져 있으면 <b>다 끝나면 GPU 끄기</b>도 보입니다. 이걸 켜면 오답노트는 목록을 고르지 않고 <b>후보를 모두</b> 담습니다(누구의 실수·실수 기준은 오답노트에 담기 창에서 마지막으로 고른 것). 저장하고 오답노트를 담은 뒤 GPU를 끕니다. 분석 중이면 분석이 끝나는 대로 합니다.</li>
       </ul>
       <details class="more"><summary>자세히: 기보 추가(GPU 없이 기록), 공유, SGF, 한큐 기보 불러오기</summary><div>
         <ul>
