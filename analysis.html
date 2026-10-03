@@ -1102,11 +1102,14 @@ levelButtons();
 function autoButton() {   // 자동분석 n/N while running, 재분석 once the whole line is analysed at this level
   const q = autoId && queries.get(autoId);
   $("autoAnalyze").classList.toggle("on", !!q);
-  $("autoAnalyze").textContent = q ? `■ 자동분석 취소 ${autoDone}/${q.todo}` : lineThrough(cur).every(analysed) ? "재분석" : "자동분석";
+  $("autoAnalyze").textContent = q ? `■ 자동분석 취소 ${autoDone}/${q.todo}` : mainLine().every(analysed) ? "재분석" : "자동분석";
   $("autoAnalyze").title = q ? "누르면 자동분석을 멈춥니다. 이미 분석된 수의 결과는 남습니다." : "";
 }
+// 자동분석 always takes the main line (each node's first child), whichever variation is on screen: a variation being
+// studied is analysed only once it is made the main line with 주 변화로 지정 (user request 2026-10-03). 대국 리포트 too.
+function mainLine() { return lineThrough(root); }
 function startAuto(again = false) {
-  autoLine = lineThrough(cur);
+  autoLine = mainLine();
   const turns = autoLine.map((_, i) => i).filter(i => again || !analysed(autoLine[i]));
   if (!turns.length) return;
   autoDone = 0; autoId = "a" + (++qn);
@@ -1150,11 +1153,11 @@ function setAnalyzing(on) {
   if (!on && $("vps").textContent) $("vps").textContent = "0 visits/s";   // stopped: not the last speed (user request 2026-09-29)
 }
 $("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
-const runAuto = () => startAuto(lineThrough(cur).every(analysed));   // everything analysed at this level = 재분석
+const runAuto = () => startAuto(mainLine().every(analysed));   // everything analysed at this level = 재분석
 $("autoAnalyze").onclick = () => {
   if (autoId) return stopAuto();
   if (isPortrait()) return runAuto();
-  levelPop($("autoAnalyze"), lineThrough(cur).every(analysed) ? "재분석 세기" : "자동분석 세기", runAuto);
+  levelPop($("autoAnalyze"), mainLine().every(analysed) ? "재분석 세기" : "자동분석 세기", runAuto);
 };
 $("first").onclick = () => goTo(root);
 $("back10").onclick = () => step(-10);
@@ -1743,7 +1746,7 @@ $("saveMine").onclick = async () => {
   $("saveInfo").textContent = `${st.moves}수 · 분석된 국면 ${st.analyzed}개` + (again ? " · 이미 저장한 기보입니다" : "");
   $("saveMsg").textContent = ""; $("saveMsg").classList.remove("bad");
   // only the checked ones: 먼저 자동분석 (at the shared level), the game (내 기보), 오답노트 (the mistake list opens)
-  saveNotesBase = lineThrough(cur).some(n => n.move && moveLoss(n)) || analysisRunning();
+  saveNotesBase = mainLine().some(n => n.move && moveLoss(n)) || analysisRunning();
   savePick = {kifu: true, notes: false, auto: false};
   try { savePick = {...savePick, ...JSON.parse(localStorage.getItem("kgv.saveDo") || "{}")}; } catch { /* storage blocked */ }
   $("saveDoAutoRow").hidden = !canAutoFirst();
@@ -1785,7 +1788,7 @@ $("saveFolder").onchange = async () => {
 };
 let saveNotesBase = false, savePick = {};
 const canAutoFirst = () => !!(ws && ws.readyState === 1) && !viewOnly && !analysisRunning();   // the GPU is there and idle
-const autoTodo = () => lineThrough(cur).filter(n => !analysed(n)).length;
+const autoTodo = () => mainLine().filter(n => !analysed(n)).length;
 const autoFirst = () => !$("saveDoAutoRow").hidden && $("saveDoAuto").checked && autoTodo() > 0;
 function saveDoChanged() {
   const again = mineId && mineRoot === root, kifu = $("saveDoKifu").checked, stop = $("saveDoStop").checked && !$("saveDoStopRow").hidden;
@@ -1854,7 +1857,7 @@ async function saveMine(asNew) {
 async function addAllNotes(c, title) {   // every candidate by the criteria last picked in the 오답노트에 담기 window: what to say
   let f = {side: "", level: "normal"};
   try { f = {...f, ...JSON.parse(localStorage.getItem("kgv.noteForm") || "{}")}; } catch { /* storage blocked */ }
-  const picked = noteMistakes(f.side, NOTE_LEVELS[f.level] ? f.level : "normal");
+  const picked = noteMistakes(f.side, NOTE_LEVELS[f.level] ? f.level : "normal", root);   // the main line, as 자동분석 analyses it
   const [added, tried] = picked.length ? await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : title).slice(0, 100)) : [0, 0];
   return ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
 }
