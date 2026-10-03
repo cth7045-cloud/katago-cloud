@@ -210,6 +210,9 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #strengthOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='9' r='6'/><path d='M8.5 14 7 22l5-3 5 3-1.5-8'/></svg>"); }
 #menuBody #ownerLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 3v18'/></svg>"); }
 #menuBody #candsLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='3'/></svg>"); }
+#menuBody #hideLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/><path d='M4 4l16 16'/></svg>"); }
+#menuBody #editInfo { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20h4L19 9l-4-4L4 16z'/><path d='M13 7l4 4'/></svg>"); }
+#menuBody #aboutOss { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 11v6M12 7.5v.01'/></svg>"); }
 #menuBody #nums { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7h2v10M4 17h4M11 7h4v5h-4v5h4M18 7h3v10h-3M18 12h3'/></svg>"); }
 #menuBody #coords { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='7'/><path d='M12 2v4M12 18v4M2 12h4M18 12h4'/></svg>"); }
 #menuBody #promote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20V8M7 13l5-5 5 5M5 4h14'/></svg>"); }
@@ -537,6 +540,7 @@ button.primary:hover { background: var(--blue-deep); }
   <label class="check" id="komiLabel"><span class="menu-text">덤</span><select id="komiSign" aria-label="덤 방향"><option value="1">덤</option><option value="-1">역덤</option></select> <input type="number" id="komi" value="6.5" step="0.5" min="0" max="150" aria-label="덤 집 수"></label>
   <label class="check" id="ownerLabel"><input type="checkbox" id="showOwner"> 형세</label>
   <label class="check" id="candsLabel"><input type="checkbox" id="showCands" checked> 후보수보기</label>
+  <label class="check" id="hideLabel" title="승률·후보수·그래프·형세를 모두 가립니다. 분석값은 지워지지 않습니다"><input type="checkbox" id="hideEval"> 승률 가리기</label>
   <div id="placeRow"><span>돌 놓기</span>
     <div class="stone-seg" id="placeSeg" role="group" aria-label="놓을 돌">
       <button data-c="B" title="흑돌만 놓기" aria-pressed="false"><i class="b"></i></button>
@@ -1229,10 +1233,13 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
 }
 function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
 function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
-const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]) && !(quiz && !quiz.shown);
+const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]) && !(quiz && !quiz.shown) && !$("hideEval").checked;
 // AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment).
 // With one colour on, only the board / table candidates follow the turn, as before. The same for a 오답노트 problem until it is answered.
-const analysisHidden = () => (!!game && game.root === root && !game.show.B && !game.show.W) || (!!quiz && !quiz.shown);
+// 승률 가리기 (user request 2026-10-03): the member looks back over a game without the evaluation, the same way; the
+// analysis stays in the record (and is still saved), only the screen leaves it out until the box is unticked.
+const analysisHidden = () => $("hideEval").checked || (!!game && game.root === root && !game.show.B && !game.show.W) || (!!quiz && !quiz.shown);
+const hiddenWhy = () => $("hideEval").checked ? "승률 가리기 중 · 체크를 풀면 보입니다" : quiz ? "오답노트 · 답을 고르면 분석이 보입니다" : "AI 대국 중 · 분석 숨김";
 setInterval(() => {
   if (!game) return;
   if (game.root !== root) return stopGame();                                   // another record was opened
@@ -1393,6 +1400,11 @@ function komiChanged() {   // old results used the old komi; a negative number t
 $("komi").onchange = $("komiSign").onchange = komiChanged;
 $("showOwner").onchange = () => { requestLive(); schedule(); };
 $("showCands").onchange = schedule;
+try { $("hideEval").checked = localStorage.getItem("kgv.hideEval") === "1"; } catch { /* storage blocked */ }
+$("hideEval").onchange = () => {
+  try { localStorage.setItem("kgv.hideEval", $("hideEval").checked ? "1" : ""); } catch { /* storage blocked */ }
+  hover = null; selectedPv = null; schedule();
+};
 document.addEventListener("keydown", e => {
   if (e.target.matches("input, select, textarea")) return;
   if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
@@ -2739,7 +2751,7 @@ function drawMain() {
   if (!boardCtx) return;
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown(),
-    branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").dataset.mode || "", ownership: $("showOwner").checked});
+    branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").dataset.mode || "", ownership: $("showOwner").checked && !$("hideEval").checked});
   if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
 }
 function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
@@ -2911,7 +2923,7 @@ function drawStatistics() {
   if (analysisHidden()) {   // move number only, like before any analysis
     panelFont(g, Math.min(W * .63, H) * .24); g.fillStyle = TH.ink; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(String(cur.depth), x + W / 2, y + H / 6);
-    const t = quiz ? "오답노트 · 답을 고르면 분석이 보입니다" : "AI 대국 중 · 분석 숨김";
+    const t = hiddenWhy();
     const f = fitFont(g, UI_FONT, 400, t, T(H / 4), W * 20 / 21); g.fillStyle = TH.muted; g.textAlign = "left"; g.textBaseline = "alphabetic";
     g.fillText(t, x, y + T(H * 17 / 20) + f.h / 2);
     return;
@@ -3038,7 +3050,7 @@ const BLUNDER_T = [-24, -12, -6, -3, -1, 3, 100];
 const BLUNDER_C = [[155, 25, 150], [208, 16, 19], [200, 140, 50], [180, 180, 0], [140, 202, 34], [0, 220, 0], [0, 230, 230]];
 function blunderColor(node) {
   const a = node.parent && nodeStats(node.parent), b = nodeStats(node);
-  if (!a || !b || !node.move) return TH.node;
+  if (!a || !b || !node.move || $("hideEval").checked) return TH.node;   // 승률 가리기: no good/bad colours either
   const diff = (100 - b.wr) - a.wr;   // mover's win-rate change
   const k = BLUNDER_T.findIndex(t => t >= diff);
   return k >= 0 ? `rgb(${BLUNDER_C[k].join(",")})` : TH.node;
@@ -3104,10 +3116,10 @@ function drawSide() {
   }
   $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
   drawGameInfo();
-  emptyHint($("graphBox"), analysisHidden() ? (quiz ? "답을 고르면 분석이 보입니다" : "AI 대국 중에는 승률 그래프를 숨깁니다")
+  emptyHint($("graphBox"), analysisHidden() ? ($("hideEval").checked ? "승률 가리기 중입니다" : quiz ? "답을 고르면 분석이 보입니다" : "AI 대국 중에는 승률 그래프를 숨깁니다")
     : lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
   emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
-  emptyHint($("candRows").closest(".table-box"), cands.length ? "" : quiz && !quiz.shown ? "답을 고르면 AI 후보수가 보입니다"
+  emptyHint($("candRows").closest(".table-box"), cands.length ? "" : $("hideEval").checked ? "승률 가리기 중입니다" : quiz && !quiz.shown ? "답을 고르면 AI 후보수가 보입니다"
     : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
 }
 function emptyHint(el, text) { if (text) el.dataset.empty = text; else delete el.dataset.empty; }
@@ -3171,7 +3183,7 @@ const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "editInfo", "kifuOpen", "openMine", "addNote", "openNotes"]],
               ["대국", ["newGame", "sizeLabel", "handicapLabel", "komiLabel", "pass", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
-              ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "nums", "coords"]],
+              ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "hideLabel", "nums", "coords"]],
               ["편집", ["promote", "deleteNode", "resetBoard"]],
               ["정보", ["aboutOss"]]];
 const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
