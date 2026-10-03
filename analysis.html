@@ -1799,19 +1799,21 @@ function saveDoChanged() {
     : todo ? `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`
     : "이 세기로 이미 모두 분석돼 있어 바로 저장합니다.";
   const auto = autoFirst(), wait = auto || (stop && analysisRunning());
-  // 오답노트: possible once something is analysed, or will be; turning the GPU off always takes every candidate along
-  const notesOk = saveNotesBase || auto, box = $("saveDoNotes"), forced = notesOk && stop;
-  box.disabled = !notesOk || forced; box.checked = forced || (notesOk && savePick.notes);
+  // 오답노트: possible once something is analysed, or will be. With 다 끝나면 GPU 끄기 nobody may be there to pick, so a
+  // ticked box takes every candidate; unticked, none (user request 2026-10-03: not wanting a 오답노트 is a choice too)
+  const notesOk = saveNotesBase || auto, box = $("saveDoNotes");
+  box.disabled = !notesOk; box.checked = notesOk && savePick.notes;
   box.parentElement.classList.toggle("off", !notesOk);
   $("saveDoNotesHint").textContent = !notesOk ? "분석된 수가 없어 만들 수 없습니다. 위의 '먼저 자동분석'을 켜거나 자동분석을 한 뒤 다시 누르세요."
-    : forced ? "GPU를 끌 때는 오답노트 후보를 모두 담습니다(누구의 실수·실수 기준은 오답노트에 담기 창에서 마지막으로 고른 것)."
+    : stop ? "GPU를 끄므로 고르는 창 없이 오답노트 후보를 모두 담습니다(누구의 실수·실수 기준은 오답노트에 담기 창에서 마지막으로 고른 것)."
     : wait ? "분석이 끝나면 이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요."
     : "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요.";
   $("saveTitle").hidden = !kifu; $("saveAsNew").hidden = !(kifu && again);
   $("saveGo").textContent = (auto ? "분석 후 " : wait ? "끝나면 " : "") + (kifu ? (again ? "덮어쓰기" : "저장") : "만들기");
+  const then = ($("saveDoKifu").checked ? "저장하고 " : "") + ($("saveDoNotes").checked ? "오답노트 후보를 모두 담은 뒤 " : "");
   $("saveDoStopHint").textContent = wait
-    ? `${auto ? "자동분석이" : autoId ? "자동분석이" : "대국 리포트가"} 끝나면 저장하고 오답노트 후보를 모두 담은 뒤 GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
-    : "저장하고 오답노트 후보를 모두 담은 뒤 GPU를 끄고 삭제해 요금을 멈춥니다.";
+    ? `${auto || autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${then}GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
+    : `${then}GPU를 끄고 삭제해 요금을 멈춥니다.`;
   $("saveGo").disabled = !["Kifu", "Notes"].some(k => $("saveDo" + k).checked);
 }
 $("saveDo").addEventListener("change", () => {
