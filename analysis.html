@@ -423,6 +423,21 @@ button.primary:hover { background: var(--blue-deep); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
+/* 대국 시계 (AI대국 with a time limit) and the 계가 card */
+#clocks { display: flex; gap: 6px; flex: none; }
+#clocks[hidden] { display: none; }
+#clocks span { padding: 6px 11px; border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#clocks span.turn { color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 2px var(--blue); }
+#clocks span.low { color: var(--bad); box-shadow: inset 0 0 0 2px var(--bad); }
+#scoreBox { position: fixed; z-index: 40; right: 16px; top: 96px; width: min(340px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 16px;
+  background: var(--panel); color: var(--ink); box-shadow: 0 10px 30px rgba(23, 26, 34, .18); }
+#scoreBox[hidden] { display: none; }
+.sb-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.sb-head b { font-size: 17px; }
+#scoreResult { font-weight: 700; color: var(--blue); }
+#scoreLines { display: grid; gap: 3px; font-size: 14px; font-variant-numeric: tabular-nums; }
+#scoreHint { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.sb-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
 /* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
 @media (orientation: portrait) {
   body { grid-template-rows: auto auto minmax(0, 1fr); overflow-y: auto; }   /* scrolls only if a very short screen still overflows */
@@ -444,6 +459,8 @@ button.primary:hover { background: var(--blue-deep); }
   .toolbar button:not(.on):not(.pink):not(#analyze) { background: var(--panel); box-shadow: 0 1px 2px rgba(23, 26, 34, .06); }
   .toolbar .sep, #fileMenu { display: none; }
   /* rows: moves | analysis, move number, menu (everything else is in the menu sheet) */
+  #clocks { order: 0; grid-column: 1 / -1; justify-content: center; }
+  #scoreBox { top: auto; left: 12px; right: 12px; width: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
   #first { order: 1; } #back10 { order: 2; } #back { order: 3; } #fwd { order: 4; } #fwd10 { order: 5; } #last { order: 6; }
   /* 12 columns: six move buttons of 2; then 분석 4, move number 2, 수순 이동 3 (its label no longer overflows), 메뉴 3 */
   #first, #back10, #back, #fwd, #fwd10, #last { grid-column: span 2; }
@@ -664,12 +681,20 @@ button.primary:hover { background: var(--blue-deep); }
       <input type="number" class="gd-value" min="1" step="1" value="3" aria-label="백 AI 세기 값">
       <select class="gd-mode" aria-label="백 AI 세기 기준"><option value="time">초당 한 수</option><option value="visits">visits당 한 수</option></select></div></div>
     <div class="gd-row"><span>초반 무작위</span><select id="gdRandom"><option value="0">없음 (항상 최선수)</option><option value="10">10수까지 상위 후보 중 무작위</option><option value="20">20수까지 상위 후보 중 무작위</option><option value="40">40수까지 상위 후보 중 무작위</option></select></div>
+    <div class="gd-row"><span>시간</span><select id="gdTime" aria-label="대국 시간"><option value="">없음</option><option value="300/30/3">5분 + 초읽기 30초 3회</option><option value="600/30/3">10분 + 초읽기 30초 3회</option><option value="1200/30/3">20분 + 초읽기 30초 3회</option><option value="1800/40/3">30분 + 초읽기 40초 3회</option><option value="0/30/3">초읽기만 30초 3회</option><option value="0/60/3">초읽기만 1분 3회</option><option value="600/0/0">10분 (초읽기 없음)</option></select></div>
     <div class="gd-row"><span>AI 기권</span><div class="gd-resign"><label class="check"><input type="checkbox" id="gdResign" checked> 사용</label></div></div>
     <div class="gd-row"><span>AI분석 보기</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label></div></div>
     <p class="gd-note" id="gdNote"></p>
     <div class="gd-actions"><button id="gdCancel">취소</button><button id="gdGo" class="primary">대국 시작</button></div>
   </div>
 </dialog>
+
+<div id="scoreBox" hidden role="dialog" aria-label="계가">
+  <div class="sb-head"><b>계가</b><span id="scoreResult"></span></div>
+  <div id="scoreLines"></div>
+  <p id="scoreHint"></p>
+  <div class="sb-actions"><button id="scoreClose">닫기</button><button id="scoreRecord" hidden>결과 기록</button><button id="scoreEnd" class="primary" hidden>이 결과로 대국 끝내기</button></div>
+</div>
 
 <dialog id="infoDlg" aria-label="기보 정보">
   <form class="gd" id="infoForm">
@@ -732,6 +757,7 @@ button.primary:hover { background: var(--blue-deep); }
     <input type="text" id="quizMemo" maxlength="300" placeholder="메모: 왜 틀렸는지 적어 두세요 (Enter로 저장)" autocomplete="off" hidden>
     <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
   </div>
+  <div id="clocks" hidden><span id="clockB"></span><span id="clockW"></span></div>
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
   <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div>
@@ -746,7 +772,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="last" title="끝 (End)">&gt;|</button>
   <span class="sep"></span>
   <button id="pass">패스</button>
-  <button id="gameScore" hidden title="지금 국면을 AI가 계가하고 대국을 끝냅니다">계가</button>
+  <button id="gameScore" title="지금 국면을 셉니다: AI가 죽은 돌을 판정하고, 돌을 눌러 고칠 수 있습니다">계가</button>
   <button id="gameResign" class="pink" hidden title="돌을 던지고 대국을 끝냅니다">기권</button>
   <button id="promote">주 변화로 지정</button>
   <button id="nums">수순</button>
@@ -837,6 +863,7 @@ function lineThrough(node) { const p = pathTo(node); let n = node; while (n.chil
 function movesOf(node) { return pathTo(node).slice(1).map(n => [n.move.c, n.move.pass ? "pass" : gtp(n.move.x, n.move.y)]); }
 
 let root = makeRoot(), cur = root;
+let scoring = null;   // 계가 on screen: {node, own, dead: Set of points, id, waiting} (see the 계가 section)
 
 // ------------------------------------------------------------------ engine connection
 const hashParams = new URLSearchParams(location.hash.slice(1));
@@ -1035,6 +1062,7 @@ function onMessage(msg) {
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; return; }
   const q = queries.get(msg.id);
   if (!q || !msg.rootInfo) return;
+  if (q.score) { queries.delete(msg.id); scoreAnswer(msg); return; }   // 계가: the ownership for the dead stones
   if (q.line) {  // auto analysis / strength estimate: one response per turn
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
@@ -1145,6 +1173,7 @@ const komiText = (k = komi()) => k < 0 ? `역덤 ${-k}` : `덤 ${k}`;
 // ------------------------------------------------------------------ navigation / actions
 function goTo(node) {
   if (!node) return;
+  if (scoring && node !== scoring.node) closeScoring();
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
   if (!applyingRemote) { requestLive(); publish(); }   // following another device: it runs the analysis
@@ -1238,7 +1267,8 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
 }
 function gameButton() {
   $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국";
-  $("gameScore").hidden = !game; $("gameResign").hidden = !game || !humanSide();   // AI against AI: nobody to resign
+  $("gameResign").hidden = !game || !humanSide();   // AI against AI: nobody to resign
+  if (!game) closeScoring();
 }
 // 계가 / 기권 while playing (user request 2026-10-05). The member's colour: the one no AI plays (both: the side to move).
 function humanSide() {
@@ -1250,16 +1280,162 @@ function countedLead(blackLead) { const f = Math.abs(komi()) % 1; return Math.ro
 function countedRE(blackLead) { const l = countedLead(blackLead); return l === 0 ? "0" : `${l > 0 ? "B" : "W"}+${Math.abs(l)}`; }
 // the score from the last plain (no PDA) search near the end: the member's own turn always has one
 const scoreStats = () => [cur, cur.parent, cur.parent && cur.parent.parent].map(n => n && nodeStats(n)).find(Boolean);
-$("gameScore").onclick = () => {
-  if (!game) return;
-  const s = scoreStats();
-  if (!s) { $("err").textContent = "아직 이 국면의 분석이 없어 계가할 수 없습니다. 잠시 뒤 다시 누르세요."; return; }
-  const re = countedRE(s.blackLead);
-  if (!confirm(`지금 국면을 AI가 계가합니다. 경계가 덜 끝난 곳은 AI의 예상으로 셉니다.\n\n결과: ${resultText(re)}\n\n대국을 끝낼까요?`)) return;
-  if (!game) return;
-  root.info.RE = re; publish();
-  stopGame(`계가로 대국이 끝났습니다 · ${resultText(re)} (AI 판정)`);
+// ---- 계가 (user request 2026-10-05): KataGo's ownership picks the dead stones (a group whose average ownership is the
+// other colour's), the member can flip any group by pressing it, and the board is counted the Korean way: territory +
+// prisoners (captured during the game + the dead stones) + 덤. Empty areas bordered by one colour are its territory;
+// an area touching both (an unfinished boundary) is split by the ownership point by point (|v| > .5), the rest is 공배.
+// Without the GPU it counts the same way with no dead stones picked (press them). In AI대국 it can end the game.
+const DEAD_OWN = .4, SPLIT_OWN = .5;
+function startScoring() {
+  if (quiz || viewOnly) return;
+  if (scoring) return closeScoring();
+  scoring = {node: cur, own: null, dead: new Set(), id: "o" + (++qn), waiting: true};
+  queries.set(scoring.id, {score: true});
+  // a plain search (no PDA) of this position with ownership; a few hundred visits settle the dead stones
+  if (!send({...baseQuery(), id: scoring.id, moves: movesOf(cur), maxVisits: 400, includeOwnership: true, priority: 20})) {
+    queries.delete(scoring.id); scoring.waiting = false;
+  }
+  hover = null; schedule();
+}
+function closeScoring() {
+  if (!scoring) return;
+  if (scoring.waiting) { send({id: "t" + (++qn), action: "terminate", terminateId: scoring.id}); queries.delete(scoring.id); }
+  scoring = null; $("scoreBox").hidden = true; schedule();
+}
+function scoreAnswer(msg) {
+  if (!scoring || scoring.id !== msg.id) return;
+  scoring.waiting = false; scoring.own = msg.ownership || null;
+  if (scoring.own) {   // groups the other colour owns on average are dead
+    const g = scoring.node.grid, seen = new Set();
+    for (let i = 0; i < N * N; i++) {
+      if (!g[i] || seen.has(i)) continue;
+      const stones = groupAt(g, i).stones; stones.forEach(j => seen.add(j));
+      const avg = stones.reduce((t, j) => t + scoring.own[j], 0) / stones.length;
+      if (g[i] === 1 ? avg < -DEAD_OWN : avg > DEAD_OWN) stones.forEach(j => scoring.dead.add(j));
+    }
+  }
+  schedule();
+}
+function toggleDead(p) {
+  const g = scoring.node.grid, i = idx(p[0], p[1]); if (!g[i]) return;
+  const stones = groupAt(g, i).stones, dead = stones.every(j => scoring.dead.has(j));
+  stones.forEach(j => dead ? scoring.dead.delete(j) : scoring.dead.add(j));
+  schedule();
+}
+function scoreCount() {   // {mark: 1 black / 2 white territory per point, terr, prisoners, total, lead}
+  const node = scoring.node, own = scoring.own, g = node.grid.slice();
+  const deadOf = {B: 0, W: 0};
+  for (const j of scoring.dead) { deadOf[g[j] === 1 ? "B" : "W"]++; g[j] = 0; }
+  const mark = new Int8Array(N * N), seen = new Uint8Array(N * N);
+  for (let i = 0; i < N * N; i++) {
+    if (g[i] || seen[i]) continue;
+    const area = [i]; seen[i] = 1; let borders = 0;
+    for (let k = 0; k < area.length; k++) for (const j of neighbors(area[k])) {
+      if (g[j]) borders |= g[j];
+      else if (!seen[j]) { seen[j] = 1; area.push(j); }
+    }
+    for (const j of area) mark[j] = borders === 1 || borders === 2 ? borders
+      : own ? (own[j] > SPLIT_OWN ? 1 : own[j] < -SPLIT_OWN ? 2 : 0) : 0;
+  }
+  const terr = {B: 0, W: 0};
+  for (let i = 0; i < N * N; i++) if (mark[i]) terr[mark[i] === 1 ? "B" : "W"]++;
+  const prisoners = {B: node.caps.B + deadOf.W, W: node.caps.W + deadOf.B}, k = komi();
+  const total = {B: terr.B + prisoners.B + Math.max(0, -k), W: terr.W + prisoners.W + Math.max(0, k)};
+  return {mark, terr, prisoners, total, lead: total.B - total.W, k};
+}
+// 으로 / 로 after a Korean word (로 after a vowel or ㄹ)
+function eulo(w) { const c = w.charCodeAt(w.length - 1) - 0xAC00, j = c % 28; return c < 0 || c > 11171 || j === 0 || j === 8 ? "로" : "으로"; }
+function scoreRE(lead) { return lead === 0 ? "0" : `${lead > 0 ? "B" : "W"}+${Math.abs(lead)}`; }
+function drawScoreMarks(ctx, G) {
+  const {margin: m, sq, r} = G, {mark} = scoreCount(), P = i => [m + sq * (i % N) + .5, m + sq * ((i / N) | 0) + .5];
+  for (const j of scoring.dead) {   // dead stones fade
+    const [x, y] = P(j); ctx.fillStyle = "rgba(222, 184, 120, .62)"; ctx.beginPath(); ctx.arc(x, y, r + .5, 0, Math.PI * 2); ctx.fill();
+  }
+  const s = Math.max(4, Math.round(sq * .34));
+  for (let i = 0; i < N * N; i++) {
+    if (!mark[i]) continue;
+    const [x, y] = P(i);
+    ctx.fillStyle = mark[i] === 1 ? "rgba(17, 19, 24, .88)" : "rgba(255, 255, 255, .95)";
+    ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    if (mark[i] === 2) { ctx.strokeStyle = "rgba(17, 19, 24, .55)"; ctx.lineWidth = 1; ctx.strokeRect(x - s / 2, y - s / 2, s, s); }
+  }
+}
+function updateScoreBox() {
+  const box = $("scoreBox");
+  if (!scoring || scoring.node !== cur) { box.hidden = true; return; }
+  const c = scoreCount(), re = scoreRE(c.lead), komiPart = side => (side === "B" ? c.k < 0 : c.k > 0) ? ` + ${komiText(c.k)}` : "";
+  const line = (side, name) => `<div>${name}: 집 ${c.terr[side]} + 사석 ${c.prisoners[side]}${komiPart(side)} = <b>${c.total[side]}</b></div>`;
+  const ai = !scoring.waiting && scoring.own ? nodeStats(scoring.node) : null;
+  $("scoreResult").textContent = resultText(re);
+  $("scoreLines").innerHTML = line("B", "흑") + line("W", "백") +
+    (ai ? `<div style="color:var(--muted)">AI 예상(끝까지 둘 때): ${escHtml(resultText(countedRE(ai.blackLead)))}</div>` : "");
+  $("scoreHint").textContent = scoring.waiting ? "AI가 죽은 돌을 판정하는 중…"
+    : (scoring.own ? "흐린 돌 = 죽은 돌. " : "GPU 분석 없이 셉니다. 죽은 돌은 직접 눌러 주세요. ") +
+      "돌을 누르면 그 돌 무리가 죽은 돌 ↔ 산 돌로 바뀝니다. 경계가 덜 끝난 곳은 AI 형세로 나눴습니다.";
+  $("scoreEnd").hidden = !game; $("scoreRecord").hidden = !!game || viewOnly;
+  box.dataset.re = re; box.hidden = false;
+}
+$("gameScore").onclick = startScoring;
+$("scoreClose").onclick = closeScoring;
+$("scoreEnd").onclick = () => {
+  if (!game || !scoring) return;
+  const re = $("scoreBox").dataset.re;
+  if (!confirm(`${resultText(re)}${eulo(resultText(re))} 대국을 끝낼까요?`)) return;
+  root.info.RE = re; publish(); closeScoring();
+  stopGame(`계가로 대국이 끝났습니다 · ${resultText(re)}`);
 };
+$("scoreRecord").onclick = () => {
+  if (!scoring) return;
+  const re = $("scoreBox").dataset.re;
+  if (root.info.RE && root.info.RE !== re && !confirm(`기보의 결과(${resultText(root.info.RE)})를 ${resultText(re)}${eulo(resultText(re))} 바꿀까요?`)) return;
+  root.info.RE = re; publish(); closeScoring(); $("err").textContent = `결과를 ${resultText(re)}${eulo(resultText(re))} 기록했습니다`;
+};
+// ---- 대국 시계 (user request 2026-10-05): main time + byo-yomi for both sides of an AI대국. The member loses on time
+// when the last period runs out; an AI moves at the latest when its share of the time is used (its own 세팅 can make it
+// move sooner): main time / the moves it still expects to play (+ a third of a period), or 60% of a period in byo-yomi.
+function makeClock(v) {
+  const m = /^(\d+)\/(\d+)\/(\d+)$/.exec(v || ""); if (!m) return null;
+  const [main, byo, per] = [+m[1], +m[2], +m[3]];
+  return {left: {B: main, W: main}, per: {B: per, W: per}, byo, used: 0, side: null, last: performance.now(), budget: null};
+}
+function aiBudget(c, s) {
+  const movesLeft = Math.max(8, (N * N * .7 - cur.depth) / 2), byo = c.per[s] > 0 ? c.byo : 0;
+  if (c.left[s] <= 0) return Math.max(.5, byo * .6);
+  return Math.max(.5, Math.min(c.left[s] / movesLeft + byo / 3, c.left[s] + (byo ? byo * .6 : -1)));
+}
+function clockText(c, s) {
+  const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  if (c.left[s] > 0) return mmss(Math.ceil(c.left[s])) + (c.per[s] > 0 && c.byo ? ` +${c.byo}초×${c.per[s]}` : "");
+  const now = c.side === s ? Math.max(0, Math.ceil(c.byo - c.used)) : c.byo;
+  return `초읽기 ${now}초 · ${c.per[s]}회`;
+}
+function drawClocks() {
+  const c = game && game.root === root && game.clock;
+  $("clocks").hidden = !c; if (!c) return;
+  for (const s of ["B", "W"]) {
+    const el = $("clock" + s), low = c.side === s && (c.left[s] <= 0 ? c.byo - c.used <= 10 : c.left[s] <= 10 && !c.per[s]);
+    el.textContent = `${colorName(s)} ${clockText(c, s)}`;
+    el.classList.toggle("turn", c.side === s); el.classList.toggle("low", low);
+  }
+}
+function timeUp(s) {
+  root.info.RE = other(s) + "+T"; publish();
+  stopGame(`${colorName(s)}의 시간이 다 됐습니다 · ${resultText(root.info.RE)}`);
+}
+setInterval(() => {
+  const c = game && game.clock; if (!c) { $("clocks").hidden = true; return; }
+  const now = performance.now(), dt = (now - c.last) / 1000; c.last = now;
+  if (scoring || game.root !== root) return drawClocks();   // counting: the clocks stop
+  const s = cur.toPlay;
+  if (s !== c.side) { c.side = s; c.used = 0; c.budget = game.ai[s] ? aiBudget(c, s) : null; }   // a move was played
+  if (c.left[s] > 0) { c.left[s] -= dt; if (c.left[s] < 0) { c.used = -c.left[s]; c.left[s] = 0; } }
+  else c.used += dt;
+  if (c.left[s] <= 0) {
+    if (c.per[s] <= 0 || !c.byo) return timeUp(s);
+    while (c.used >= c.byo) { c.per[s]--; c.used -= c.byo; if (c.per[s] <= 0) return timeUp(s); }
+  }
+  drawClocks();
+}, 250);
 $("gameResign").onclick = () => {
   const side = humanSide(); if (!side) return;
   if (!confirm(`${colorName(side)}이 돌을 던집니다(기권). 대국을 끝낼까요?`)) return;
@@ -1276,7 +1452,7 @@ const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPla
 const analysisHidden = () => $("hideEval").checked || (!!game && game.root === root && !game.show.B && !game.show.W) || (!!quiz && !quiz.shown);
 const hiddenWhy = () => $("hideEval").checked ? "승률 가리기 중 · 체크를 풀면 보입니다" : quiz ? "오답노트 · 답을 고르면 분석이 보입니다" : "AI 대국 중 · 분석 숨김";
 setInterval(() => {
-  if (!game) return;
+  if (!game || scoring) return;   // 계가 on screen: the AI waits (and the clocks stop)
   if (game.root !== root) return stopGame();                                   // another record was opened
   if (!analyzing) return stopGame("분석이 꺼져 대국을 멈췄습니다.");
   if (cur.move && cur.move.pass && cur.parent.move && cur.parent.move.pass) {   // both passed: the game is over
@@ -1289,7 +1465,9 @@ setInterval(() => {
   if (!rule || !an || pdaAt(cur) !== (an.pda || 0)) return;   // the member's turn, or no analysis (with this turn's PDA) yet
   const cands = candidates(cur, true); if (!cands.length) return;
   const sec = (performance.now() - reachedAt) / 1000;
-  if (rule.mode === "visits" ? an.rootInfo.visits < rule.value || sec < .5 : sec < rule.value) return;
+  const ruleMet = rule.mode === "visits" ? an.rootInfo.visits >= rule.value && sec >= .5 : sec >= rule.value;
+  const c = game.clock, clockMet = !!(c && c.side === mover && c.budget != null && sec >= c.budget);   // its time for this move is up
+  if (!ruleMet && !clockMet) return;
   const best = cands[0];
   if (game.resign && cur.depth >= RESIGN_MOVE && moverWr(cur, best.winrate) < RESIGN_WR && handicapAllowsResign(mover, moverLead(cur, best.scoreLead))) {
     if (++game.low[mover] >= RESIGN_COUNT) {
@@ -1331,7 +1509,7 @@ $("gdSize").onchange = () => {
 function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
 function saveGameForm() {
   const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
-             resign: $("gdResign").checked};
+             resign: $("gdResign").checked, time: $("gdTime").value};
   try { localStorage.setItem(GAME_FORM, JSON.stringify(f)); } catch { /* storage blocked */ }
 }
 function loadGameForm() {
@@ -1340,7 +1518,7 @@ function loadGameForm() {
   const pickSeg = (id, v) => $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === v));
   pickSeg("gdKind", f.kind); pickSeg("gdColor", f.color);
   for (const [row, r] of [[$("gdAi1"), f.ai1], [$("gdAi2"), f.ai2]]) if (r) { row.querySelector(".gd-mode").value = r.mode; row.querySelector(".gd-value").value = r.value; }
-  $("gdRandom").value = f.random;
+  $("gdRandom").value = f.random; $("gdTime").value = f.time || "";
   $("gdResign").checked = Array.isArray(f.resign) ? !!f.resign[0] : f.resign !== false;   // older saves kept [on, move, count, wr]
   $("gdShowB").checked = $("gdShowW").checked = f.kind === "ai";
 }
@@ -1368,7 +1546,7 @@ $("gdGo").onclick = () => {
     goTo(root);
   }
   game = {kind, root, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked}, random: +$("gdRandom").value,
-          resign: $("gdResign").checked, low: {B: 0, W: 0}};
+          resign: $("gdResign").checked, low: {B: 0, W: 0}, clock: makeClock($("gdTime").value)};
   saveGameForm(); $("gameDlg").close();
   if (!analyzing) setAnalyzing(true);
   reachedAt = performance.now(); requestLive(); publish(); gameButton(); schedule();
@@ -2785,9 +2963,13 @@ let touchCursor = null;   // [x, y] board point
 function drawMain() {
   if (!boardCtx) return;
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
-  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown(),
-    branch: hover ? hover.pv : null, hover: hover ? hover.xy : null, numbers: $("nums").dataset.mode || "", ownership: $("showOwner").checked && !$("hideEval").checked});
+  const sc = scoring && scoring.node === cur;
+  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
+    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: $("nums").dataset.mode || "",
+    ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
   if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
+  if (sc) drawScoreMarks(boardCtx, boardG);
+  updateScoreBox();
 }
 function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
   if (!miniCtx) return;
@@ -2801,6 +2983,7 @@ function boardPoint(ev) {
 }
 function placeAt(pt) {
   const p = boardPoint(pt); if (!p) return; hover = null;
+  if (scoring) { toggleDead(p); return; }   // 계가: a stone pressed = its group dead / alive
   if (quiz) { answerQuiz(p); return; }   // a 오답노트 problem: the click is the answer
   if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c); }
 let placeColor = "";   // "" = alternate, "B" / "W" = only that colour (life-and-death, set positions)
@@ -3235,6 +3418,9 @@ function placeMenuItems() {
     if (!menuHomes.has(id)) { const home = document.createComment(id); el.before(home); menuHomes.set(id, home); }
     if (portrait) menuSections[k].append(el); else menuHomes.get(id).after(el);
   }));
+  // 대국 시계: under the board with the move buttons on a phone, in the top bar's free right side in landscape
+  if (portrait) document.querySelector(".toolbar").prepend($("clocks"));
+  else $("vps").before($("clocks"));
 }
 $("menuOpen").onclick = () => $("menuDlg").showModal();
 $("menuClose").onclick = () => $("menuDlg").close();
