@@ -205,6 +205,8 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #sizeLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
 #menuBody #handicapLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='7' cy='7' r='3'/><circle cx='17' cy='7' r='3'/><circle cx='7' cy='17' r='3'/><circle cx='17' cy='17' r='3'/></svg>"); }
 #menuBody #komiLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 4v8M8 8h8M8 19h8'/></svg>"); }
+#menuBody #gameScore { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3' width='16' height='18' rx='2'/><path d='M8 8h8M8 12h8M8 16h5'/></svg>"); }
+#menuBody #gameResign { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 21V4'/><path d='M5 4h12l-2 4 2 4H5'/></svg>"); }
 #menuBody #pass { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h12M12 7l5 5-5 5M20 5v14'/></svg>"); }
 #menuBody #autoAnalyze { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 20h18M6 17v-5M11 17V7M16 17v-8'/></svg>"); }
 #menuBody #strengthOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='9' r='6'/><path d='M8.5 14 7 22l5-3 5 3-1.5-8'/></svg>"); }
@@ -744,6 +746,8 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="last" title="끝 (End)">&gt;|</button>
   <span class="sep"></span>
   <button id="pass">패스</button>
+  <button id="gameScore" hidden title="지금 국면을 AI가 계가하고 대국을 끝냅니다">계가</button>
+  <button id="gameResign" class="pink" hidden title="돌을 던지고 대국을 끝냅니다">기권</button>
   <button id="promote">주 변화로 지정</button>
   <button id="nums">수순</button>
   <button id="coords">좌표</button>
@@ -1191,8 +1195,9 @@ const RESIGN_MOVE = 150, RESIGN_COUNT = 2, RESIGN_WR = 5;   // YZY Config anaGam
 // The side behind searches as if it read 2^PDA times more than its opponent; PDA starts at the cap
 // 0.045 x (advantage - 4 points), at most 2.75, in steps of 0.125, and after each of its searches moves one step to keep
 // its own win rate between 5% and 25%. The side ahead gets the negative value (plays safe) when an AI plays it.
-// When it applies (member's decision, not switchable): in AI대국 on every AI turn, never on the member's turn;
-// in plain analysis on the turns of the side that is behind (white in handicap / 역덤 games).
+// When it applies (member's decision, not switchable): in AI대국 on every AI turn, never on the member's turn.
+// Plain analysis and review never use it (user decision 2026-10-05, as KataGo's own example config: "does NOT affect
+// analysis ... so analysis remains unbiased"): with it the behind side's turns showed a different score lead every move.
 const PDA_PER_POINT = .045, PDA_STEP = .125, PDA_MAX = 2.75, PDA_START_POINTS = 4;   // 19x19: max(4 / 1, 2)
 const behindSide = () => initialBlackAdvantage() >= 0 ? "W" : "B";
 function pdaCap() {
@@ -1200,7 +1205,7 @@ function pdaCap() {
   if (adv < PDA_START_POINTS) return 0;
   return Math.round(Math.min(PDA_MAX, PDA_PER_POINT * (adv - PDA_START_POINTS)) / PDA_STEP) * PDA_STEP;
 }
-function pdaApplies(node) { return game && game.root === root ? !!game.ai[node.toPlay] : node.toPlay === behindSide(); }
+function pdaApplies(node) { return !!(game && game.root === root && game.ai[node.toPlay]); }
 function pdaAt(node) {   // the PDA for the side to move at node (0 = plain search)
   const cap = pdaCap(); if (!cap || !pdaApplies(node)) return 0;
   const behind = behindSide(), path = [];
@@ -1231,7 +1236,37 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
   const resignScore = -adv * (toCatchUp - spent) / toCatchUp - 5 - adv * .15;
   return moverScore <= resignScore;
 }
-function gameButton() { $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국"; }
+function gameButton() {
+  $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국";
+  $("gameScore").hidden = !game; $("gameResign").hidden = !game || !humanSide();   // AI against AI: nobody to resign
+}
+// 계가 / 기권 while playing (user request 2026-10-05). The member's colour: the one no AI plays (both: the side to move).
+function humanSide() {
+  const h = game ? ["B", "W"].filter(c => !game.ai[c]) : [];
+  return h.length === 2 ? cur.toPlay : h[0] || null;
+}
+// KataGo's score lead as a game result: to the komi's half point (6.5 or 역덤 30.5: x.5, never 0), so it reads like a count
+function countedLead(blackLead) { const f = Math.abs(komi()) % 1; return Math.round(blackLead - f) + f; }
+function countedRE(blackLead) { const l = countedLead(blackLead); return l === 0 ? "0" : `${l > 0 ? "B" : "W"}+${Math.abs(l)}`; }
+// the score from the last plain (no PDA) search near the end: the member's own turn always has one
+const scoreStats = () => [cur, cur.parent, cur.parent && cur.parent.parent].map(n => n && nodeStats(n)).find(Boolean);
+$("gameScore").onclick = () => {
+  if (!game) return;
+  const s = scoreStats();
+  if (!s) { $("err").textContent = "아직 이 국면의 분석이 없어 계가할 수 없습니다. 잠시 뒤 다시 누르세요."; return; }
+  const re = countedRE(s.blackLead);
+  if (!confirm(`지금 국면을 AI가 계가합니다. 경계가 덜 끝난 곳은 AI의 예상으로 셉니다.\n\n결과: ${resultText(re)}\n\n대국을 끝낼까요?`)) return;
+  if (!game) return;
+  root.info.RE = re; publish();
+  stopGame(`계가로 대국이 끝났습니다 · ${resultText(re)} (AI 판정)`);
+};
+$("gameResign").onclick = () => {
+  const side = humanSide(); if (!side) return;
+  if (!confirm(`${colorName(side)}이 돌을 던집니다(기권). 대국을 끝낼까요?`)) return;
+  if (!game) return;
+  root.info.RE = other(side) + "+R"; publish();
+  stopGame(`${colorName(side)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`);
+};
 function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
 const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]) && !(quiz && !quiz.shown) && !$("hideEval").checked;
 // AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment).
@@ -1246,7 +1281,7 @@ setInterval(() => {
   if (!analyzing) return stopGame("분석이 꺼져 대국을 멈췄습니다.");
   if (cur.move && cur.move.pass && cur.parent.move && cur.parent.move.pass) {   // both passed: the game is over
     const s = [cur, cur.parent, cur.parent.parent].map(n => n && nodeStats(n)).find(Boolean);
-    if (s) { root.info.RE = `${s.blackLead >= 0 ? "B" : "W"}+${Math.abs(s.blackLead).toFixed(1)}`; publish(); }
+    if (s) { root.info.RE = countedRE(s.blackLead); publish(); }
     return stopGame("양쪽이 패스해 대국이 끝났습니다" + (s ? ` · ${resultText(root.info.RE)} (AI 판정)` : ""));
   }
   const mover = cur.toPlay, rule = game.ai[mover];
@@ -3181,7 +3216,7 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // and they go back to the bars in landscape.
 const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["기보", ["openSgf", "saveSgf", "copySgf", "pasteSgf", "editInfo", "kifuOpen", "openMine", "addNote", "openNotes"]],
-              ["대국", ["newGame", "sizeLabel", "handicapLabel", "komiLabel", "pass", "placeRow"]],
+              ["대국", ["newGame", "sizeLabel", "handicapLabel", "komiLabel", "pass", "gameScore", "gameResign", "placeRow"]],
               ["분석", ["autoAnalyze", "autoLevel", "strengthOpen", "strengthLevel"]],
               ["보기", ["barLabel", "graphLabel", "ownerLabel", "candsLabel", "hideLabel", "nums", "coords"]],
               ["편집", ["promote", "deleteNode", "resetBoard"]],
