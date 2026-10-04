@@ -943,8 +943,36 @@ async function openShared(t) {
     (member ? " — '내 기보 저장'으로 내 기보에 복사할 수 있습니다" : " — 로그인하면 내 기보에 복사할 수 있습니다");
 }
 let onMirror = null;   // set by mirrorScreen(): copies of the member's screen arriving through the bridge
+// 내 기기로 분석 (#local=1, user request 2026-10-05): no rented GPU. KataGo's net runs on this device (localengine.js,
+// a Web Worker with ONNX Runtime Web: the graphics where the browser offers them, else the CPU) and answers the same
+// analysis-engine queries, so this screen talks to it exactly as to the GPU's bridge (no shared board, no other devices).
+const localMode = hashParams.get("local") === "1" && !GPU_HOST.test(location.hostname);
+function connectLocal() {
+  const worker = new Worker("localengine.js"), sock = {readyState: 0, send: t => worker.postMessage(t), close: () => worker.terminate()};
+  ws = sock; heardAt = performance.now();
+  $("conn").textContent = "내 기기 · 엔진 준비 중";
+  if (pendingKifu) openMineKifu(pendingKifu);   // a 내 기보 opened this way: the board needs no engine
+  worker.onmessage = ev => {
+    const m = ev.data; heardAt = performance.now();
+    if (m && m.local) {
+      if (m.local === "progress") $("conn").textContent = m.pct >= 0 ? `내 기기 · 모델 내려받는 중 ${m.pct}%` : `내 기기 · 모델 내려받는 중 ${m.mb}MB`;
+      else if (m.local === "preparing") $("conn").textContent = "내 기기 · 엔진 준비 중 (처음엔 1분쯤)";
+      else if (m.local === "fallback") $("conn").textContent = "내 기기 · 그래픽을 쓸 수 없어 CPU로 준비 중";
+      else if (m.local === "failed") { $("conn").textContent = "내 기기 · 엔진을 켜지 못했습니다"; $("err").textContent = "내 기기 엔진 오류: " + m.error; }
+      else if (m.local === "ready") {
+        sock.readyState = 1; $("dot").classList.add("on"); $("conn").textContent = `내 기기 · ${m.device}`; $("err").textContent = "";
+        send({id: "ver", action: "query_version"}); ping();
+        if (analyzing) requestLive();
+      }
+      return;
+    }
+    onMessage(m);
+  };
+  worker.onerror = e => { $("conn").textContent = "내 기기 · 엔진을 켜지 못했습니다"; $("err").textContent = "내 기기 엔진 오류: " + (e.message || "알 수 없음"); };
+}
 let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message of any kind from the GPU
 function connect() {
+  if (localMode) { if (!ws) connectLocal(); return; }
   if (!token) { openWithoutGpu(); return; }
   clearTimeout(retryTimer);
   const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
@@ -1004,6 +1032,7 @@ function send(obj) {
 }
 function ping() { send({action: "ping", t: performance.now()}); }
 setInterval(() => {   // pings every 5 s; no answer (or no open) for 12 s = a dead connection
+  if (localMode) return;   // this device's own engine: nothing to lose (a slow CPU batch may hold its answer for seconds)
   if (ws && performance.now() - heardAt > 12000) return lost();
   ping();
 }, 5000);
@@ -1051,7 +1080,8 @@ function store(node, msg, id) {
 function onMessage(msg) {
   if ("pong" in msg) {
     if (msg.model) modelName = msg.model;
-    $("conn").textContent = `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms` + (msg.clients > 1 ? ` · 기기 ${msg.clients}대` : "");
+    $("conn").textContent = msg.device ? `내 기기 · ${msg.device === "webgpu" ? "그래픽" : "CPU"}`
+      : `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms` + (msg.clients > 1 ? ` · 기기 ${msg.clients}대` : "");
     updateEngineName(); return;
   }
   if (batchMode && ("hello" in msg || "state" in msg || "liveTaken" in msg || "liveLeft" in msg || msg.id === "peer")) return;   // not on the shared board
@@ -4215,7 +4245,7 @@ function watchMember(channel) {
 }
 
 document.fonts && document.fonts.ready.then(schedule);
-layout(); connect(); watchGpu(); if (!batchMode) mirrorScreen();   // the hidden 여러 기보 분석 frame is not the member's screen
+layout(); connect(); if (!localMode) watchGpu(); if (!batchMode && !localMode) mirrorScreen();   // the hidden 여러 기보 분석 frame is not the member's screen
 </script>
 </body>
 </html>

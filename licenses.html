@@ -36,6 +36,7 @@
     <ol>
       <li><a href="#site">사이트</a></li>
       <li><a href="#gpu">GPU에서 도는 것</a></li>
+      <li><a href="#device">내 기기로 분석</a></li>
       <li><a href="#fonts">글꼴·라이브러리</a></li>
       <li><a href="#texts">라이선스 전문</a></li>
     </ol>
@@ -54,7 +55,7 @@
     </div>
 
     <h2 id="gpu">GPU에서 도는 것</h2>
-    <p>GPU를 빌리면 그 GPU 서버에 아래 프로그램과 신경망을 내려받아 실행합니다. 회원의 기기로 배포되는 것은 없습니다.</p>
+    <p>GPU를 빌리면 그 GPU 서버에 아래 프로그램과 신경망을 내려받아 실행합니다.</p>
     <div class="lic">
       <h3>KataGo — MIT License</h3>
       <p><a href="https://github.com/lightvector/KataGo" rel="noopener">github.com/lightvector/KataGo</a> · Copyright David J Wu ("lightvector") 및 KataGo 기여자</p>
@@ -72,6 +73,18 @@
     <div class="lic">
       <h3>Python, Ubuntu 패키지</h3>
       <p>GPU 안의 중계 프로그램은 Python 표준 라이브러리만으로 만들었고(<a href="https://docs.python.org/3/license.html" rel="noopener">PSF License</a>), 설치에 쓰는 curl·unzip 등 Ubuntu 패키지는 각자의 라이선스를 따릅니다.</p>
+    </div>
+
+    <h2 id="device">내 기기로 분석</h2>
+    <p>'내 기기로 분석'을 쓰면 아래 신경망과 라이브러리를 회원의 브라우저로 내려받아 그 기기에서 실행합니다.</p>
+    <div class="lic">
+      <h3>KataGo 신경망 Transformer 소형 (KataGo(빠름)) — MIT License</h3>
+      <p><a href="https://github.com/lightvector/KataGo/releases" rel="noopener">KataGo 공식 릴리스</a>의 <code>b10c384h6nbttflrs</code>를 KataGo 1.18.2의 <code>dumponnx</code> 명령으로 ONNX 형식으로 바꾼 파일(<code>models/</code>)입니다. 신경망 입력 계산은 KataGo의 <code>NNInputs::fillRowV7</code>을 옮겨 만들었습니다(<code>localengine.js</code>). Copyright David J Wu ("lightvector") 및 KataGo 기여자.</p>
+    </div>
+    <div class="lic">
+      <h3>ONNX Runtime Web — MIT License</h3>
+      <p><a href="https://github.com/microsoft/onnxruntime" rel="noopener">github.com/microsoft/onnxruntime</a> · Copyright (c) Microsoft Corporation</p>
+      <p>신경망을 브라우저의 그래픽(WebGPU)이나 CPU(WebAssembly)로 계산합니다(jsDelivr에서 받음).</p>
     </div>
 
     <h2 id="fonts">글꼴·라이브러리</h2>
