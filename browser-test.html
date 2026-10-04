@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
-<title>브라우저 분석 시험 · KataGo Cloud</title>
+<title>내 기기로 분석 · KataGo Cloud</title>
 <link rel="icon" href="icons/icon-dark-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="icons/icon-light-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: light)">
 <link rel="stylesheet" href="style.css">
@@ -38,7 +38,7 @@
 <body>
 <header class="bar-top" style="padding:12px 16px"><a href="./" style="font-weight:800;text-decoration:none;color:inherit">KataGo Cloud</a></header>
 <main class="bt">
-  <h1>브라우저 분석 시험판</h1>
+  <h1>내 기기로 분석 <span style="font-size:15px;color:var(--muted,#667);font-weight:600">시험판</span></h1>
   <p class="lead">GPU를 빌리지 않고, 지금 쓰는 폰·PC의 그래픽(WebGPU)이나 CPU로 KataGo 신경망을 직접 돌려 봅니다. 바둑판과 분석 결과는 이 기기 안에서만 계산되고 서버로 가지 않습니다.</p>
 
   <section class="card">
@@ -50,11 +50,10 @@
     <h2>2. 모델 불러오기</h2>
     <div class="row">
       <label>모델 <select id="model"></select></label>
-      <label>계산 장치 <select id="ep"><option value="auto">자동 (그래픽 우선)</option><option value="webgpu">그래픽 (WebGPU)</option><option value="wasm">CPU (WebAssembly)</option></select></label>
       <button id="load" class="primary">불러오기</button>
     </div>
     <div class="bar"><i id="prog"></i></div>
-    <p class="note" id="loadMsg">처음 한 번은 모델 파일을 내려받습니다(와이파이 권장). 두 번째부터는 브라우저에 저장된 파일을 씁니다.</p>
+    <p class="note" id="loadMsg">계산 장치는 자동으로 고릅니다: 그래픽(WebGPU)을 먼저 쓰고, 안 되면 CPU로 계산합니다. 처음 한 번은 모델 파일을 내려받습니다(와이파이 권장). 두 번째부터는 브라우저에 저장된 파일을 씁니다.</p>
   </section>
 
   <section class="card">
@@ -104,6 +103,7 @@ for (const m of MODELS) $("model").add(new Option(m.name, m.id));
       else gpu = "WebGPU는 있으나 그래픽을 쓸 수 없음";
     } catch (e) { gpu = "오류: " + e.message; }
   }
+  if (!/^지원/.test(gpu)) $("model").value = "b6";   // CPU only: the small model
   rows.push(["그래픽(WebGPU)", gpu], ["여러 스레드", self.crossOriginIsolated ? "가능" : "불가 (CPU 계산은 1스레드)"]);
   $("dev").innerHTML = rows.map(([k, v]) => `<b>${k}</b><span>${String(v).replace(/</g, "&lt;")}</span>`).join("");
 })();
@@ -120,7 +120,7 @@ async function fetchCached(url, onProgress) {
   return buf.buffer;
 }
 $("load").onclick = async () => {
-  const m = MODELS.find(x => x.id === $("model").value), want = $("ep").value;
+  const m = MODELS.find(x => x.id === $("model").value);
   $("load").disabled = true; $("bench").disabled = $("run").disabled = true; stopRun();
   $("loadMsg").textContent = "내려받는 중…"; $("loadMsg").classList.remove("bad");
   try {
@@ -128,12 +128,18 @@ $("load").onclick = async () => {
     $("loadMsg").textContent = "신경망을 준비하는 중… (처음엔 수십 초 걸릴 수 있습니다)";
     ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
     ort.env.wasm.proxy = true;   // CPU work in a worker: the page stays responsive while it thinks
-    const tries = want === "auto" ? (navigator.gpu ? ["webgpu", "wasm"] : ["wasm"]) : [want];
+    // the graphics first, but only where the browser really hands out a graphics adapter; the CPU otherwise
+    let adapter = null; try { adapter = navigator.gpu && await navigator.gpu.requestAdapter(); } catch { /* none */ }
+    const tries = adapter ? ["webgpu", "wasm"] : ["wasm"];
+    const limit = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("그래픽 준비가 너무 오래 걸립니다")), ms))]);
     let err = null; session = null;
     for (const ep of tries) {
-      try { const t0 = performance.now(); session = await ort.InferenceSession.create(buf, {executionProviders: [ep], graphOptimizationLevel: "all"}); epUsed = ep;
+      try { const t0 = performance.now();
+        const make = ort.InferenceSession.create(buf, {executionProviders: [ep], graphOptimizationLevel: "all"});
+        session = ep === "webgpu" ? await limit(make, 90000) : await make; epUsed = ep;
+        if (ep === "webgpu") await limit(evalBatch([rootState()]), 60000);   // a first run, so a broken graphics path falls back now
         $("loadMsg").textContent = `준비됨 · ${ep === "webgpu" ? "그래픽(WebGPU)" : "CPU(WebAssembly)"} · ${((performance.now() - t0) / 1000).toFixed(1)}초`; break; }
-      catch (e) { err = e; }
+      catch (e) { err = e; session = null; $("loadMsg").textContent = "그래픽을 쓸 수 없어 CPU로 바꾸는 중…"; }
     }
     if (!session) throw err || new Error("준비 실패");
     meta = readMeta(session);
