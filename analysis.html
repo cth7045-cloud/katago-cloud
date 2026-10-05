@@ -451,7 +451,11 @@ button.primary:hover { background: var(--blue-deep); }
   body { grid-template-rows: auto auto minmax(0, 1fr); overflow-y: auto; }   /* scrolls only if a very short screen still overflows */
   .main { display: flex; flex-direction: column; padding: 0; gap: 0; }
   .brand span:last-child { display: none; }
-  #vps:not(:empty) { font-size: 12px; padding: 5px 8px; min-width: 96px; }   /* fits beside 내 기보 저장 on a 360px phone */
+  /* one row on a phone: the top bar wrapped visits/s onto a second line on a 360px phone or with the phone's text
+     made larger (user report 2026-10-05); it no longer wraps, the gaps are tighter and visits/s gives way first */
+  .menubar { flex-wrap: nowrap; gap: 6px; padding: 8px 10px; }
+  .brand { margin-right: 0; }
+  #vps:not(:empty) { font-size: 12px; padding: 5px 8px; min-width: 0; flex: 0 1 96px; overflow: hidden; text-overflow: ellipsis; }
   .center { order: 1; }
   .left { order: 2; padding: 8px 8px 0; }
   #capBox, #graphBox, .comment, .right { display: none; }
