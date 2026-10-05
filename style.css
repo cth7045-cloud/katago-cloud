@@ -430,3 +430,10 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
   .seg button[aria-pressed="true"] { background: #26304a; box-shadow: none; }
   .charge-account button { background: #26304a; }
 }
+
+/* 내 정보 → 알림: an on/off switch */
+button.switch { width: 52px; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 999px; background: var(--line); position: relative; flex: none; box-shadow: none; transition: background .2s var(--ease); }
+button.switch span { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .25s var(--spring); }
+button.switch[aria-checked="true"] { background: var(--good); }
+button.switch[aria-checked="true"] span { transform: translateX(22px); }
+button.switch:disabled { opacity: .6; }

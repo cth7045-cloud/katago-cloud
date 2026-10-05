@@ -402,6 +402,15 @@
         <p class="muted small" style="margin:10px 0 0">기기 설정을 고르면 휴대폰·PC의 다크 모드 설정을 따릅니다. 이 기기에서만 적용되고, 분석 화면도 같이 바뀝니다.</p>
       </div>
 
+      <!-- 알림: all of the site's notifications on or off for this account (2026-10-05) -->
+      <div class="panel">
+        <div class="row">
+          <h2 class="grow" style="margin:0">알림</h2>
+          <button type="button" class="switch" id="notifySwitch" role="switch" aria-checked="false" aria-label="알림 받기"><span></span></button>
+        </div>
+        <p class="muted small" id="notifyNote" style="margin:10px 0 0"></p>
+      </div>
+
       <div class="panel">
         <h2>비밀번호 변경</h2>
         <form id="pwForm" class="inline-form">
@@ -573,6 +582,7 @@ async function refresh() {
   ]);
   if (!p) return;
   profile = p;
+  keepPush();
   // the model this member rented last (any device) is picked next time (user request 2026-09-29); not an admin test rental
   const last = (s || []).find((x) => x.model_id && !x.auto_test);
   if (last && last.model_id !== lastModel) { lastModel = last.model_id; pickModel(); }
@@ -1306,9 +1316,52 @@ const baseTitle = document.title;
 const notifyState = () => ("Notification" in window ? Notification.permission : "unsupported");
 function askNotify() {
   if (notifyState() !== "default") return;
-  Notification.requestPermission().then(() => showSession(session)).catch(() => {});
+  Notification.requestPermission().then(() => { showSession(session); pushTried = false; keepPush(); }).catch(() => {});
 }
 $("notifyBtn").onclick = () => { askNotify(); };
+
+// ------------------------------------------------------------------ 알림 (내 정보, user request 2026-10-05)
+// The server tells every member's phone when their GPU is ready, could not get ready, stops (out of balance, 10 minutes
+// without input, ...) and when the balance is about to run out, plus 충전 results. The switch turns all of it on or off
+// for the account (profiles.notify, every device); on also registers this device. pushReady: this device is registered,
+// so the page leaves the GPU notices to the server instead of showing its own as well.
+let pushReady = false, pushTried = false;
+const notifyOn = () => !profile || profile.notify !== false;
+const switchOn = () => notifyOn() && pushOk && Notification.permission === "granted";
+function showNotify() {
+  const p = pushOk ? Notification.permission : "unsupported";
+  $("notifySwitch").setAttribute("aria-checked", String(switchOn()));
+  $("notifyNote").textContent = !pushOk
+    ? (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "아이폰·아이패드는 Safari에서 '홈 화면에 추가'한 앱으로 열어야 알림을 받을 수 있습니다." : "이 브라우저는 알림을 지원하지 않습니다. 크롬에서 열어 주세요.")
+    : !notifyOn() ? "알림을 모두 껐습니다. GPU 준비·종료와 충전 결과는 화면에서 확인해 주세요."
+    : p === "denied" ? "이 기기에서 알림이 차단되어 있습니다. 휴대폰 설정(또는 브라우저 사이트 설정)에서 KataGo Cloud 알림을 허용한 뒤 다시 누르세요."
+    : p === "granted" ? "GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과를 알려 드립니다."
+    : "켜면 GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과를 이 기기로 알려 드립니다.";
+}
+async function setNotify(on) {
+  const { error } = await sb.rpc("set_notify", { p_on: on });
+  if (error) throw error;
+  if (profile) profile.notify = on;
+}
+$("notifySwitch").onclick = async () => {
+  const sw = $("notifySwitch"); sw.disabled = true;
+  try {
+    if (switchOn()) { await setNotify(false); toast("알림을 모두 껐습니다."); }
+    else {
+      if (!pushOk) throw new Error("이 브라우저는 알림을 지원하지 않습니다.");
+      if (await Notification.requestPermission() !== "granted") throw new Error("알림을 허용해야 받을 수 있습니다. 휴대폰 설정에서 KataGo Cloud 알림을 허용해 주세요.");
+      await memberPush(); pushReady = true;
+      await setNotify(true); toast("알림을 켰습니다.");
+    }
+  } catch (e) { toast(e.message || String(e), true); }
+  finally { sw.disabled = false; showNotify(); }
+};
+function keepPush() {   // once per page: a device already allowed stays registered (the server's copy kept fresh)
+  showNotify();
+  if (pushTried || !notifyOn() || !pushOk || Notification.permission !== "granted") return;
+  pushTried = true;
+  memberPush().then((ok) => { pushReady = ok; }).catch(() => {});
+}
 function watchReady(s) {
   if (!s) return;
   const prev = seenStatus.get(s.id); seenStatus.set(s.id, s.status);
@@ -1316,11 +1369,11 @@ function watchReady(s) {
   if (s.status === "ready") alertMember("GPU 준비 완료", `${s.gpu_name || "GPU"} 준비가 끝났습니다. 분석 화면을 열어 시작하세요.`);
   else if (s.status === "failed") alertMember("GPU 준비 실패", `${s.gpu_name || "GPU"}를 준비하지 못했습니다.` + (s.refunded_krw > 0 ? ` 요금 ${won(s.refunded_krw)}은 돌려드렸습니다.` : " 다른 GPU로 다시 시작해 주세요."));
 }
-function alertMember(title, body) {
+function alertMember(title, body, local = false) {   // local: 내 기기, which the server knows nothing of
   toast(body);
   if (document.visibilityState === "visible") return;
   document.title = `● ${title} · ${baseTitle}`;
-  if (notifyState() !== "granted") return;
+  if (notifyState() !== "granted" || !notifyOn() || (!local && pushReady)) return;   // the server's notification comes
   const opts = { body, tag: "kgv-gpu", icon: "icons/icon-light-192.png", badge: "icons/badge-96.png", data: { url: location.pathname + "#gpu" } };
   // Android Chrome only shows notifications through the service worker (new Notification() throws there)
   (navigator.serviceWorker?.getRegistration() || Promise.resolve(null))
@@ -1402,7 +1455,7 @@ $("deviceStart").onclick = () => {
   const fail = (msg) => {
     endLocal(); setLocal(0, ["실패", "bad"], "");
     $("localError").textContent = "엔진을 켜지 못했습니다: " + msg; $("localStop").textContent = "닫기";
-    alertMember("내 기기 준비 실패", "이 기기에서 엔진을 켜지 못했습니다.");
+    alertMember("내 기기 준비 실패", "이 기기에서 엔진을 켜지 못했습니다.", true);
   };
   w.onerror = (e) => { if (localWorker === w) fail(e.message || "알 수 없는 오류"); };
   w.onmessage = (ev) => {
@@ -1419,7 +1472,7 @@ $("deviceStart").onclick = () => {
       setLocal(3, ["사용 가능", "good"], "");
       $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}로 계산`;
       $("localOpen").href = url; $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
-      alertMember("내 기기 준비 완료", "준비가 끝났습니다. '분석 화면 열기'를 누르세요.");
+      alertMember("내 기기 준비 완료", "준비가 끝났습니다. '분석 화면 열기'를 누르세요.", true);
     }
   };
 };
