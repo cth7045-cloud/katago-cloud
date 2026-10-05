@@ -12,9 +12,23 @@ font:16px/1.6 'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;text-al
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (ev) => ev.waitUntil(self.clients.claim()));
+// The analysis screen is served cross-origin isolated (2026-10-05): only such a page may run 내 기기로 분석's engine on
+// several CPU cores (WebAssembly threads), about 3x the visits of one core. The static host sends no such headers, so
+// they are added here; a browser that does not know "credentialless" (Safari) just stays on one core.
+const ISOLATE = { "Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Embedder-Policy": "credentialless" };
+function isolated(res) {   // the page, and the engine's worker script (an isolated page runs only a worker sent so)
+  if (!res.ok) return res;
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(ISOLATE)) headers.set(k, v);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
 self.addEventListener("fetch", (ev) => {
+  const path = new URL(ev.request.url).pathname;
+  if (ev.request.destination === "worker" && path.endsWith("/localengine.js")) { ev.respondWith(fetch(ev.request).then(isolated)); return; }
   if (ev.request.mode !== "navigate") return;   // files, API calls, the GPU connection: untouched
-  ev.respondWith(fetch(ev.request).catch(() => new Response(OFFLINE, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
+  const analysis = path.endsWith("/analysis.html");
+  ev.respondWith(fetch(ev.request).then((res) => analysis ? isolated(res) : res)
+    .catch(() => new Response(OFFLINE, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
 });
 // a push from the server (충전 요청 to the admins): {title, body, url, tag}
 self.addEventListener("push", (ev) => {

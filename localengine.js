@@ -25,6 +25,10 @@ const MODEL = MODELS[ARGS.get("m")] || MODELS.fast, MODEL_NAME = MODEL.name + " 
 const CPU_ONLY = ARGS.get("ep") === "wasm";   // GPU 대여's 시작 already found the graphics unusable here: no second 90-second try
 const B = 19, BB = B * B;                 // the net's buffer: 19x19, smaller boards sit in its top-left corner
 const CPUCT = 1.1, FPU = .2, BATCH = 8, SCORE_UTIL = .3;
+// Playouts per evaluation batch, kept to what this device does in about STEP_MS: a query waits for the batch in hand
+// before it starts, and 8 at once took 4-5 s on a CPU (phones longer), so a new position showed nothing for that long
+const STEP_MS = 200;
+let batch = 1;
 let session = null, ep = "", meta = {leadMultiplier: 20, scoreStdevMultiplier: 20};
 const post = m => postMessage(m);
 
@@ -65,6 +69,8 @@ async function load() {
         session = e === "webgpu" ? await limit(make, 90000) : await make; ep = e;
         const got = await limit(evaluate(checkPositions()), e === "webgpu" ? 60000 : 600000);   // first run: compiles the shaders
         if (e === "webgpu" && !matches(got)) throw new Error("wrong results");
+        const t0 = performance.now(); await evaluate(checkPositions());   // timed now the shaders are ready
+        batch = Math.max(1, Math.min(BATCH, Math.floor(STEP_MS / ((performance.now() - t0) / 2))));
         if (!MODEL.ref) post({local: "ref", ref: got.map(r => ({win: +r.win.toFixed(4), lead: +r.lead.toFixed(3), best: bestOf(r)}))});
         break;
       } catch (err) { session = null; if (e === "wasm") throw err; post({local: "fallback"}); }
@@ -213,7 +219,7 @@ function pick(node) {
 }
 async function step(root) {   // one batch of playouts; returns how many new evaluations it made
   const leaves = [];
-  for (let t = 0; t < BATCH; t++) {
+  for (let t = 0; t < batch; t++) {
     let node = root; const path = [root];
     while (node.kids) {
       const e = pick(node); if (!e) break;
@@ -301,7 +307,10 @@ async function pump() {
         const p = t.all[t.turns[t.i]], [ev] = await evalCached([p]);
         t.root = makeNode(p); expand(t.root, ev); t.t0 = performance.now(); t.said = 0;
       }
-      await step(t.root);
+      const s0 = performance.now(), made = await step(t.root), took = performance.now() - s0;
+      if (made === batch) {   // a full batch of new evaluations: fit the next one to STEP_MS (cached ones cost nothing)
+        if (took > STEP_MS * 1.5 && batch > 1) batch >>= 1; else if (took < STEP_MS / 2 && batch < BATCH) batch <<= 1;
+      }
       if (!tasks.includes(t)) continue;   // terminated while it was evaluating
       const now = performance.now(), el = (now - t.t0) / 1000;
       if (t.every && el >= (t.said ? t.said + t.every : t.first)) { t.said = el; report(t, t.root, true, t.live ? undefined : t.turns[t.i]); }
