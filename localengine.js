@@ -5,8 +5,9 @@
 // ONNX with `katago dumponnx` (KataGo 1.18.2, a 19x19 buffer with board masking, so 9x9 and 13x13 boards fit in its
 // top-left corner the way KataGo does it), run by ONNX Runtime Web on the graphics (WebGPU) where the browser offers
 // it, else on the CPU (WebAssembly).
-// The search is a plain PUCT tree search with batched evaluations (virtual loss), not KataGo's own: no ladder or
-// pass-alive input features yet, no symmetries, one tree per query. Values are reported for BLACK, like the GPU's
+// The net's inputs are KataGo's own, ladders included (the same as KataGo's for 40 random 9x9-19x19 positions; the
+// pass-alive area features stay off under Korean rules until the encore, as in KataGo). The search is a plain PUCT
+// tree search with batched evaluations (virtual loss), not KataGo's own: no symmetries, one tree per query. Values are reported for BLACK, like the GPU's
 // engine (reportAnalysisWinratesAs = BLACK).
 "use strict";
 const ORT_DIST = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
@@ -110,20 +111,199 @@ function chain(g, n, i) {
 // chill}. chill is KataGo's whiteBonusScore under territory scoring: +1 for every black stone placed, -1 for every white
 // one (passes not), which the net sees added to the komi (BoardHistory, "chill 1 point per move"). Without it every
 // position with white to move looked a point worse for white (2026-10-05: white win 0.41 here, 0.53 in KataGo).
-function emptyPos(n) { return {n, g: new Int8Array(n * n), pla: 1, ko: -1, hist: [], komi: 6.5, pda: 0, chill: 0}; }
+// prev: the position before the last move (the ladder features look at the last two boards too); lad: its ladders, memo
+function emptyPos(n) { return {n, g: new Int8Array(n * n), pla: 1, ko: -1, hist: [], komi: 6.5, pda: 0, chill: 0, prev: null, lad: null}; }
 function play(p, color, mv) {   // the new position, or null if illegal; color 1/2 may break the alternation (placed stones)
   const opp = 3 - color, n = p.n;
-  if (mv < 0) return {...p, pla: opp, ko: -1, hist: p.hist.concat({pla: color, mv: -1})};
+  if (mv < 0) return {...p, pla: opp, ko: -1, hist: p.hist.concat({pla: color, mv: -1}), prev: p, lad: null};
   if (p.g[mv] || (mv === p.ko && color === p.pla)) return null;
   const g = p.g.slice(); g[mv] = color; let cap = [];
   for (const j of nbrs(n)[mv]) if (g[j] === opp) { const ch = chain(g, n, j); if (!ch.libs) { for (const k of ch.st) g[k] = 0; cap = cap.concat(ch.st); } }
   const own = chain(g, n, mv); if (!own.libs) return null;
   const ko = cap.length === 1 && own.st.length === 1 && own.libs === 1 ? cap[0] : -1;
-  return {...p, g, pla: opp, ko, hist: p.hist.concat({pla: color, mv}), chill: p.chill + (color === 1 ? 1 : -1)};
+  return {...p, g, pla: opp, ko, hist: p.hist.concat({pla: color, mv}), chill: p.chill + (color === 1 ? 1 : -1), prev: p, lad: null};
 }
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 const parseMove = (s, n) => { if (!s || /^pass$/i.test(s)) return -1; const x = LETTERS.indexOf(s[0].toUpperCase()), y = n - parseInt(s.slice(1), 10); return x >= 0 && x < n && y >= 0 && y < n ? y * n + x : -2; };
 const moveName = (mv, n) => mv < 0 ? "pass" : LETTERS[mv % n] + (n - ((mv / n) | 0));
+
+// ---------------------------------------------------------------- ladders (KataGo game/board.cpp, nninputs.cpp iterLadders)
+// The net is told which stones can be captured in a ladder (features 14-16: this board and the two before) and which
+// moves start a working ladder on an opponent group with two liberties (17). Without them it could not see ladders
+// (user report 2026-10-05: a ladder the rented GPU's KataGo reads was missed here). Ported from KataGo 1.18.2:
+// Board::searchIsLadderCaptured / searchIsLadderCapturedAttackerFirst2Libs with their helpers, the same base cases,
+// double-ko rule, move ordering and the 25000-node budget, on a board with a wall around it.
+class LadderBoard {
+  constructor(g, n, ko) {
+    const W = this.W = n + 2; this.n = n;
+    this.c = new Int8Array(W * W).fill(3);   // 0 empty, 1 black, 2 white, 3 wall
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) this.c[(y + 1) * W + x + 1] = g[y * n + x];
+    this.adj = [-W, -1, 1, W];
+    this.ko = ko >= 0 ? this.loc(ko) : -1;
+  }
+  loc(i) { return (((i / this.n) | 0) + 1) * this.W + i % this.n + 1; }
+  idx(l) { return (((l / this.W) | 0) - 1) * this.n + l % this.W - 1; }
+  group(l) {   // {st: stones, libs: liberties in the order found}
+    const c = this.c, col = c[l], st = [l], seen = new Set([l]), libs = [], lseen = new Set();
+    for (let k = 0; k < st.length; k++) for (const d of this.adj) {
+      const a = st[k] + d;
+      if (c[a] === 0) { if (!lseen.has(a)) { lseen.add(a); libs.push(a); } }
+      else if (c[a] === col && !seen.has(a)) { seen.add(a); st.push(a); }
+    }
+    return {st, libs};
+  }
+  libs(l) { return this.group(l).libs.length; }
+  head(l) { let m = l; for (const s of this.group(l).st) if (s < m) m = s; return m; }
+  isLegal(l, p) {   // empty, not the ko point, not suicide (multi-stone suicide illegal too)
+    if (this.c[l] !== 0 || l === this.ko) return false;
+    for (const d of this.adj) {
+      const a = l + d, v = this.c[a];
+      if (v === 0) return true;
+      if (v === p && this.libs(a) > 1) return true;
+      if (v === 3 - p && this.libs(a) === 1) return true;
+    }
+    return false;
+  }
+  play(l, p) {   // -> a record to undo it
+    const c = this.c, rec = {l, ko: this.ko, caps: []};
+    c[l] = p;
+    for (const d of this.adj) { const a = l + d; if (c[a] === 3 - p) { const g = this.group(a); if (!g.libs.length) for (const s of g.st) { c[s] = 0; rec.caps.push(s); } } }
+    const own = this.group(l);
+    this.ko = rec.caps.length === 1 && own.st.length === 1 && own.libs.length === 1 ? rec.caps[0] : -1;
+    return rec;
+  }
+  undo(rec) { const p = this.c[rec.l]; this.c[rec.l] = 0; for (const s of rec.caps) this.c[s] = 3 - p; this.ko = rec.ko; }
+  immediateLibs(l) { let k = 0; for (const d of this.adj) if (this.c[l + d] === 0) k++; return k; }
+  boundLibsAfterPlay(l, p) {   // [lower, upper]
+    let imm = 0, caps = 0, potCaps = 0, conn = 0, maxConn = 0;
+    for (const d of this.adj) {
+      const a = l + d, v = this.c[a];
+      if (v === 0) imm++;
+      else if (v === 3 - p) { const g = this.group(a); if (g.libs.length === 1) { caps++; potCaps += g.st.length; } }
+      else if (v === p) { const cl = this.libs(a) - 1; conn += cl; if (cl > maxConn) maxConn = cl; }
+    }
+    return [caps + (maxConn > imm ? maxConn : imm), imm + potCaps + conn];
+  }
+  libsAfterPlay(l, p, max) {
+    const c = this.c, libs = new Set(), capStones = new Set();
+    for (const d of this.adj) {
+      const a = l + d;
+      if (c[a] === 0) { libs.add(a); if (libs.size >= max) return max; }
+      else if (c[a] === 3 - p) { const g = this.group(a); if (g.libs.length === 1) { libs.add(a); if (libs.size >= max) return max; for (const s of g.st) capStones.add(s); } }
+    }
+    const done = new Set();
+    for (const d of this.adj) {
+      const a = l + d; if (c[a] !== p || done.has(a)) continue;
+      const g = this.group(a); for (const s of g.st) done.add(s);
+      for (const s of g.st) for (const e of this.adj) {
+        const b = s + e;
+        if (b !== l && (c[b] === 0 || capStones.has(b))) { libs.add(b); if (libs.size >= max) return max; }
+      }
+    }
+    return libs.size;
+  }
+  wouldBeKoCapture(l, p) {
+    if (this.c[l] !== 0) return false;
+    let capLoc = -1;
+    for (const d of this.adj) {
+      const a = l + d, v = this.c[a];
+      if (v !== 3 && v !== 3 - p) return false;
+      if (v === 3 - p && this.libs(a) === 1) { if (capLoc >= 0) return false; capLoc = a; }
+    }
+    return capLoc >= 0 && this.group(capLoc).st.length === 1;
+  }
+  connectionLibsX2(l, p) { let k = 0; for (const d of this.adj) { const a = l + d; if (this.c[a] === p) { const lb = this.libs(a); if (lb > 1) k += lb * 2 - 3; } } return k; }
+  libertyGainingCaptures(l) {   // the liberties of opposing groups in atari next to the group at l
+    const c = this.c, opp = 3 - c[l], out = [], heads = new Set();
+    for (const s of this.group(l).st) for (const d of this.adj) {
+      const a = s + d; if (c[a] !== opp) continue;
+      const g = this.group(a); let h = a; for (const t of g.st) if (t < h) h = t;
+      if (g.libs.length === 1 && !heads.has(h)) { heads.add(h); for (const x of g.libs) if (!out.includes(x)) out.push(x); }
+    }
+    return out;
+  }
+  hasLibertyGainingCaptures(l) {
+    const c = this.c, opp = 3 - c[l];
+    for (const s of this.group(l).st) for (const d of this.adj) { const a = s + d; if (c[a] === opp && this.libs(a) === 1) return true; }
+    return false;
+  }
+  isAdjacent(a, b) { return Math.abs(a - b) === 1 || Math.abs(a - b) === this.W; }
+  ladderCaptured(l, defenderFirst) {   // searchIsLadderCaptured
+    const c = this.c, pla = c[l], opp = 3 - pla;
+    if (pla !== 1 && pla !== 2) return false;
+    const libs0 = this.libs(l);
+    if (libs0 > 2 || (defenderFirst && libs0 > 1)) return false;
+    const savedKo = this.ko; if (defenderFirst) this.ko = -1;
+    const stackSize = ((this.n * this.n * 3) / 2 | 0) + 1;
+    let nodes = 0;
+    const OUT = {};
+    const search = depth => {   // true = captured
+      if (depth >= stackSize - 1) return true;
+      if (nodes >= 25000) throw OUT;
+      const isDefender = defenderFirst ? depth % 2 === 0 : depth % 2 === 1;
+      const libs = this.libs(l);
+      if (!isDefender && libs <= 1) return true;
+      if (!isDefender && libs >= 3) return false;
+      if (isDefender && libs >= 2) return false;
+      if (isDefender && this.ko !== -1) return false;
+      let moves;
+      if (isDefender) {
+        moves = this.libertyGainingCaptures(l);
+        for (const x of this.group(l).libs) if (!moves.includes(x)) moves.push(x);
+        const [lo, hi] = this.boundLibsAfterPlay(moves[moves.length - 1], pla);
+        if (lo >= 3) return false;
+        if (moves.length === 1 && hi <= 1) return true;
+      } else {
+        moves = this.group(l).libs.slice();
+        let a0 = this.immediateLibs(moves[0]), a1 = this.immediateLibs(moves[1]);
+        if (a0 === 0 && a1 === 0 && this.wouldBeKoCapture(moves[0], opp) && this.wouldBeKoCapture(moves[1], opp) &&
+            this.libsAfterPlay(moves[0], pla, 3) <= 2 && this.libsAfterPlay(moves[1], pla, 3) <= 2 && !this.hasLibertyGainingCaptures(l)) return true;
+        if (!this.isAdjacent(moves[0], moves[1])) {
+          if (a0 >= 3 && a1 >= 3) return false;
+          else if (a0 >= 3) moves = [moves[0]];
+          else if (a1 >= 3) moves = [moves[1]];
+        }
+        if (moves.length > 1) {
+          a0 = a0 * 2 + this.connectionLibsX2(moves[0], pla); a1 = a1 * 2 + this.connectionLibsX2(moves[1], pla);
+          if (a1 > a0) moves = [moves[1], moves[0]];
+        }
+      }
+      for (const m of moves) {
+        const who = isDefender ? pla : opp;
+        if (!this.isLegal(m, who)) continue;   // an illegal move counts as a failed one
+        const rec = this.play(m, who); nodes++;
+        let r; try { r = search(depth + 1); } finally { this.undo(rec); }
+        if (isDefender && !r) return false;
+        if (!isDefender && r) return true;
+      }
+      return isDefender;
+    };
+    try { return search(0); } catch (e) { if (e !== OUT) throw e; return false; } finally { this.ko = savedKo; }
+  }
+  ladderCapturedAttackerFirst2Libs(l) {   // -> the attacker's working first moves ([] = no ladder)
+    const pla = this.c[l], opp = 3 - pla, libs = this.group(l).libs, works = [];
+    if (libs.length !== 2) return works;
+    for (const m of libs) if (this.isLegal(m, opp)) { const rec = this.play(m, opp); const ok = this.ladderCaptured(l, true); this.undo(rec); if (ok) works.push(m); }
+    return works;
+  }
+}
+function laddersOf(p) {   // iterLadders, kept on the position: {stones: board indices, working: [{col, moves}]}
+  if (p.lad) return p.lad;
+  const b = new LadderBoard(p.g, p.n, p.ko), solved = new Map(), stones = [], working = [];
+  for (let i = 0; i < p.n * p.n; i++) {
+    if (!p.g[i]) continue;
+    const l = b.loc(i), libs = b.libs(l);
+    if (libs !== 1 && libs !== 2) continue;
+    const h = b.head(l);
+    if (solved.has(h)) { if (solved.get(h)) stones.push(i); continue; }
+    let laddered;
+    if (libs === 1) laddered = b.ladderCaptured(l, true);
+    else { const w = b.ladderCapturedAttackerFirst2Libs(l); laddered = w.length > 0; if (laddered) working.push({col: p.g[i], moves: w.map(x => b.idx(x))}); }
+    solved.set(h, laddered);
+    if (laddered) stones.push(i);
+  }
+  return p.lad = {stones, working};
+}
 // Some phones' graphics run the net but compute it wrong (2026-10-05, a Galaxy tablet: every move the same win rate,
 // moves all over the board). So the first run is checked against what the CPU computes for two positions, worked
 // out beforehand (MODELS[].ref): graphics that disagree are not used, the CPU is.
@@ -157,11 +337,19 @@ function fillInputs(p, B, sp, gl, mk, so, go, mo) {   // B: the net's board buff
   const at = i => ((i / n) | 0) * B + i % n;
   if (p.ko >= 0) sp[so + 6 * F + at(p.ko)] = 1;                  // 6 ko ban
   // 9..13 the last five moves while they alternate back from the opponent (a pass sets a global flag instead)
-  const h = p.hist;
+  const h = p.hist; let turns = 0;   // turns: how many of the last moves are included (numTurnsOfHistoryIncluded)
   for (let k = 0; k < 5 && k < h.length; k++) {
     const m = h[h.length - 1 - k]; if (m.pla !== (k % 2 === 0 ? opp : pla)) break;
     if (m.mv < 0) gl[go + k] = 1; else sp[so + (9 + k) * F + at(m.mv)] = 1;
+    turns = k + 1;
   }
+  // 14 stones a ladder captures, 15 / 16 the same on the board one / two moves ago, 17 the moves that start a working
+  // ladder on the opponent's two-liberty groups
+  const lad = laddersOf(p), prev = turns >= 1 && p.prev ? p.prev : p, prev2 = turns >= 2 && prev.prev ? prev.prev : prev;
+  for (const i of lad.stones) sp[so + 14 * F + at(i)] = 1;
+  for (const w of lad.working) if (w.col === opp) for (const i of w.moves) sp[so + 17 * F + at(i)] = 1;
+  for (const i of laddersOf(prev).stones) sp[so + 15 * F + at(i)] = 1;
+  for (const i of laddersOf(prev2).stones) sp[so + 16 * F + at(i)] = 1;
   const selfKomi = pla === 2 ? p.komi + p.chill : -(p.komi + p.chill), area = n * n;
   gl[go + 5] = Math.max(-area - 20, Math.min(area + 20, selfKomi)) / 20;   // komi from the side to move
   gl[go + 9] = 1;                                                // territory scoring
