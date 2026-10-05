@@ -969,7 +969,10 @@ addEventListener("message", (ev) => {
     const saved = batchRun.filter((x) => x.state === "saved").length;
     batchRun.forEach((x) => { if (x.state === "wait" || x.state === "run") { x.state = "cancel"; x.text = "취소됨"; } });
     loadMine(); loadNotesCard();
-    if (!d.stopped && $("batchAutoStop").checked && session) {   // 다 끝나면 GPU 끄기 (not after 분석 취소)
+    // 기보 분석 완료 as a phone notification (user request 2026-10-05); not after the member's own 분석 취소
+    const gpuOff = !d.stopped && $("batchAutoStop").checked && !!session;
+    if (!d.stopped) api("/notify/batch", { saved, failed: batchRun.filter((x) => x.state === "error").length, gpuOff }).catch(() => {});
+    if (gpuOff) {   // 다 끝나면 GPU 끄기 (not after 분석 취소)
       toast(`${saved}판을 분석해 내 기보에 저장했습니다. GPU를 끄는 중…`);
       api("/stop", {}).then((r) => { toast(r.stopped ? "다 끝나서 GPU를 껐습니다. 요금 차감이 멈췄습니다." : "다 끝나서 GPU 종료를 요청했습니다."); refresh(); })
         .catch((err) => toast("GPU를 끄지 못했습니다. 'GPU 종료'를 눌러 주세요: " + err.message, true));
