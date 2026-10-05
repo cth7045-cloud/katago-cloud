@@ -3389,17 +3389,21 @@ boardCv.addEventListener("mousemove", ev => {
 });
 boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
 // Laptop touchpad (and mouse): the phone's touch gestures, translated (the phone's own handling is further down).
-// - press and hold on the board (touchpad clicked and held, or a mouse button) = the long press: the invisible cursor is
+// - press and hold on the board (touchpad clicked and held, or a mouse button, MOUSE_HOLD_MS) = the long press: the invisible cursor is
 //   pinned there (slide while holding to move it) and stays after letting go, so the preview stays; a short click plays
 // - two fingers up/down on the touchpad = two fingers on the phone (see the wheel handler)
 // - two-finger tap on the touchpad (= right click) on the board = the phone's 3-finger tap: one move back. Windows keeps
 //   3-finger touchpad taps for itself, and a right click is YZY / Lizzie's "back" too.
+// A light tap on a touchpad (not a pressed click) holds the button down for a moment: Windows waits to see whether a
+// second tap starts a drag. At the phone's 200 ms that counted as a long press and the stone was not played (user
+// report 2026-10-05), so the touchpad / mouse hold is longer.
+const MOUSE_HOLD_MS = 500;
 let lastPointer = "mouse", mhold = null, skipClick = false;
 document.addEventListener("pointerdown", ev => { lastPointer = ev.pointerType; }, true);
 boardCv.addEventListener("pointerdown", ev => {
   if (ev.pointerType !== "mouse" || ev.button !== 0) return;
   skipClick = false;
-  const g = mhold = {held: false, last: ev, timer: setTimeout(() => { g.held = true; moveCursor(g.last); }, LONG_PRESS_MS)};
+  const g = mhold = {held: false, last: ev, timer: setTimeout(() => { g.held = true; moveCursor(g.last); }, MOUSE_HOLD_MS)};
 });
 addEventListener("pointerup", ev => {
   if (!mhold || ev.pointerType !== "mouse") return;
