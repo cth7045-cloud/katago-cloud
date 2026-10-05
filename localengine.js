@@ -26,8 +26,10 @@ const CPU_ONLY = ARGS.get("ep") === "wasm";   // GPU 대여's 시작 already fou
 const B = 19, BB = B * B;                 // the net's buffer: 19x19, smaller boards sit in its top-left corner
 const CPUCT = 1.1, FPU = .2, BATCH = 8, SCORE_UTIL = .3;
 // Playouts per evaluation batch, kept to what this device does in about STEP_MS: a query waits for the batch in hand
-// before it starts, and 8 at once took 4-5 s on a CPU (phones longer), so a new position showed nothing for that long
-const STEP_MS = 200;
+// before it starts, and 8 at once took 4-5 s on a CPU (phones longer), so a new position showed nothing for that long.
+// 0.1 s, the analysis screen's report interval, so the win rate moves as often as a rented GPU's where the device
+// is fast enough (a device slower than one position per 0.1 s reports after each position)
+const STEP_MS = 100;
 let batch = 1;
 let session = null, ep = "", meta = {leadMultiplier: 20, scoreStdevMultiplier: 20};
 const post = m => postMessage(m);
@@ -61,7 +63,8 @@ async function load() {
     const buf = await fetchModel(MODEL);
     post({local: "preparing"});
     ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
-    let adapter = null; try { adapter = !CPU_ONLY && navigator.gpu && await navigator.gpu.requestAdapter(); } catch { /* none */ }
+    let adapter = null; try { adapter = !CPU_ONLY && navigator.gpu && await navigator.gpu.requestAdapter({powerPreference: "high-performance"}); } catch { /* none */ }
+    if (adapter) ort.env.webgpu.adapter = adapter;   // a laptop's own graphics card rather than the built-in one
     const limit = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms))]);
     for (const e of adapter ? ["webgpu", "wasm"] : ["wasm"]) {   // the graphics first, the CPU when they fail
       try {
