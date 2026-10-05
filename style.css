@@ -165,7 +165,7 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 .who { color: var(--muted); font-size: 14px; }
 
 #sessionCard { border: 1px solid transparent; animation: arrive .6s var(--ease); }
-#sessionCard.is-ready { border-color: rgba(22, 193, 220, .45); box-shadow: 0 0 0 6px rgba(22, 193, 220, .08), var(--shadow); }
+#sessionCard.is-ready, #localCard.is-ready { border-color: rgba(22, 193, 220, .45); box-shadow: 0 0 0 6px rgba(22, 193, 220, .08), var(--shadow); }
 .session-title { font-size: 22px; font-weight: 750; letter-spacing: -.02em; margin: 0; }
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0 12px; }
 .step { position: relative; padding-top: 16px; font-size: 14px; font-weight: 600; color: var(--muted); transition: color .3s; }

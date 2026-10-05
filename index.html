@@ -137,7 +137,7 @@
         <div class="row">
           <h2 class="grow" style="margin:0">내 기기로 분석</h2>
           <select id="deviceModel" aria-label="내 기기로 분석 모델"><option value="fast">KataGo(빠름)</option><option value="balanced">KataGo(균형)</option></select>
-          <a class="btn primary" id="deviceStart" href="analysis.html#local=1" target="_blank" rel="noopener">시작</a>
+          <button class="primary" type="button" id="deviceStart">시작</button>
         </div>
       </div>
       <div id="homeGpuSlot">
@@ -147,6 +147,26 @@
           <div class="big" id="balance">-</div>
         </div>
         <p class="note" id="walletNote">충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.</p>
+      </div>
+
+      <!-- 내 기기로 분석 being prepared: the same card as a rented GPU's (steps, pill, progress), with no charge -->
+      <div class="panel hidden" id="localCard">
+        <div class="row">
+          <h2 class="session-title grow" id="localTitle">내 기기</h2>
+          <span class="pill" id="localPill"></span>
+        </div>
+        <div class="steps">
+          <div class="step" id="localStep1">모델 내려받기</div>
+          <div class="step" id="localStep2">엔진 준비·검증</div>
+          <div class="step" id="localStep3">분석 준비 완료</div>
+        </div>
+        <div class="muted small" id="localProgress"></div>
+        <div class="row" style="margin-top:16px">
+          <div class="grow small" id="localMeta">요금 없음 · 이 기기에서 계산</div>
+          <a class="btn primary hidden" id="localOpen" href="analysis.html#local=1">분석 화면 열기</a>
+          <button class="danger" type="button" id="localStop">준비 취소</button>
+        </div>
+        <div class="error" id="localError"></div>
       </div>
 
       <!-- running session -->
@@ -1354,12 +1374,59 @@ $("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg"
 // open in the same window (on iPhone a new tab would be Safari, which is not logged in).
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
-if (standalone) for (const id of ["analysisLink", "openAnalysis", "deviceStart"]) $(id).removeAttribute("target");
-// 내 기기로 분석's model (빠름 or 균형), remembered on this device
-function deviceModelLink() { $("deviceStart").href = "analysis.html#local=1" + ($("deviceModel").value === "balanced" ? "&m=balanced" : ""); }
+if (standalone) for (const id of ["analysisLink", "openAnalysis"]) $(id).removeAttribute("target");
+// 내 기기로 분석 (user request 2026-10-05): 시작 prepares KataGo on this device right here, shown the way a rented GPU's
+// setup is (model download → engine start and a test run → ready), then opens the analysis screen. That screen starts
+// its own engine from the stored model (a page cannot hand its worker to the next one), told whether the graphics
+// worked so it does not try them again. The model choice (빠름 or 균형) is remembered on this device.
+const LOCAL_MODELS = { fast: "KataGo(빠름)", balanced: "KataGo(균형)" };
+let localWorker = null;
 try { if (localStorage.getItem("kgv.deviceModel") === "balanced") $("deviceModel").value = "balanced"; } catch { /* no storage */ }
-deviceModelLink();
-$("deviceModel").onchange = () => { try { localStorage.setItem("kgv.deviceModel", $("deviceModel").value); } catch { /* no storage */ } deviceModelLink(); };
+$("deviceModel").onchange = () => { try { localStorage.setItem("kgv.deviceModel", $("deviceModel").value); } catch { /* no storage */ } };
+function setLocal(stage, pill, text) {
+  const ready = stage === 3;
+  $("localCard").classList.toggle("is-ready", ready);
+  $("localPill").textContent = pill[0]; $("localPill").className = "pill " + pill[1];
+  [1, 2, 3].forEach((n) => { $("localStep" + n).className = "step" + (n < stage || (ready && n === 3) ? " done" : n === stage ? " on" : ""); });
+  $("localProgress").textContent = text;
+}
+function endLocal() { if (localWorker) { localWorker.terminate(); localWorker = null; } }
+$("deviceStart").onclick = () => {
+  endLocal();
+  const m = $("deviceModel").value, w = localWorker = new Worker("localengine.js" + (m === "balanced" ? "?m=balanced" : ""));
+  $("deviceCard").classList.add("hidden"); $("localCard").classList.remove("hidden");
+  $("localTitle").textContent = `내 기기 · ${LOCAL_MODELS[m]}`;
+  $("localMeta").textContent = "요금 없음 · 이 기기에서 계산";
+  $("localOpen").classList.add("hidden"); $("localStop").textContent = "준비 취소"; $("localError").textContent = "";
+  setLocal(1, ["준비 중", "warn"], "모델 확인 중");
+  const fail = (msg) => {
+    endLocal(); setLocal(0, ["실패", "bad"], "");
+    $("localError").textContent = "엔진을 켜지 못했습니다: " + msg; $("localStop").textContent = "닫기";
+    alertMember("내 기기 준비 실패", "이 기기에서 엔진을 켜지 못했습니다.");
+  };
+  w.onerror = (e) => { if (localWorker === w) fail(e.message || "알 수 없는 오류"); };
+  w.onmessage = (ev) => {
+    const d = ev.data;
+    if (localWorker !== w || !d || !d.local) return;
+    if (d.local === "progress") setLocal(1, ["내려받는 중", "warn"], d.pct >= 0 ? `모델 내려받는 중 ${d.pct}% (${d.mb}MB)` : `모델 내려받는 중 ${d.mb}MB`);
+    else if (d.local === "preparing") setLocal(2, ["준비 중", "warn"], "엔진을 켜고 시험 계산하는 중 (처음엔 1분쯤)");
+    else if (d.local === "fallback") setLocal(2, ["준비 중", "warn"], "그래픽을 쓸 수 없어 CPU로 준비하는 중");
+    else if (d.local === "failed") fail(d.error);
+    else if (d.local === "ready") {
+      endLocal();
+      const url = `analysis.html#local=1${m === "balanced" ? "&m=balanced" : ""}${d.device === "CPU" ? "&ep=wasm" : ""}`;
+      setLocal(3, ["사용 가능", "good"], "분석 화면을 엽니다.");
+      $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}로 계산`;
+      $("localOpen").href = url; $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
+      alertMember("내 기기 준비 완료", "준비가 끝났습니다. 분석 화면을 엽니다.");
+      // the app opens it in place; a browser tab opens a new one, and if the browser blocks that, 분석 화면 열기 is there
+      if (standalone) location.href = url;
+      else { const win = window.open(url, "_blank"); if (win) win.opener = null; else $("localProgress").textContent = "준비가 끝났습니다. '분석 화면 열기'를 누르세요."; }
+    }
+  };
+};
+$("localStop").onclick = () => { endLocal(); $("localCard").classList.add("hidden"); $("deviceCard").classList.remove("hidden"); };
+$("localOpen").onclick = () => { if (!standalone) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
 let installing = false;  // the member said yes in the install window; the browser is still installing

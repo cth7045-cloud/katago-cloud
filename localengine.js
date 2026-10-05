@@ -18,7 +18,9 @@ const MODELS = {
   fast: {name: "KataGo(빠름)", size: 64595794, parts: ["models/b10c384h6nbttflrs-masked.onnx"]},
   balanced: {name: "KataGo(균형)", size: 158833691, parts: ["models/b10c512h8nbt3tflrs-masked.onnx.0", "models/b10c512h8nbt3tflrs-masked.onnx.1"]},
 };
-const MODEL = MODELS[new URLSearchParams(self.location.search).get("m")] || MODELS.fast, MODEL_NAME = MODEL.name + " · 내 기기";
+const ARGS = new URLSearchParams(self.location.search);
+const MODEL = MODELS[ARGS.get("m")] || MODELS.fast, MODEL_NAME = MODEL.name + " · 내 기기";
+const CPU_ONLY = ARGS.get("ep") === "wasm";   // GPU 대여's 시작 already found the graphics unusable here: no second 90-second try
 const B = 19, BB = B * B;                 // the net's buffer: 19x19, smaller boards sit in its top-left corner
 const CPUCT = 1.1, FPU = .2, BATCH = 8, SCORE_UTIL = .3;
 let session = null, ep = "", meta = {leadMultiplier: 20, scoreStdevMultiplier: 20};
@@ -53,7 +55,7 @@ async function load() {
     const buf = await fetchModel(MODEL);
     post({local: "preparing"});
     ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
-    let adapter = null; try { adapter = navigator.gpu && await navigator.gpu.requestAdapter(); } catch { /* none */ }
+    let adapter = null; try { adapter = !CPU_ONLY && navigator.gpu && await navigator.gpu.requestAdapter(); } catch { /* none */ }
     const limit = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms))]);
     for (const e of adapter ? ["webgpu", "wasm"] : ["wasm"]) {   // the graphics first, the CPU when they fail
       try {
