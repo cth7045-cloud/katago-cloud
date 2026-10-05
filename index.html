@@ -136,7 +136,7 @@
       <div class="panel" id="deviceCard">
         <div class="row">
           <h2 class="grow" style="margin:0">내 기기로 분석</h2>
-          <a class="btn primary" href="analysis.html#local=1" target="_blank" rel="noopener">시작</a>
+          <a class="btn primary" id="deviceStart" href="analysis.html#local=1" target="_blank" rel="noopener">시작</a>
         </div>
       </div>
       <div id="homeGpuSlot">
@@ -1353,7 +1353,7 @@ $("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg"
 // open in the same window (on iPhone a new tab would be Safari, which is not logged in).
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
-if (standalone) for (const id of ["analysisLink", "openAnalysis"]) $(id).removeAttribute("target");
+if (standalone) for (const id of ["analysisLink", "openAnalysis", "deviceStart"]) $(id).removeAttribute("target");
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
 let installing = false;  // the member said yes in the install window; the browser is still installing
