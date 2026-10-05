@@ -3938,9 +3938,11 @@ async function watchGpu() {
 // the member's page sends a copy of itself (gzipped HTML with form values) and pictures of its canvases through the
 // bridge's shared-board channel ({action: "state"}), which every bridge already forwards to the other connections,
 // the admin's included, so it works on GPUs started before this. Nothing is sent while nobody watches.
-// ponytail: whole canvases as pictures (screen size, ≤900 px; 2.5 a second while the member acts, else 1), tens of
-// KB/s from the member while watched; send drawing commands instead if that ever matters.
-const MIRROR_CANVAS = 900;
+// ponytail: whole canvases as pictures (2.5 a second while the member acts, else 1), about a hundred KB/s from the
+// member while watched; send drawing commands instead if that ever matters. Sharper since 2026-10-05 (user request:
+// the board's small numbers could not be read): the device's own pixel density up to 2x, ≤1600 px, quality 0.8
+// (was screen size, ≤900 px, 0.6).
+const MIRROR_CANVAS = 1600, MIRROR_DENSITY = Math.min(2, Math.max(1, devicePixelRatio || 1)), MIRROR_QUALITY = .8;
 const b64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
 async function gzip(text) {
   if (!window.CompressionStream) return {html: text};
@@ -4007,7 +4009,7 @@ function offerMirror(channel) {
   const probe = document.createElement("canvas"); probe.width = probe.height = 1;
   const webp = probe.toDataURL("image/webp").startsWith("data:image/webp");   // Safari: JPEG
   function picture(c) {
-    const shown = c.getBoundingClientRect().width;   // the size on screen, not the device pixels: the admin sees it scaled down anyway
+    const shown = c.getBoundingClientRect().width * MIRROR_DENSITY;   // the size on screen in device pixels (at most 2x)
     const k = Math.min(1, MIRROR_CANVAS / Math.max(c.width, c.height), shown > 0 ? shown / c.width : 1), t = document.createElement("canvas");
     t.width = Math.max(1, Math.round(c.width * k)); t.height = Math.max(1, Math.round(c.height * k));
     const g = t.getContext("2d");
@@ -4016,7 +4018,7 @@ function offerMirror(channel) {
     return new Promise(done => t.toBlob(b => {
       if (!b) return done(null);
       const r = new FileReader(); r.onload = () => done(r.result); r.onerror = () => done(null); r.readAsDataURL(b);
-    }, webp ? "image/webp" : "image/jpeg", 0.6));
+    }, webp ? "image/webp" : "image/jpeg", MIRROR_QUALITY));
   }
   const coarse = matchMedia("(pointer: coarse)").matches;   // phones and tablets: scrollbars float over the page
   const canvasKeys = () => [...document.querySelectorAll("canvas[id]")].map(c => "mc_" + c.id);
