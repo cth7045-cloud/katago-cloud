@@ -3398,9 +3398,8 @@ boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedu
 //   3-finger touchpad taps for itself, and a right click is YZY / Lizzie's "back" too.
 // A light tap on a touchpad (not a pressed click) did not play (user report 2026-10-05, even a very short one): the
 // stone used to wait for the click event, which a touchpad tap does not always bring, so it is now played on the
-// button's release on the board itself. The touchpad / mouse long press is also longer than the phone's 200 ms, as a
-// tap can hold the button down for a moment while Windows waits to see whether a second tap starts a drag.
-const MOUSE_HOLD_MS = 500;
+// button's release on the board itself. (The long press stays the phone's 200 ms: user decision 2026-10-05.)
+const MOUSE_HOLD_MS = 200;
 let lastPointer = "mouse", mhold = null, skipClick = false, playedUp = 0;   // playedUp: when a release last played
 document.addEventListener("pointerdown", ev => { lastPointer = ev.pointerType; }, true);
 boardCv.addEventListener("pointerdown", ev => {
