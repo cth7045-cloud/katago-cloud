@@ -15,8 +15,10 @@ ort.env.wasm.wasmPaths = ORT_DIST;   // inside a worker it cannot tell where its
 
 // A file over 100MB is kept in parts (GitHub takes no bigger file); the parts are fetched and stored one by one.
 const MODELS = {
-  fast: {name: "KataGo(빠름)", size: 64595794, parts: ["models/b10c384h6nbttflrs-masked.onnx"]},
-  balanced: {name: "KataGo(균형)", size: 158833691, parts: ["models/b10c512h8nbt3tflrs-masked.onnx.0", "models/b10c512h8nbt3tflrs-masked.onnx.1"]},
+  fast: {name: "KataGo(빠름)", size: 64595794, parts: ["models/b10c384h6nbttflrs-masked.onnx"],
+         ref: [{win: .5248, lead: .206, best: 287}, {win: .4759, lead: -.394, best: 288}]},
+  balanced: {name: "KataGo(균형)", size: 158833691, parts: ["models/b10c512h8nbt3tflrs-masked.onnx.0", "models/b10c512h8nbt3tflrs-masked.onnx.1"],
+             ref: [{win: .5319, lead: .352, best: 287}, {win: .4573, lead: -.404, best: 300}]},
 };
 const ARGS = new URLSearchParams(self.location.search);
 const MODEL = MODELS[ARGS.get("m")] || MODELS.fast, MODEL_NAME = MODEL.name + " · 내 기기";
@@ -61,7 +63,9 @@ async function load() {
       try {
         const make = ort.InferenceSession.create(buf, {executionProviders: [e], graphOptimizationLevel: "all"});
         session = e === "webgpu" ? await limit(make, 90000) : await make; ep = e;
-        await limit(evaluate([emptyPos(19)]), e === "webgpu" ? 60000 : 600000);   // first run: compiles the shaders
+        const got = await limit(evaluate(checkPositions()), e === "webgpu" ? 60000 : 600000);   // first run: compiles the shaders
+        if (e === "webgpu" && !matches(got)) throw new Error("wrong results");
+        if (!MODEL.ref) post({local: "ref", ref: got.map(r => ({win: +r.win.toFixed(4), lead: +r.lead.toFixed(3), best: bestOf(r)}))});
         break;
       } catch (err) { session = null; if (e === "wasm") throw err; post({local: "fallback"}); }
     }
@@ -104,6 +108,19 @@ function play(p, color, mv) {   // the new position, or null if illegal; color 1
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 const parseMove = (s, n) => { if (!s || /^pass$/i.test(s)) return -1; const x = LETTERS.indexOf(s[0].toUpperCase()), y = n - parseInt(s.slice(1), 10); return x >= 0 && x < n && y >= 0 && y < n ? y * n + x : -2; };
 const moveName = (mv, n) => mv < 0 ? "pass" : LETTERS[mv % n] + (n - ((mv / n) | 0));
+// Some phones' graphics run the net but compute it wrong (2026-10-05, a Galaxy tablet: every move the same win rate,
+// moves all over the board). So the first run is checked against what the CPU computes for two positions, worked
+// out beforehand (MODELS[].ref): graphics that disagree are not used, the CPU is.
+function checkPositions() { return [positionsOf({moves: CHECK_MOVES}).pop(), emptyPos(19)]; }
+const CHECK_MOVES = [["B", "Q16"], ["W", "D4"], ["B", "R4"], ["W", "D16"], ["B", "C3"]];
+function bestOf(r) { let b = 0; for (let i = 1; i < r.logit.length; i++) if (r.logit[i] > r.logit[b]) b = i; return b; }
+function matches(got) {
+  if (!MODEL.ref) return true;
+  return got.every((r, k) => {
+    const want = MODEL.ref[k], mx = r.logit[bestOf(r)];
+    return Math.abs(r.win - want.win) < .03 && Math.abs(r.lead - want.lead) < .6 && r.logit[want.best] > mx - .3;
+  });
+}
 function posKey(p) {   // what the net sees: the board, the side to move, the ko and the last 5 moves
   let s = p.pla + "|" + p.ko + "|" + (p.komi + p.chill) + "|" + p.pda + "|";
   for (let k = Math.max(0, p.hist.length - 5); k < p.hist.length; k++) s += p.hist[k].pla + ":" + p.hist[k].mv + ",";

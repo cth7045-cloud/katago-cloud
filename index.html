@@ -1376,7 +1376,7 @@ const standalone = matchMedia("(display-mode: standalone)").matches || navigator
 function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
 if (standalone) for (const id of ["analysisLink", "openAnalysis"]) $(id).removeAttribute("target");
 // 내 기기로 분석 (user request 2026-10-05): 시작 prepares KataGo on this device right here, shown the way a rented GPU's
-// setup is (model download → engine start and a test run → ready), then opens the analysis screen. That screen starts
+// setup is (model download → engine start and a test run → ready), then 분석 화면 열기 like a GPU's. That screen starts
 // its own engine from the stored model (a page cannot hand its worker to the next one), told whether the graphics
 // worked so it does not try them again. The model choice (빠름 or 균형) is remembered on this device.
 const LOCAL_MODELS = { fast: "KataGo(빠름)", balanced: "KataGo(균형)" };
@@ -1415,13 +1415,11 @@ $("deviceStart").onclick = () => {
     else if (d.local === "ready") {
       endLocal();
       const url = `analysis.html#local=1${m === "balanced" ? "&m=balanced" : ""}${d.device === "CPU" ? "&ep=wasm" : ""}`;
-      setLocal(3, ["사용 가능", "good"], "분석 화면을 엽니다.");
+      // like a rented GPU: ready, and 분석 화면 열기 opens it (in place in the app, a new tab in a browser)
+      setLocal(3, ["사용 가능", "good"], "");
       $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}로 계산`;
       $("localOpen").href = url; $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
-      alertMember("내 기기 준비 완료", "준비가 끝났습니다. 분석 화면을 엽니다.");
-      // the app opens it in place; a browser tab opens a new one, and if the browser blocks that, 분석 화면 열기 is there
-      if (standalone) location.href = url;
-      else { const win = window.open(url, "_blank"); if (win) win.opener = null; else $("localProgress").textContent = "준비가 끝났습니다. '분석 화면 열기'를 누르세요."; }
+      alertMember("내 기기 준비 완료", "준비가 끝났습니다. '분석 화면 열기'를 누르세요.");
     }
   };
 };
