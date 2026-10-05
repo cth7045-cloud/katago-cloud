@@ -3373,7 +3373,9 @@ $("placeSeg").addEventListener("click", ev => {
   placeColor = b.dataset.c;
   $("placeSeg").querySelectorAll("button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
 });
-boardCv.addEventListener("click", ev => { if (skipClick) { skipClick = false; return; } placeAt(ev); });   // mouse; touches on the board are handled below
+// mouse / touchpad: the stone is played when the button comes up (pointerup below); the click that follows is then
+// ignored. A click with no such pointerup before it (a browser that sends only the click) still plays.
+boardCv.addEventListener("click", ev => { const just = performance.now() - playedUp < 1000; playedUp = 0; if (skipClick || just) { skipClick = false; return; } placeAt(ev); });   // touches on the board are handled below
 function hoverFor(p) {  // the variation preview for the candidate at board point p (or null)
   const mv = p && candsShown() ? candidates(cur, true).find(c => { const xy = parseGtp(c.move); return xy && xy[0] === p[0] && xy[1] === p[1] && c.order < 10; }) : null;
   return mv && mv.pv ? {pv: mv.pv, xy: p, move: mv.move} : null;
@@ -3394,21 +3396,23 @@ boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedu
 // - two fingers up/down on the touchpad = two fingers on the phone (see the wheel handler)
 // - two-finger tap on the touchpad (= right click) on the board = the phone's 3-finger tap: one move back. Windows keeps
 //   3-finger touchpad taps for itself, and a right click is YZY / Lizzie's "back" too.
-// A light tap on a touchpad (not a pressed click) holds the button down for a moment: Windows waits to see whether a
-// second tap starts a drag. At the phone's 200 ms that counted as a long press and the stone was not played (user
-// report 2026-10-05), so the touchpad / mouse hold is longer.
+// A light tap on a touchpad (not a pressed click) did not play (user report 2026-10-05, even a very short one): the
+// stone used to wait for the click event, which a touchpad tap does not always bring, so it is now played on the
+// button's release on the board itself. The touchpad / mouse long press is also longer than the phone's 200 ms, as a
+// tap can hold the button down for a moment while Windows waits to see whether a second tap starts a drag.
 const MOUSE_HOLD_MS = 500;
-let lastPointer = "mouse", mhold = null, skipClick = false;
+let lastPointer = "mouse", mhold = null, skipClick = false, playedUp = 0;   // playedUp: when a release last played
 document.addEventListener("pointerdown", ev => { lastPointer = ev.pointerType; }, true);
 boardCv.addEventListener("pointerdown", ev => {
   if (ev.pointerType !== "mouse" || ev.button !== 0) return;
-  skipClick = false;
+  skipClick = false; playedUp = 0;
   const g = mhold = {held: false, last: ev, timer: setTimeout(() => { g.held = true; moveCursor(g.last); }, MOUSE_HOLD_MS)};
 });
 addEventListener("pointerup", ev => {
   if (!mhold || ev.pointerType !== "mouse") return;
   clearTimeout(mhold.timer);
   if (mhold.held) skipClick = true;   // the click that follows a long press does not play
+  else if (ev.button === 0 && ev.target === boardCv) { playedUp = performance.now(); placeAt(ev); }   // a short press = play
   mhold = null;
 });
 boardCv.addEventListener("contextmenu", ev => {   // a touch long press must not open a menu
