@@ -16,14 +16,20 @@ ort.env.wasm.wasmPaths = ORT_DIST;   // inside a worker it cannot tell where its
 // A file over 100MB is kept in parts (GitHub takes no bigger file); the parts are fetched and stored one by one.
 const MODELS = {
   fast: {name: "KataGo(빠름)", size: 64595794, parts: ["models/b10c384h6nbttflrs-masked.onnx"],
-         ref: [{win: .5248, lead: .206, best: 287}, {win: .4759, lead: -.394, best: 288}]},
+         ref: [{win: .5248, lead: .206, best: 287}, {win: .4759, lead: -.394, best: 288}],
+         sizes: {9: {size: 5263884, parts: ["models/b10c384h6nbttflrs-9x9.onnx"]}, 13: {size: 10670746, parts: ["models/b10c384h6nbttflrs-13x13.onnx"]}}},
   balanced: {name: "KataGo(균형)", size: 158833691, parts: ["models/b10c512h8nbt3tflrs-masked.onnx.0", "models/b10c512h8nbt3tflrs-masked.onnx.1"],
-             ref: [{win: .5319, lead: .352, best: 287}, {win: .4573, lead: -.404, best: 300}]},
+             ref: [{win: .5319, lead: .352, best: 287}, {win: .4573, lead: -.404, best: 300}],
+             sizes: {9: {size: 10301364, parts: ["models/b10c512h8nbt3tflrs-9x9.onnx"]}, 13: {size: 21115016, parts: ["models/b10c512h8nbt3tflrs-13x13.onnx"]}}},
 };
 const ARGS = new URLSearchParams(self.location.search);
 const MODEL = MODELS[ARGS.get("m")] || MODELS.fast, MODEL_NAME = MODEL.name + " · 내 기기";
 const CPU_ONLY = ARGS.get("ep") === "wasm";   // GPU 대여's 시작 already found the graphics unusable here: no second 90-second try
-const B = 19, BB = B * B;                 // the net's buffer: 19x19, smaller boards sit in its top-left corner
+// The net's buffer is 19x19 and smaller boards sit in its top-left corner (masked), except 9x9 and 13x13 (user
+// request 2026-10-05): those run a graph built for exactly that size (`katago dumponnx -nn-x-len n -nn-y-len n
+// -require-exact-nnlen`), 6x (9x9) and 3x (13x13) faster on a CPU with the same results. Such a graph file holds only
+// what depends on the size (5-21MB); its weights are read from the 19x19 file already on this device (ONNX external
+// data: the offsets of the very same tensors in that file).
 const CPUCT = 1.1, FPU = .2, BATCH = 8, SCORE_UTIL = .3;
 // Playouts per evaluation batch, kept to what this device does in about STEP_MS: a query waits for the batch in hand
 // before it starts, and 8 at once took 4-5 s on a CPU (phones longer), so a new position showed nothing for that long.
@@ -32,10 +38,11 @@ const CPUCT = 1.1, FPU = .2, BATCH = 8, SCORE_UTIL = .3;
 const STEP_MS = 100;
 let batch = 1;
 let session = null, ep = "", meta = {leadMultiplier: 20, scoreStdevMultiplier: 20};
+let sized = null;   // {n, s}: the session for a 9x9 or 13x13 board (one at a time), s null if it could not be made
 const post = m => postMessage(m);
 
 // ---------------------------------------------------------------- loading
-async function fetchModel(model) {   // the whole file; progress is over all its parts
+async function fetchModel(model, quiet) {   // the whole file; progress is over all its parts
   let cache = null, done = 0, said = -1;
   try { cache = await caches.open("kgc-models-v1"); } catch { cache = null; }
   const files = [];
@@ -48,7 +55,7 @@ async function fetchModel(model) {   // the whole file; progress is over all its
       const {done: end, value} = await reader.read(); if (end) break;
       chunks.push(value); got += value.length;
       const pct = Math.min(99, Math.floor((done + got) / model.size * 100));
-      if (pct !== said) { said = pct; post({local: "progress", pct, mb: Math.round((done + got) / 1e6)}); }
+      if (pct !== said && !quiet) { said = pct; post({local: "progress", pct, mb: Math.round((done + got) / 1e6)}); }
     }
     const b = new Uint8Array(got); let o = 0; for (const c of chunks) { b.set(c, o); o += c.length; }
     try { if (cache) await cache.put(url, new Response(b.slice())); } catch { /* storage full or blocked: download again next time */ }
@@ -137,8 +144,8 @@ function posKey(p) {   // what the net sees: the board, the side to move, the ko
 }
 
 // ---------------------------------------------------------------- neural net (NNInputs::fillRowV7, Korean rules)
-function fillInputs(p, sp, gl, mk, so, go, mo) {
-  const n = p.n, pla = p.pla, opp = 3 - pla, F = BB, libsOf = new Int16Array(n * n).fill(-1);
+function fillInputs(p, B, sp, gl, mk, so, go, mo) {   // B: the net's board buffer width
+  const n = p.n, pla = p.pla, opp = 3 - pla, F = B * B, libsOf = new Int16Array(n * n).fill(-1);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const i = y * n + x, pos = y * B + x;
     sp[so + pos] = 1; mk[mo + pos] = 1;                          // 0 on board (and the mask)
@@ -163,9 +170,33 @@ function fillInputs(p, sp, gl, mk, so, go, mo) {
   if (p.pda) { gl[go + 15] = 1; gl[go + 16] = .5 * p.pda; }      // playoutDoublingAdvantage (handicap play)
 }
 const softplus = x => x > 20 ? x : Math.log1p(Math.exp(x));
+async function sessionFor(n) {   // -> {s, B}: the session for an n x n board and its buffer width
+  const want = MODEL.sizes[n];
+  if (!want) return {s: session, B: 19};
+  if (!sized || sized.n !== n) {
+    if (sized && sized.s) { try { await sized.s.release(); } catch { /* gone */ } }
+    sized = {n, s: null};
+    try {   // the size's graph (downloaded once, kept like the model) + the 19x19 file's weights
+      const graph = await fetchModel(want, true), weights = new Uint8Array(await fetchModel(MODEL, true));
+      sized.s = await ort.InferenceSession.create(graph, {executionProviders: [ep], graphOptimizationLevel: "all",
+                                                          externalData: [{path: "weights", data: weights}]});
+    } catch { sized.s = null; }   // no network or memory: this size runs on the 19x19 net, masked, as before
+  }
+  return sized.s ? {s: sized.s, B: n} : {s: session, B: 19};
+}
 async function evaluate(list) {   // -> per position {pol (prob per board point, pass last), win, lead, stdev, own} for the side to move
-  const k = list.length, sp = new Float32Array(k * 22 * BB), gl = new Float32Array(k * 19), mk = new Float32Array(k * BB);
-  list.forEach((p, b) => fillInputs(p, sp, gl, mk, b * 22 * BB, b * 19, b * BB));
+  const byN = new Map();   // one run per board size (a batch is always one size, but be sure)
+  list.forEach((p, i) => { if (!byN.has(p.n)) byN.set(p.n, []); byN.get(p.n).push(i); });
+  const res = new Array(list.length);
+  for (const [n, idx] of byN) {
+    const {s, B} = await sessionFor(n), got = await evalOn(s, B, idx.map(i => list[i]));
+    idx.forEach((i, j) => { res[i] = got[j]; });
+  }
+  return res;
+}
+async function evalOn(session, B, list) {
+  const BB = B * B, k = list.length, sp = new Float32Array(k * 22 * BB), gl = new Float32Array(k * 19), mk = new Float32Array(k * BB);
+  list.forEach((p, b) => fillInputs(p, B, sp, gl, mk, b * 22 * BB, b * 19, b * BB));
   const feeds = {InputSpatial: new ort.Tensor("float32", sp, [k, 22, B, B]), InputGlobal: new ort.Tensor("float32", gl, [k, 19, 1, 1])};
   if (session.inputNames.includes("InputMask")) feeds.InputMask = new ort.Tensor("float32", mk, [k, 1, B, B]);
   const out = await session.run(feeds);
