@@ -76,47 +76,83 @@
 
   <!-- logged in -->
   <section id="appView" class="hidden">
-    <header class="bar">
+    <!-- 메뉴 (2026-10-05 화면 개편): 가로 화면(태블릿·PC·눕힌 폰)은 왼쪽 탭, 세로 폰은 아래 탭바 + 위쪽 얇은 막대 -->
+    <header class="bar appbar">
       <div class="wrap">
-        <a class="brand" href="#" id="homeLink"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
-        <span class="who" id="who"></span>
-        <a href="#charge" id="chargeLink">충전</a>
-        <a href="guide.html">가이드</a>
-        <a href="#me" id="meLink">내 정보</a>
-        <a href="analysis.html" id="analysisLink" class="hidden" target="_blank" rel="noopener">분석 화면</a>
-        <a href="admin.html" id="adminLink" class="hidden">관리자</a>
-        <button class="quiet" id="logout">로그아웃</button>
+        <a class="brand to-hub" href="./"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
+        <a class="appbar-link hidden" href="admin.html" data-admin-link>관리자</a>
+        <a class="appbar-link" href="analysis.html" data-analysis-link target="_blank" rel="noopener">분석 화면</a>
+        <a class="appbar-bal" href="#charge" data-bal-link><span data-bal>-</span></a>
       </div>
     </header>
+    <nav class="tabnav" id="tabnav" aria-label="메뉴">
+      <a class="tn-brand" href="./" id="homeLink"><span class="mark" aria-hidden="true"></span><span class="tn-name">KataGo Cloud</span></a>
+      <a class="tn" href="./" data-tab="hub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg><span>홈</span></a>
+      <a class="tn" href="#gpu" data-tab="gpu"><span class="tn-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></span><span>GPU</span></a>
+      <a class="tn" href="#mine" data-tab="kifu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>기보</span></a>
+      <a class="tn" href="#study" data-tab="study"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M8 8l2 2 4-4"/></svg><span>학습</span></a>
+      <a class="tn" href="#me" data-tab="me" id="meLink"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>내 정보</span></a>
+      <div class="tn-more">
+        <a class="tn sub" href="analysis.html" id="analysisLink" target="_blank" rel="noopener" data-analysis-link><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg><span>분석 화면</span></a>
+        <a class="tn sub" href="#charge" id="chargeLink" data-tab="charge"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg><span>충전</span></a>
+        <a class="tn sub" href="guide.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg><span>가이드</span></a>
+        <a class="tn sub hidden" href="admin.html" id="adminLink" data-admin-link><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg><span>관리자</span></a>
+      </div>
+      <a class="tn-bal" href="#charge" data-bal-link><span class="k">잔액</span><b data-bal>-</b></a>
+    </nav>
+    <!-- 켜진 GPU: 다른 화면에 가 있어도 아래에 작게 (홈·GPU 대여·기보 분석은 화면에 카드가 있어 숨김) -->
+    <div class="livepill hidden" id="livePill" role="status"><span class="live-dot" aria-hidden="true"></span><span class="t" id="livePillText"></span><a id="livePillGo" href="#gpu">보기</a></div>
 
-    <!-- start page: the four ways in -->
-    <div class="wrap app hidden" id="hubView">
-      <nav class="hub" aria-label="처음 화면">
-        <a class="hub-tile" href="#gpu">
-          <span class="hub-icon gpu" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4M10 10h4v4h-4z"/></svg></span>
-          <b>GPU 대여</b>
-          <span class="hub-desc">GPU를 빌려 KataGo로 실시간 분석</span>
-          <span class="hub-sub" id="hubGpu"></span>
-        </a>
-        <a class="hub-tile" href="#analyze">
-          <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 3 6-7"/><circle cx="20" cy="7" r="1.2"/></svg></span>
-          <b>기보 분석</b>
-          <span class="hub-desc">GPU를 골라 기보 여러 개를 한 번에 분석해 저장</span>
-          <span class="hub-sub" id="hubBatch"></span>
-        </a>
-        <a class="hub-tile" href="#mine">
-          <span class="hub-icon kifu" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="9" cy="9" r="2.4" class="bs"/><circle cx="15" cy="15" r="2.4" class="ws"/></svg></span>
-          <b>내 기보</b>
-          <span class="hub-desc">저장한 기보를 GPU 없이 다시 보기</span>
-          <span class="hub-sub" id="hubMine"></span>
-        </a>
-        <a class="hub-tile" href="#study">
-          <span class="hub-icon study" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h11M8 8l2 2 4-4"/></svg></span>
-          <b>학습방</b>
-          <span class="hub-desc">내 실수로 만든 오답노트 풀기</span>
-          <span class="hub-sub" id="hubStudy"></span>
-        </a>
-      </nav>
+    <!-- 홈 = 현황판 (2026-10-05): GPU 상태 · 잔액 · 오늘의 복습 · 최근 사용 내역. 고르는 일은 각 탭에서 -->
+    <div class="wrap app dash hidden" id="hubView">
+      <div class="hello"><h1 id="helloName">반가워요</h1><p id="helloSub">오늘도 한 판 복기해 볼까요?</p></div>
+      <!-- GPU: 꺼짐 / 준비 중 / 켜짐 -->
+      <section class="cardx" id="dashOff">
+        <div class="offcard">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4M10 10h4v4h-4z"/></svg></span>
+          <div class="grow"><b>GPU 꺼져 있음</b><span>요금이 나가지 않고 있어요</span></div>
+          <a class="btn primary" href="#gpu">GPU 켜기</a>
+        </div>
+        <a class="subline" href="#gpu" data-device-link><span class="grow">내 기기로 분석 <span class="badge-free">무료</span></span><b class="go">시작 ›</b></a>
+      </section>
+      <section class="livecard hidden" id="dashLive">
+        <span class="k" id="dashLiveHead"></span>
+        <span class="v" id="dashLiveBig"></span>
+        <div class="timeline hidden" id="dashSteps"><i></i><i></i><i></i></div>
+        <div class="timeline-l hidden" id="dashStepNames"><span>GPU 빌리기·부팅</span><span>KataGo 설치·검증</span><span>분석 준비 완료</span></div>
+        <span class="s" id="dashLiveNote"></span>
+        <div class="row">
+          <a class="btn primary grow hidden" id="dashOpen" target="_blank" rel="noopener">분석 화면 열기</a>
+          <a class="btn ghost-l grow hidden" id="dashSee" href="#gpu">자세히 보기</a>
+          <button class="ghost" type="button" id="dashStop">종료</button>
+        </div>
+      </section>
+      <div class="dash-batch hidden" id="hubBatchRow"><span class="live-dot" aria-hidden="true"></span><span class="grow" id="hubBatch"></span><a href="#analyze">보기 ›</a></div>
+      <div class="grid2">
+        <section class="cardx">
+          <div class="hd"><b id="dashBalLabel">내 잔액</b><a href="#charge" id="dashCharge">충전 요청</a></div>
+          <div class="bigmoney" id="dashBalance">-</div>
+          <a class="pend hidden" id="dashPend" href="#charge"></a>
+          <div class="subline"><span class="grow">이번 달 GPU 사용</span><b id="dashMonth">-</b></div>
+        </section>
+        <section class="cardx">
+          <div class="hd"><b>오늘의 복습</b><a href="#study">학습방 ›</a></div>
+          <div class="review">
+            <span class="big2"><span id="dashDue">-</span><small> 문제</small></span>
+            <button class="primary" type="button" id="dashReview">복습 시작</button>
+            <span class="m" id="dashReviewNote">오답노트에서 다시 볼 날이 된 문제</span>
+          </div>
+          <div class="minis">
+            <div class="mini"><b id="dashNotes">-</b><span>전체 문제</span></div>
+            <div class="mini"><b id="dashRate">-</b><span>정답률</span><div class="ring"><i id="dashRateBar"></i></div></div>
+            <div class="mini"><b id="dashTried">-</b><span>풀어 본 문제</span></div>
+          </div>
+        </section>
+      </div>
+      <section class="cardx">
+        <div class="hd"><b>최근 사용 내역</b><a href="#me" data-open-ledger>전체 ›</a></div>
+        <div class="ledger2" id="dashLedger"></div>
+      </section>
       <!-- 홈 화면에 앱으로 설치: always shown outside the app (as on the login page) -->
       <div class="panel install-card hidden" id="installCard">
         <span class="app-icon" aria-hidden="true"></span>
@@ -129,8 +165,7 @@
     </div>
 
     <!-- GPU 대여 (#gpu) -->
-    <div class="wrap app hidden" id="homeView">
-      <a class="back to-hub" href="./">‹ 처음으로</a>
+    <div class="wrap app narrow hidden" id="homeView">
       <h1 class="page-title">GPU 대여</h1>
       <div id="homeGpuSlot">
       <div class="wallet" id="walletBox">
@@ -172,21 +207,21 @@
           <button class="quiet" id="refreshOffers">목록 새로고침</button>
         </div>
         <div class="options">
-          <label class="field">모델<select id="model"></select></label>
+          <div class="fld"><span class="lab">모델</span><div class="seg2" id="modelSeg" role="group" aria-label="모델"></div></div>
+          <select id="model" class="hidden" aria-hidden="true" tabindex="-1"></select>
           <!-- admins, while an engine is being tried (관리자 화면 'KataGo 엔진·모델') -->
           <label class="check hidden" id="testEngineLabel"><input type="checkbox" id="testEngine"> <span id="testEngineText">시험 엔진으로 켜기</span></label>
         </div>
-        <div class="table-wrap scroll-box">
+        <div class="glist">
           <table>
-            <thead><tr><th>지역</th><th>GPU</th><th class="num">VRAM</th><th class="num">시간당</th><th class="num" title="가격 대비 성능: Vast 성능 점수(dlperf) ÷ 시간당 요금($). 높을수록 같은 돈에 빠릅니다">성능/$</th><th class="num hide-sm">CPU</th></tr></thead>
+            <thead><tr><th class="rd"></th><th>GPU · 지역</th><th class="num hide-sm">VRAM</th><th class="num">시간당</th><th class="num" title="가격 대비 성능: Vast 성능 점수(dlperf) ÷ 시간당 요금($). 높을수록 같은 돈에 빠릅니다">성능/$</th><th class="num hide-sm">CPU</th></tr></thead>
             <tbody id="offerRows"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
-        <div class="small muted" id="pickHint" style="margin-top:14px">가격대비 성능과 안정성이 좋은 GPU만 추렸습니다. 반응이 느린 먼 지역(중국·호주·미국·유럽 등)은 뺐습니다. 한국에 가까울수록 반응이 빠릅니다. <span class="pill good fast">⚡빠른 시작</span>은 최근에 써 본 서버라 준비가 더 빠릅니다.</div>
-        <!-- moved under the chosen row while a GPU is picked -->
-        <div class="row hidden" id="pickBar">
-          <div class="grow small muted" id="pickInfo"></div>
-          <button class="primary" id="startButton" disabled>이 GPU로 시작</button>
+        <div class="small muted" id="pickHint" style="margin-top:14px">GPU를 누르면 아래에 시작 버튼이 나옵니다. 가격대비 성능과 안정성이 좋은 GPU만 추렸습니다. 반응이 느린 먼 지역(중국·호주·미국·유럽 등)은 뺐습니다. 한국에 가까울수록 반응이 빠릅니다. <span class="pill good fast">⚡빠른 시작</span>은 최근에 써 본 서버라 준비가 더 빠릅니다.</div>
+        <!-- the chosen GPU and its start button, fixed at the bottom of the screen while one is picked -->
+        <div class="cta-bar hidden" id="pickBar">
+          <div class="in"><div class="grow"><b id="pickName"></b><span id="pickInfo"></span></div><button class="primary" id="startButton" disabled>시작</button></div>
         </div>
         <div class="error" id="startError"></div>
       </div>
@@ -195,7 +230,7 @@
       <!-- 내 기기로 분석: no rental, KataGo on this device (analysis.html#local=1, localengine.js) -->
       <div class="panel" id="deviceCard">
         <div class="row">
-          <h2 class="grow" style="margin:0">내 기기로 분석</h2>
+          <div class="grow"><h2 style="margin:0">내 기기로 분석 <span class="badge-free">무료</span></h2><div class="small muted">이 기기에서 계산 · GPU보다 느림</div></div>
           <select id="deviceModel" aria-label="내 기기로 분석 모델"><option value="fast">KataGo(빠름)</option><option value="balanced">KataGo(균형)</option></select>
           <button class="primary" type="button" id="deviceStart">시작</button>
         </div>
@@ -223,47 +258,63 @@
     </div>
 
     <!-- 기보 분석 (#analyze): attaching the games first, then the GPU 대여 parts (moved in while this page shows) -->
-    <div class="wrap app hidden" id="analyzeView">
-      <a class="back to-hub" href="./">‹ 처음으로</a>
+    <div class="wrap app narrow hidden" id="analyzeView">
+      <a class="back" href="#mine">‹ 내 기보</a>
       <h1 class="page-title">기보 분석</h1>
-      <!-- SGF files analysed on the GPU without opening the analysis screen, saved to 내 기보 -->
-      <div class="panel" id="batchCard">
-        <div class="row" style="margin-bottom:6px">
-          <h2 class="grow" style="margin:0">기보 첨부</h2>
-          <button class="quiet" id="batchClear">목록 비우기</button>
-        </div>
-        <p class="muted small" id="batchNote" style="margin:0 0 14px"></p>
-        <p class="muted small hide-sm" style="margin:-8px 0 14px">SGF와 타이젬 기보(GIB)를 넣을 수 있습니다. 컴퓨터에서는 파일을 이 화면에 끌어다 놓아도 됩니다.</p>
-        <div class="row">
-          <label class="btn" id="batchPick">기보 파일 추가<input type="file" id="batchFiles" accept=".sgf,.gib,application/x-go-sgf" multiple hidden></label>
-          <button type="button" id="foxOpen">한큐 기보 불러오기</button>
-          <select id="batchLevel" aria-label="분석 세기">
-            <option value="fast">빠름 · 한 수 250 visits</option>
-            <option value="normal" selected>보통 · 한 수 500 visits</option>
-            <option value="precise">정밀 · 한 수 1000 visits</option>
-            <option value="ultra">초정밀 · 한 수 5000 visits</option>
-          </select>
-          <select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류"><option value="">분류 없음</option></select>
-          <button class="primary" id="batchStart" disabled>분석 시작</button>
-        </div>
-        <div class="batch-opts">
-          <label class="check"><input type="checkbox" id="batchNotes"> 오답노트도 만들기</label>
-          <span class="batch-note-opts">
-            <select id="batchNoteSide" aria-label="누구의 실수">
-              <option value="">흑·백 모두</option><option value="B">흑만</option><option value="W">백만</option><option value="name">내 이름 쪽만</option>
+      <!-- SGF files analysed on the GPU without opening the analysis screen, saved to 내 기보 (2026-10-05: three steps) -->
+      <div id="batchCard">
+        <p class="batch-note" id="batchNote"></p>
+        <section class="panel stepcard">
+          <span class="no">1</span>
+          <div class="row"><h2 class="grow">기보 넣기</h2><button class="quiet" id="batchClear">목록 비우기</button></div>
+          <p class="sub">SGF와 타이젬 기보(GIB)를 여러 개 한꺼번에 넣을 수 있습니다.<span class="hide-sm"> 컴퓨터에서는 파일을 이 화면에 끌어다 놓아도 됩니다.</span></p>
+          <div class="drop">
+            <label class="btn" id="batchPick">📁 파일 추가<small>SGF · GIB · 여러 개</small><input type="file" id="batchFiles" accept=".sgf,.gib,application/x-go-sgf" multiple hidden></label>
+            <button type="button" id="foxOpen">🔗 한큐 기보 불러오기<small>닉네임으로 최근 대국</small></button>
+          </div>
+          <div class="table-wrap hidden" id="batchTable" style="margin-top:12px">
+            <table><tbody id="batchRows"></tbody></table>
+          </div>
+        </section>
+        <section class="panel stepcard">
+          <span class="no">2</span>
+          <h2>분석 설정</h2>
+          <p class="sub">처음이면 그대로 두셔도 됩니다.</p>
+          <div class="fld">
+            <span class="lab">얼마나 꼼꼼히</span>
+            <div class="seg2" data-seg-for="batchLevel" role="group" aria-label="분석 세기"></div>
+            <select id="batchLevel" class="hidden" aria-hidden="true" tabindex="-1">
+              <option value="fast" data-l="빠름" data-s="250">빠름 · 한 수 250 visits</option>
+              <option value="normal" data-l="보통" data-s="500" selected>보통 · 한 수 500 visits</option>
+              <option value="precise" data-l="정밀" data-s="1000">정밀 · 한 수 1000 visits</option>
+              <option value="ultra" data-l="초정밀" data-s="5000">초정밀 · 한 수 5000 visits</option>
             </select>
-            <input id="batchNoteName" placeholder="대국자 이름" aria-label="내 대국자 이름" maxlength="40">
-            <select id="batchNoteLevel" aria-label="실수 기준">
-              <option value="small">작은 실수까지 (2집 · 승률 5%)</option>
-              <option value="normal" selected>실수 (4집 · 승률 10%)</option>
-              <option value="big">큰 실수만 (8집 · 승률 20%)</option>
-            </select>
-          </span>
-          <label class="check"><input type="checkbox" id="batchAutoStop" checked> 다 끝나면 GPU 끄기</label>
-        </div>
-        <p class="small hidden" id="batchWarn" style="margin:10px 0 0;color:#c2410c;font-weight:600">⚠ 초정밀은 시간이 오래 걸립니다 — 정밀보다 약 5배(275수 한 판에 약 20분).</p>
-        <div class="table-wrap hidden" id="batchTable" style="margin-top:12px">
-          <table><tbody id="batchRows"></tbody></table>
+            <span class="hint">숫자는 한 수마다 AI가 읽는 수(visits)입니다. 꼼꼼할수록 오래 걸립니다.</span>
+            <p class="small hidden" id="batchWarn" style="margin:0;color:#c2410c;font-weight:600">⚠ 초정밀은 시간이 오래 걸립니다 — 정밀보다 약 5배(275수 한 판에 약 20분).</p>
+          </div>
+          <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류"><option value="">분류 없음</option></select></label>
+          <label class="toggle-row"><span class="grow"><b>오답노트도 만들기</b><span>내 실수를 학습방 문제로 만듭니다</span></span><input type="checkbox" class="sw-input" id="batchNotes"></label>
+          <div class="nested batch-note-opts">
+            <div class="fld"><span class="lab">누구의 실수를</span>
+              <div class="seg2" data-seg-for="batchNoteSide" role="group" aria-label="누구의 실수"></div>
+              <select id="batchNoteSide" class="hidden" aria-hidden="true" tabindex="-1">
+                <option value="" data-l="흑·백">흑·백 모두</option><option value="B" data-l="흑만">흑만</option><option value="W" data-l="백만">백만</option><option value="name" data-l="내 이름">내 이름 쪽만</option>
+              </select></div>
+            <label class="fld" id="batchNoteNameField"><span class="lab">대국자 이름</span><input id="batchNoteName" placeholder="기보에 적힌 내 이름" aria-label="내 대국자 이름" maxlength="40"></label>
+            <div class="fld"><span class="lab">실수로 볼 기준</span>
+              <div class="seg2" data-seg-for="batchNoteLevel" role="group" aria-label="실수 기준"></div>
+              <select id="batchNoteLevel" class="hidden" aria-hidden="true" tabindex="-1">
+                <option value="small" data-l="작은 실수" data-s="2집·5%">작은 실수까지 (2집 · 승률 5%)</option>
+                <option value="normal" data-l="실수" data-s="4집·10%" selected>실수 (4집 · 승률 10%)</option>
+                <option value="big" data-l="큰 실수" data-s="8집·20%">큰 실수만 (8집 · 승률 20%)</option>
+              </select></div>
+          </div>
+        </section>
+        <section class="panel">
+          <label class="toggle-row first"><span class="grow"><b>다 끝나면 GPU 끄기</b><span>켜 두면 끝난 뒤에도 요금이 나갑니다</span></span><input type="checkbox" class="sw-input" id="batchAutoStop" checked></label>
+        </section>
+        <div class="cta-bar batch-cta" id="batchBar">
+          <div class="in"><div class="grow"><b id="batchSum">기보를 넣어 주세요</b><span id="batchSumSub"></span></div><button class="primary" id="batchStart" disabled>분석 시작</button></div>
         </div>
       </div>
       <div id="analyzeGpuSlot"></div>
@@ -272,9 +323,13 @@
 
     <!-- saved games (#mine, 내 기보) -->
     <div class="wrap app hidden" id="mineView">
-      <a class="back to-hub" href="./" id="mineBackHub">‹ 처음으로</a>
       <a class="back hidden" href="#mine" id="mineBack">‹ 내 기보</a>
       <h1 class="page-title" id="mineHead">내 기보</h1>
+      <!-- 기보 분석 lives under the 기보 tab (2026-10-05): its door on the folder cards page -->
+      <a class="batch-entry" href="#analyze" id="mineBackHub">
+        <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 3 6-7"/><circle cx="20" cy="7" r="1.2"/></svg></span>
+        <span class="grow"><b>기보 분석</b><span>여러 판을 GPU로 한 번에 분석해 내 기보에 저장</span></span><span class="chev" aria-hidden="true">›</span>
+      </a>
       <!-- the folders, as cards (#mine) -->
       <div id="folderHome">
         <div class="row mine-top">
@@ -312,8 +367,7 @@
     </div>
 
     <!-- 학습방 (#study) -->
-    <div class="wrap app hidden" id="studyView">
-      <a class="back to-hub" href="./">‹ 처음으로</a>
+    <div class="wrap app narrow hidden" id="studyView">
       <h1 class="page-title">학습방</h1>
       <div class="panel" id="notesCard">
         <div class="row">
@@ -329,7 +383,6 @@
 
     <!-- 잔액 충전 (#charge): members ask on the site (2026-09-30); the admin approves after the money arrives -->
     <div class="wrap app hidden" id="chargeView">
-      <a class="back to-hub" href="./">‹ 처음으로</a>
       <h1 class="page-title">잔액 충전</h1>
       <div class="panel charge-card">
         <p class="small charge-balance">지금 잔액 <b id="chargeBalance">-</b></p>
@@ -375,71 +428,85 @@
       </details>
     </div>
 
-    <!-- my account (#me) -->
-    <div class="wrap app hidden" id="meView">
-      <a class="back to-hub" href="./">‹ 처음으로</a>
+    <!-- my account (#me): grouped like a phone's settings (2026-10-05) -->
+    <div class="wrap app narrow hidden" id="meView">
       <h1 class="page-title">내 정보</h1>
-      <div class="panel">
-        <h2>계정</h2>
-        <dl class="facts">
-          <div><dt>이메일</dt><dd id="meEmail"></dd></div>
-          <div><dt>가입일</dt><dd id="meSince"></dd></div>
-          <div><dt>잔액</dt><dd id="meBalance"></dd></div>
-        </dl>
-        <form id="nameForm" class="inline-form">
-          <label class="field">이름<input id="meName" autocomplete="name" minlength="2" maxlength="30" required></label>
-          <button class="primary" type="submit">이름 저장</button>
-        </form>
+      <div class="me-head"><span class="avatar" id="meAvatar" aria-hidden="true"></span><div><b id="meTitle"></b><span><span id="meEmail"></span> · <span id="meSince"></span> 가입</span></div></div>
+
+      <div class="list">
+        <a class="item" href="#charge" id="meChargeRow"><span class="ic" style="background:#e8eefe;color:var(--blue)" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg></span><span class="grow">잔액</span><span class="val" id="meBalance"></span><span class="chev" aria-hidden="true">›</span></a>
+        <details class="item-d" id="ledgerBox">
+          <summary class="item"><span class="ic" style="background:#fbefd9;color:#9a6a1f" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><span class="grow">충전·사용 내역</span><span class="chev" aria-hidden="true">›</span></summary>
+          <div class="item-body">
+            <div class="table-wrap scroll-box">
+              <table>
+                <thead><tr><th>시각</th><th>내용</th><th class="num">금액</th></tr></thead>
+                <tbody id="ledgerRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
       </div>
 
-      <div class="panel">
-        <h2>화면</h2>
-        <div class="seg" id="themeSeg" role="group" aria-label="화면 밝기">
-          <button type="button" data-theme="">기기 설정</button>
-          <button type="button" data-theme="light">밝게</button>
-          <button type="button" data-theme="dark">어둡게</button>
+      <div class="group-t">설정</div>
+      <div class="list">
+        <details class="item-d">
+          <summary class="item"><span class="ic" style="background:#e5f5ec;color:var(--good)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span><span class="grow">이름</span><span class="val" id="meNameVal"></span><span class="chev" aria-hidden="true">›</span></summary>
+          <div class="item-body">
+            <form id="nameForm" class="inline-form">
+              <label class="field">이름<input id="meName" autocomplete="name" minlength="2" maxlength="30" required></label>
+              <button class="primary" type="submit">이름 저장</button>
+            </form>
+          </div>
+        </details>
+        <div class="item wrap-item">
+          <span class="ic" style="background:#ece9fd;color:#5b47d6" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></span><span class="grow">화면<span class="item-note">이 기기에서만 적용되고, 분석 화면도 같이 바뀝니다</span></span>
+          <div class="seg" id="themeSeg" role="group" aria-label="화면 밝기">
+            <button type="button" data-theme="" title="휴대폰·PC의 다크 모드 설정을 따릅니다">자동</button>
+            <button type="button" data-theme="light">밝게</button>
+            <button type="button" data-theme="dark">어둡게</button>
+          </div>
         </div>
-        <p class="muted small" style="margin:10px 0 0">기기 설정을 고르면 휴대폰·PC의 다크 모드 설정을 따릅니다. 이 기기에서만 적용되고, 분석 화면도 같이 바뀝니다.</p>
-      </div>
-
-      <!-- 알림: all of the site's notifications on or off for this account (2026-10-05) -->
-      <div class="panel">
-        <div class="row">
-          <h2 class="grow" style="margin:0">알림</h2>
+        <!-- 알림: all of the site's notifications on or off for this account (2026-10-05) -->
+        <div class="item">
+          <span class="ic" style="background:var(--cyan-soft);color:#0b8ea4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="grow">알림<span class="item-note" id="notifyNote"></span></span>
           <button type="button" class="switch" id="notifySwitch" role="switch" aria-checked="false" aria-label="알림 받기"><span></span></button>
         </div>
-        <p class="muted small" id="notifyNote" style="margin:10px 0 0"></p>
       </div>
 
-      <div class="panel">
-        <h2>비밀번호 변경</h2>
-        <form id="pwForm" class="inline-form">
-          <label class="field">현재 비밀번호<input id="pwOld" type="password" autocomplete="current-password" required></label>
-          <label class="field">새 비밀번호 (8자 이상)<input id="pwNew" type="password" autocomplete="new-password" minlength="8" required></label>
-          <button class="primary" type="submit">비밀번호 변경</button>
-        </form>
-        <div class="error" id="pwError"></div>
+      <div class="group-t">도움말</div>
+      <div class="list">
+        <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
+        <a class="item" href="licenses.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg></span><span class="grow">오픈소스 고지</span><span class="chev" aria-hidden="true">›</span></a>
       </div>
 
-      <div class="panel">
-        <h2>사용 내역</h2>
-        <div class="table-wrap scroll-box">
-          <table>
-            <thead><tr><th>시각</th><th>내용</th><th class="num">금액</th></tr></thead>
-            <tbody id="ledgerRows"></tbody>
-          </table>
+      <div class="group-t">보안</div>
+      <div class="list">
+        <details class="item-d">
+          <summary class="item"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><span class="grow">비밀번호 변경</span><span class="chev" aria-hidden="true">›</span></summary>
+          <div class="item-body">
+            <form id="pwForm" class="inline-form">
+              <label class="field">현재 비밀번호<input id="pwOld" type="password" autocomplete="current-password" required></label>
+              <label class="field">새 비밀번호 (8자 이상)<input id="pwNew" type="password" autocomplete="new-password" minlength="8" required></label>
+              <button class="primary" type="submit">비밀번호 변경</button>
+            </form>
+            <div class="error" id="pwError"></div>
+          </div>
+        </details>
+        <button type="button" class="item" id="logout"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></span><span class="grow">로그아웃</span><span class="chev" aria-hidden="true">›</span></button>
+      </div>
+
+      <details class="leave-d">
+        <summary>회원 탈퇴</summary>
+        <div class="panel leave">
+          <p class="muted small" id="leaveNote">탈퇴하면 이 계정으로 다시 로그인할 수 없습니다. 켜져 있는 GPU가 있으면 먼저 종료하세요.</p>
+          <form id="leaveForm" class="inline-form">
+            <label class="field">비밀번호 확인<input id="leavePw" type="password" autocomplete="current-password" required></label>
+            <button class="danger" type="submit">회원 탈퇴</button>
+          </form>
+          <div class="error" id="leaveError"></div>
         </div>
-      </div>
-
-      <div class="panel leave">
-        <h2>회원 탈퇴</h2>
-        <p class="muted small" id="leaveNote">탈퇴하면 이 계정으로 다시 로그인할 수 없습니다. 켜져 있는 GPU가 있으면 먼저 종료하세요.</p>
-        <form id="leaveForm" class="inline-form">
-          <label class="field">비밀번호 확인<input id="leavePw" type="password" autocomplete="current-password" required></label>
-          <button class="danger" type="submit">회원 탈퇴</button>
-        </form>
-        <div class="error" id="leaveError"></div>
-      </div>
+      </details>
     </div>
   </section>
 
@@ -560,10 +627,10 @@ sb.auth.onAuthStateChange((_event, s) => {
 function leave() {
   vastBalance = null; vastAt = 0; chargeOpen = null; chargeAt = 0;
   entered = false; clearInterval(pollTimer); profile = null; delete $("balance").dataset.v;
-  swap(() => { $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
+  swap(() => { document.body.classList.remove("authed"); $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
 async function enter() {
-  swap(() => { $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
+  swap(() => { document.body.classList.add("authed"); $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
   await refresh();
   loadOffers(); loadMine(); loadNotesCard();
   clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
@@ -591,7 +658,11 @@ async function refresh() {
     api("/admin/vast").then((v) => { vastBalance = v; refresh(); }).catch(() => {});
   }
   const balance = p.is_admin && vastBalance?.krw != null ? vastBalance.krw : p.balance_krw;
-  countTo($("balance"), balance);
+  countTo($("balance"), balance); countTo($("dashBalance"), balance);
+  document.querySelectorAll("[data-bal]").forEach((el) => { el.textContent = won(balance); });
+  document.querySelectorAll("[data-bal-link]").forEach((a) => { a.href = p.is_admin ? "#gpu" : "#charge"; });
+  $("dashBalLabel").textContent = p.is_admin ? "관리자 잔액" : "내 잔액";
+  $("dashCharge").classList.toggle("hidden", !!p.is_admin);
   $("balanceLabel").textContent = !(p.is_admin && vastBalance?.krw != null) ? "내 잔액"
     : vastBalance.totalKrw != null ? `관리자 잔액 · Vast ${won(vastBalance.totalKrw)}($${vastBalance.usd.toFixed(2)}) − 회원 잔액 ${won(vastBalance.membersKrw)}`
     : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;   // a server before 2026-09-27 sends only the Vast balance
@@ -599,22 +670,28 @@ async function refresh() {
     ? "관리자 잔액은 Vast 잔액에서 회원들이 충전해 둔 잔액을 뺀 금액입니다. 관리자 GPU는 원가로 여기서 나가고, 0원이 되면 자동으로 꺼집니다."
     : "";
   if (!p.is_admin) $("walletNote").innerHTML = `충전은 <a href="#charge">잔액 충전</a>에서 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.`;
-  $("who").textContent = p.name || p.email;
+  $("helloName").textContent = `${p.name || "회원"}님`;
+  $("meTitle").textContent = p.name || p.email; $("meNameVal").textContent = p.name || "";
+  $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
   $("meBalance").textContent = won(balance); $("chargeBalance").textContent = won(balance);
   if (!p.is_admin && (chargeOpen || !chargeAt) && Date.now() - chargeAt > 15_000) loadCharge();   // an open 충전 요청: approved yet?
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
-  $("adminLink").classList.toggle("hidden", !p.is_admin);
+  document.querySelectorAll("[data-admin-link]").forEach((a) => a.classList.toggle("hidden", !p.is_admin));
   $("chargeLink").classList.toggle("hidden", p.is_admin);   // the operator tops up members, not their own balance
   $("analysisLink").classList.remove("hidden");   // without a GPU: saved games (내 기보) and SGF files, no new analysis
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
   const state = session && { creating: "대여 중", booting: "부팅 중", setup: "설치 중", ready: "사용 가능", stopping: "종료 중" }[session.status];
-  $("hubGpu").textContent = session ? `${session.gpu_name || "GPU"} · ${state}` : `잔액 ${won(balance)}`;
-  $("hubGpu").classList.toggle("live", !!session);
+  gpuState = state;
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
   // 분석 화면 with a ready GPU opens on it, so the board left there comes back (the page also goes there by itself)
-  $("analysisLink").href = session && session.status === "ready" && session.web_url && session.web_token
+  const toAnalysis = session && session.status === "ready" && session.web_url && session.web_token
     ? `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}` : "analysis.html";
+  document.querySelectorAll("[data-analysis-link]").forEach((a) => { a.href = toAnalysis; });
+  // 이번 달 GPU 사용: what this month's rentals charged (the sessions loaded above, newest 100)
+  const month0 = new Date(); month0.setDate(1); month0.setHours(0, 0, 0, 0);
+  $("dashMonth").textContent = won((s || []).filter((x) => new Date(x.created_at) >= month0).reduce((t, x) => t + (x.charged_krw || 0), 0));
+  dashShow();
   watchReady(s && s[0]);
   batchShow();
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
@@ -627,7 +704,43 @@ async function refresh() {
   $("ledgerRows").innerHTML = rows.map((r) => `<tr><td>${when(r.created_at)}</td><td>${esc(r.note || r.kind)}</td>` +
     `<td class="num" style="color:${r.amount_krw < 0 ? "var(--bad)" : "var(--good)"}">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`).join("")
     || `<tr><td colspan="3" class="muted">아직 내역이 없습니다.</td></tr>`;
+  $("dashLedger").innerHTML = rows.slice(0, 3).map((r) => `<div><span class="grow">${esc(r.note || r.kind)}<span>${when(r.created_at)}</span></span>` +
+    `<span class="amt${r.amount_krw > 0 ? " plus" : ""}">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</span></div>`).join("")
+    || `<div class="muted small">아직 내역이 없습니다.</div>`;
 }
+// ------------------------------------------------------------------ 홈 현황판의 GPU 카드 · 다른 화면의 실시간 알약 (2026-10-05)
+let gpuState = "", curPage = "hubView";
+function dashShow() {
+  const s = session, live = !!s, ready = live && s.status === "ready";
+  $("dashOff").classList.toggle("hidden", live); $("dashLive").classList.toggle("hidden", !live);
+  $("helloSub").textContent = !live ? "오늘도 한 판 복기해 볼까요?" : ready ? "GPU가 켜져 있어요." : s.status === "stopping" ? "GPU를 끄고 있어요."
+    : "GPU를 준비하고 있어요. 다른 일을 하셔도 준비되면 알려 드려요.";
+  document.querySelectorAll('#tabnav [data-tab="gpu"]').forEach((a) => a.classList.toggle("live", live));
+  const min = live ? Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at).getTime()) / 60000)) : 0;
+  if (live) {
+    $("dashLive").classList.toggle("is-ready", ready);
+    $("dashLiveHead").innerHTML = `${ready ? '<span class="live-dot" aria-hidden="true"></span>' : ""}${esc(s.gpu_name || "GPU")} · ${esc(currentModelName(s))} · ${esc(gpuState)}`;
+    $("dashLiveBig").innerHTML = ready || s.status === "stopping" ? `${min}분 <small>· ${won(s.charged_krw)}</small>` : esc({ creating: "GPU 빌리는 중", booting: "부팅 중", setup: "KataGo 설치 중" }[s.status] || gpuState);
+    const stage = ["creating", "booting"].includes(s.status) ? 1 : s.status === "setup" ? 2 : 3;
+    $("dashSteps").classList.toggle("hidden", ready || s.status === "stopping"); $("dashStepNames").classList.toggle("hidden", ready || s.status === "stopping");
+    [...$("dashSteps").children].forEach((i, k) => { i.className = k + 1 < stage ? "done" : k + 1 === stage ? "on" : ""; });
+    $("dashLiveNote").textContent = ready ? `시간당 ${won(s.price_krw_per_hour)} · 10분 동안 입력이 없으면 자동으로 꺼집니다` : s.progress || "";
+    $("dashOpen").classList.toggle("hidden", !ready); if (ready) $("dashOpen").href = $("openAnalysis").href;
+    $("dashSee").classList.toggle("hidden", ready);
+    $("dashStop").textContent = ready ? "종료" : "준비 취소";
+    $("dashStop").classList.toggle("hidden", s.status === "stopping");
+  }
+  // the pill: on the pages without a GPU card of their own
+  const pill = live && ["mineView", "studyView", "meView", "chargeView"].includes(curPage);
+  $("livePill").classList.toggle("hidden", !pill);
+  if (pill) {
+    $("livePillText").innerHTML = `${esc(s.gpu_name || "GPU")} · ${ready ? `${min}분 <span>· ${won(s.charged_krw)}</span>` : esc(gpuState)}`;
+    const go = $("livePillGo");
+    if (ready) { go.href = $("openAnalysis").href; go.textContent = "분석 화면"; go.target = standalone ? "" : "_blank"; }
+    else { go.href = "#gpu"; go.textContent = "보기"; go.removeAttribute("target"); }
+  }
+}
+$("dashStop").onclick = () => $("stopButton").click();
 const recent = (s) => Date.now() - new Date(s.stopped_at || s.created_at).getTime() < 10 * 60_000;
 
 // the model list's name now, so a rename shows at once; the name saved at rental time otherwise (2026-09-29)
@@ -691,7 +804,6 @@ async function loadMine() {
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; return; }
   mine = data || []; folders = fr.error ? [] : fr.data || [];
   if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
-  $("hubMine").textContent = mine.length ? `${mine.length}판 저장` : "저장한 기보 없음";
   $("mineCount").textContent = `${mine.length} / 100판`;
   showMine();
 }
@@ -753,9 +865,9 @@ function drawFolders() {
   $("folderTools").classList.toggle("hidden", !picked);
   // 기보 분석 page: which folder the analysed games go into (kept once chosen, else the folder open in 내 기보)
   const keep = $("batchFolder").value || (picked ? picked.id : "");
-  $("batchFolder").innerHTML = `<option value="">저장할 분류: 없음</option>` + folders.map((f) => `<option value="${f.id}">저장할 분류: ${esc(f.name)}</option>`).join("");
+  $("batchFolder").innerHTML = `<option value="">분류 없음</option>` + folders.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join("");
   $("batchFolder").value = folders.some((f) => f.id === keep) ? keep : "";
-  $("batchFolder").classList.toggle("hidden", !folders.length);
+  $("batchFolderField").classList.toggle("hidden", !folders.length);
 }
 function showMineFolder() {   // from the hash: the cards, or one folder's list
   const m = /^#mine\/(all|none|[0-9a-f-]{36})$/.exec(location.hash);
@@ -826,7 +938,13 @@ function batchShow() {
     : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
     : "아래에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
   const done = batchRun.filter((f) => f.state === "saved").length;
-  $("hubBatch").textContent = running ? `분석 중 · ${done}/${batchRun.length}판` : batchQueued ? "GPU 준비되면 분석 시작" : batchFiles.some((f) => f.state === "new") ? `기보 ${batchFiles.filter((f) => f.state === "new").length}개 대기` : "";
+  $("hubBatch").textContent = running ? `기보 분석 중 · ${done}/${batchRun.length}판` : batchQueued ? "기보 분석: GPU가 준비되면 시작합니다" : "";
+  $("hubBatchRow").classList.toggle("hidden", !$("hubBatch").textContent);
+  const waiting = batchFiles.filter((f) => f.state !== "saved").length;
+  $("batchSum").textContent = running ? `분석 중 · ${done}/${batchRun.length}판` : waiting ? `기보 ${waiting}판` : batchFiles.length ? "모두 저장했습니다" : "기보를 넣어 주세요";
+  const lvl = $("batchLevel").selectedOptions[0];
+  $("batchSumSub").textContent = [ready ? `켜진 GPU(${session.gpu_name || "GPU"})로` : session ? "GPU 준비 중" : "GPU를 먼저 켜 주세요",
+    lvl ? `${lvl.dataset.l}(${lvl.dataset.s})` : "", $("batchNotes").checked ? "오답노트 만들기" : "", $("batchAutoStop").checked ? "끝나면 GPU 끄기" : ""].filter(Boolean).join(" · ");
   const todo = batchFiles.some((f) => f.state !== "saved");
   $("batchStart").textContent = running ? "분석 취소" : batchQueued ? "예약 취소" : ready || !session ? "분석 시작" : "준비되면 분석 시작";
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
@@ -834,7 +952,8 @@ function batchShow() {
   $("batchStart").disabled = !running && !batchQueued && !(session && session.status !== "stopping" && todo && !nameMissing);
   for (const id of ["batchFiles", "batchLevel", "foxOpen", ...BATCH_FORM]) $(id).disabled = running;
   $("batchNoteSide").closest(".batch-note-opts").classList.toggle("hidden", !$("batchNotes").checked);
-  $("batchNoteName").classList.toggle("hidden", $("batchNoteSide").value !== "name");
+  $("batchNoteNameField").classList.toggle("hidden", $("batchNoteSide").value !== "name");
+  segSyncAll();
   $("batchPick").style.opacity = running ? ".45" : "";
   $("batchClear").disabled = running || !batchFiles.length;
   $("batchWarn").classList.toggle("hidden", $("batchLevel").value !== "ultra");
@@ -990,8 +1109,8 @@ addEventListener("beforeunload", (e) => { if (batchFrame || batchQueued) { e.pre
 // 오답노트: how many problems are due today; solved on the analysis screen (no GPU needed)
 async function loadNotesCard() {   // 학습방: 오답노트 (and the start page's 학습방 line)
   const now = new Date(), isDue = (n) => new Date(n.due_at) <= now;
-  let { data, error } = await sb.from("mistake_notes").select("due_at,move_no,board_size");
-  if (error && /board_size/.test(error.message || "")) ({ data, error } = await sb.from("mistake_notes").select("due_at,move_no"));
+  let { data, error } = await sb.from("mistake_notes").select("due_at,move_no,board_size,tries,correct");
+  if (error && /board_size/.test(error.message || "")) ({ data, error } = await sb.from("mistake_notes").select("due_at,move_no,tries,correct"));
   $("notesOpen").classList.toggle("hidden", !!error);
   $("notesPhases").classList.toggle("hidden", !!error || !data.length);
   if (error) $("notesInfo").textContent = "오답노트를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
@@ -1012,7 +1131,15 @@ async function loadNotesCard() {   // 학습방: 오답노트 (and the start pag
       `<button data-phase="${p.v}"${p.all ? "" : " disabled"}>${p.name} ${p.all}문제${p.due ? ` · 복습 ${p.due}` : ""}</button>`).join("");
   }
   const all = error ? [] : data, due = all.filter(isDue).length;
-  $("hubStudy").textContent = due ? `오늘 복습 ${due}문제` : all.length ? `문제 ${all.length}개` : "오답노트";
+  const tries = all.reduce((t, n) => t + (n.tries || 0), 0), right = all.reduce((t, n) => t + (n.correct || 0), 0);
+  $("dashDue").textContent = error ? "-" : due;
+  $("dashNotes").textContent = error ? "-" : all.length;
+  $("dashTried").textContent = error ? "-" : all.filter((n) => n.tries > 0).length;
+  $("dashRate").textContent = tries ? `${Math.round((right / tries) * 100)}%` : "-";
+  $("dashRateBar").style.width = tries ? `${Math.round((right / tries) * 100)}%` : "0";
+  $("dashReview").textContent = due ? "복습 시작" : all.length ? "오답노트 열기" : "알아보기";
+  $("dashReviewNote").textContent = error ? "오답노트를 불러오지 못했습니다" : !all.length ? "기보를 분석하면 내 실수가 문제로 쌓입니다"
+    : due ? "오답노트에서 다시 볼 날이 된 문제" : "오늘 복습할 문제를 다 풀었어요";
 }
 function openNotes(phase = "") {
   const gpu = session && session.status === "ready" && session.web_url && session.web_token
@@ -1020,6 +1147,7 @@ function openNotes(phase = "") {
   openPage(`analysis.html?v=${Date.now()}#${gpu}notes${phase ? "&phase=" + phase : ""}`);
 }
 $("notesOpen").onclick = () => openNotes();
+$("dashReview").onclick = () => { if ($("dashNotes").textContent === "0") location.hash = "#study"; else openNotes(); };
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
@@ -1061,7 +1189,25 @@ function pickModel() {
   const sel = $("model"), has = (id) => id && [...sel.options].some((o) => o.value === id);
   if (modelTouched && has(sel.value)) return;
   sel.value = [lastModel, defaultModel, "transformer-large"].find(has) || sel.options[0]?.value || "";
+  segSync($("modelSeg"), sel); updatePick();
 }
+// 버튼 묶음(2026-10-05): a hidden <select> keeps the value (and its change handlers); the buttons show and set it.
+// data-l / data-s on an option give the button's word and small line; otherwise the option's own text.
+function segBuild(box, sel, word = (o) => o.dataset.l || o.textContent, small = (o) => o.dataset.s || "") {
+  box.innerHTML = [...sel.options].map((o) => `<button type="button" data-v="${esc(o.value)}">${esc(word(o))}${small(o) ? `<small>${esc(small(o))}</small>` : ""}</button>`).join("");
+  box.onclick = (ev) => {
+    const b = ev.target.closest("button"); if (!b || b.disabled || sel.value === b.dataset.v) return;
+    sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true })); segSync(box, sel);
+  };
+  segSync(box, sel);
+}
+function segSync(box, sel) {
+  for (const b of box.children) { const on = b.dataset.v === sel.value; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); b.disabled = sel.disabled; }
+}
+const batchSegs = [...document.querySelectorAll("[data-seg-for]")].map((box) => [box, $(box.dataset.segFor)]);
+batchSegs.forEach(([box, sel]) => segBuild(box, sel));
+function segSyncAll() { batchSegs.forEach(([box, sel]) => segSync(box, sel)); }
+const modelWord = (name) => name.replace(/^KataGo\s*\((.+)\)$/, "$1");
 $("model").addEventListener("change", () => { modelTouched = true; });
 async function loadOffers() {
   picked = null; updatePick();   // takes the start bar out of the table before the rows are replaced
@@ -1072,13 +1218,16 @@ async function loadOffers() {
     const sel = $("model"), keep = sel.value;
     sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
     defaultModel = r.defaultModel;
+    segBuild($("modelSeg"), sel, (o) => modelWord(o.textContent), () => "");
     sel.value = keep; pickModel();
     $("testEngineLabel").classList.toggle("hidden", !r.testEngine);
     if (r.testEngine) $("testEngineText").textContent = `시험 엔진 ${r.testEngine}로 켜기 (지금 ${r.engine})`;
     else $("testEngine").checked = false;
-    $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td>${esc(o.region).replace("/", "/<wbr>")}</td><td>${esc(o.gpu)}${o.fast ? ` <span class="pill good fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1분 안팎)">⚡<span class="hide-sm">빠른 시작</span></span>` : ""}</td>` +
-      `<td class="num">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
-      `<td class="num">${o.perfPerDollar ? Math.round(o.perfPerDollar) : "-"}</td><td class="num hide-sm">${o.cpuCores}</td></tr>`).join("")
+    $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td class="rd"><span class="radio" aria-hidden="true"></span></td>` +
+      `<td><b class="gname">${esc(o.gpu)}</b><span class="m">${esc(o.region).replace("/", "/<wbr>")}<span class="show-sm"> · ${Math.round(o.vramGb)}GB</span></span>` +
+      `${o.fast ? ` <span class="t2 fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1분 안팎)">⚡빠른 시작</span>` : ""}</td>` +
+      `<td class="num hide-sm v">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
+      `<td class="num v">${o.perfPerDollar ? Math.round(o.perfPerDollar) : "-"}</td><td class="num hide-sm v">${o.cpuCores}</td></tr>`).join("")
       || `<tr><td colspan="6" class="muted">지금 빌릴 수 있는 GPU가 없습니다.</td></tr>`;
   } catch (err) {
     $("offerRows").innerHTML = `<tr><td colspan="6" class="error">${esc(err.message)}</td></tr>`;
@@ -1089,16 +1238,16 @@ $("offerRows").onclick = (ev) => {
   const tr = ev.target.closest("tr.pick"); if (!tr) return;
   picked = offers[+tr.dataset.i];
   document.querySelectorAll("#offerRows tr").forEach((r) => r.classList.toggle("sel", r === tr));
-  const row = document.createElement("tr"); row.className = "pick-bar"; row.innerHTML = `<td colspan="6"></td>`;
-  tr.after(row); updatePick(row.firstChild);
+  updatePick();
 };
-function updatePick(cell) {
-  const bar = $("pickBar");
-  if (cell) { const old = bar.closest("tr"); cell.append(bar); if (old) old.remove(); }
-  if (!picked) { const old = bar.closest("tr"); $("pickHint").after(bar); if (old) old.remove(); }
-  bar.classList.toggle("hidden", !picked); $("pickHint").classList.toggle("hidden", !!picked);
+function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026-10-05; was a row under the chosen one)
+  $("pickBar").classList.toggle("hidden", !picked);
+  document.body.classList.toggle("has-pick", !!picked);
   $("startButton").disabled = !picked;
-  if (picked) $("pickInfo").textContent = `시간당 ${won(picked.priceKrw)} · 10분 동안 입력이 없으면 자동으로 꺼집니다`;
+  if (picked) {
+    $("pickName").textContent = `${picked.gpu} · ${picked.region} · ${modelWord($("model").selectedOptions[0]?.textContent || "")}`;
+    $("pickInfo").textContent = `시간당 ${won(picked.priceKrw)} · 쓰는 만큼 1분 단위`;
+  }
 }
 $("startButton").onclick = async () => {
   if (!picked) return;
@@ -1136,14 +1285,22 @@ function showPage() {
   const slot = $(page === "analyzeView" ? "analyzeGpuSlot" : "homeGpuSlot");
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
   for (const v of ["hubView", ...Object.values(PAGES)]) $(v).classList.toggle("hidden", v !== page);
-  $("meLink").classList.toggle("on", page === "meView");
-  $("chargeLink").classList.toggle("on", page === "chargeView");
+  curPage = page; document.body.dataset.page = page;
+  const tab = { hubView: "hub", homeView: "gpu", analyzeView: "kifu", mineView: "kifu", studyView: "study", meView: "me", chargeView: "charge" }[page];
+  document.querySelectorAll("#tabnav [data-tab]").forEach((a) => { a.classList.toggle("on", a.dataset.tab === tab); a.toggleAttribute("aria-current", a.dataset.tab === tab); });
+  if (profile) dashShow();
   if (page === "mineView") showMineFolder();
   if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
   window.scrollTo(0, 0);
+  if (page === "homeView" && jumpTo === "device") $("deviceCard").scrollIntoView({ block: "center" });
+  if (page === "meView" && jumpTo === "ledger") { $("ledgerBox").open = true; $("ledgerBox").scrollIntoView({ block: "start" }); }
+  jumpTo = "";
 }
+let jumpTo = "";   // a part of the page to show after it opens (홈's 내 기기로 분석 / 최근 사용 내역 links)
+document.querySelectorAll("[data-device-link]").forEach((a) => a.addEventListener("click", () => { jumpTo = "device"; }));
+document.querySelectorAll("[data-open-ledger]").forEach((a) => a.addEventListener("click", () => { jumpTo = "ledger"; }));
 addEventListener("hashchange", () => swap(showPage));
 function toHub(ev) {   // the site name and the back links lead to the start page
   ev.preventDefault();
@@ -1151,11 +1308,12 @@ function toHub(ev) {   // the site name and the back links lead to the start pag
   swap(showPage);
 }
 $("homeLink").onclick = toHub;
+document.querySelectorAll('#tabnav [data-tab="hub"]').forEach((a) => { a.onclick = toHub; });
 document.querySelectorAll(".to-hub").forEach((a) => { a.onclick = toHub; });
 
 // A click on empty space puts the chosen GPU back (the list, form controls and the start bar keep it).
 document.addEventListener("click", (ev) => {
-  if (!picked || ev.target.closest("#offerRows, button, a, select, input, label")) return;
+  if (!picked || ev.target.closest("#offerRows, button, a, select, input, label, .cta-bar")) return;
   picked = null;
   document.querySelectorAll("#offerRows tr.sel").forEach((r) => r.classList.remove("sel"));
   updatePick();
@@ -1188,6 +1346,8 @@ async function loadCharge() {
     else if (was?.status === "rejected") toast(`충전 요청이 거절됐습니다${was.reason ? `: ${was.reason}` : "."}`, true);
   }
   chargeOpen = open;
+  $("dashPend").classList.toggle("hidden", !open);   // 홈 현황판의 잔액 칸에도
+  if (open) $("dashPend").textContent = `⏳ 충전 요청 ${won(open.amount_krw)} · 관리자 확인 중`;
   $("chargeForm").classList.toggle("hidden", !!open);
   $("chargeOpen").classList.toggle("hidden", !open);
   if (open) {
@@ -1430,7 +1590,7 @@ $("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg"
 // open in the same window (on iPhone a new tab would be Safari, which is not logged in).
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
-if (standalone) for (const id of ["analysisLink", "openAnalysis"]) $(id).removeAttribute("target");
+if (standalone) for (const el of [$("openAnalysis"), $("dashOpen"), ...document.querySelectorAll("[data-analysis-link]")]) el.removeAttribute("target");
 // 내 기기로 분석 (user request 2026-10-05): 시작 prepares KataGo on this device right here, shown the way a rented GPU's
 // setup is (model download → engine start and a test run → ready), then 분석 화면 열기 like a GPU's. That screen starts
 // its own engine from the stored model (a page cannot hand its worker to the next one), told whether the graphics

@@ -156,7 +156,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
     <b>목차</b>
     <ol>
       <li><a href="#start">한눈에 보기</a></li>
-      <li><a href="#home">처음 화면</a></li>
+      <li><a href="#home">홈과 메뉴</a></li>
       <li><a href="#charge">충전</a></li>
       <li><a href="#gpu">GPU 빌리기</a></li>
       <li><a href="#price">요금·자동 종료</a></li>
@@ -183,8 +183,8 @@ details.more .table-wrap { margin: 4px 0 8px; }
     <section id="start" style="padding-top:8px">
       <h2>한눈에 보기</h2>
       <ol class="quick">
-        <li><b>충전하기</b><span class="desc">위쪽 <b>충전</b> → 금액을 골라 요청하고, 나온 계좌로 입금하세요.</span></li>
-        <li><b>GPU 시작</b><span class="desc">처음 화면 <b>GPU 대여</b> → GPU 하나를 누르고 <span class="chip blue">이 GPU로 시작</span>. 보통 1~3분이면 준비됩니다.</span></li>
+        <li><b>충전하기</b><span class="desc">메뉴의 <b>충전</b>(휴대폰은 위쪽 잔액 칸) → 금액을 골라 요청하고, 나온 계좌로 입금하세요.</span></li>
+        <li><b>GPU 시작</b><span class="desc">메뉴 <b>GPU</b> → 목록에서 GPU 하나를 누르고 화면 아래 <span class="chip blue">시작</span>. 보통 1~3분이면 준비됩니다.</span></li>
         <li><b>분석하기</b><span class="desc"><span class="chip blue">분석 화면 열기</span> → 기보를 열거나 돌을 두고 <span class="chip">▶ 분석 시작</span>.</span></li>
         <li><b>꼭 끄기</b><span class="desc">다 쓰면 <span class="chip pink">GPU 종료</span>. 누르는 순간 요금이 멈춥니다.</span></li>
       </ol>
@@ -193,16 +193,17 @@ details.more .table-wrap { margin: 4px 0 8px; }
 
     <!-- ================================================================ -->
     <section id="home">
-      <h2>처음 화면</h2>
-      <p class="sum">로그인하면 네 가지 버튼이 나옵니다.</p>
-      <figure class="fig"><img src="guide/hub.webp" width="1200" height="748" alt="처음 화면: GPU 대여, 기보 분석, 내 기보, 학습방 네 버튼" loading="lazy"></figure>
+      <h2>홈과 메뉴</h2>
+      <p class="sum">로그인하면 홈(현황판)이 나오고, 메뉴로 각 화면에 갑니다.</p>
+      <figure class="fig"><img src="guide/hub.webp" width="1200" height="748" alt="홈 현황판: 왼쪽 메뉴, GPU 상태, 내 잔액, 오늘의 복습, 최근 사용 내역" loading="lazy"></figure>
       <ul>
-        <li><b>GPU 대여</b> — GPU를 빌려 분석 화면에서 직접 분석합니다. 잔액과 켜진 GPU도 여기서 봅니다.</li>
-        <li><b>기보 분석</b> — 분석 화면을 열지 않고 기보 여러 개를 한꺼번에 분석해 저장합니다. → <a href="#batch">기보 분석</a></li>
-        <li><b>내 기보</b> — 저장한 기보를 GPU 없이 다시 봅니다. → <a href="#kifu">내 기보</a></li>
-        <li><b>학습방</b> — 내 실수로 만든 오답노트를 풉니다. → <a href="#notes">학습방·오답노트</a></li>
+        <li><b>메뉴</b> — 가로 화면(PC·태블릿·눕힌 휴대폰)은 왼쪽, 세로 휴대폰은 아래에 <b>홈 · GPU · 기보 · 학습 · 내 정보</b>가 있습니다. 왼쪽 메뉴 아래에는 분석 화면·충전·가이드와 잔액이 있고, 휴대폰은 위쪽 막대에 분석 화면과 잔액(누르면 충전)이 있습니다.</li>
+        <li><b>홈</b> — GPU가 꺼져 있는지·준비 중인지·켜져 있는지(켜져 있으면 쓴 시간·요금, <span class="chip blue">분석 화면 열기</span>, 종료), 내 잔액과 확인 중인 충전 요청, 이번 달 GPU 사용 요금, 오늘 복습할 오답노트 문제, 최근 사용 내역을 한눈에 봅니다.</li>
+        <li><b>GPU</b> — GPU를 빌려 분석 화면에서 직접 분석합니다. → <a href="#gpu">GPU 빌리기</a></li>
+        <li><b>기보</b> — 저장한 기보를 GPU 없이 다시 봅니다(→ <a href="#kifu">내 기보</a>). 맨 위 <b>기보 분석</b>으로 기보 여러 개를 한꺼번에 분석해 저장합니다(→ <a href="#batch">기보 분석</a>).</li>
+        <li><b>학습</b> — 내 실수로 만든 오답노트를 풉니다. → <a href="#notes">학습방·오답노트</a></li>
       </ul>
-      <p>위쪽 막대의 <b>분석 화면</b>을 누르면 GPU 없이 빈 분석 화면이 열립니다. 저장된 기보 보기·기보 기록은 GPU 없이도 됩니다.</p>
+      <p>GPU가 켜져 있는 동안 기보·학습·내 정보 화면에 가 있으면 아래에 작은 막대(GPU · 쓴 시간 · 요금)가 떠서, 바로 분석 화면으로 돌아갈 수 있습니다. 메뉴의 <b>분석 화면</b>을 누르면 GPU 없이 빈 분석 화면이 열립니다. 저장된 기보 보기·기보 기록은 GPU 없이도 됩니다.</p>
     </section>
 
     <!-- ================================================================ -->
@@ -212,10 +213,10 @@ details.more .table-wrap { margin: 4px 0 8px; }
         <div>
           <p class="sum">요금은 미리 충전한 잔액에서 나갑니다.</p>
           <ol>
-            <li>위쪽 막대의 <b>충전</b>을 누릅니다.</li>
+            <li>메뉴의 <b>충전</b>을 누릅니다(휴대폰은 위쪽 잔액 칸, 또는 홈의 <b>충전 요청</b>).</li>
             <li>금액(<span class="chip">1,000원</span> <span class="chip">5,000원</span> <span class="chip">10,000원</span> 또는 직접 입력, 1,000원 단위·최대 5만원)과 입금자명을 넣고 <span class="chip">충전 요청</span>을 누릅니다.</li>
             <li>화면에 나온 계좌로 그 금액을 보냅니다. 입금자명을 요청할 때와 같게 해 주세요.</li>
-            <li>관리자가 입금을 확인하면 잔액이 바로 늘어납니다. 충전 화면과 <b>내 정보 → 사용 내역</b>에서 볼 수 있습니다. 요청할 때 알림을 허용했다면 승인·거절 결과가 휴대폰 알림으로도 옵니다. 관리자가 남긴 메모가 있으면 알림과 충전 화면의 최근 요청에 함께 보입니다.</li>
+            <li>관리자가 입금을 확인하면 잔액이 바로 늘어납니다. 충전 화면과 <b>내 정보 → 충전·사용 내역</b>에서 볼 수 있습니다. 요청할 때 알림을 허용했다면 승인·거절 결과가 휴대폰 알림으로도 옵니다. 관리자가 남긴 메모가 있으면 알림과 충전 화면의 최근 요청에 함께 보입니다.</li>
           </ol>
           <p class="small muted">확인 중인 요청은 한 번에 하나입니다. 금액을 잘못 넣었으면 입금하기 전에 <b>요청 취소</b> 후 다시 요청하세요. 48시간 안에 확인되지 않은 요청은 만료됩니다. 궁금한 점은 충전 화면 아래 <b>카카오톡 오픈채팅</b>으로 문의하세요.</p>
         </div>
@@ -228,7 +229,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
       <h2>GPU 빌리기</h2>
       <div class="split">
         <div>
-          <p class="sum">목록에서 GPU를 누르고 <span class="chip blue">이 GPU로 시작</span>.</p>
+          <p class="sum">위에서 모델을 고르고, 목록에서 GPU를 누르고, 화면 아래 <span class="chip blue">시작</span>.</p>
           <ul>
             <li><b>지역</b> — 한국에 가까울수록 반응이 빠릅니다.</li>
             <li><b>GPU</b> — 숫자가 클수록 빠르고 비쌉니다(3060 &lt; 5070 Ti &lt; 5090).</li>
@@ -239,7 +240,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
           </ul>
           <p><b>내 기기로 분석</b> — GPU 대여 화면 맨 아래 '내 기기로 분석'의 <span class="chip blue">시작</span>을 누르면 GPU를 빌리지 않고 지금 쓰는 PC·폰으로 분석합니다(요금 없음). GPU를 빌릴 때처럼 그 자리에 준비 단계(모델 내려받기 → 엔진 준비·검증 → 분석 준비 완료)가 보이고, 끝나면 <span class="chip blue">분석 화면 열기</span>를 눌러 들어갑니다. 그래픽을 쓸 수 있으면 그래픽으로, 아니면 CPU로 자동으로 돌립니다. 모델은 시작 버튼 옆에서 KataGo(빠름) 또는 KataGo(균형)을 고릅니다. 처음 한 번 모델 파일(빠름 약 65MB, 균형 약 160MB)을 내려받아 기기에 저장합니다(와이파이 권장). 균형은 더 강하지만 더 느립니다. 9줄·13줄 판은 그 판 크기 전용으로 계산해 19줄보다 훨씬 빠르며, 처음 쓸 때 판 크기용 파일(5~21MB)을 한 번 더 받습니다. 분석 화면의 기능(자동분석·대국 리포트·AI대국·오답노트 등)은 그대로 쓰지만, 빌린 GPU보다 훨씬 느립니다(폰은 초당 수십 visits 안팎).</p>
         </div>
-        <figure class="fig phone"><img src="guide/gpu-list.webp" width="700" height="1253" alt="GPU 시작 목록: 지역, GPU, VRAM, 시간당, 성능/$ 칸과 이 GPU로 시작 버튼" loading="lazy"></figure>
+        <figure class="fig phone"><img src="guide/gpu-list.webp" width="700" height="1253" alt="GPU 대여: 모델 버튼, GPU 목록(GPU·지역, 시간당, 성능/$)과 아래 시작 버튼" loading="lazy"></figure>
       </div>
       <h3>준비 과정</h3>
       <div class="duo">
@@ -277,7 +278,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
         <li><b>준비가 너무 오래 걸릴 때</b> — 문제가 있는 GPU로 보고 끕니다.</li>
       </ul>
       <h3>직접 끄기</h3>
-      <p><span class="chip pink">GPU 종료</span>는 세 곳에 있습니다: <b>GPU 대여</b> 화면 · 분석 화면 위쪽 막대(PC) · 폰 분석 화면의 <span class="chip">☰ 메뉴</span> 맨 위 <b>GPU</b> 칸. GPU 없이 연 분석 화면에서도 켜진 GPU가 있으면 같은 자리에 보입니다.</p>
+      <p><span class="chip pink">GPU 종료</span>는 네 곳에 있습니다: <b>홈</b>의 GPU 카드(<b>종료</b>) · <b>GPU</b> 화면 · 분석 화면 위쪽 막대(PC) · 폰 분석 화면의 <span class="chip">☰ 메뉴</span> 맨 위 <b>GPU</b> 칸. GPU 없이 연 분석 화면에서도 켜진 GPU가 있으면 같은 자리에 보입니다.</p>
       <div class="tip warn"><b>탭을 닫아도 GPU는 바로 꺼지지 않습니다</b>(10분 뒤 자동 종료). 다 쓰면 바로 끄는 것이 가장 쌉니다.</div>
     </section>
 
@@ -486,7 +487,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
           <p class="sum">분석한 기보를 계정에 저장해 두고, GPU 없이 언제든 다시 봅니다.</p>
           <ul>
             <li><b>저장</b>: 분석 화면 위쪽 파란 <span class="chip blue">내 기보 저장</span>. 승률·후보수도 함께 저장됩니다(100판까지).</li>
-            <li><b>보기</b>: 처음 화면 <b>내 기보</b> → 분류 카드 → 기보를 누르면 저장된 분석과 함께 열립니다.</li>
+            <li><b>보기</b>: 메뉴 <b>기보</b> → 분류 카드 → 기보를 누르면 저장된 분석과 함께 열립니다.</li>
             <li><b>이어서 분석</b>: GPU가 켜져 있으면 그 GPU로 열리고, 모자란 수만 분석합니다.</li>
             <li><b>분류</b>: <b>＋ 새 분류</b>로 "한큐 기보", "오프라인 대국"처럼 나눠 둡니다(30개까지).</li>
             <li><b>찾기</b>: 이름·날짜·결과로 찾습니다(예: <b>홍길동 2026-09</b>, <b>흑 불계</b>, <b>9줄</b>).</li>
@@ -517,7 +518,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
     <!-- ================================================================ -->
     <section id="batch">
       <h2>기보 분석</h2>
-      <p class="sum">기보 여러 개를 분석 화면 없이 한꺼번에 분석해 내 기보에 저장합니다. 처음 화면 <b>기보 분석</b>.</p>
+      <p class="sum">기보 여러 개를 분석 화면 없이 한꺼번에 분석해 내 기보에 저장합니다. 메뉴 <b>기보</b> → 맨 위 <b>기보 분석</b>.</p>
       <div class="duo">
         <figure class="fig"><img src="guide/analyze.webp" width="700" height="1253" alt="기보 첨부 칸: 기보 파일 추가, 한큐 기보 불러오기, 세기, 저장할 분류, 분석 시작" loading="lazy"><figcaption>① 기보를 넣고 ② 세기·분류를 고르고 ③ 분석 시작</figcaption></figure>
         <figure class="fig"><img src="guide/fox.webp" width="700" height="1486" alt="한큐바둑 기보 창: 닉네임 검색, 대국 목록 체크, 선택한 기보 추가" loading="lazy"><figcaption><b>한큐 기보 불러오기</b>: 닉네임 검색 → 여러 판 체크 → 추가</figcaption></figure>
@@ -579,7 +580,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
       </table></div>
       <div class="tip warn">카카오톡·네이버 앱 안에서는 설치할 수 없습니다. 크롬에서 열어 설치하세요. <b>삼성 인터넷</b>으로 설치하면 Google Play 프로텍트 경고가 뜨니 안드로이드는 크롬을 쓰세요.</div>
       <ul>
-        <li>설치 칸은 로그인 화면과 처음 화면 아래에 있고, 설치한 앱 안에서는 보이지 않습니다.</li>
+        <li>설치 칸은 로그인 화면과 홈 아래에 있고, 설치한 앱 안에서는 보이지 않습니다.</li>
         <li><b>준비 알림</b>: GPU를 시작할 때 알림을 허용하거나 내 GPU 칸의 <span class="chip">🔔 준비되면 알림 받기</span>. 준비가 끝나거나 실패하면 알림이 오고 탭 제목에 ●가 붙습니다(사이트 탭이 열려 있는 동안). 아이폰은 설치한 앱에서만 알림이 옵니다.</li>
         <li>설치한 앱에서는 분석 화면이 같은 창에서 열리고, 왼쪽 위 <b>‹ 홈</b>으로 돌아옵니다.</li>
       </ul>
@@ -599,12 +600,12 @@ details.more .table-wrap { margin: 4px 0 8px; }
     <!-- ================================================================ -->
     <section id="account">
       <h2>내 정보</h2>
-      <p class="sum">위쪽 막대 <a href="./#me">내 정보</a>에서 합니다.</p>
+      <p class="sum">메뉴 <a href="./#me">내 정보</a>에서 합니다. 휴대폰 설정 화면처럼 줄을 누르면 열립니다.</p>
       <ul>
         <li><b>이름 바꾸기 · 비밀번호 변경</b>(현재 비밀번호 확인, 8자 이상)</li>
         <li><b>화면</b> — 기기 설정 / 밝게 / 어둡게. 기기 설정을 고르면 휴대폰·PC의 다크 모드를 따릅니다. 이 기기에서만 적용되고 분석 화면도 같이 바뀝니다.</li>
         <li><b>알림</b> — 켜면 GPU 준비 완료·준비 실패, GPU 종료(잔액이 떨어져서, 10분 동안 입력이 없어서, 최대 사용 시간이 되어서 꺼진 경우 포함), 잔액이 5분 안쪽으로 남았을 때, 충전 결과가 휴대폰 알림으로 옵니다. 끄면 어느 기기에도 알림이 가지 않습니다. 휴대폰은 설치한 앱(홈 화면의 KataGo Cloud)에서 켜 두는 것이 가장 확실합니다.</li>
-        <li><b>사용 내역</b> — GPU를 쓴 기록(한 번에 한 줄)과 충전·환불 기록</li>
+        <li><b>충전·사용 내역</b> — GPU를 쓴 기록(한 번에 한 줄)과 충전·환불 기록</li>
         <li><b>회원 탈퇴</b> — 켜진 GPU를 먼저 끄세요. 남은 잔액 환불은 탈퇴하기 <b>전에</b> 관리자에게 요청하세요.</li>
       </ul>
     </section>
@@ -621,7 +622,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
       <details><summary>탭을 닫았는데 요금이 나가나요?</summary><div>
         <p>탭을 닫아도 GPU는 켜져 있다가 10분 동안 분석이 없으면 스스로 꺼집니다. 그 사이 요금은 나가니 다 썼으면 <b>GPU 종료</b>를 누르세요.</p></div></details>
       <details><summary>분석 결과를 나중에 다시 보고 싶어요.</summary><div>
-        <p><b>내 기보 저장</b>을 쓰세요. 처음 화면 '내 기보'에서 GPU 없이 그래프와 후보수를 볼 수 있습니다. 파일로 두려면 <b>SGF 저장</b>.</p></div></details>
+        <p><b>내 기보 저장</b>을 쓰세요. 메뉴 '기보'에서 GPU 없이 그래프와 후보수를 볼 수 있습니다. 파일로 두려면 <b>SGF 저장</b>.</p></div></details>
       <details><summary>오답노트에 문제가 너무 많이(적게) 들어가요.</summary><div>
         <p>담기 창의 기준을 바꿔 보세요: 작은 실수까지(2집·5%) / 실수(4집·10%) / 큰 실수만(8집·20%). 이미 결판난 국면의 수는 자동으로 빠집니다. 담을 수만 체크해서 넣을 수도 있습니다.</p></div></details>
       <details><summary>YZY와 결과가 조금 달라요.</summary><div>
