@@ -136,6 +136,7 @@
       <div class="panel" id="deviceCard">
         <div class="row">
           <h2 class="grow" style="margin:0">내 기기로 분석</h2>
+          <select id="deviceModel" aria-label="내 기기로 분석 모델"><option value="fast">KataGo(빠름)</option><option value="balanced">KataGo(균형)</option></select>
           <a class="btn primary" id="deviceStart" href="analysis.html#local=1" target="_blank" rel="noopener">시작</a>
         </div>
       </div>
@@ -1354,6 +1355,11 @@ $("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg"
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
 if (standalone) for (const id of ["analysisLink", "openAnalysis", "deviceStart"]) $(id).removeAttribute("target");
+// 내 기기로 분석's model (빠름 or 균형), remembered on this device
+function deviceModelLink() { $("deviceStart").href = "analysis.html#local=1" + ($("deviceModel").value === "balanced" ? "&m=balanced" : ""); }
+try { if (localStorage.getItem("kgv.deviceModel") === "balanced") $("deviceModel").value = "balanced"; } catch { /* no storage */ }
+deviceModelLink();
+$("deviceModel").onchange = () => { try { localStorage.setItem("kgv.deviceModel", $("deviceModel").value); } catch { /* no storage */ } deviceModelLink(); };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
 let installing = false;  // the member said yes in the install window; the browser is still installing

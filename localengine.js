@@ -1,9 +1,10 @@
 // KataGo Cloud · 내 기기로 분석: a KataGo analysis engine running in a Web Worker on this device.
 // It answers the same JSON queries the GPU's analysis engine answers (the analysis screen sends them unchanged), so
 // 자동분석, 대국 리포트, AI대국 and 오답노트 all work without a rented GPU. The neural net is KataGo's own: the
-// b10c384h6nbttflrs ('빠름') model turned into ONNX with `katago dumponnx` (KataGo 1.18.2, a 19x19 buffer with board
-// masking, so 9x9 and 13x13 boards fit in its top-left corner the way KataGo does it), run by ONNX Runtime Web on the
-// graphics (WebGPU) where the browser offers it, else on the CPU (WebAssembly).
+// '빠름' (b10c384h6nbttflrs) or '균형' (b10c512h8nbt3tflrs) model, picked by ?m= on this worker's address, turned into
+// ONNX with `katago dumponnx` (KataGo 1.18.2, a 19x19 buffer with board masking, so 9x9 and 13x13 boards fit in its
+// top-left corner the way KataGo does it), run by ONNX Runtime Web on the graphics (WebGPU) where the browser offers
+// it, else on the CPU (WebAssembly).
 // The search is a plain PUCT tree search with batched evaluations (virtual loss), not KataGo's own: no ladder or
 // pass-alive input features yet, no symmetries, one tree per query. Values are reported for BLACK, like the GPU's
 // engine (reportAnalysisWinratesAs = BLACK).
@@ -12,31 +13,44 @@ const ORT_DIST = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
 importScripts(ORT_DIST + "ort.webgpu.min.js");
 ort.env.wasm.wasmPaths = ORT_DIST;   // inside a worker it cannot tell where its own .wasm / .mjs files live
 
-const MODEL_URL = "models/b10c384h6nbttflrs-masked.onnx", MODEL_NAME = "KataGo(빠름) · 내 기기";
+// A file over 100MB is kept in parts (GitHub takes no bigger file); the parts are fetched and stored one by one.
+const MODELS = {
+  fast: {name: "KataGo(빠름)", size: 64595794, parts: ["models/b10c384h6nbttflrs-masked.onnx"]},
+  balanced: {name: "KataGo(균형)", size: 158833691, parts: ["models/b10c512h8nbt3tflrs-masked.onnx.0", "models/b10c512h8nbt3tflrs-masked.onnx.1"]},
+};
+const MODEL = MODELS[new URLSearchParams(self.location.search).get("m")] || MODELS.fast, MODEL_NAME = MODEL.name + " · 내 기기";
 const B = 19, BB = B * B;                 // the net's buffer: 19x19, smaller boards sit in its top-left corner
 const CPUCT = 1.1, FPU = .2, BATCH = 8, SCORE_UTIL = .3;
 let session = null, ep = "", meta = {leadMultiplier: 20, scoreStdevMultiplier: 20};
 const post = m => postMessage(m);
 
 // ---------------------------------------------------------------- loading
-async function fetchModel(url) {
-  let cache = null;
-  try { cache = await caches.open("kgc-models-v1"); const hit = await cache.match(url); if (hit) return await hit.arrayBuffer(); } catch { cache = null; }
-  const r = await fetch(url); if (!r.ok) throw new Error("모델 파일을 받지 못했습니다 (" + r.status + ")");
-  const total = +r.headers.get("content-length") || 0, reader = r.body.getReader(), parts = []; let got = 0, said = -1;
-  for (;;) {
-    const {done, value} = await reader.read(); if (done) break;
-    parts.push(value); got += value.length;
-    const pct = total ? Math.floor(got / total * 100) : -1;
-    if (pct !== said) { said = pct; post({local: "progress", pct, mb: Math.round(got / 1e6)}); }
+async function fetchModel(model) {   // the whole file; progress is over all its parts
+  let cache = null, done = 0, said = -1;
+  try { cache = await caches.open("kgc-models-v1"); } catch { cache = null; }
+  const files = [];
+  for (const url of model.parts) {
+    let hit = null; try { hit = cache && await cache.match(url); } catch { hit = null; }
+    if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); files.push(b); done += b.length; continue; }
+    const r = await fetch(url); if (!r.ok) throw new Error("모델 파일을 받지 못했습니다 (" + r.status + ")");
+    const reader = r.body.getReader(), chunks = []; let got = 0;
+    for (;;) {
+      const {done: end, value} = await reader.read(); if (end) break;
+      chunks.push(value); got += value.length;
+      const pct = Math.min(99, Math.floor((done + got) / model.size * 100));
+      if (pct !== said) { said = pct; post({local: "progress", pct, mb: Math.round((done + got) / 1e6)}); }
+    }
+    const b = new Uint8Array(got); let o = 0; for (const c of chunks) { b.set(c, o); o += c.length; }
+    try { if (cache) await cache.put(url, new Response(b.slice())); } catch { /* storage full or blocked: download again next time */ }
+    files.push(b); done += got;
   }
-  const buf = new Uint8Array(got); let o = 0; for (const p of parts) { buf.set(p, o); o += p.length; }
-  try { if (cache) await cache.put(url, new Response(buf.slice())); } catch { /* storage full or blocked: download again next time */ }
+  if (files.length === 1) return files[0].buffer;
+  const buf = new Uint8Array(done); let o = 0; for (const b of files) { buf.set(b, o); o += b.length; }
   return buf.buffer;
 }
 async function load() {
   try {
-    const buf = await fetchModel(MODEL_URL);
+    const buf = await fetchModel(MODEL);
     post({local: "preparing"});
     ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
     let adapter = null; try { adapter = navigator.gpu && await navigator.gpu.requestAdapter(); } catch { /* none */ }
@@ -70,8 +84,11 @@ function chain(g, n, i) {
   for (let k = 0; k < st.length; k++) for (const j of NB[st[k]]) { if (!g[j]) libs.add(j); else if (g[j] === c && !seen[j]) { seen[j] = 1; st.push(j); } }
   return {st, libs: libs.size};
 }
-// position: {n, g (1 black, 2 white), pla (to move), ko, hist: [{pla, mv}] newest last (mv -1 = pass), komi (white), pda}
-function emptyPos(n) { return {n, g: new Int8Array(n * n), pla: 1, ko: -1, hist: [], komi: 6.5, pda: 0}; }
+// position: {n, g (1 black, 2 white), pla (to move), ko, hist: [{pla, mv}] newest last (mv -1 = pass), komi (white), pda,
+// chill}. chill is KataGo's whiteBonusScore under territory scoring: +1 for every black stone placed, -1 for every white
+// one (passes not), which the net sees added to the komi (BoardHistory, "chill 1 point per move"). Without it every
+// position with white to move looked a point worse for white (2026-10-05: white win 0.41 here, 0.53 in KataGo).
+function emptyPos(n) { return {n, g: new Int8Array(n * n), pla: 1, ko: -1, hist: [], komi: 6.5, pda: 0, chill: 0}; }
 function play(p, color, mv) {   // the new position, or null if illegal; color 1/2 may break the alternation (placed stones)
   const opp = 3 - color, n = p.n;
   if (mv < 0) return {...p, pla: opp, ko: -1, hist: p.hist.concat({pla: color, mv: -1})};
@@ -80,13 +97,13 @@ function play(p, color, mv) {   // the new position, or null if illegal; color 1
   for (const j of nbrs(n)[mv]) if (g[j] === opp) { const ch = chain(g, n, j); if (!ch.libs) { for (const k of ch.st) g[k] = 0; cap = cap.concat(ch.st); } }
   const own = chain(g, n, mv); if (!own.libs) return null;
   const ko = cap.length === 1 && own.st.length === 1 && own.libs === 1 ? cap[0] : -1;
-  return {...p, g, pla: opp, ko, hist: p.hist.concat({pla: color, mv})};
+  return {...p, g, pla: opp, ko, hist: p.hist.concat({pla: color, mv}), chill: p.chill + (color === 1 ? 1 : -1)};
 }
 const LETTERS = "ABCDEFGHJKLMNOPQRST";
 const parseMove = (s, n) => { if (!s || /^pass$/i.test(s)) return -1; const x = LETTERS.indexOf(s[0].toUpperCase()), y = n - parseInt(s.slice(1), 10); return x >= 0 && x < n && y >= 0 && y < n ? y * n + x : -2; };
 const moveName = (mv, n) => mv < 0 ? "pass" : LETTERS[mv % n] + (n - ((mv / n) | 0));
 function posKey(p) {   // what the net sees: the board, the side to move, the ko and the last 5 moves
-  let s = p.pla + "|" + p.ko + "|" + p.komi + "|" + p.pda + "|";
+  let s = p.pla + "|" + p.ko + "|" + (p.komi + p.chill) + "|" + p.pda + "|";
   for (let k = Math.max(0, p.hist.length - 5); k < p.hist.length; k++) s += p.hist[k].pla + ":" + p.hist[k].mv + ",";
   return s + p.g.join("");
 }
@@ -110,7 +127,7 @@ function fillInputs(p, sp, gl, mk, so, go, mo) {
     const m = h[h.length - 1 - k]; if (m.pla !== (k % 2 === 0 ? opp : pla)) break;
     if (m.mv < 0) gl[go + k] = 1; else sp[so + (9 + k) * F + at(m.mv)] = 1;
   }
-  const selfKomi = pla === 2 ? p.komi : -p.komi, area = n * n;
+  const selfKomi = pla === 2 ? p.komi + p.chill : -(p.komi + p.chill), area = n * n;
   gl[go + 5] = Math.max(-area - 20, Math.min(area + 20, selfKomi)) / 20;   // komi from the side to move
   gl[go + 9] = 1;                                                // territory scoring
   gl[go + 10] = 1;                                               // seki tax (Korean rules)
@@ -225,6 +242,7 @@ function positionsOf(q) {
   const n = q.boardXSize || 19; let p = emptyPos(n);
   p.komi = typeof q.komi === "number" ? q.komi : 6.5;
   for (const [c, s] of q.initialStones || []) { const mv = parseMove(s, n); if (mv >= 0) p.g[mv] = /^b/i.test(c) ? 1 : 2; }
+  for (const c of p.g) if (c) p.chill += c === 1 ? 1 : -1;   // setup stones count as moves played (BoardHistory::clear)
   p.pla = /^w/i.test(q.initialPlayer || "B") ? 2 : 1;
   const list = [p];
   for (const [c, s] of q.moves || []) {

@@ -951,8 +951,8 @@ let onMirror = null;   // set by mirrorScreen(): copies of the member's screen a
 // a Web Worker with ONNX Runtime Web: the graphics where the browser offers them, else the CPU) and answers the same
 // analysis-engine queries, so this screen talks to it exactly as to the GPU's bridge (no shared board, no other devices).
 const localMode = hashParams.get("local") === "1" && !GPU_HOST.test(location.hostname);
-function connectLocal() {
-  const worker = new Worker("localengine.js"), sock = {readyState: 0, send: t => worker.postMessage(t), close: () => worker.terminate()};
+function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름)
+  const worker = new Worker("localengine.js" + (hashParams.get("m") === "balanced" ? "?m=balanced" : "")), sock = {readyState: 0, send: t => worker.postMessage(t), close: () => worker.terminate()};
   ws = sock; heardAt = performance.now();
   $("conn").textContent = "내 기기 · 엔진 준비 중";
   if (pendingKifu) openMineKifu(pendingKifu);   // a 내 기보 opened this way: the board needs no engine
