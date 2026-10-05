@@ -132,14 +132,6 @@
     <div class="wrap app hidden" id="homeView">
       <a class="back to-hub" href="./">‹ 처음으로</a>
       <h1 class="page-title">GPU 대여</h1>
-      <!-- 내 기기로 분석: no rental, KataGo on this device (analysis.html#local=1, localengine.js) -->
-      <div class="panel" id="deviceCard">
-        <div class="row">
-          <h2 class="grow" style="margin:0">내 기기로 분석</h2>
-          <select id="deviceModel" aria-label="내 기기로 분석 모델"><option value="fast">KataGo(빠름)</option><option value="balanced">KataGo(균형)</option></select>
-          <button class="primary" type="button" id="deviceStart">시작</button>
-        </div>
-      </div>
       <div id="homeGpuSlot">
       <div class="wallet" id="walletBox">
         <div class="grow">
@@ -147,26 +139,6 @@
           <div class="big" id="balance">-</div>
         </div>
         <p class="note" id="walletNote">충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.</p>
-      </div>
-
-      <!-- 내 기기로 분석 being prepared: the same card as a rented GPU's (steps, pill, progress), with no charge -->
-      <div class="panel hidden" id="localCard">
-        <div class="row">
-          <h2 class="session-title grow" id="localTitle">내 기기</h2>
-          <span class="pill" id="localPill"></span>
-        </div>
-        <div class="steps">
-          <div class="step" id="localStep1">모델 내려받기</div>
-          <div class="step" id="localStep2">엔진 준비·검증</div>
-          <div class="step" id="localStep3">분석 준비 완료</div>
-        </div>
-        <div class="muted small" id="localProgress"></div>
-        <div class="row" style="margin-top:16px">
-          <div class="grow small" id="localMeta">요금 없음 · 이 기기에서 계산</div>
-          <a class="btn primary hidden" id="localOpen" href="analysis.html#local=1">분석 화면 열기</a>
-          <button class="danger" type="button" id="localStop">준비 취소</button>
-        </div>
-        <div class="error" id="localError"></div>
       </div>
 
       <!-- running session -->
@@ -218,6 +190,34 @@
         </div>
         <div class="error" id="startError"></div>
       </div>
+      </div>
+
+      <!-- 내 기기로 분석: no rental, KataGo on this device (analysis.html#local=1, localengine.js) -->
+      <div class="panel" id="deviceCard">
+        <div class="row">
+          <h2 class="grow" style="margin:0">내 기기로 분석</h2>
+          <select id="deviceModel" aria-label="내 기기로 분석 모델"><option value="fast">KataGo(빠름)</option><option value="balanced">KataGo(균형)</option></select>
+          <button class="primary" type="button" id="deviceStart">시작</button>
+        </div>
+      </div>
+      <!-- 내 기기로 분석 being prepared: the same card as a rented GPU's (steps, pill, progress), with no charge -->
+      <div class="panel hidden" id="localCard">
+        <div class="row">
+          <h2 class="session-title grow" id="localTitle">내 기기</h2>
+          <span class="pill" id="localPill"></span>
+        </div>
+        <div class="steps">
+          <div class="step" id="localStep1">모델 내려받기</div>
+          <div class="step" id="localStep2">엔진 준비·검증</div>
+          <div class="step" id="localStep3">분석 준비 완료</div>
+        </div>
+        <div class="muted small" id="localProgress"></div>
+        <div class="row" style="margin-top:16px">
+          <div class="grow small" id="localMeta">요금 없음 · 이 기기에서 계산</div>
+          <a class="btn primary hidden" id="localOpen" href="analysis.html#local=1">분석 화면 열기</a>
+          <button class="danger" type="button" id="localStop">준비 취소</button>
+        </div>
+        <div class="error" id="localError"></div>
       </div>
 
     </div>
