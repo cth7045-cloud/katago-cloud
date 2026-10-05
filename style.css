@@ -743,3 +743,8 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
 }
 #walletBox { margin: 0 0 20px; gap: 6px 24px; }
 #walletBox .big { font-size: clamp(32px, 5vw, 44px); }
+/* GPU 목록은 카드 안에서 스크롤(사용자 요청 2026-10-05: 목록이 너무 길다), 칸 이름은 위에 고정 */
+.glist.scroll-box { overflow: auto; overscroll-behavior: contain; max-height: min(56vh, 540px); }
+.glist.scroll-box thead th { position: sticky; top: 0; z-index: 1; background: var(--soft); box-shadow: 0 1px 0 var(--line); }
+.glist.scroll-box tr:first-child td { border-top: 0; }
+@media (min-width: 641px) and (max-height: 520px) { .glist.scroll-box { max-height: 60vh; } }
