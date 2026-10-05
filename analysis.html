@@ -3942,7 +3942,12 @@ async function watchGpu() {
 // member while watched; send drawing commands instead if that ever matters. Sharper since 2026-10-05 (user request:
 // the board's small numbers could not be read): the device's own pixel density up to 2x, ≤1600 px, quality 0.8
 // (was screen size, ≤900 px, 0.6).
-const MIRROR_CANVAS = 1600, MIRROR_DENSITY = Math.min(2, Math.max(1, devicePixelRatio || 1)), MIRROR_QUALITY = .8;
+// Lighter on phones and small-memory devices since the same day (user report: an older Android phone's analysis screen
+// kept closing while an admin watched; it had to encode a big picture every 0.4 s, five times the data): up to 1.5x and
+// ≤1000 px there, and a device slow to make the pictures sends them smaller and less often (mirrorCost).
+const MIRROR_LIGHT = matchMedia("(pointer: coarse)").matches || (navigator.deviceMemory || 8) <= 4;
+const MIRROR_CANVAS = MIRROR_LIGHT ? 1000 : 1600, MIRROR_QUALITY = MIRROR_LIGHT ? .7 : .8;
+const MIRROR_DENSITY = Math.min(MIRROR_LIGHT ? 1.5 : 2, Math.max(1, devicePixelRatio || 1));
 const b64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
 async function gzip(text) {
   if (!window.CompressionStream) return {html: text};
@@ -4008,14 +4013,21 @@ function offerMirror(channel) {
   }
   const probe = document.createElement("canvas"); probe.width = probe.height = 1;
   const webp = probe.toDataURL("image/webp").startsWith("data:image/webp");   // Safari: JPEG
+  // mirrorCost: how long a picture takes here (ms, averaged). A slow device gets smaller pictures (shrink, down to
+  // half) and longer gaps between them, so watching never makes the member's own screen struggle.
+  let mirrorCost = 0, shrink = 1;
+  const t = document.createElement("canvas"), g = t.getContext("2d");   // one scratch canvas for every picture
   function picture(c) {
-    const shown = c.getBoundingClientRect().width * MIRROR_DENSITY;   // the size on screen in device pixels (at most 2x)
-    const k = Math.min(1, MIRROR_CANVAS / Math.max(c.width, c.height), shown > 0 ? shown / c.width : 1), t = document.createElement("canvas");
+    const started = performance.now();
+    const shown = c.getBoundingClientRect().width * MIRROR_DENSITY * shrink;   // the size on screen in device pixels
+    const k = Math.min(1, MIRROR_CANVAS * shrink / Math.max(c.width, c.height), shown > 0 ? shown / c.width : 1);
     t.width = Math.max(1, Math.round(c.width * k)); t.height = Math.max(1, Math.round(c.height * k));
-    const g = t.getContext("2d");
     if (!webp) { g.fillStyle = "#fff"; g.fillRect(0, 0, t.width, t.height); }   // JPEG has no transparency
     g.drawImage(c, 0, 0, t.width, t.height);
     return new Promise(done => t.toBlob(b => {
+      const ms = performance.now() - started;
+      mirrorCost = mirrorCost ? mirrorCost * .7 + ms * .3 : ms;
+      if (mirrorCost > 120 && shrink > .5) shrink = Math.max(.5, shrink * .8);
       if (!b) return done(null);
       const r = new FileReader(); r.onload = () => done(r.result); r.onerror = () => done(null); r.readAsDataURL(b);
     }, webp ? "image/webp" : "image/jpeg", MIRROR_QUALITY));
@@ -4046,7 +4058,7 @@ function offerMirror(channel) {
         }
       }
       for (const c of document.querySelectorAll("canvas[id]")) {
-        if (!c.mDirty || now - (c.mAt || 0) < (busyMember ? 400 : 1000) || !c.width || !c.height || !c.getClientRects().length) continue;
+        if (!c.mDirty || now - (c.mAt || 0) < Math.max(busyMember ? 400 : 1000, mirrorCost * 6) || !c.width || !c.height || !c.getClientRects().length) continue;
         c.mDirty = false; c.mAt = now;
         const u = await picture(c);
         if (!u || u === c.mSent || u.length > 900000) continue;   // the page redraws every canvas on each report: send only changes (bridge frames ≤ 1 MB)
