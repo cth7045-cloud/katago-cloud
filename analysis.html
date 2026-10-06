@@ -1698,6 +1698,7 @@ function starXY(k) {
 }
 const HANDICAP_POINTS = {2: "tr bl", 3: "tr bl br", 4: "tr bl br tl", 5: "tr bl br tl c", 6: "tr bl br tl l r",
                          7: "tr bl br tl l r c", 8: "tr bl br tl l r t b", 9: "tr bl br tl l r t b c"};
+const HANDICAP_FOX = {3: "tr bl tl"};   // 한큐바둑 3점: 좌상·우상·좌하 (나머지는 위와 같음)
 function handicapRoot(n) { return HANDICAP_POINTS[n] && n <= HANDICAP_MAX[N] ? makeRoot({B: HANDICAP_POINTS[n].split(" ").map(starXY), W: []}, "W") : makeRoot(); }
 // 판 크기: a 9x9 board takes at most 5 handicap stones (the four corners and the middle)
 function limitHandicap(sel, n) {
@@ -1832,27 +1833,40 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   if (!SIZES.includes(size)) throw new Error("9줄·13줄·19줄 기보만 지원합니다");
   const firstMove = t.nodes.slice(1).find(n => n.B || n.W) || (t.vars[0] && t.vars[0].nodes.find(n => n.B || n.W)) || {};
   const toPlay = first.PL ? (first.PL[0] === "W" ? "W" : "B") : firstMove.W ? "W" : "B";
-  const newRoot = makeRoot({B: expandPoints(first.AB), W: expandPoints(first.AW)}, toPlay, size);
   const ha = parseInt((first.HA || ["0"])[0], 10);
+  // 접바둑 돌(2026-10-06, 한큐 접바둑을 불러오면 치석이 없던 문제): 첫 수 앞의 설정 노드(;AB[..])에 있는 돌도 처음 배치로 넣고,
+  // HA만 있고 돌이 하나도 없으면 치석 자리를 채운다. 한큐 3점은 좌상·우상·좌하(일반 배치는 우하), 그래서 후보 배치를 차례로
+  // 넣어 보고 둘 수 없는 수가 없는 것을 쓴다.
+  const setup = {B: expandPoints(first.AB), W: expandPoints(first.AW)};
+  for (const n of t.nodes.slice(1)) { if (n.B || n.W) break; setup.B.push(...expandPoints(n.AB)); setup.W.push(...expandPoints(n.AW)); }
+  let tries = [setup];
+  if (ha >= 2 && ha <= HANDICAP_MAX[size] && !setup.B.length && !setup.W.length && toPlay === "W") {
+    setSize(size);   // starXY reads the board size
+    tries = [...new Set([HANDICAP_FOX[ha], HANDICAP_POINTS[ha]].filter(Boolean))].map(s => ({B: s.split(" ").map(starXY), W: []}));
+  }
+  let newRoot, skipped;
+  for (const s of tries) {
+    newRoot = makeRoot(s, toPlay, size); skipped = 0;
+    const build = (tr, start, node) => {
+      for (let k = start; k < tr.nodes.length; k++) {
+        const p = tr.nodes[k], color = p.B ? "B" : p.W ? "W" : null;
+        if (!color) continue;
+        const next = play(node, color, sgfXY(p[color][0]));
+        if (!next) { skipped++; return; }
+        next.comment = (p.C || [""])[0]; node = next;
+        if (p.KGA) next.analysis = unpackAnalysis(p.KGA[0]);
+      }
+      for (const v of mainLineOnly ? tr.vars.slice(0, 1) : tr.vars) build(v, 0, node);
+    };
+    build(t, 1, newRoot);
+    if (!skipped) break;
+  }
   $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : 0);
   newRoot.comment = (first.C || [""])[0];
   for (const k of GAME_INFO) if (first[k]) newRoot.info[k] = first[k][0];
   if (first.KGA) newRoot.analysis = unpackAnalysis(first.KGA[0]);
   if (first.KM) setKomi(parseFloat(first.KM[0]) || 0);
   if (!(ha >= 2 && ha <= 9) && !newRoot.setup.B.length && !newRoot.setup.W.length && toPlay === "B" && komi() === 0) $("handicap").value = handicapShown = "1";   // 정선
-  let skipped = 0;
-  function build(tr, start, node) {
-    for (let k = start; k < tr.nodes.length; k++) {
-      const p = tr.nodes[k], color = p.B ? "B" : p.W ? "W" : null;
-      if (!color) continue;
-      const next = play(node, color, sgfXY(p[color][0]));
-      if (!next) { skipped++; return; }
-      next.comment = (p.C || [""])[0]; node = next;
-      if (p.KGA) next.analysis = unpackAnalysis(p.KGA[0]);
-    }
-    for (const v of mainLineOnly ? tr.vars.slice(0, 1) : tr.vars) build(v, 0, node);
-  }
-  build(t, 1, newRoot);
   root = newRoot;
   goTo(root);
   $("err").textContent = skipped ? `둘 수 없는 수 ${skipped}개를 건너뛰었습니다` : "";
