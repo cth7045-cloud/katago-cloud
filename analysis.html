@@ -2348,7 +2348,7 @@ let kifuList = [], kifuBusy = 0;
 const escHtml = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 async function kifuGet(path) {
   const auth = token ? {"x-kgv-token": token}
-    : {Authorization: "Bearer " + ((await site?.auth.getSession())?.data.session?.access_token || "")};
+    : {Authorization: "Bearer " + ((await (site || await mineClient())?.auth.getSession())?.data.session?.access_token || "")};   // 내 기기 분석에는 site가 없음(2026-10-06 '로그인 만료' 오류)
   const r = await fetch(KIFU_API + path, {headers: auth});
   let body = {}; try { body = await r.json(); } catch { /* not json */ }
   if (!r.ok) throw new Error(body.error || `요청 실패 (${r.status})`);
