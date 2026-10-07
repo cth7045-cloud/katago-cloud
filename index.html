@@ -472,6 +472,12 @@
           <span class="ic" style="background:var(--cyan-soft);color:#0b8ea4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="grow">알림<span class="item-note" id="notifyNote"></span></span>
           <button type="button" class="switch" id="notifySwitch" role="switch" aria-checked="false" aria-label="알림 받기"><span></span></button>
         </div>
+        <!-- 타이젬 기보 자동 동기화: only in the KataGo Cloud PC app (window.kgcAppSync), 2026-10-07 -->
+        <div class="item hidden" id="tygemItem">
+          <span class="ic" style="background:#e3f6ea;color:#1f9d55" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></span>
+          <span class="grow">타이젬 기보 자동 동기화<span class="item-note" id="tygemNote"></span><button type="button" class="quiet hidden" id="tygemFolder" style="margin-top:6px">폴더 직접 지정</button></span>
+          <button type="button" class="switch" id="tygemSwitch" role="switch" aria-checked="false" aria-label="타이젬 기보 자동 동기화"><span></span></button>
+        </div>
       </div>
 
       <div class="group-t">도움말</div>
@@ -1525,6 +1531,30 @@ $("notifySwitch").onclick = async () => {
   } catch (e) { toast(e.message || String(e), true); }
   finally { sw.disabled = false; showNotify(); }
 };
+// 타이젬 기보 자동 동기화 (PC 앱 안에서만): the app watches this PC's Tygem game folder and adds each new game to
+// 내 기보 ('타이젬 기보' 분류). Here: the switch and one line of how it is going.
+if (typeof window.kgcAppSync === "function") {
+  $("tygemItem").classList.remove("hidden");
+  const ago = (sec) => { const d = Date.now() / 1000 - sec; return !sec ? "" : d < 60 ? "방금" : d < 3600 ? `${Math.floor(d / 60)}분 전` : d < 86400 ? `${Math.floor(d / 3600)}시간 전` : new Date(sec * 1000).toLocaleDateString("ko-KR"); };
+  const showTygem = (s) => {
+    $("tygemSwitch").setAttribute("aria-checked", String(!!s.on));
+    const folder = (s.folders || [])[0];
+    $("tygemNote").textContent = !s.on ? "켜면 이 PC에서 둔 타이젬 대국을 내 기보의 '타이젬 기보' 분류에 바로 넣습니다."
+      : [s.status, folder ? `폴더 ${folder.path}` : "", `넣은 판 ${s.auto_count} / ${s.limit}`, s.last_sync ? `확인 ${ago(s.last_sync)}` : ""].filter(Boolean).join(" · ");
+    $("tygemFolder").classList.toggle("hidden", !(s.on && s.problem === "folder"));
+  };
+  const loadTygem = () => window.kgcAppSync().then(showTygem).catch(() => {});
+  $("tygemSwitch").onclick = () => {
+    const sw = $("tygemSwitch"); sw.disabled = true;
+    window.kgcAppSyncSet(sw.getAttribute("aria-checked") !== "true").then(showTygem).catch((e) => toast(String(e), true)).finally(() => { sw.disabled = false; });
+  };
+  $("tygemFolder").onclick = () => {
+    const path = prompt("타이젬 기보 폴더 주소를 붙여 넣으세요 (예: C:\\Program Files (x86)\\타이젬바둑 2.0\\Gibo)");
+    if (path) window.kgcAppSyncFolder(path).then(showTygem).catch((e) => toast(String(e.message || e), true));
+  };
+  loadTygem();
+  setInterval(() => { if (location.hash.startsWith("#me") && document.visibilityState === "visible") loadTygem(); }, 4000);
+}
 function keepPush() {   // once per page: a device already allowed stays registered (the server's copy kept fresh)
   showNotify();
   if (pushTried || !notifyOn() || !pushOk || Notification.permission !== "granted") return;

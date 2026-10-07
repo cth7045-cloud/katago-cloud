@@ -4,6 +4,15 @@ import { API, SUPABASE_KEY, SUPABASE_URL } from "./config.js";
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Opened in the KataGo Cloud PC app (katagovast pcsync, 2026-10-07): its 타이젬 기보 자동 동기화 uses this login. The
+// app puts window.kgcAppSession on the page; only this page renews the login (supabase-js) and hands the app each new
+// one, so the two never use the same refresh token twice.
+if (typeof window.kgcAppSession === "function") {
+  const tell = (s) => window.kgcAppSession(s ? { access_token: s.access_token, expires_at: s.expires_at, user_id: s.user.id, email: s.user.email || "" } : null).catch(() => {});
+  sb.auth.onAuthStateChange((_event, session) => { tell(session); });
+  window.__kgcAppRefresh = () => sb.auth.refreshSession().then(({ data }) => tell(data.session)).catch(() => {});
+}
+
 export async function api(path, body) {
   const { data } = await sb.auth.getSession();
   const token = data.session?.access_token;
