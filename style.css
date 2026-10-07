@@ -52,6 +52,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .folder-tools { display: inline-flex; gap: 4px; margin-left: auto; }
 .folder-tools button { min-height: 34px; padding: 5px 12px; font-size: 13px; }
+.mine-meta { display: none; }
 .folder-col select { min-height: 34px; padding: 4px 8px; font-size: 13px; max-width: 150px; }
 #mineCard.no-folders .folder-col { display: none; }
 .mine-find input[type=search] { flex: 1 1 260px; min-width: 0; }
@@ -259,8 +260,20 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   .who { display: none; }
   /* top bar on a phone: the two stones stay as the home link, the name gives its room to the links */
   #startCard th, #offerRows td { padding-left: 4px; padding-right: 4px; font-size: 13px; }   /* 지역·GPU·VRAM·시간당·성능/$ fit a phone */
-  #mineRows td:first-child { white-space: normal; overflow-wrap: anywhere; }   /* 내 기보: a long title wraps so 수·분석·삭제 stay on screen */
-  #mineCard th, #mineRows td { padding-left: 6px; padding-right: 6px; }
+  /* 내 기보 on a phone: one card per game — the title on its own line, a small line under it, then 분류 · 공유 · 삭제 */
+  #mineCard thead { display: none; }
+  #mineCard table, #mineRows { display: block; }
+  #mineRows tr.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; padding: 14px 8px; border-bottom: 1px solid var(--line); transition: background-color .2s; }
+  #mineRows tr.pick:last-child { border-bottom: 0; }
+  #mineRows tr.pick:hover { background: var(--soft); }
+  #mineRows tr.pick td { display: block; padding: 0; border: 0; background: none; }
+  #mineRows tr.pick td.hide-sm, #mineCard.no-folders #mineRows td.folder-col { display: none; }
+  #mineRows tr.pick td:first-child { flex: 1 0 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
+  #mineRows tr.pick td:first-child b { font-size: 16px; font-weight: 650; }
+  #mineRows .mine-meta { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); }
+  #mineRows td.folder-col { flex: 0 1 auto; min-width: 0; }
+  #mineRows td.folder-col select { max-width: 100%; }
+  #mineRows tr.pick td:last-child { margin-left: auto; }
   #offerRows td:first-child { white-space: normal; overflow-wrap: normal; }   /* "싱가포르/동남아" breaks after the slash */   /* "싱가포르/동남아" breaks after the slash instead of pushing 성능/$ off screen */
   #appView .bar .wrap { gap: 2px; }
   #appView .bar .brand { font-size: 0; gap: 0; }

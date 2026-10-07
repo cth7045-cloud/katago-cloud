@@ -829,6 +829,14 @@ function resultWords(re) {
   const who = m[1].toUpperCase() === "B" ? "흑" : "백", how = m[2].trim();
   return `${re} ${who}승 ${who} 승 ` + (/^r/i.test(how) ? `${who}불계승 불계` : /^\d/.test(how) ? `${who}${how}집승 ${how}집` : how);
 }
+// 폰의 내 기보 카드: 제목 아래 작은 한 줄 (결과 · 수 · 분석, 제목에 없으면 대국자·대국일)
+function mineMeta(k) {
+  const m = /^\s*([BW])\s*\+\s*(.*)$/i.exec(k.result || ""), how = m ? m[2].trim() : "";
+  const res = m ? `${m[1].toUpperCase() === "B" ? "흑" : "백"} ${/^r/i.test(how) ? "불계승" : /^t/i.test(how) ? "시간승" : /^\d/.test(how) ? how + "집승" : "승"}`
+    : /^(0|draw|jigo)$/i.test((k.result || "").trim()) ? "무승부" : "";
+  const t = k.title || "", names = (k.black || k.white) && !(t.includes(k.black || "") && t.includes(k.white || "")) ? `${k.black || "?"} vs ${k.white || "?"}` : "";
+  return [names, k.game_date && !t.includes(k.game_date) ? k.game_date : "", res, `${k.moves}수`, k.analyzed ? `분석 ${k.analyzed}` : ""].filter(Boolean).map(esc).join(" · ");
+}
 function showMine() {
   const words = $("mineQuery").value.toLowerCase().split(/\s+/).filter(Boolean);
   const onlyAnalyzed = $("mineAnalyzed").checked, sort = $("mineSort").value;
@@ -852,7 +860,7 @@ function showMine() {
   const filtered = words.length || onlyAnalyzed;
   $("mineShown").textContent = filtered ? `${rows.length}판 찾음` : "";
   $("mineRows").innerHTML = rows.map(({ k, i }) =>
-    `<tr class="pick" data-open="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
+    `<tr class="pick" data-open="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b><span class="mine-meta">${mineMeta(k)}</span></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
     `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${esc(k.game_date || "")}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
     `<td class="folder-col"><select data-move="${i}" aria-label="분류 옮기기">${opts(k.folder_id)}</select></td>` +
     `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
