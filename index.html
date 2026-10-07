@@ -788,11 +788,16 @@ let mine = [], folders = [];   // folders: the member's own 분류 (kifu_folders
 let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" (분류 없음) | a folder id; null = the folder cards
 // share_token (기보 공유, DB 20260929b): until that column exists the list loads without it and 공유 stays hidden;
 // board_size (9줄·13줄, DB 20260929e) likewise: without it every game shows as 19x19
-let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size", canShare = true;
+// source (타이젬 기보 PC 동기화, DB 20261007a): games the PC app added count apart (300) from the 100 saved by hand
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source", canShare = true;
 async function loadMine() {
   let [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && /source/.test(error.message || "")) {
+    KIFU_COLS = KIFU_COLS.replace(",source", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error && /board_size/.test(error.message || "")) {
     KIFU_COLS = KIFU_COLS.replace(",board_size", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
@@ -804,7 +809,8 @@ async function loadMine() {
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; return; }
   mine = data || []; folders = fr.error ? [] : fr.data || [];
   if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
-  $("mineCount").textContent = `${mine.length} / 100판`;
+  const auto = mine.filter((k) => k.source).length;
+  $("mineCount").textContent = `${mine.length - auto} / 100판` + (auto ? ` · 타이젬 자동 ${auto} / 300판` : "");
   showMine();
 }
 // 기보 찾기: every word typed must appear in the title, a player, the game date or the result (흑/백, 불계, 집)
@@ -1151,7 +1157,7 @@ $("dashReview").onclick = () => { if ($("dashNotes").textContent === "0") locati
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
-  if (mine.length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
+  if (mine.filter((k) => !k.source).length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
   const folder = folders.some((f) => f.id === curFolder) ? `&folder=${curFolder}` : "";   // saved into the folder on screen
   openPage(`analysis.html?v=${Date.now()}#record=1${folder}`);
 }; });
