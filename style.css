@@ -228,6 +228,15 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   padding: 12px 20px; border-radius: 16px; max-width: calc(100vw - 32px); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.bad { background: var(--bad); }
+/* PC 앱 새 버전 안내 (inside the PC app) */
+.app-update { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: min(400px, calc(100vw - 24px)); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px;
+  padding: 16px 18px; border-radius: 20px; background: var(--panel); box-shadow: 0 18px 50px -18px rgba(20, 30, 60, .45), 0 0 0 1px var(--line); animation: unfold .45s var(--ease); }
+.app-update .grow { flex: 1 1 220px; min-width: 0; }
+.app-update b { font-size: 15px; }
+.app-update .small { margin-top: 3px; }
+.app-update-btns { display: flex; gap: 6px; margin-left: auto; }
+.app-update-btns button, .app-update-btns .btn { min-height: 36px; padding: 6px 14px; font-size: 14px; }
+@media (max-width: 640px) { .app-update { left: 12px; right: 12px; width: auto; bottom: calc(84px + env(safe-area-inset-bottom)); } }
 
 /* ------------------------------------------------------------------ motion */
 @keyframes unfold { from { opacity: 0; transform: translateY(-8px); } }

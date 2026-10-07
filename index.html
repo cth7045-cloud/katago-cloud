@@ -485,6 +485,7 @@
       <div class="group-t">도움말</div>
       <div class="list">
         <a class="item hidden" id="pcAppItem" href="download/KataGoCloud.exe" download="KataGoCloud.exe"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">윈도우 PC 앱 받기<span class="item-note" id="pcAppNote">앱 창으로 열리고, 타이젬 기보를 내 기보에 자동으로 넣습니다</span></span><span class="chev" aria-hidden="true">↓</span></a>
+        <div class="item hidden" id="pcVerItem"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">PC 앱 버전<span class="item-note" id="pcVerNote"></span></span><button type="button" class="primary hidden" data-app-update>업데이트</button></div>
         <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
         <a class="item" href="licenses.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg></span><span class="grow">오픈소스 고지</span><span class="chev" aria-hidden="true">›</span></a>
       </div>
@@ -1716,7 +1717,7 @@ function installHow() {
 // home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
 const inPcApp = typeof window.kgcAppSync === "function";
 const windowsPc = /Windows NT/.test(ua) && !/Windows Phone/.test(ua);
-const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.0" };   // a new app: replace the file and this version
+const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.1" };   // a new app: replace the file, KataGoCloud.json and this version
 document.querySelectorAll("[data-pcapp]").forEach((el) => {
   el.innerHTML = `<span class="app-icon" aria-hidden="true"></span>
     <div class="grow" style="flex:1 1 300px;min-width:0"><b>윈도우 PC 앱 설치</b>
@@ -1726,6 +1727,59 @@ document.querySelectorAll("[data-pcapp]").forEach((el) => {
 });
 if (windowsPc && !inPcApp) $("pcAppItem").classList.remove("hidden");
 $("pcAppNote").textContent += ` · 버전 ${PC_APP.version}`;
+// 새 버전 안내 (inside the PC app, 2026-10-07): the app's version (kgcAppInfo; 0.2.0 had none) against PC_APP.version.
+// 업데이트 asks the app (kgcAppUpdate) to download the new exe, check it against download/KataGoCloud.json and run
+// it — the app then reopens as the new version. 0.2.0 cannot do that: it gets the file to download and run.
+if (inPcApp) {
+  const updater = typeof window.kgcAppUpdate === "function";
+  const newer = (a, b) => { const x = a.split("."), y = b.split("."); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (+x[i] || 0) - (+y[i] || 0); if (d) return d > 0; } return false; };
+  const card = document.createElement("div");
+  card.id = "appUpdate"; card.className = "app-update hidden"; card.setAttribute("role", "status");
+  document.body.appendChild(card);
+  let later = false; try { later = sessionStorage.getItem("kgcUpdateLater") === PC_APP.version; } catch { /* no storage */ }
+  const showVer = (v, line) => {
+    const old = newer(PC_APP.version, v);
+    $("pcVerItem").classList.remove("hidden");
+    $("pcVerNote").textContent = line || (old ? `지금 ${v} · 새 버전 ${PC_APP.version}이 있습니다` : `${v} · 최신 버전입니다`);
+    $("pcVerItem").querySelector("[data-app-update]").classList.toggle("hidden", !old || !!line);
+    if (!old || later) { card.classList.add("hidden"); return; }
+    card.innerHTML = `<div class="grow"><b>PC 앱 새 버전 ${PC_APP.version}</b><div class="small muted" data-up-line>${updater
+      ? "업데이트를 누르면 받아서 바꿔 넣고 앱을 다시 엽니다. 동기화·로그인은 그대로입니다."
+      : "받은 파일을 실행하면 지금 앱이 꺼지고 새 버전으로 바뀝니다. 동기화·로그인은 그대로입니다."}</div></div>
+      <div class="app-update-btns"><button type="button" class="quiet" data-up-later>나중에</button>${updater
+      ? `<button type="button" class="primary" data-app-update>업데이트</button>` : `<a class="btn primary" href="${PC_APP.file}" download="KataGoCloud.exe">새 버전 받기</a>`}</div>`;
+    card.classList.remove("hidden");
+  };
+  const say = (text) => { const el = card.querySelector("[data-up-line]"); if (el) el.textContent = text; $("pcVerNote").textContent = text; };
+  let polling = false;
+  const update = async () => {
+    if (!updater) { const a = document.createElement("a"); a.href = PC_APP.file; a.download = "KataGoCloud.exe"; a.click(); return; }   // 0.2.0
+    if (polling) return; polling = true;
+    later = false; card.classList.remove("hidden");
+    document.querySelectorAll("[data-app-update]").forEach((b) => { b.disabled = true; });
+    try {
+      let s = await window.kgcAppUpdate();
+      while (s.state === "checking" || s.state === "downloading") {
+        say(s.state === "checking" ? "새 버전을 확인하는 중…" : `새 버전을 받는 중… ${s.percent}%`);
+        await new Promise((r) => setTimeout(r, 400));
+        s = await window.kgcAppInfo();
+      }
+      if (s.state === "starting") { say("새 버전으로 바꾸는 중입니다. 앱이 잠깐 닫혔다가 다시 열립니다."); return; }
+      if (s.state === "latest") { say(`이미 최신 버전(${s.version})입니다.`); card.classList.add("hidden"); return; }
+      say(s.message || "업데이트하지 못했습니다."); toast(s.message || "업데이트하지 못했습니다.", true);
+    } catch (e) { say("업데이트하지 못했습니다: " + (e.message || e)); }
+    polling = false;
+    document.querySelectorAll("[data-app-update]").forEach((b) => { b.disabled = false; });
+  };
+  document.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-app-update]")) update();
+    else if (ev.target.closest("[data-up-later]")) {
+      later = true; card.classList.add("hidden");
+      try { sessionStorage.setItem("kgcUpdateLater", PC_APP.version); } catch { /* no storage */ }
+    }
+  });
+  (updater ? window.kgcAppInfo().then((s) => s.version) : Promise.resolve("0.2.0")).then((v) => showVer(v)).catch(() => {});
+}
 // Shown on the login page and the start page unless the site is running as the installed app: the member may
 // have removed the app and want it back. Inside the app it is hidden completely.
 function showInstall() {
