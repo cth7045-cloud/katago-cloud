@@ -1407,7 +1407,8 @@ async function memberPush() {
 }
 function showChargePush() {
   const p = pushOk ? Notification.permission : "unsupported";
-  $("coPush").innerHTML = p === "granted" ? "처리되면 이 기기로 알림을 보내 드립니다."
+  $("coPush").innerHTML = appNotify ? (switchOn() ? "처리되면 이 PC에 윈도우 알림으로 알려 드립니다." : '<span class="muted">처리 결과는 이 화면에서 확인해 주세요. 내 정보 → 알림을 켜면 윈도우 알림으로 받습니다.</span>')
+    : p === "granted" ? "처리되면 이 기기로 알림을 보내 드립니다."
     : p === "default" ? `<button type="button" class="btn" id="coPushOn">처리되면 알림 받기</button>`
     : p === "denied" ? '<span class="muted">알림이 꺼져 있어 처리 결과는 이 화면에서 확인해 주세요.</span>'
     : '<span class="muted">처리 결과는 이 화면에서 확인해 주세요.</span>';
@@ -1514,14 +1515,27 @@ $("notifyBtn").onclick = () => { askNotify(); };
 // so the page leaves the GPU notices to the server instead of showing its own as well.
 let pushReady = false, pushTried = false;
 const notifyOn = () => !profile || profile.notify !== false;
-const switchOn = () => notifyOn() && pushOk && Notification.permission === "granted";
+// PC 앱 알림 (2026-10-07): the PC app's window cannot take web push; the app (0.2.2~) shows the same notices as Windows
+// notifications (kgcAppNotify/kgcAppNotifySet). An older PC app has neither: it is told to update.
+const appNotify = typeof window.kgcAppNotifySet === "function", oldPcApp = !appNotify && typeof window.kgcAppSync === "function";
+let appNotifyOn = false;
+if (appNotify) window.kgcAppNotify().then((v) => { appNotifyOn = !!v; showNotify(); }).catch(() => {});
+const switchOn = () => notifyOn() && (appNotify ? appNotifyOn : pushOk && Notification.permission === "granted");
+const winPc = /Windows NT/.test(navigator.userAgent);   // (windowsPc below is declared later in this script)
+const NOTIFY_WHAT = "GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과";
 function showNotify() {
   const p = pushOk ? Notification.permission : "unsupported";
   $("notifySwitch").setAttribute("aria-checked", String(switchOn()));
-  $("notifyNote").textContent = !pushOk
+  $("notifyNote").textContent = appNotify
+    ? (switchOn() ? `${NOTIFY_WHAT}를 이 PC에 윈도우 알림으로 알려 드립니다. 창을 닫아도 시계 옆 아이콘으로 남아 알려 드립니다.`
+      : !notifyOn() && appNotifyOn ? "알림을 모두 껐습니다. GPU 준비·종료와 충전 결과는 화면에서 확인해 주세요."
+      : `켜면 ${NOTIFY_WHAT}를 이 PC에 윈도우 알림으로 알려 드립니다.`)
+    : oldPcApp ? "이 PC 앱 버전은 알림을 받을 수 없습니다. 새 버전으로 업데이트하면(내 정보 → PC 앱 버전) 윈도우 알림으로 받을 수 있습니다."
+    : !pushOk
     ? (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "아이폰·아이패드는 Safari에서 '홈 화면에 추가'한 앱으로 열어야 알림을 받을 수 있습니다." : "이 브라우저는 알림을 지원하지 않습니다. 크롬에서 열어 주세요.")
     : !notifyOn() ? "알림을 모두 껐습니다. GPU 준비·종료와 충전 결과는 화면에서 확인해 주세요."
-    : p === "denied" ? "이 기기에서 알림이 차단되어 있습니다. 휴대폰 설정(또는 브라우저 사이트 설정)에서 KataGo Cloud 알림을 허용한 뒤 다시 누르세요."
+    : p === "denied" ? (winPc ? "이 브라우저에서 알림이 차단되어 있습니다. 주소창 왼쪽 아이콘 → 사이트 설정에서 알림을 허용하고, 윈도우 설정 → 시스템 → 알림에서 이 브라우저 알림이 켜져 있는지 확인한 뒤 다시 누르세요."
+      : "이 기기에서 알림이 차단되어 있습니다. 휴대폰 설정(또는 브라우저 사이트 설정)에서 KataGo Cloud 알림을 허용한 뒤 다시 누르세요.")
     : p === "granted" ? "GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과를 알려 드립니다."
     : "켜면 GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과를 이 기기로 알려 드립니다.";
 }
@@ -1533,10 +1547,12 @@ async function setNotify(on) {
 $("notifySwitch").onclick = async () => {
   const sw = $("notifySwitch"); sw.disabled = true;
   try {
-    if (switchOn()) { await setNotify(false); toast("알림을 모두 껐습니다."); }
+    if (switchOn()) { await setNotify(false); if (appNotify) appNotifyOn = await window.kgcAppNotifySet(false); toast("알림을 모두 껐습니다."); }
+    else if (appNotify) { await setNotify(true); appNotifyOn = await window.kgcAppNotifySet(true); toast("이 PC에서 윈도우 알림을 켰습니다."); }
+    else if (oldPcApp) throw new Error("PC 앱을 새 버전으로 업데이트하면 알림을 받을 수 있습니다.");
     else {
       if (!pushOk) throw new Error("이 브라우저는 알림을 지원하지 않습니다.");
-      if (await Notification.requestPermission() !== "granted") throw new Error("알림을 허용해야 받을 수 있습니다. 휴대폰 설정에서 KataGo Cloud 알림을 허용해 주세요.");
+      if (await Notification.requestPermission() !== "granted") throw new Error(winPc ? "알림을 허용해야 받을 수 있습니다. 주소창 왼쪽 아이콘 → 사이트 설정에서 알림을 허용해 주세요." : "알림을 허용해야 받을 수 있습니다. 휴대폰 설정에서 KataGo Cloud 알림을 허용해 주세요.");
       await memberPush(); pushReady = true;
       await setNotify(true); toast("알림을 켰습니다.");
     }
@@ -1717,7 +1733,7 @@ function installHow() {
 // home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
 const inPcApp = typeof window.kgcAppSync === "function";
 const windowsPc = /Windows NT/.test(ua) && !/Windows Phone/.test(ua);
-const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.1" };   // a new app: replace the file, KataGoCloud.json and this version
+const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.2" };   // a new app: replace the file, KataGoCloud.json and this version
 document.querySelectorAll("[data-pcapp]").forEach((el) => {
   el.innerHTML = `<span class="app-icon" aria-hidden="true"></span>
     <div class="grow" style="flex:1 1 300px;min-width:0"><b>윈도우 PC 앱 설치</b>
