@@ -141,6 +141,11 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
 /* visits/s: a fixed width with same-width digits. Its width followed the number, so on a phone the top bar wrapped
    onto a second line and back as the speed changed and the board jumped up and down (user report 2026-09-29). */
 #vps { font-variant-numeric: tabular-nums; min-width: calc(13ch + 24px); justify-content: center; }
+/* the connection and the GPU time·요금 the same way: "GPU 연결됨 · 95 ms" changes every ping (5 s), and at a width where the
+   top bar just fits (태블릿 가로 966px) 92 ms ↔ 105 ms wrapped it onto a second line and back, so the board kept moving
+   (user report 2026-10-07). Same-width digits and room for a 3-digit ping keep the bar the same. */
+#conn, #gpuUse { font-variant-numeric: tabular-nums; }
+#conn { min-width: 9.4em; }   /* = "GPU 연결됨 · 999 ms" */
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
 .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(31, 157, 85, .16); }
 details.menu { position: relative; }
@@ -171,6 +176,7 @@ details.menu .items #placeRow .stone-seg { margin-left: auto; }
 #boardMenu .items { min-width: 270px; }
 @media (max-width: 1500px) { .menubar .brand span:last-child { display: none; } }   /* 노트북 폭에서도 위 바 한 줄(앱 아이콘은 남김) */
 @media (orientation: landscape) and (max-width: 1300px) { .menubar #vps { display: none; } }   /* 1280 노트북: visits/s는 빼서 한 줄 */
+@media (orientation: landscape) and (max-width: 1100px) { .menubar { gap: 6px; padding-inline: 10px; } }   /* 태블릿 가로(966px): 그 몫으로 한 줄 */
 details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
 .toolbar .nav { display: inline-flex; align-items: center; gap: 4px; }
 .toolbar button.mv { display: inline-grid; place-items: center; }
