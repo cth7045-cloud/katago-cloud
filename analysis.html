@@ -478,6 +478,8 @@ button.primary:hover { background: var(--blue-deep); }
 #photoDlg .gd-actions { flex-wrap: wrap; }
 #photoDlg .gd-actions button { flex: none; }
 .pk-stage { display: flex; justify-content: center; }
+.pk-cap { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.gd-row .pk-cap input { flex: 1; min-width: 0; }
 #photoCv { display: block; max-width: 100%; touch-action: none; border-radius: 10px; background: #111; }
 /* 대국 시계 (AI대국 with a time limit) and the 계가 card */
 #clocks { display: flex; gap: 6px; flex: none; }
@@ -780,6 +782,10 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="gd-row"><span>바둑판</span><div class="gd-pair">
       <select id="photoSize" aria-label="바둑판 크기"><option value="19">19줄</option><option value="13">13줄</option><option value="9">9줄</option></select>
       <select id="photoTurn" aria-label="둘 차례"><option value="B">흑 차례</option><option value="W">백 차례</option></select></div></div>
+    <div class="gd-row"><span>사석</span><div class="gd-pair">
+      <label class="pk-cap">흑 <input type="number" id="photoCapB" min="0" max="999" step="1" value="0" inputmode="numeric" aria-label="흑 사석(흑이 따낸 백돌 수)"></label>
+      <label class="pk-cap">백 <input type="number" id="photoCapW" min="0" max="999" step="1" value="0" inputmode="numeric" aria-label="백 사석(백이 따낸 흑돌 수)"></label></div></div>
+    <p class="gd-note">사석 = 그쪽이 지금까지 따낸 상대 돌 수(대국 화면에 나오는 사석 그대로). 형세와 계가에 들어갑니다.</p>
     <div class="gd-actions"><button id="photoRetake">다른 사진</button><button id="photoBack" hidden>모서리 다시</button><button id="photoCancel">취소</button><button id="photoGo" class="primary">인식</button></div>
   </div>
 </dialog>
@@ -1129,7 +1135,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 addEventListener("online", checkNow);
 
 function baseQuery() {
-  return {rules: "korean", komi: komi(), boardXSize: N, boardYSize: N, initialPlayer: root.toPlay,
+  return {rules: "korean", komi: queryKomi(), boardXSize: N, boardYSize: N, initialPlayer: root.toPlay,
           initialStones: [...root.setup.B.map(([x, y]) => ["B", gtp(x, y)]), ...root.setup.W.map(([x, y]) => ["W", gtp(x, y)])],
           includeOwnership: $("showOwner").checked};
 }
@@ -1388,7 +1394,7 @@ function shownAnalysis(node) { const p = pdaAt(node); return p && node.pdaAn && 
 const pdaShown = node => { const a = shownAnalysis(node); return a && a.pda ? a.pda : 0; };
 function initialBlackAdvantage() {  // KataGo initialBlackAdvantage, Korean rules (territory scoring: 14 per stone, no white bonus)
   const n = root.setup.W.length ? 0 : root.setup.B.length;
-  return n <= 1 ? 7 - komi() : 14 * (n - 1) + 7 - komi();
+  return n <= 1 ? 7 - queryKomi() : 14 * (n - 1) + 7 - queryKomi();
 }
 function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; here whichever side is behind (역덤 / big 덤)
   const adv = Math.abs(initialBlackAdvantage());
@@ -1853,6 +1859,7 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   let newRoot, skipped;
   for (const s of tries) {
     newRoot = makeRoot(s, toPlay, size); skipped = 0;
+    newRoot.caps = sgfPrisoners(first);   // before the moves: each move copies its parent's count
     const build = (tr, start, node) => {
       for (let k = start; k < tr.nodes.length; k++) {
         const p = tr.nodes[k], color = p.B ? "B" : p.W ? "W" : null;
@@ -1877,6 +1884,15 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   goTo(root);
   $("err").textContent = skipped ? `둘 수 없는 수 ${skipped}개를 건너뛰었습니다` : "";
 }
+// 사석 before the record starts (사진으로 배치 입력, user request 2026-10-07): KGP[흑:백] on the root (our own property,
+// other programs skip it) = stones each side had already captured. They count in 계가 (root.caps → every node) and in
+// the engine's numbers: Korean rules count prisoners, which KataGo does not know for set-up stones, so the query's komi
+// takes them in (each prisoner of black's is one point less komi; KataGo itself starts from zero).
+function sgfPrisoners(first) {
+  const m = /^\s*(\d{1,3})\s*:\s*(\d{1,3})\s*$/.exec((first.KGP || [""])[0]);
+  return m ? {B: +m[1], W: +m[2]} : {B: 0, W: 0};
+}
+const queryKomi = () => komi() - (root.caps.B - root.caps.W);
 // Game info shown in the card, and analysis saved with the record (KGA: our own property, other programs skip it),
 // so a saved review opens with its win rates without renting a GPU again.
 const GAME_INFO = ["PB", "PW", "BR", "WR", "RE", "DT", "EV"];
@@ -1901,6 +1917,7 @@ function toSgf(withAnalysis = true, upTo = null) {   // upTo: only the moves lea
   if (root.setup.W.length) head += "AW" + root.setup.W.map(([x, y]) => `[${c(x, y)}]`).join("");
   if (+$("handicap").value && root.setup.B.length === +$("handicap").value) head += `HA[${$("handicap").value}]`;
   if (root.toPlay === "W") head += "PL[W]";
+  if (root.caps.B || root.caps.W) head += `KGP[${root.caps.B}:${root.caps.W}]`;
   for (const k of GAME_INFO) if (root.info[k]) head += `${k}[${esc(root.info[k])}]`;
   if (root.comment) head += `C[${esc(root.comment)}]`;
   const kga = n => withAnalysis && n.analysis && n.analysis.rootInfo ? `KGA[${esc(packAnalysis(n.analysis))}]` : "";
@@ -1950,7 +1967,8 @@ function mergeSgf(text) {
   const t = parseSgf(text), first = t.nodes[0] || {};
   const key = pts => pts.map(p => p.join(",")).sort().join(" ");
   const toPlay = first.PL && first.PL[0] === "W" ? "W" : "B";
-  if ((first.SZ ? parseInt(first.SZ[0], 10) : 19) !== N || key(expandPoints(first.AB)) !== key(root.setup.B) || key(expandPoints(first.AW)) !== key(root.setup.W) || toPlay !== root.toPlay) {
+  if ((first.SZ ? parseInt(first.SZ[0], 10) : 19) !== N || key(expandPoints(first.AB)) !== key(root.setup.B) || key(expandPoints(first.AW)) !== key(root.setup.W) || toPlay !== root.toPlay ||
+      JSON.stringify(sgfPrisoners(first)) !== JSON.stringify(root.caps)) {
     loadSgf(text); return;   // a different start (new game, handicap, board size): a new tree
   }
   const km = first.KM ? parseFloat(first.KM[0]) : 6.5;
@@ -2031,7 +2049,7 @@ $("pasteSgf").onclick = async () => {
 // so it is easy to line up), each intersection is sampled through that perspective (the average colour of a disc of
 // 0.3 cell), and the samples are split into 흑 / 백 / 빈 곳 by k-means on brightness and saturation (wood is yellow,
 // stones are grey). The result is shown on the straightened photo; a tap cycles a point 빈 곳 → 흑 → 백. It opens as an
-// SGF with AB/AW (only the position: a photo has no move order), so the captured counts start at 0.
+// SGF with AB/AW (only the position: a photo has no move order); the 사석 the member types go in as KGP (sgfPrisoners).
 const photo = {src: null, data: null, corners: null, grid: null, step: "corners", drag: -1, view: null};
 function homography(from, to) {   // the 3x3 matrix (h33 = 1) taking the 4 points `from` to `to`
   const A = [], b = [];
@@ -2297,6 +2315,7 @@ async function photoOpen(file) {
   c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
   const g = c.getContext("2d", {willReadFrequently: true}); g.drawImage(bmp, 0, 0, c.width, c.height);
   photo.src = c; photo.data = g.getImageData(0, 0, c.width, c.height); photo.grid = null;
+  $("photoCapB").value = $("photoCapW").value = "0";
   if (!$("photoDlg").open) $("photoDlg").showModal();
   let auto = null; try { auto = photoAuto(); } catch { /* falls back to the corners by hand */ }
   if (auto && auto.ok) {   // found: straight to the result (모서리 다시 if it is off)
@@ -2339,12 +2358,13 @@ $("photoGo").onclick = () => {
   if (game) stopGame();
   const n = photoN(), c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y), pts = {1: [], 2: []};
   photo.grid.forEach((v, k) => { if (v) pts[v].push(`[${c(k % n, Math.floor(k / n))}]`); });
+  const cap = id => Math.max(0, Math.min(999, Math.floor(+$(id).value) || 0)), capB = cap("photoCapB"), capW = cap("photoCapW");
   const sgf = `(;GM[1]FF[4]CA[UTF-8]SZ[${n}]KM[${komi()}]` + (pts[1].length ? "AB" + pts[1].join("") : "") + (pts[2].length ? "AW" + pts[2].join("") : "") +
-              `PL[${$("photoTurn").value}]C[사진에서 읽은 배치])`;
+              `PL[${$("photoTurn").value}]` + (capB || capW ? `KGP[${capB}:${capW}]` : "") + `C[사진에서 읽은 배치])`;
   $("photoDlg").close();
   try { loadSgf(sgf); } catch (err) { $("err").textContent = "배치를 열지 못했습니다: " + err.message; return; }
   const [b, w] = photoCount();
-  $("err").textContent = `사진에서 흑 ${b} · 백 ${w}개를 놓았습니다 · ${$("photoTurn").value === "B" ? "흑" : "백"} 차례`;
+  $("err").textContent = `사진에서 흑 ${b} · 백 ${w}개를 놓았습니다` + (capB || capW ? ` · 사석 흑 ${capB} · 백 ${capW}` : "") + ` · ${$("photoTurn").value === "B" ? "흑" : "백"} 차례`;
 };
 addEventListener("resize", () => { if ($("photoDlg").open) { photoLayout(); photoDraw(); } });
 // ------------------------------------------------------------------ 기보 불러오기 (한큐바둑, through the kgv server)
@@ -2891,7 +2911,7 @@ async function insertNotes(c, picked, title) {   // [added, tried]: problems alr
     return {title, color: n.move.c, move_no: n.depth, played, best: candidates(n.parent)[0].move,
             loss_points: Math.round(loss.points * 10) / 10, loss_wr: Math.round(loss.wr * 10) / 10,
             ...(sized ? {board_size: N} : {}),
-            sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${N !== 19 ? N + "|" : ""}${komi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
+            sgf, analysis: packAnalysis(n.parent.analysis), pos_key: await sha256(`${N !== 19 ? N + "|" : ""}${queryKomi()}|${JSON.stringify(root.setup)}|${root.toPlay}|${movesOf(n.parent).map(m => m.join("")).join(" ")}|${played}`)};
   }));
   const {data, error} = await c.from("mistake_notes").upsert(rows, {onConflict: "user_id,pos_key", ignoreDuplicates: true}).select("id");
   if (error) throw error;
