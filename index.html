@@ -71,6 +71,7 @@
         </div>
         <button class="primary" type="button" data-install>설치</button>
       </div>
+      <div class="panel install-card hidden" data-pcapp></div>
     </div>
   </section>
 
@@ -162,6 +163,7 @@
         </div>
         <button class="primary" type="button" data-install>설치</button>
       </div>
+      <div class="panel install-card hidden" data-pcapp></div>
     </div>
 
     <!-- GPU 대여 (#gpu) -->
@@ -482,6 +484,7 @@
 
       <div class="group-t">도움말</div>
       <div class="list">
+        <a class="item hidden" id="pcAppItem" href="download/KataGoCloud.exe" download="KataGoCloud.exe"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">윈도우 PC 앱 받기<span class="item-note" id="pcAppNote">앱 창으로 열리고, 타이젬 기보를 내 기보에 자동으로 넣습니다</span></span><span class="chev" aria-hidden="true">↓</span></a>
         <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
         <a class="item" href="licenses.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg></span><span class="grow">오픈소스 고지</span><span class="chev" aria-hidden="true">›</span></a>
       </div>
@@ -1701,10 +1704,26 @@ function installHow() {
   if (android) return "브라우저 메뉴(⋮) → '홈 화면에 추가' 또는 '앱 설치'를 누르세요.";
   return "Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕)을 누르세요. 이미 설치했다면 같은 자리의 '앱에서 열기'로 열 수 있습니다.";
 }
+// 윈도우 PC 앱 (katagovast pcsync, 2026-10-07): on a Windows computer the install card offers the app instead of the
+// home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
+const inPcApp = typeof window.kgcAppSync === "function";
+const windowsPc = /Windows NT/.test(ua) && !/Windows Phone/.test(ua);
+const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.0" };   // a new app: replace the file and this version
+document.querySelectorAll("[data-pcapp]").forEach((el) => {
+  el.innerHTML = `<span class="app-icon" aria-hidden="true"></span>
+    <div class="grow" style="flex:1 1 300px;min-width:0"><b>윈도우 PC 앱 설치</b>
+      <div class="small muted">사이트가 주소창 없는 앱 창으로 열리고, 이 PC에서 둔 타이젬 대국을 내 기보에 자동으로 넣습니다. Windows 10·11(64비트) · 버전 ${PC_APP.version}</div>
+      <div class="small muted" style="margin-top:4px">받은 파일을 실행하면 설치되고 바탕화면에 KataGo Cloud가 생깁니다. 'Windows의 PC 보호' 창이 뜨면 <span style="font-weight:600">추가 정보 → 실행</span>을 누르세요.</div></div>
+    <a class="btn primary" href="${PC_APP.file}" download="KataGoCloud.exe">다운로드</a>`;
+});
+if (windowsPc && !inPcApp) $("pcAppItem").classList.remove("hidden");
+$("pcAppNote").textContent += ` · 버전 ${PC_APP.version}`;
 // Shown on the login page and the start page unless the site is running as the installed app: the member may
 // have removed the app and want it back. Inside the app it is hidden completely.
 function showInstall() {
-  for (const id of ["installCard", "installAuth"]) $(id).classList.toggle("hidden", standalone);
+  const pc = windowsPc && !inPcApp;
+  for (const id of ["installCard", "installAuth"]) $(id).classList.toggle("hidden", standalone || inPcApp || pc);
+  document.querySelectorAll("[data-pcapp]").forEach((el) => el.classList.toggle("hidden", !pc || standalone));
   document.querySelectorAll("[data-install-how]").forEach((el) => { el.textContent = installHow(); });
   document.querySelectorAll("[data-install]").forEach((b) => b.classList.toggle("hidden", !installEvent));
 }
