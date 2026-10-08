@@ -1169,7 +1169,11 @@ function store(node, msg, id) {
     return;
   }
   const old = node.analysis;
-  if (!old || node.aid === id || msg.rootInfo.visits >= old.rootInfo.visits) { node.analysis = msg; node.aid = id; }
+  if (!old || node.aid === id || msg.rootInfo.visits >= old.rootInfo.visits) {
+    const was = !!old && old.rootInfo.visits >= levelVisits();
+    node.analysis = msg; node.aid = id;
+    if (!old || (!was && msg.rootInfo.visits >= levelVisits())) mineDirty();   // a position newly analysed: 자동 저장
+  }
 }
 function onMessage(msg) {
   if ("pong" in msg) {
@@ -2607,15 +2611,49 @@ async function putMine(c, title, asNew, folder = null) {   // the game on screen
   const {data: saved, error} = await (update ? c.from("saved_kifu").update(row).eq("id", mineId) : c.from("saved_kifu").insert(row)).select("id").single();
   if (error) return error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message;
   mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder;
+  mineDirtyAt = 0;   // 자동 저장: nothing left to write
   const fname = folder && (mineFolders.find(f => f.id === folder) || {}).name;
   $("err").textContent = (fname ? `'${fname}' 분류 · ` : "") + (update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다");
   return "";
 }
+// 자동 저장 (user report 2026-10-08: a game opened from 내 기보 was analysed on the GPU, the GPU went off, and the
+// analysis was gone: it lived only on this screen until 내 기보 저장, and nothing said so). A game that is in 내 기보
+// (opened from it or saved to it) now keeps its analysis in its own row: written again 20 s after a position is newly
+// analysed, as soon as 자동분석 / 대국 리포트 ends, before this screen turns the GPU off, and when the page is left.
+// Only the analysis triggers it, but the row gets the whole record as on screen (as 덮어쓰기 does).
+let mineDirtyAt = 0, mineSaveTimer = null, mineSaving = null;
+function mineDirty() {
+  if (!mineId || mineRoot !== root || batchMode || viewOnly || quiz) return;
+  mineDirtyAt = Date.now();
+  if (!mineSaveTimer) mineSaveTimer = setTimeout(() => mineAutoSave(false), 20000);
+}
+async function mineAutoSave(say) {   // say: tell the member it was saved (not for the quiet 20 s saves)
+  clearTimeout(mineSaveTimer); mineSaveTimer = null;
+  if (mineSaving) { await mineSaving; if (!mineDirtyAt) return; }   // one at a time; then whatever came meanwhile
+  if (!mineDirtyAt || !mineId || mineRoot !== root) return;
+  const id = mineId, title = mineTitle, at = mineDirtyAt;
+  mineSaving = (async () => {
+    try {
+      const c = await mineClient(); if (!c) return;
+      const row = await mineRow(title);
+      if (!row) { $("err").textContent = "기보가 너무 커서(분석 포함 2MB 초과) 분석을 자동 저장하지 못했습니다. 필요 없는 변화도를 지운 뒤 내 기보 저장을 누르세요."; return; }
+      const {error} = await c.from("saved_kifu").update(row).eq("id", id);
+      if (error) { $("err").textContent = "분석을 내 기보에 자동 저장하지 못했습니다: " + error.message; return; }
+      if (mineDirtyAt === at) mineDirtyAt = 0; else if (!mineSaveTimer) mineSaveTimer = setTimeout(() => mineAutoSave(false), 20000);
+      $("err").textContent = say ? `분석을 내 기보 '${title}'에 저장했습니다`
+        : `분석 자동 저장됨 · ${new Date().toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"})}`;
+    } catch (err) { $("err").textContent = "분석을 내 기보에 자동 저장하지 못했습니다: " + err.message; }
+  })();
+  try { await mineSaving; } finally { mineSaving = null; }
+}
+addEventListener("pagehide", () => { if (mineDirtyAt) mineAutoSave(false); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && mineDirtyAt) mineAutoSave(false); });
 // '다 끝나면 GPU 끄기' in the save window: now, after the 오답노트 window, or once 자동분석 / 대국 리포트 ends.
 let finishPlan = null;
 const analysisRunning = () => !!(autoId || strengthId);
 const gpuOn = () => !$("gpuMeter").hidden && !$("gpuStop").hidden;   // this member's own GPU, running (watchGpu)
 function finishCheck(ok) {   // an analysis ended (ok: it ran to the end; not ok: cancelled or cut off)
+  if (mineDirtyAt && !analysisRunning() && !(ok && finishPlan && finishPlan.kifu)) mineAutoSave(true);   // 자동 저장 (the plan saves it itself)
   if (!finishPlan) return;
   if (!ok) { const stop = finishPlan.stop; finishPlan = null; $("err").textContent = `분석이 끝까지 가지 않아 저장${stop ? "·GPU 끄기" : ""}를 하지 않았습니다`; return; }
   if (analysisRunning()) return;   // the other one is still going
@@ -2638,6 +2676,7 @@ async function runFinishPlan(p) {
   } catch (err) { $("err").textContent = "저장하지 못했습니다: " + err.message + keep; }
 }
 async function stopGpuNow(before = "") {
+  if (mineDirtyAt) await mineAutoSave(false);   // 자동 저장 first: the analysis is not lost with the GPU
   try {
     const { api } = await import("./app.js");
     const r = await api("/stop", {});
@@ -2810,6 +2849,7 @@ $("mineRows").addEventListener("click", async ev => {
 });
 async function openMineKifu(id) {
   pendingKifu = null;
+  if (mineDirtyAt) await mineAutoSave(false);   // 자동 저장: the game on screen before this one replaces it
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 내 기보를 열 수 있습니다"; return false; }
   const {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id").eq("id", id).maybeSingle();
@@ -4090,7 +4130,10 @@ async function watchGpu() {
     $("gpuMeter").hidden = false;
   }
   $("gpuStop").onclick = async () => {
-    if (!confirm("GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
+    // a game not in 내 기보 has nowhere to keep its analysis by itself (자동 저장 is for 내 기보 games): say so
+    const unsaved = !(mineId && mineRoot === root) && !recordMode && mineStats().analyzed > 0;
+    if (!confirm((unsaved ? "이 기보의 분석은 내 기보에 저장되지 않았습니다. 끄면 분석이 사라집니다(먼저 '내 기보 저장'을 누르면 남습니다).\n\n" : "")
+      + "GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
     $("gpuStop").disabled = true;
     await stopGpuNow();
     $("gpuStop").disabled = false; tick();
