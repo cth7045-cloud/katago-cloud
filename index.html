@@ -1185,6 +1185,12 @@ $("batchStart").onclick = () => {
   }
   startBatch();
 };
+// games waiting in the 기보 분석 list that 분석 시작 could take now (0 = none, or it is already running / queued)
+function batchAutoOk() {
+  if (batchFrame || batchJob || batchQueued) return 0;
+  if ($("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim()) return 0;
+  return batchFiles.filter((f) => f.state !== "saved").length;
+}
 function startBatch() {
   batchRun = batchFiles.filter((f) => f.state !== "saved");
   batchRun.forEach((f) => { f.state = "wait"; f.text = "대기"; f.done = f.todo = 0; });
@@ -1418,14 +1424,17 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
 $("startButton").onclick = async () => {
   if (!picked) return;
   const pay = profile?.is_admin ? "관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다" : "1분 단위로 잔액에서 차감됩니다";
-  const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1분 안팎" : "보통 1~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.\n\n시작할까요?`;
-  if (!confirm(msg)) return;
+  const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1분 안팎" : "보통 1~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
+  const autoBatch = batchAutoOk();
+  if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
   try {
     askNotify();   // 준비 알림: asked once, while the member is clicking
     await api("/start", { offer_id: picked.id, machine_id: picked.machineId, seen_price_usd: picked.price, gpu: picked.gpu, region: picked.region, model_id: $("model").value,
       ...($("testEngine").checked ? { test_engine: true } : {}) });
-    toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
+    // 기보를 넣어 두고 GPU를 켜면 준비되자마자 알아서 분석 (user request 2026-10-08): the same as pressing 준비되면 분석 시작
+    if (autoBatch && batchAutoOk()) { batchQueued = true; toast(`GPU가 준비되면 기보 ${autoBatch}판 분석을 자동으로 시작합니다.`); }
+    else toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
     await refresh();
   } catch (err) {
     $("startError").textContent = err.message;
