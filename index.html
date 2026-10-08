@@ -269,10 +269,11 @@
         <section class="panel stepcard">
           <span class="no">1</span>
           <div class="row"><h2 class="grow">기보 넣기</h2><button class="quiet" id="batchClear">목록 비우기</button></div>
-          <p class="sub">SGF와 타이젬 기보(GIB)를 여러 개 한꺼번에 넣을 수 있습니다.<span class="hide-sm"> 컴퓨터에서는 파일을 이 화면에 끌어다 놓아도 됩니다.</span></p>
+          <p class="sub">SGF·타이젬 기보(GIB) 파일, 한큐 기보, 내 기보에 저장한 기보를 여러 개 한꺼번에 넣을 수 있습니다.<span class="hide-sm"> 컴퓨터에서는 파일을 이 화면에 끌어다 놓아도 됩니다.</span></p>
           <div class="drop">
             <label class="btn" id="batchPick">📁 파일 추가<small>SGF · GIB · 여러 개</small><input type="file" id="batchFiles" accept=".sgf,.gib,application/x-go-sgf" multiple hidden></label>
             <button type="button" id="foxOpen">🔗 한큐 기보 불러오기<small>닉네임으로 최근 대국</small></button>
+            <button type="button" id="pickOpen" class="drop-wide">📚 내 기보에서 고르기<small>분석하면 그 기보에 덮어 저장</small></button>
           </div>
           <div class="table-wrap hidden" id="batchTable" style="margin-top:12px">
             <table><tbody id="batchRows"></tbody></table>
@@ -294,7 +295,7 @@
             <span class="hint">숫자는 한 수마다 AI가 읽는 수(visits)입니다. 꼼꼼할수록 오래 걸립니다.</span>
             <p class="small hidden" id="batchWarn" style="margin:0;color:#c2410c;font-weight:600">⚠ 초정밀은 시간이 오래 걸립니다 — 정밀보다 약 5배(275수 한 판에 약 20분).</p>
           </div>
-          <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류"><option value="">분류 없음</option></select></label>
+          <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류(내 기보에서 고른 기보는 원래 분류 그대로)"><option value="">분류 없음</option></select></label>
           <label class="toggle-row"><span class="grow"><b>오답노트도 만들기</b><span>내 실수를 학습방 문제로 만듭니다</span></span><input type="checkbox" class="sw-input" id="batchNotes"></label>
           <div class="nested batch-note-opts">
             <div class="fld"><span class="lab">누구의 실수를</span>
@@ -534,6 +535,24 @@
           <tbody id="foxRows"></tbody></table>
       </div>
       <div class="row"><span class="muted small grow" id="foxCount"></span><button class="primary" id="foxAdd" disabled>선택한 기보 추가</button></div>
+    </div>
+  </dialog>
+
+  <!-- 내 기보에서 고르기: games already in 내 기보 go into the 기보 분석 list; analysed, each is saved over its own row -->
+  <dialog id="pickDlg" class="sheet fox-dlg" aria-label="내 기보에서 고르기">
+    <div class="stack">
+      <div class="row"><h2 class="grow" style="margin:0">내 기보에서 고르기</h2><button class="quiet" id="pickClose">닫기</button></div>
+      <div class="row mine-find pick-find">
+        <input type="search" id="pickQuery" placeholder="찾기: 제목·대국자·날짜·결과" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
+        <select id="pickFolder" aria-label="분류"></select>
+        <label class="check"><input type="checkbox" id="pickRaw"> 분석 안 된 것만</label>
+      </div>
+      <p class="muted small" id="pickMsg" style="margin:0">분석한 결과는 새로 저장하지 않고 그 기보에 덮어씁니다(제목·분류는 그대로).</p>
+      <div class="scroll-box fox-list pick-list">
+        <table><thead><tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>기보</th><th class="hide-sm">대국일</th><th class="num">분석</th></tr></thead>
+          <tbody id="pickRows"></tbody></table>
+      </div>
+      <div class="row"><span class="muted small grow" id="pickCount"></span><button class="primary" id="pickAdd" disabled>선택한 기보 추가</button></div>
     </div>
   </dialog>
 
@@ -958,7 +977,7 @@ function batchShow() {
   if (batchQueued && ready && !running) { batchQueued = false; toast("GPU가 준비돼 예약한 기보 분석을 시작합니다."); return startBatch(); }
   $("batchNote").textContent = running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
     : batchQueued ? "GPU가 준비되면 자동으로 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 닫지 마세요."
-    : ready ? "SGF·GIB 기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
+    : ready ? "기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
     : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
     : "아래에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
   const done = batchRun.filter((f) => f.state === "saved").length;
@@ -974,7 +993,7 @@ function batchShow() {
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
   const nameMissing = $("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim();
   $("batchStart").disabled = !running && !batchQueued && !(session && session.status !== "stopping" && todo && !nameMissing);
-  for (const id of ["batchFiles", "batchLevel", "foxOpen", ...BATCH_FORM]) $(id).disabled = running;
+  for (const id of ["batchFiles", "batchLevel", "foxOpen", "pickOpen", ...BATCH_FORM]) $(id).disabled = running;
   $("batchNoteSide").closest(".batch-note-opts").classList.toggle("hidden", !$("batchNotes").checked);
   $("batchNoteNameField").classList.toggle("hidden", $("batchNoteSide").value !== "name");
   segSyncAll();
@@ -1082,6 +1101,49 @@ $("foxAdd").onclick = async () => {
   $("foxDlg").close();
   toast(`한큐 기보 ${done}판을 더했습니다` + (failed ? ` (${failed}판은 받지 못했습니다)` : ""), !done);
 };
+// 내 기보에서 고르기: the games of 내 기보 (already loaded for that page), found and picked like 한큐 기보. The frame
+// reads each one from saved_kifu and writes the analysis back over the same row, so it never counts as a new game.
+const pickAdded = (k) => batchFiles.some((f) => f.mine && f.mine.id === k.id);
+let pickShown = [];
+function pickShow() {
+  const words = $("pickQuery").value.toLowerCase().split(/\s+/).filter(Boolean), fid = $("pickFolder").value;
+  pickShown = mine.filter((k) => (!fid || (fid === "none" ? !k.folder_id || !folders.some((f) => f.id === k.folder_id) : k.folder_id === fid))
+    && (!$("pickRaw").checked || !k.analyzed)
+    && words.every((w) => [k.title, k.black, k.white, k.game_date, resultWords(k.result)].join(" ").toLowerCase().includes(w)));
+  $("pickRows").innerHTML = pickShown.map((k, i) => {
+    const added = pickAdded(k);
+    return `<tr class="${added ? "muted" : "pick"}"><td><input type="checkbox" data-g="${i}"${added ? " disabled" : ""} aria-label="${esc(k.title)} 고르기"></td>` +
+      `<td>${sizeTag(k)}<b>${esc(k.title)}</b></td><td class="hide-sm">${esc(k.game_date || "")}</td><td class="num">${added ? "추가됨" : k.analyzed ? k.analyzed + "수" : "안 됨"}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="muted">${mine.length ? "찾는 기보가 없습니다." : "아직 저장한 기보가 없습니다."}</td></tr>`;
+  pickCount();
+}
+function pickCount() {
+  const boxes = [...$("pickRows").querySelectorAll("input:not(:disabled)")], n = boxes.filter((b) => b.checked).length;
+  $("pickAll").checked = !!boxes.length && n === boxes.length; $("pickAll").disabled = !boxes.length;
+  $("pickCount").textContent = `${pickShown.length}판` + (n ? ` · ${n}판 고름` : "");
+  $("pickAdd").disabled = !n; $("pickAdd").textContent = n ? `선택한 기보 ${n}판 추가` : "선택한 기보 추가";
+}
+$("pickOpen").onclick = () => {
+  $("pickFolder").innerHTML = `<option value="">모든 분류</option>` + folders.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join("") + `<option value="none">분류 없음</option>`;
+  pickShow(); $("pickDlg").showModal();
+};
+$("pickClose").onclick = () => $("pickDlg").close();
+$("pickDlg").addEventListener("click", (e) => { if (e.target === $("pickDlg")) $("pickDlg").close(); });   // backdrop
+$("pickQuery").oninput = pickShow;
+$("pickFolder").onchange = pickShow;
+$("pickRaw").onchange = pickShow;
+$("pickRows").addEventListener("click", (e) => {   // the whole row toggles its box
+  const tr = e.target.closest("tr"), box = tr && tr.querySelector("input"); if (!box || box.disabled) return;
+  if (e.target !== box) box.checked = !box.checked;
+  pickCount();
+});
+$("pickAll").onchange = () => { $("pickRows").querySelectorAll("input:not(:disabled)").forEach((b) => { b.checked = $("pickAll").checked; }); pickCount(); };
+$("pickAdd").onclick = () => {
+  const picked = [...$("pickRows").querySelectorAll("input:checked:not(:disabled)")].map((b) => pickShown[+b.dataset.g]);
+  batchFiles.push(...picked.map((k) => ({ file: { name: k.title }, state: "new", text: "대기", mine: { id: k.id } })));
+  batchShow(); $("pickDlg").close();
+  toast(`내 기보 ${picked.length}판을 더했습니다`);
+};
 $("batchClear").onclick = () => { batchFiles = []; batchShow(); };
 $("batchStart").onclick = () => {
   if (batchFrame) { batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin); return; }
@@ -1100,7 +1162,7 @@ function startBatch() {
   fr.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden";
   fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
   const notes = $("batchNotes").checked ? { side: $("batchNoteSide").value, name: $("batchNoteName").value, level: $("batchNoteLevel").value } : null;
-  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null }, location.origin);
+  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.mine ? { name: f.file.name, mine: f.mine.id } : f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null }, location.origin);
   fr.src = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&batch=1`;
   document.body.appendChild(fr); batchFrame = fr; batchShow();
 }
@@ -1123,7 +1185,7 @@ addEventListener("message", (ev) => {
   } else if (f) {
     if (d.batch === "progress") { f.state = "run"; f.text = `분석 중 ${d.done}/${d.todo}`; }
     if (d.batch === "wait") f.text = "GPU 연결 기다리는 중";
-    if (d.batch === "saved") { f.state = "saved"; f.text = `저장함 · ${d.moves}수` + (d.note ? ` · ${d.note}` : ""); }
+    if (d.batch === "saved") { f.state = "saved"; f.text = `${f.mine ? "덮어씀" : "저장함"} · ${d.moves}수` + (d.note ? ` · ${d.note}` : ""); }
     if (d.batch === "error") { f.state = "error"; f.text = d.text; }
   }
   batchShow();

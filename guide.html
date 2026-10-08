@@ -526,7 +526,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
         <figure class="fig"><img src="guide/fox.webp" width="700" height="1486" alt="한큐바둑 기보 창: 닉네임 검색, 대국 목록 체크, 선택한 기보 추가" loading="lazy"><figcaption><b>한큐 기보 불러오기</b>: 닉네임 검색 → 여러 판 체크 → 추가</figcaption></figure>
       </div>
       <ol>
-        <li><span class="chip">기보 파일 추가</span>로 SGF(타이젬 GIB도 됨)를 여러 개 고르거나, <span class="chip">한큐 기보 불러오기</span>로 대국을 체크해 넣습니다. PC에서는 파일을 화면에 끌어다 놓아도 됩니다.</li>
+        <li><span class="chip">기보 파일 추가</span>로 SGF(타이젬 GIB도 됨)를 여러 개 고르거나, <span class="chip">한큐 기보 불러오기</span>로 대국을 체크해 넣습니다. 내 기보에 이미 저장한 기보는 <span class="chip">내 기보에서 고르기</span>로 넣습니다. PC에서는 파일을 화면에 끌어다 놓아도 됩니다.</li>
         <li>세기와 저장할 분류를 고릅니다.</li>
         <li><span class="chip blue">분석 시작</span>. GPU를 빌리는 중이면 <span class="chip">준비되면 분석 시작</span>으로 예약됩니다.</li>
       </ol>
@@ -538,6 +538,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
           <li>취소해도 이미 저장된 기보는 남고, 다시 시작하면 저장 안 된 것만 분석합니다.</li>
           <li>한큐 기보는 분석 화면의 기보 불러오기처럼 <b>본선만</b> 분석하고, 제목은 대국자·날짜입니다. 이미 넣은 대국은 "추가됨"으로 보입니다.</li>
           <li>같은 파일을 다시 분석하면 내 기보에 한 판 더 저장됩니다.</li>
+          <li><b>내 기보에서 고르기</b>: 제목·대국자·날짜로 찾거나 분류, <b>분석 안 된 것만</b>으로 좁혀 여러 판을 체크합니다. 분석한 결과는 새로 저장하지 않고 <b>그 기보에 덮어씁니다</b>(제목·분류 그대로, 100판 한도에 더 세지 않음). 이미 이 세기로 분석된 수는 건너뛰고, 더 높은 세기를 고르면 다시 분석합니다.</li>
         </ul>
       </div></details>
     </section>

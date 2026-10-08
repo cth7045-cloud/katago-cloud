@@ -2656,8 +2656,9 @@ async function mineRow(title) {   // the saved_kifu row for the game on screen, 
 
 // ------------------------------------------------------------------ 여러 기보 분석 (the website's GPU page runs this screen hidden)
 // index.html opens this page in a hidden frame with #batch=1 and hands it SGF files and a level: each game's main line
-// is analysed like 자동분석 and saved to 내 기보. It stays off the shared board (no publish, no other devices' boards
-// or results) and its results are not shared with the member's other devices.
+// is analysed like 자동분석 and saved to 내 기보 (a game picked from 내 기보 itself, {mine: id}, is saved over its own row).
+// It stays off the shared board (no publish, no other devices' boards or results) and its results are not shared with
+// the member's other devices.
 const batchMode = hashParams.get("batch") === "1" && parent !== window;
 let batchQ = null, batchStop = false;
 function batchAnalyse(tell) {   // true once the main line is analysed at `level`; false if the connection dropped or 취소; null: engine error
@@ -2688,8 +2689,14 @@ async function runBatch(files, lvl, notes, folder = null) {
   for (let k = 0; k < files.length && !batchStop; k++) {
     const tell = (what, extra = {}) => parent.postMessage({batch: what, k, ...extra}, location.origin);
     const f = files[k];
+    let saved = null;   // a game picked from 내 기보: analysed and written back over its own row
     try {
-      if (typeof f.text === "string") {   // 한큐 기보 from the website's list: read as 기보 불러오기 reads it
+      if (typeof f.mine === "string") {
+        const {data, error} = c ? await c.from("saved_kifu").select("id,title,encoding,data").eq("id", f.mine).maybeSingle() : {error: {message: "로그인이 필요합니다"}};
+        if (error || !data) { tell("error", {text: "내 기보를 불러오지 못했습니다" + (error ? ": " + error.message : "(지워진 기보)")}); continue; }
+        loadSgf(data.encoding === "gzip-b64" ? await gunzip64(data.data) : data.data);
+        saved = data;
+      } else if (typeof f.text === "string") {   // 한큐 기보 from the website's list: read as 기보 불러오기 reads it
         loadSgf(f.text, !!f.main);
         if (f.info && !root.info.PB && !root.info.PW) Object.assign(root.info, f.info);
       } else loadSgf(await readSgfFile(f));
@@ -2704,10 +2711,10 @@ async function runBatch(files, lvl, notes, folder = null) {
     if (ok === null) continue;   // told already
     try {
       const named = root.info.PB || root.info.PW || root.info.DT;
-      const row = await mineRow((named ? mineDefaultTitle() : files[k].name.replace(/\.(sgf|gib)$/i, "")).slice(0, 100));
+      const row = await mineRow(saved ? saved.title : (named ? mineDefaultTitle() : files[k].name.replace(/\.(sgf|gib)$/i, "")).slice(0, 100));
       if (!row) { tell("error", {text: "분석 포함 2MB가 넘어 저장하지 못했습니다"}); continue; }
-      row.folder_id = folder;
-      const {error} = c ? await c.from("saved_kifu").insert(row) : {error: {message: "로그인이 필요합니다"}};
+      if (!saved) row.folder_id = folder;   // 내 기보's own game keeps its 분류
+      const {error} = !c ? {error: {message: "로그인이 필요합니다"}} : saved ? await c.from("saved_kifu").update(row).eq("id", saved.id) : await c.from("saved_kifu").insert(row);
       if (error) { tell("error", {text: error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message}); continue; }
       let note = "";
       if (notes && NOTE_LEVELS[notes.level]) {   // 오답노트도: this game's mistakes, as the 오답노트에 담기 list would pick them

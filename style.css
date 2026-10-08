@@ -677,6 +677,11 @@ a.subline:hover { text-decoration: none; }
 .drop { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .drop .btn, .drop button { min-height: 66px; border-radius: 18px; flex-direction: column; gap: 2px; font-size: 15px; line-height: 1.3; text-align: center; }
 .drop small { font-weight: 500; font-size: 12.5px; color: var(--muted); }
+.drop:has(.drop-wide) { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 640px) { .drop:has(.drop-wide) { grid-template-columns: 1fr 1fr; } .drop .drop-wide { grid-column: 1 / -1; min-height: 54px; } }
+.pick-find { margin: 0; }
+.pick-list td:nth-child(2) { white-space: normal; word-break: break-all; }
+.pick-list td:last-child, .pick-list th:last-child { white-space: nowrap; }
 #batchRows td { font-size: 14px; }
 .toggle-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); cursor: pointer; }
 .toggle-row.first { border-top: 0; padding: 0; }
