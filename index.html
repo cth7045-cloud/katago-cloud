@@ -778,6 +778,8 @@ const currentModelName = (s) => ([...$("model").options].find((o) => o.value ===
 function showSession(s) {
   $("sessionCard").classList.toggle("hidden", !s);
   $("startCard").classList.toggle("hidden", !!session);
+  // a GPU is on: drop the chosen one, or body.has-pick keeps hiding the 기보 분석 bar (분석 시작, progress) (2026-10-08)
+  if (session && picked) { picked = null; document.querySelectorAll("#offerRows tr.sel").forEach((r) => r.classList.remove("sel")); updatePick(); }
   if (!s) return;
   const st = s.status, ready = st === "ready", live = ACTIVE.includes(st);
   $("sessionCard").classList.toggle("is-ready", ready);
