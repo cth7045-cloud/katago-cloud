@@ -128,7 +128,7 @@
           <button class="ghost" type="button" id="dashStop">종료</button>
         </div>
       </section>
-      <div class="dash-batch hidden" id="hubBatchRow"><span class="live-dot" aria-hidden="true"></span><span class="grow" id="hubBatch"></span><a href="#analyze">보기 ›</a></div>
+      <div class="dash-batch hidden" id="hubBatchRow"><span class="live-dot" aria-hidden="true"></span><span class="grow" id="hubBatch"></span><a href="#analyze">보기 ›</a><i class="batch-fill" id="hubBatchFill" aria-hidden="true"></i></div>
       <div class="grid2">
         <section class="cardx">
           <div class="hd"><b id="dashBalLabel">내 잔액</b><a href="#charge" id="dashCharge">충전 요청</a></div>
@@ -317,6 +317,7 @@
           <label class="toggle-row first"><span class="grow"><b>다 끝나면 GPU 끄기</b><span>켜 두면 끝난 뒤에도 요금이 나갑니다</span></span><input type="checkbox" class="sw-input" id="batchAutoStop" checked></label>
         </section>
         <div class="cta-bar batch-cta" id="batchBar">
+          <div class="batch-prog hidden" id="batchProg" role="progressbar" aria-label="기보 분석 진행" aria-valuemin="0" aria-valuemax="100"><i class="batch-fill" id="batchProgFill"></i></div>
           <div class="in"><div class="grow"><b id="batchSum">기보를 넣어 주세요</b><span id="batchSumSub"></span></div><button class="primary" id="batchStart" disabled>분석 시작</button></div>
         </div>
       </div>
@@ -957,7 +958,19 @@ $("mineSort").addEventListener("change", () => { try { localStorage.setItem("kgv
 // 기보 분석: the analysis screen does the work in a hidden frame (#batch=1) — the same SGF reading, 자동분석 and
 // 내 기보 rows as when the member does it by hand. This page only picks the files and shows how far it got.
 let batchFiles = [], batchRun = [], batchFrame = null;   // {file, state: new|wait|run|saved|error|cancel, text}
-let batchQueued = false;   // 분석 시작 pressed while the GPU was still getting ready: starts by itself once it is ready
+let batchQueued = false;
+let batchStartedAt = 0;   // when 분석 시작 began the running batch: the time left is guessed from it
+// 진행: the saved / failed games count whole, the running one by its turns analysed (2026-10-08 user request)
+function batchProgress() {   // 0..1
+  if (!batchRun.length) return 0;
+  return batchRun.reduce((t, f) => t + (f.state === "saved" || f.state === "error" ? 1 : f.state === "run" && f.todo ? f.done / f.todo : 0), 0) / batchRun.length;
+}
+function batchLeft(p) {   // "약 N분 남음" once there is enough to go on, else ""
+  const ms = Date.now() - batchStartedAt;
+  if (p < 0.02 || ms < 15000) return "";
+  const min = Math.round((ms * (1 - p)) / p / 60000);
+  return min < 1 ? "1분 안에 끝남" : min < 60 ? `약 ${min}분 남음` : `약 ${Math.floor(min / 60)}시간 ${min % 60}분 남음`;
+}   // 분석 시작 pressed while the GPU was still getting ready: starts by itself once it is ready
 try { const v = localStorage.getItem("kgv.level"); if ([...$("batchLevel").options].some((o) => o.value === v)) $("batchLevel").value = v; } catch { /* storage blocked */ }
 const BATCH_FORM = ["batchNotes", "batchNoteSide", "batchNoteName", "batchNoteLevel", "batchAutoStop"];   // remembered in kgv.batchForm
 try {
@@ -981,13 +994,18 @@ function batchShow() {
     : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
     : "아래에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
   const done = batchRun.filter((f) => f.state === "saved").length;
-  $("hubBatch").textContent = running ? `기보 분석 중 · ${done}/${batchRun.length}판` : batchQueued ? "기보 분석: GPU가 준비되면 시작합니다" : "";
+  const prog = batchProgress(), pct = Math.floor(prog * 100), left = running ? batchLeft(prog) : "";
+  $("hubBatch").textContent = running ? `기보 분석 중 · ${pct}% · ${done}/${batchRun.length}판` + (left ? ` · ${left}` : "") : batchQueued ? "기보 분석: GPU가 준비되면 시작합니다" : "";
   $("hubBatchRow").classList.toggle("hidden", !$("hubBatch").textContent);
+  for (const id of ["hubBatchFill", "batchProgFill"]) $(id).style.width = running ? `${prog * 100}%` : "0";
+  $("batchProg").classList.toggle("hidden", !running);
+  $("batchProg").setAttribute("aria-valuenow", String(pct));
   const waiting = batchFiles.filter((f) => f.state !== "saved").length;
-  $("batchSum").textContent = running ? `분석 중 · ${done}/${batchRun.length}판` : waiting ? `기보 ${waiting}판` : batchFiles.length ? "모두 저장했습니다" : "기보를 넣어 주세요";
+  $("batchSum").textContent = running ? `분석 중 ${pct}%` : waiting ? `기보 ${waiting}판` : batchFiles.length ? "모두 저장했습니다" : "기보를 넣어 주세요";
   const lvl = $("batchLevel").selectedOptions[0];
-  $("batchSumSub").textContent = [ready ? `켜진 GPU(${session.gpu_name || "GPU"})로` : session ? "GPU 준비 중" : "GPU를 먼저 켜 주세요",
-    lvl ? `${lvl.dataset.l}(${lvl.dataset.s})` : "", $("batchNotes").checked ? "오답노트 만들기" : "", $("batchAutoStop").checked ? "끝나면 GPU 끄기" : ""].filter(Boolean).join(" · ");
+  $("batchSumSub").textContent = running ? [`${done}/${batchRun.length}판 저장`, left].filter(Boolean).join(" · ")
+    : [ready ? `켜진 GPU(${session.gpu_name || "GPU"})로` : session ? "GPU 준비 중" : "GPU를 먼저 켜 주세요",
+      lvl ? `${lvl.dataset.l}(${lvl.dataset.s})` : "", $("batchNotes").checked ? "오답노트 만들기" : "", $("batchAutoStop").checked ? "끝나면 GPU 끄기" : ""].filter(Boolean).join(" · ");
   const todo = batchFiles.some((f) => f.state !== "saved");
   $("batchStart").textContent = running ? "분석 취소" : batchQueued ? "예약 취소" : ready || !session ? "분석 시작" : "준비되면 분석 시작";
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
@@ -1003,7 +1021,8 @@ function batchShow() {
   $("batchTable").classList.toggle("hidden", !batchFiles.length);
   const color = { saved: "var(--good)", error: "var(--bad)", run: "var(--blue)" };
   $("batchRows").innerHTML = batchFiles.map((f) => `<tr><td style="white-space:normal;word-break:break-all">${esc(f.file.name)}</td>` +
-    `<td class="num" style="${f.text.length > 14 ? "white-space:normal;min-width:9em" : "white-space:nowrap"};color:${color[f.state] || "var(--muted)"}">${esc(f.text)}</td></tr>`).join("");
+    `<td class="num" style="${f.text.length > 14 ? "white-space:normal;min-width:9em" : "white-space:nowrap"};color:${color[f.state] || "var(--muted)"}">${esc(f.text)}` +
+    (f.state === "run" && f.todo ? `<span class="row-prog" title="${f.done}/${f.todo}수" aria-hidden="true"><i class="batch-fill" style="width:${(f.done / f.todo) * 100}%"></i></span>` : "") + `</td></tr>`).join("");
 }
 function batchAdd(files) {   // → how many SGF files were added
   const sgf = [...files].filter((f) => /\.(sgf|gib)$/i.test(f.name));
@@ -1157,7 +1176,8 @@ $("batchStart").onclick = () => {
 };
 function startBatch() {
   batchRun = batchFiles.filter((f) => f.state !== "saved");
-  batchRun.forEach((f) => { f.state = "wait"; f.text = "대기"; });
+  batchRun.forEach((f) => { f.state = "wait"; f.text = "대기"; f.done = f.todo = 0; });
+  batchStartedAt = Date.now();
   const fr = document.createElement("iframe");
   fr.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden";
   fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
@@ -1183,7 +1203,7 @@ addEventListener("message", (ev) => {
         .catch((err) => toast("GPU를 끄지 못했습니다. 'GPU 종료'를 눌러 주세요: " + err.message, true));
     } else toast(d.stopped ? `분석을 멈췄습니다. ${saved}판을 내 기보에 저장했습니다.` : `${saved}판을 분석해 내 기보에 저장했습니다.`);
   } else if (f) {
-    if (d.batch === "progress") { f.state = "run"; f.text = `분석 중 ${d.done}/${d.todo}`; }
+    if (d.batch === "progress") { f.state = "run"; f.done = d.done; f.todo = d.todo; f.text = `분석 중 ${d.todo ? Math.floor((d.done / d.todo) * 100) : 0}%`; }
     if (d.batch === "wait") f.text = "GPU 연결 기다리는 중";
     if (d.batch === "saved") { f.state = "saved"; f.text = `${f.mine ? "덮어씀" : "저장함"} · ${d.moves}수` + (d.note ? ` · ${d.note}` : ""); }
     if (d.batch === "error") { f.state = "error"; f.text = d.text; }
