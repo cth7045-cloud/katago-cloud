@@ -662,7 +662,7 @@ function leave() {
 async function enter() {
   swap(() => { document.body.classList.add("authed"); $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
   await refresh();
-  loadOffers(); loadMine(); loadNotesCard();
+  loadOffers(); loadMine(); loadNotesCard(); resumeBatch();
   clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
 }
 // a tab left in the background (phones pause its timers) is out of date when it comes back: refresh at once
@@ -960,6 +960,9 @@ $("mineSort").addEventListener("change", () => { try { localStorage.setItem("kgv
 let batchFiles = [], batchRun = [], batchFrame = null;   // {file, state: new|wait|run|saved|error|cancel, text}
 let batchQueued = false;
 let batchStartedAt = 0;   // when 분석 시작 began the running batch: the time left is guessed from it
+// 기보 분석 on the GPU (2026-10-08): the hidden screen only prepares the games and hands them to the GPU, which goes on
+// with this page closed; its progress is read from gpu_batches (the GPU's posts land there). {id, timer, cancelling}
+let batchJob = null;
 // 진행: the saved / failed games count whole, the running one by its turns analysed (2026-10-08 user request)
 function batchProgress() {   // 0..1
   if (!batchRun.length) return 0;
@@ -984,11 +987,12 @@ $("batchCard").addEventListener("change", (e) => {
 });
 $("batchNoteName").addEventListener("input", () => $("batchNoteName").dispatchEvent(new Event("change", { bubbles: true })));
 function batchShow() {
-  const running = !!batchFrame, ready = !!(session && session.status === "ready" && session.web_url && session.web_token);
-  if (running && !ready) batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin);   // the GPU is going away
+  const running = !!batchFrame || !!batchJob, ready = !!(session && session.status === "ready" && session.web_url && session.web_token);
+  if (batchFrame && !ready) batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin);   // the GPU is going away
   if (batchQueued && (!session || session.status === "stopping")) { batchQueued = false; toast("GPU가 꺼져 예약한 분석을 취소했습니다.", true); }
   if (batchQueued && ready && !running) { batchQueued = false; toast("GPU가 준비돼 예약한 기보 분석을 시작합니다."); return startBatch(); }
-  $("batchNote").textContent = running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
+  $("batchNote").textContent = batchJob ? "GPU가 분석하고 있습니다. 이 창을 닫거나 다른 앱으로 가도 GPU가 끝까지 분석해 내 기보에 저장하고, 다 끝나면 알림을 보냅니다."
+    : running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
     : batchQueued ? "GPU가 준비되면 자동으로 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 닫지 마세요."
     : ready ? "기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
     : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
@@ -1007,10 +1011,10 @@ function batchShow() {
     : [ready ? `켜진 GPU(${session.gpu_name || "GPU"})로` : session ? "GPU 준비 중" : "GPU를 먼저 켜 주세요",
       lvl ? `${lvl.dataset.l}(${lvl.dataset.s})` : "", $("batchNotes").checked ? "오답노트 만들기" : "", $("batchAutoStop").checked ? "끝나면 GPU 끄기" : ""].filter(Boolean).join(" · ");
   const todo = batchFiles.some((f) => f.state !== "saved");
-  $("batchStart").textContent = running ? "분석 취소" : batchQueued ? "예약 취소" : ready || !session ? "분석 시작" : "준비되면 분석 시작";
+  $("batchStart").textContent = batchJob && batchJob.cancelling ? "취소하는 중…" : running ? "분석 취소" : batchQueued ? "예약 취소" : ready || !session ? "분석 시작" : "준비되면 분석 시작";
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
   const nameMissing = $("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim();
-  $("batchStart").disabled = !running && !batchQueued && !(session && session.status !== "stopping" && todo && !nameMissing);
+  $("batchStart").disabled = (!running && !batchQueued && !(session && session.status !== "stopping" && todo && !nameMissing)) || !!(batchJob && batchJob.cancelling);
   for (const id of ["batchFiles", "batchLevel", "foxOpen", "pickOpen", ...BATCH_FORM]) $(id).disabled = running;
   $("batchNoteSide").closest(".batch-note-opts").classList.toggle("hidden", !$("batchNotes").checked);
   $("batchNoteNameField").classList.toggle("hidden", $("batchNoteSide").value !== "name");
@@ -1034,7 +1038,7 @@ $("batchFiles").onchange = (e) => { batchAdd(e.target.files); e.target.value = "
 // onto the page are added to it. Anywhere else (or while it runs) the drop is refused ("none": no drop event at all),
 // and files are always caught here so one dropped by mistake never makes the browser leave the site.
 const dragsFiles = (e) => !!e.dataTransfer && [...e.dataTransfer.types].includes("Files");
-const batchOpen = () => $("batchCard").offsetParent !== null && !batchFrame;   // the card is on screen and not running
+const batchOpen = () => $("batchCard").offsetParent !== null && !batchFrame && !batchJob;   // the card is on screen and not running
 addEventListener("dragover", (e) => {
   if (!dragsFiles(e)) return;
   e.preventDefault();
@@ -1165,6 +1169,11 @@ $("pickAdd").onclick = () => {
 };
 $("batchClear").onclick = () => { batchFiles = []; batchShow(); };
 $("batchStart").onclick = () => {
+  if (batchJob) {   // the GPU stops after the position it is on (it hears it within a few seconds)
+    batchJob.cancelling = true; batchShow();
+    api("/batch/cancel", { id: batchJob.id }).then(batchPoll).catch((err) => { if (batchJob) batchJob.cancelling = false; toast("취소하지 못했습니다: " + err.message, true); batchShow(); });
+    return;
+  }
   if (batchFrame) { batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin); return; }
   if (batchQueued) { batchQueued = false; batchShow(); return; }
   if (!(session && session.status === "ready" && session.web_url)) {   // still renting / booting / installing: start when ready
@@ -1182,14 +1191,24 @@ function startBatch() {
   fr.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden";
   fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
   const notes = $("batchNotes").checked ? { side: $("batchNoteSide").value, name: $("batchNoteName").value, level: $("batchNoteLevel").value } : null;
-  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.mine ? { name: f.file.name, mine: f.mine.id } : f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null }, location.origin);
+  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.mine ? { name: f.file.name, mine: f.mine.id } : f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null, gpu: { autoStop: $("batchAutoStop").checked } }, location.origin);
   fr.src = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&batch=1`;
   document.body.appendChild(fr); batchFrame = fr; batchShow();
 }
 addEventListener("message", (ev) => {
   if (!batchFrame || ev.source !== batchFrame.contentWindow || ev.origin !== location.origin || !ev.data) return;
   const d = ev.data, f = batchRun[d.k];
-  if (d.batch === "end") {
+  if (d.batch === "prep" && f) f.text = "GPU로 보내는 중";
+  if (d.batch === "handed") {   // the GPU has it: this page may close; progress comes from the database
+    batchFrame.remove(); batchFrame = null;
+    batchRun.forEach((x) => { if (x.state === "wait") x.text = "대기"; });
+    toast("GPU가 분석을 시작했습니다. 이 창을 닫아도 끝까지 분석해 내 기보에 저장합니다.");
+    watchJob(d.id);
+  } else if (d.batch === "handFail") {
+    batchFrame.remove(); batchFrame = null;
+    batchRun.forEach((x) => { if (x.state === "wait" || x.state === "run") { x.state = "new"; x.text = "대기"; } });
+    toast("기보 분석을 시작하지 못했습니다: " + d.text, true);
+  } else if (d.batch === "end") {
     batchFrame.remove(); batchFrame = null;
     const saved = batchRun.filter((x) => x.state === "saved").length;
     batchRun.forEach((x) => { if (x.state === "wait" || x.state === "run") { x.state = "cancel"; x.text = "취소됨"; } });
@@ -1211,6 +1230,45 @@ addEventListener("message", (ev) => {
   batchShow();
 });
 addEventListener("beforeunload", (e) => { if (batchFrame || batchQueued) { e.preventDefault(); e.returnValue = ""; } });
+function watchJob(id) {
+  if (batchJob) clearInterval(batchJob.timer);
+  batchJob = { id, timer: setInterval(batchPoll, 3000), cancelling: false };
+  batchPoll();
+}
+async function batchPoll() {   // the GPU's job as the database has it
+  if (!batchJob) return;
+  const { data: j, error } = await sb.from("gpu_batches").select("status,progress,saved,failed,auto_stop,created_at,finished_at").eq("id", batchJob.id).maybeSingle();
+  if (error || !j || !batchJob) return;   // asked again in 3 s
+  batchStartedAt = new Date(j.created_at).getTime();
+  const p = j.progress || {};
+  batchRun.forEach((f, k) => {
+    const x = p[k]; if (!x) return;
+    if (x.s === "run") { f.state = "run"; f.done = x.d; f.todo = x.t; f.text = `분석 중 ${x.t ? Math.floor((x.d / x.t) * 100) : 0}%`; }
+    if (x.s === "saved") { f.state = "saved"; f.text = `${f.mine ? "덮어씀" : "저장함"} · ${x.m}수` + (x.x ? ` · ${x.x}` : ""); }
+    if (x.s === "error") { f.state = "error"; f.text = x.x || "분석하지 못했습니다"; }
+  });
+  if (j.status === "queued" || j.status === "running") { batchShow(); return; }
+  // 분석 취소: the GPU still posts the game it was finishing (saved) and then the end; wait for that, a minute at most
+  if (j.status === "cancel" && !j.finished_at) {
+    batchJob.cancelling = true; batchJob.cancelAt ||= Date.now();
+    if (Date.now() - batchJob.cancelAt < 60000) { batchShow(); return; }
+  }
+  clearInterval(batchJob.timer); batchJob = null;
+  batchRun.forEach((x) => { if (x.state === "wait" || x.state === "run") { x.state = "cancel"; x.text = j.status === "stopped" ? "GPU가 꺼져 멈춤" : "취소됨"; } });
+  loadMine(); loadNotesCard(); refresh();
+  toast(j.status === "done" ? `${j.saved}판을 분석해 내 기보에 저장했습니다.` + (j.failed ? ` ${j.failed}판은 분석하지 못했습니다.` : "") + (j.auto_stop ? " 다 끝나서 GPU를 끕니다." : "")
+    : j.status === "cancel" ? `분석을 멈췄습니다. ${j.saved}판을 내 기보에 저장했습니다.` : `GPU가 꺼져 분석이 멈췄습니다. ${j.saved}판을 내 기보에 저장했습니다.`, j.status === "stopped");
+  batchShow();
+}
+async function resumeBatch() {   // a job the GPU is still running (this page was closed meanwhile): its progress again
+  if (batchJob || batchFrame) return;
+  const { data } = await sb.from("gpu_batches").select("id,games").in("status", ["queued", "running"]).order("created_at", { ascending: false }).limit(1);
+  const j = data && data[0];
+  if (!j || batchJob || batchFrame) return;
+  batchFiles = j.games.map((g) => ({ file: { name: g.name }, state: "wait", text: "대기", ...(g.mine ? { mine: { id: g.mine } } : {}) }));
+  batchRun = batchFiles.slice();
+  watchJob(j.id);
+}
 
 // 오답노트: how many problems are due today; solved on the analysis screen (no GPU needed)
 async function loadNotesCard() {   // 학습방: 오답노트 (and the start page's 학습방 line)

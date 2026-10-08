@@ -1182,7 +1182,9 @@ function onMessage(msg) {
       : `GPU 연결됨 · ${Math.round(performance.now() - msg.pong)} ms` + (msg.clients > 1 ? ` · 기기 ${msg.clients}대` : "");
     updateEngineName(); return;
   }
-  if (batchMode && ("hello" in msg || "state" in msg || "liveTaken" in msg || "liveLeft" in msg || msg.id === "peer")) return;   // not on the shared board
+  if (batchMode && "hello" in msg) { bridgeBatch = msg.batch || 0; return; }   // 기보 분석 on the GPU: this bridge can run it (1) or runs one (its id)
+  if (batchMode && ("batchAccepted" in msg || "batchRefused" in msg)) { if (onBatchAnswer) onBatchAnswer(msg); return; }
+  if (batchMode && ("state" in msg || "liveTaken" in msg || "liveLeft" in msg || msg.id === "peer")) return;   // not on the shared board
   if ("hello" in msg) {   // (bridges before 2026-09-26 never send it: then each device keeps its own board)
     bridgeSync = true;
     if (msg.state && onMirror) onMirror(msg.state);   // the last copy of the member's screen, for an admin watching
@@ -1919,7 +1921,7 @@ function unpackAnalysis(text) {
             moveInfos: o.m.map(([move, winrate, scoreLead, visits, prior, pv], order) => ({move, winrate, scoreLead, visits, prior, order, pv: pv ? pv.split(" ") : []}))};
   } catch { return null; }
 }
-function toSgf(withAnalysis = true, upTo = null) {   // upTo: only the moves leading to that node (오답노트)
+function toSgf(withAnalysis = true, upTo = null, marks = null) {   // upTo: only the moves leading to that node (오답노트)
   const c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
   const esc = s => s.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
   let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[${N}]RU[Korean]KM[${komi()}]`;
@@ -1930,7 +1932,8 @@ function toSgf(withAnalysis = true, upTo = null) {   // upTo: only the moves lea
   if (root.caps.B || root.caps.W) head += `KGP[${root.caps.B}:${root.caps.W}]`;
   for (const k of GAME_INFO) if (root.info[k]) head += `${k}[${esc(root.info[k])}]`;
   if (root.comment) head += `C[${esc(root.comment)}]`;
-  const kga = n => withAnalysis && n.analysis && n.analysis.rootInfo ? `KGA[${esc(packAnalysis(n.analysis))}]` : "";
+  // marks (기보 분석 on the GPU): a marker where the analysis still to come goes, filled in by the website's function
+  const kga = n => marks && marks.has(n) ? marks.get(n) : withAnalysis && n.analysis && n.analysis.rootInfo ? `KGA[${esc(packAnalysis(n.analysis))}]` : "";
   head += kga(root);
   const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + (n.comment ? `C[${esc(n.comment)}]` : "") + kga(n);
   if (upTo) return head + pathTo(upTo).slice(1).map(nodeText).join("") + ")";
@@ -2721,25 +2724,96 @@ function batchNotesSide(o) {   // "" both, "B"/"W", or null when "내 이름 쪽
   const name = (o.name || "").trim().toLowerCase(), has = v => !!name && (v || "").toLowerCase().includes(name);
   return has(root.info.PB) && !has(root.info.PW) ? "B" : has(root.info.PW) && !has(root.info.PB) ? "W" : has(root.info.PB) ? "" : null;
 }
-async function runBatch(files, lvl, notes, folder = null) {
+async function batchLoad(f, c) {   // puts the game on the board; → its 내 기보 row when it came from there. Throws what to show.
+  if (typeof f.mine === "string") {   // a game picked from 내 기보: analysed and written back over its own row
+    const {data, error} = c ? await c.from("saved_kifu").select("id,title,encoding,data").eq("id", f.mine).maybeSingle() : {error: {message: "로그인이 필요합니다"}};
+    if (error || !data) throw new Error("내 기보를 불러오지 못했습니다" + (error ? ": " + error.message : "(지워진 기보)"));
+    try { loadSgf(data.encoding === "gzip-b64" ? await gunzip64(data.data) : data.data); } catch (err) { throw new Error("SGF 오류: " + err.message); }
+    return data;
+  }
+  try {
+    if (typeof f.text === "string") {   // 한큐 기보 from the website's list: read as 기보 불러오기 reads it
+      loadSgf(f.text, !!f.main);
+      if (f.info && !root.info.PB && !root.info.PW) Object.assign(root.info, f.info);
+    } else loadSgf(await readSgfFile(f));
+  } catch (err) { throw new Error("SGF 오류: " + err.message); }
+  return null;
+}
+const batchTitle = (saved, name) => (saved ? saved.title
+  : (root.info.PB || root.info.PW || root.info.DT ? mineDefaultTitle() : name.replace(/\.(sgf|gib)$/i, ""))).slice(0, 100);
+// 기보 분석 on the GPU (2026-10-08): what the website's function needs to save the game once the GPU has analysed it,
+// without this screen: the record with a marker where each position still to analyse gets its KGA, the row's columns,
+// and for 오답노트 the main line (moves, the record up to each position, the stored analysis of the positions not
+// analysed again) — the same as mineRow / noteMistakes / insertNotes make from the board (supabase/functions/kgv/batch.ts).
+function batchSpec(saved, name, notes) {
+  const line = lineThrough(root), turns = line.map((_, i) => i).filter(i => !analysed(line[i]));
+  const marks = new Map(turns.map(i => [line[i], `\u0001${i}\u0002`]));
+  const cut = (v, n) => v ? String(v).slice(0, n) : null;
+  let analyzedBase = 0;
+  (function walk(n) { if (!marks.has(n) && n.analysis && n.analysis.rootInfo) analyzedBase++; n.children.forEach(walk); })(root);
+  const have = {};
+  line.forEach((n, i) => { if (!marks.has(n) && n.analysis && n.analysis.rootInfo) have[i] = packAnalysis(n.analysis); });
+  const texts = line.map(n => toSgf(false, n));   // the record up to each position; a move's own text is the difference
+  const spec = {
+    query: {...baseQuery(), includeOwnership: false, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, maxVisits: levelVisits()},
+    template: toSgf(true, null, marks),
+    meta: {title: batchTitle(saved, name), black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60),
+           game_date: cut(root.info.DT, 40), moves: line.length - 1, size: N, analyzedBase},
+    line: line.map((n, i) => i ? {c: n.move.c, p: noteMove(n), t: texts[i].slice(texts[i - 1].length - 1, -1)} : {toPlay: root.toPlay}),
+    have, noteHead: texts[0].slice(0, -1),
+    keyHead: `${N !== 19 ? N + "|" : ""}${queryKomi()}|${JSON.stringify(root.setup)}|${root.toPlay}|`,
+  };
+  if (notes && NOTE_LEVELS[notes.level]) spec.notesSide = batchNotesSide(notes);
+  return spec;
+}
+let bridgeBatch = null, onBatchAnswer = null;   // hello's batch (null until it comes); the bridge's answer to batchRun
+async function handBatch(files, notes, folder, autoStop) {   // → "handed" | "local" (an older GPU: run here) | "failed"
+  for (let i = 0; i < 100 && bridgeBatch === null; i++) await new Promise(r => setTimeout(r, 100));   // hello
+  if (bridgeBatch !== 1) return bridgeBatch ? "busy" : "local";
+  const c = await mineClient(), tellAll = (what, extra = {}) => parent.postMessage({batch: what, ...extra}, location.origin);
+  let api;
+  try { ({api} = await import("./app.js")); } catch { return "local"; }
+  let id;
+  try {
+    ({id} = await api("/batch", {games: files.map(f => ({name: f.name, mine: typeof f.mine === "string" ? f.mine : null})),
+      folder, notes: notes && NOTE_LEVELS[notes.level] ? notes.level : null, autoStop: !!autoStop}));
+  } catch (err) { tellAll("handFail", {text: err.message}); return "failed"; }
+  const games = [], errors = {};
+  for (let k = 0; k < files.length && !batchStop; k++) {
+    tellAll("prep", {k, todo: files.length});
+    try {
+      const saved = await batchLoad(files[k], c);
+      if (!send({action: "batchGame", job: id, k, spec: batchSpec(saved, files[k].name, notes)})) throw new Error("GPU 연결이 끊겼습니다");
+      games.push(k);
+    } catch (err) {
+      if (!(ws && ws.readyState === 1)) break;
+      errors[k] = err.message;
+    }
+  }
+  const answer = batchStop || !(ws && ws.readyState === 1) ? null : await new Promise(resolve => {
+    const timer = setTimeout(() => resolve(null), 60000);
+    onBatchAnswer = m => { clearTimeout(timer); onBatchAnswer = null; resolve(m); };
+    send({action: "batchRun", job: id, games, errors});
+  });
+  if (answer && answer.batchAccepted === id) { tellAll("handed", {id}); return "handed"; }
+  api("/batch/cancel", {id}).catch(() => {});
+  tellAll("handFail", {text: batchStop ? "취소했습니다" : answer && answer.batchRefused ? answer.batchRefused : "GPU에 기보를 넘기지 못했습니다. GPU 연결을 확인한 뒤 다시 시작하세요."});
+  return "failed";
+}
+async function runBatch(files, lvl, notes, folder = null, gpu = null) {
   if (LEVELS[lvl]) level = lvl;   // not setLevel(): the member's own 세기 on the analysis screen stays as it was
   batchStop = false;
+  if (gpu) {   // the website asks for the GPU to run it; an older GPU (no batch in its hello) is run from here as before
+    const how = await handBatch(files, notes, folder, gpu.autoStop);
+    if (how === "busy") { parent.postMessage({batch: "handFail", text: "이 GPU에서 이미 기보 분석이 돌고 있습니다"}, location.origin); return; }
+    if (how !== "local") return;
+    parent.postMessage({batch: "local"}, location.origin);
+  }
   const c = await mineClient();
   for (let k = 0; k < files.length && !batchStop; k++) {
     const tell = (what, extra = {}) => parent.postMessage({batch: what, k, ...extra}, location.origin);
-    const f = files[k];
-    let saved = null;   // a game picked from 내 기보: analysed and written back over its own row
-    try {
-      if (typeof f.mine === "string") {
-        const {data, error} = c ? await c.from("saved_kifu").select("id,title,encoding,data").eq("id", f.mine).maybeSingle() : {error: {message: "로그인이 필요합니다"}};
-        if (error || !data) { tell("error", {text: "내 기보를 불러오지 못했습니다" + (error ? ": " + error.message : "(지워진 기보)")}); continue; }
-        loadSgf(data.encoding === "gzip-b64" ? await gunzip64(data.data) : data.data);
-        saved = data;
-      } else if (typeof f.text === "string") {   // 한큐 기보 from the website's list: read as 기보 불러오기 reads it
-        loadSgf(f.text, !!f.main);
-        if (f.info && !root.info.PB && !root.info.PW) Object.assign(root.info, f.info);
-      } else loadSgf(await readSgfFile(f));
-    } catch (err) { tell("error", {text: "SGF 오류: " + err.message}); continue; }
+    let saved;
+    try { saved = await batchLoad(files[k], c); } catch (err) { tell("error", {text: err.message}); continue; }
     let ok;
     while ((ok = await batchAnalyse(tell)) === false) {   // dropped: wait for the connection (it reconnects by itself), then the rest
       if (batchStop) break;
@@ -2749,8 +2823,7 @@ async function runBatch(files, lvl, notes, folder = null) {
     if (batchStop) break;
     if (ok === null) continue;   // told already
     try {
-      const named = root.info.PB || root.info.PW || root.info.DT;
-      const row = await mineRow(saved ? saved.title : (named ? mineDefaultTitle() : files[k].name.replace(/\.(sgf|gib)$/i, "")).slice(0, 100));
+      const row = await mineRow(batchTitle(saved, files[k].name));
       if (!row) { tell("error", {text: "분석 포함 2MB가 넘어 저장하지 못했습니다"}); continue; }
       if (!saved) row.folder_id = folder;   // 내 기보's own game keeps its 분류
       const {error} = !c ? {error: {message: "로그인이 필요합니다"}} : saved ? await c.from("saved_kifu").update(row).eq("id", saved.id) : await c.from("saved_kifu").insert(row);
@@ -2772,7 +2845,7 @@ async function runBatch(files, lvl, notes, folder = null) {
 }
 if (batchMode) addEventListener("message", ev => {
   if (ev.source !== parent || ev.origin !== location.origin || !ev.data) return;
-  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes, /^[0-9a-f-]{36}$/.test(ev.data.folder || "") ? ev.data.folder : null);
+  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes, /^[0-9a-f-]{36}$/.test(ev.data.folder || "") ? ev.data.folder : null, ev.data.gpu || null);
   if (ev.data.batch === "cancel") { batchStop = true; batchEnd(false); }
 });
 // A long 자동분석 / 대국 리포트 / 여러 기보 분석 is one request: without another one the GPU's guard would count it as idle
