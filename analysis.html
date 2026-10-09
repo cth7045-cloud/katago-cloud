@@ -1173,6 +1173,7 @@ function store(node, msg, id) {
     const was = !!old && old.rootInfo.visits >= levelVisits();
     node.analysis = msg; node.aid = id;
     if (!old || (!was && msg.rootInfo.visits >= levelVisits())) mineDirty();   // a position newly analysed: 자동 저장
+    else if (msg.rootInfo.visits > old.rootInfo.visits) mineDirty(false);         // analysed deeper: 자동 저장 within a minute
   }
 }
 function onMessage(msg) {
@@ -2624,11 +2625,15 @@ async function putMine(c, title, asNew, folder = null) {   // the game on screen
 // (opened from it or saved to it) now keeps its analysis in its own row: written again 20 s after a position is newly
 // analysed, as soon as 자동분석 / 대국 리포트 ends, before this screen turns the GPU off, and when the page is left.
 // Only the analysis triggers it, but the row gets the whole record as on screen (as 덮어쓰기 does).
-let mineDirtyAt = 0, mineSaveTimer = null, mineSaving = null;
-function mineDirty() {
+// A position analysed deeper (분석 시작 left on one position) is written once a minute too (user request 2026-10-09).
+let mineDirtyAt = 0, mineSaveTimer = null, mineSaveDue = 0, mineSaving = null;
+function mineDirty(soon = true) {   // soon: a position newly analysed (20 s); else one analysed deeper (1 min)
   if (!mineId || mineRoot !== root || batchMode || viewOnly || quiz) return;
   mineDirtyAt = Date.now();
-  if (!mineSaveTimer) mineSaveTimer = setTimeout(() => mineAutoSave(false), 20000);
+  const due = mineDirtyAt + (soon ? 20000 : 60000);
+  if (mineSaveTimer && mineSaveDue <= due) return;   // an earlier save is already coming
+  clearTimeout(mineSaveTimer); mineSaveDue = due;
+  mineSaveTimer = setTimeout(() => mineAutoSave(false), due - Date.now());
 }
 async function mineAutoSave(say) {   // say: tell the member it was saved (not for the quiet 20 s saves)
   clearTimeout(mineSaveTimer); mineSaveTimer = null;
@@ -2642,7 +2647,7 @@ async function mineAutoSave(say) {   // say: tell the member it was saved (not f
       if (!row) { $("err").textContent = "기보가 너무 커서(분석 포함 2MB 초과) 분석을 자동 저장하지 못했습니다. 필요 없는 변화도를 지운 뒤 내 기보 저장을 누르세요."; return; }
       const {error} = await c.from("saved_kifu").update(row).eq("id", id);
       if (error) { $("err").textContent = "분석을 내 기보에 자동 저장하지 못했습니다: " + error.message; return; }
-      if (mineDirtyAt === at) mineDirtyAt = 0; else if (!mineSaveTimer) mineSaveTimer = setTimeout(() => mineAutoSave(false), 20000);
+      if (mineDirtyAt === at) mineDirtyAt = 0; else if (!mineSaveTimer) mineDirty(false);
       $("err").textContent = say ? `분석을 내 기보 '${title}'에 저장했습니다`
         : `분석 자동 저장됨 · ${new Date().toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"})}`;
     } catch (err) { $("err").textContent = "분석을 내 기보에 자동 저장하지 못했습니다: " + err.message; }
