@@ -986,7 +986,8 @@ const recordMode = hashParams.get("record") === "1";   // 내 기보 → 기보 
 // It cannot move to 내 기보 or back (each has its own 100), so saving to the other side makes a new row.
 const STUDY = {joseki: "정석", fuseki: "포석", other: "기타"};
 const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : null;   // 학습방 → 새 연구: the topic it is saved under
-let freshStudy = !!hashStudy && hashParams.get("new") === "1";   // 새 연구 with the GPU: an empty board in place of the shared one
+let freshStudy = !!hashStudy && hashParams.get("new") === "1";
+const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
 const shareToken = /^[A-Za-z0-9_-]{24}$/.test(hashParams.get("share") || "") ? hashParams.get("share") : null;   // 기보 공유 link
 const token = hashParams.get("t") || "";
@@ -1016,7 +1017,9 @@ async function openWithoutGpu() {
     if (pendingKifu) openMineKifu(pendingKifu);
     else if (recordMode && hashStudy) {   // 새 연구 without a GPU: the moves and variations only
       $("conn").textContent = "GPU 없음 · 연구 기록";
-      $("err").textContent = `판을 눌러 수순과 변화도를 두고 '내 기보 저장'에서 학습방 '${STUDY[hashStudy]} 연구'로 저장하세요. GPU를 켜면 분석할 수 있습니다.`;
+      const say = () => `판을 눌러 수순과 변화도를 두고 '내 기보 저장'에서 학습방 '${studyLabel(hashStudy, hashBranch)} 연구'로 저장하세요. GPU를 켜면 분석할 수 있습니다.`;
+      $("err").textContent = say();
+      if (hashBranch) loadStudyFolders(await mineClient()).then(() => { if ($("err").textContent.startsWith("판을 눌러 수순과")) $("err").textContent = say(); });
     } else if (recordMode) {
       $("conn").textContent = "GPU 없음 · 기보 기록";
       if (!root.info.DT) root.info.DT = new Date().toLocaleDateString("sv-SE");   // today, YYYY-MM-DD
@@ -1730,6 +1733,7 @@ async function newStudyBoard() {   // 학습방 → 새 연구 on the GPU: the s
   if (mineDirtyAt) await mineAutoSave(false);
   emptyBoard();
   $("err").textContent = `새 연구 · 수를 두며 분석하고 '내 기보 저장'에서 학습방 '${STUDY[hashStudy]} 연구'로 저장하세요`;
+  if (hashBranch) loadStudyFolders(await mineClient()).then(() => { if ($("err").textContent.startsWith("새 연구")) $("err").textContent = `새 연구 · 수를 두며 분석하고 '내 기보 저장'에서 학습방 '${studyLabel(hashStudy, hashBranch)} 연구'로 저장하세요`; });
 }
 // 접바둑: black's stones on the usual star points, white moves first
 // star points: the 4th line from the edge (3rd on 9x9) and the middle
@@ -2454,6 +2458,9 @@ let mineFolder = null, mineFolders = [];   // the opened game's 분류 (kifu_fol
 const hashFolder = /^[0-9a-f-]{36}$/.test(hashParams.get("folder") || "") ? hashParams.get("folder") : null;   // 기보 추가 from a folder
 let mineStudy = null;   // the opened row's topic (null: a game of 내 기보)
 const mineWhere = () => mineStudy ? "학습방" : "내 기보";
+// 학습방 갈래 (DB 20261009b): the member's sub-folders of a topic (정석 › 화점); null until loaded = no such table yet
+let mineBranch = null, studyFolders = null;   // the opened research's 갈래, and the member's 갈래 ({id, study, name})
+const studyLabel = (t, id) => { const f = (studyFolders || []).find(x => x.id === id && x.study === t); return STUDY[t] + (f ? ` › ${f.name}` : ""); };
 async function mineClient() {
   if (mineSb) return mineSb;
   if (viewOnly || GPU_HOST.test(location.hostname)) return null;   // the GPU's own page has no login
@@ -2511,8 +2518,8 @@ $("saveMine").onclick = async () => {
   $("saveDoStopRow").hidden = !gpuOn(); $("saveDoStop").checked = false;   // off every time: turning the GPU off is never a leftover choice
   saveDoChanged();
   if (!["Kifu", "Notes"].some(k => $("saveDo" + k).checked)) { $("saveDoKifu").checked = true; saveDoChanged(); }   // never open with nothing to do
-  await fillSaveFolders(again ? (mineStudy ? "study:" + mineStudy : mineFolder)
-    : hashStudy ? "study:" + hashStudy : hashFolder || (() => { try { return localStorage.getItem("kgv.saveFolder"); } catch { return null; } })());
+  await fillSaveFolders(again ? (mineStudy ? `study:${mineStudy}${mineBranch ? ":" + mineBranch : ""}` : mineFolder)
+    : hashStudy ? `study:${hashStudy}${hashBranch ? ":" + hashBranch : ""}` : hashFolder || (() => { try { return localStorage.getItem("kgv.saveFolder"); } catch { return null; } })());
   $("saveTitle").value = saveTitleAuto = again ? mineTitle : saveDefaultTitle();
   saveDoChanged();
   $("saveDlg").showModal();
@@ -2523,21 +2530,33 @@ async function loadMineFolders(c) {
   mineFolders = error ? [] : data || [];
   return mineFolders;
 }
+async function loadStudyFolders(c) {
+  if (!c) return [];
+  const {data, error} = await c.from("study_folders").select("id,study,name").order("created_at");
+  studyFolders = error ? null : data || [];   // (before DB 20261009b: no 갈래, and saving leaves the column out)
+  return studyFolders || [];
+}
+const studyOptions = () => Object.entries(STUDY).map(([k, name]) => `<option value="study:${k}">${name} 연구</option>` +
+  (studyFolders || []).filter(f => f.study === k).map(f => `<option value="study:${k}:${f.id}">${name} › ${escHtml(f.name)}</option>`).join("")).join("");
 async function fillSaveFolders(want) {
   const c = await mineClient(); if (!c) return;
-  await loadMineFolders(c);
+  await Promise.all([loadMineFolders(c), loadStudyFolders(c)]);
   $("saveFolder").innerHTML = `<optgroup label="내 기보"><option value="">분류 없음</option>` +
     mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="+">＋ 새 분류 만들기…</option></optgroup>` +
-    `<optgroup label="학습방">${Object.entries(STUDY).map(([k, name]) => `<option value="study:${k}">${name} 연구</option>`).join("")}</optgroup>`;
-  $("saveFolder").value = mineFolders.some(f => f.id === want) || STUDY[String(want).slice(6)] && String(want).startsWith("study:") ? want : "";
+    `<optgroup label="학습방">${studyOptions()}</optgroup>`;
+  const has = v => [...$("saveFolder").options].some(o => o.value === v && v !== "+");
+  want = String(want ?? "");
+  $("saveFolder").value = has(want) ? want : has(want.split(":").slice(0, 2).join(":")) ? want.split(":").slice(0, 2).join(":") : "";   // a 갈래 deleted meanwhile: its topic
   $("saveFolder").dataset.last = $("saveFolder").value;
 }
-const saveStudy = () => $("saveFolder").value.startsWith("study:") ? $("saveFolder").value.slice(6) : null;   // the topic picked, or null: 내 기보
+const saveStudy = () => $("saveFolder").value.startsWith("study:") ? $("saveFolder").value.split(":")[1] : null;   // the topic picked, or null: 내 기보
+const saveBranch = () => saveStudy() && $("saveFolder").value.split(":")[2] || null;   // the 갈래 picked in it, or null
 const saveAgain = () => !!(mineId && mineRoot === root) && !saveStudy() === !mineStudy;   // 덮어쓰기: the same side as the opened row
 let saveTitleAuto = null;   // the title the save window filled in itself (not typed)
 function saveDefaultTitle() {   // a study is named by its topic and today (a game, as before, by its players or date)
   const t = saveStudy();
-  return t ? `${STUDY[t]} 연구 · ${new Date().toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"})}` : mineDefaultTitle();
+  const f = t && (studyFolders || []).find(x => x.id === saveBranch());
+  return t ? `${STUDY[t]}${f ? " " + f.name : ""} 연구 · ${new Date().toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"})}` : mineDefaultTitle();
 }
 $("saveFolder").onchange = async () => {
   const sel = $("saveFolder");
@@ -2565,7 +2584,7 @@ function saveDoChanged() {
   const again = saveAgain(), kifu = $("saveDoKifu").checked, stop = $("saveDoStop").checked && !$("saveDoStopRow").hidden;
   const where = saveStudy() ? "학습방" : "내 기보";
   $("saveHead").textContent = `${where}에 저장`;
-  $("saveDoKifuHint").textContent = saveStudy() ? `수순·변화도와 분석값을 학습방 '${STUDY[saveStudy()]} 연구'에 저장합니다.` : "기보와 분석값을 내 기보에 저장합니다.";
+  $("saveDoKifuHint").textContent = saveStudy() ? `수순·변화도와 분석값을 학습방 '${studyLabel(saveStudy(), saveBranch())} 연구'에 저장합니다.` : "기보와 분석값을 내 기보에 저장합니다.";
   // 먼저 자동분석: the level buttons show while it is ticked; nothing left at this level = nothing to wait for
   const todo = autoTodo(), box0 = $("saveDoAuto"), autoOn = !$("saveDoAutoRow").hidden && box0.checked && canAutoFirst();
   const running = autoId ? "자동분석" : strengthId ? "대국 리포트" : "", rq = queries.get(autoId || strengthId);
@@ -2610,13 +2629,13 @@ async function saveMine(asNew) {
   const kifu = $("saveDoKifu").checked, notes = $("saveDoNotes").checked, stop = $("saveDoStop").checked && gpuOn();
   const say = (t, bad = false) => { $("saveMsg").textContent = t; $("saveMsg").classList.toggle("bad", bad); };
   const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle();
-  const study = saveStudy(), folder = !study && $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
+  const study = saveStudy(), branch = saveBranch(), folder = !study && $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
   if (!study) try { localStorage.setItem("kgv.saveFolder", folder || ""); } catch { /* storage blocked */ }   // a game's 분류 is remembered, not 학습방
   const auto = autoFirst();
   if (auto || ((stop || waitRunning()) && analysisRunning())) {   // save (and add the mistakes) when the analysis ends; 다 끝나면: then the GPU goes off
     if (auto) startAuto(false);
     if (!analysisRunning()) { say("자동분석을 시작하지 못했습니다. GPU 연결을 확인하세요.", true); return; }
-    finishPlan = {kifu, notes, title, asNew, root, folder, study, stop};
+    finishPlan = {kifu, notes, title, asNew, root, folder, study, branch, stop};
     $("saveDlg").close();
     const what = [kifu && "저장", notes && (stop ? "오답노트 후보 모두 담기" : "오답노트 목록 열기"), stop && "GPU 끄기"].filter(Boolean).join(" → ");
     const jong = (what.charCodeAt(what.length - 1) - 0xAC00) % 28 > 0;   // 저장을 / 끄기를
@@ -2625,7 +2644,7 @@ async function saveMine(asNew) {
   }
   if (kifu) {
     $("saveGo").disabled = $("saveAsNew").disabled = true; say("저장 중…");
-    try { const why = await putMine(c, title, asNew, folder, study); if (why) { say(why, true); return; } }
+    try { const why = await putMine(c, title, asNew, folder, study, branch); if (why) { say(why, true); return; } }
     catch (err) { say("저장하지 못했습니다: " + err.message, true); return; }
     finally { $("saveAsNew").disabled = false; saveDoChanged(); }
   }
@@ -2643,18 +2662,19 @@ async function addAllNotes(c, title) {   // every candidate by the criteria last
   const [added, tried] = picked.length ? await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : title).slice(0, 100)) : [0, 0];
   return ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
 }
-async function putMine(c, title, asNew, folder = null, study = null) {   // the game on screen into 내 기보 (folder: its 분류) or 학습방 (study: its topic): "" when saved, else why not
+async function putMine(c, title, asNew, folder = null, study = null, branch = null) {   // the game on screen into 내 기보 (folder: its 분류) or 학습방 (study: its topic, branch: its 갈래): "" when saved, else why not
   const row = await mineRow(title);
   if (!row) return "기보가 너무 큽니다(분석 포함 2MB 초과). 필요 없는 변화도를 지운 뒤 저장하세요.";
   row.folder_id = folder;
   if (study) row.study = study;   // (a game leaves the column out: saving still works before DB 20261009a)
+  if (study && studyFolders) row.study_folder_id = branch;   // (likewise before DB 20261009b)
   const update = !asNew && mineId && mineRoot === root && !study === !mineStudy;   // the other side: a new row there
   const {data: saved, error} = await (update ? c.from("saved_kifu").update(row).eq("id", mineId) : c.from("saved_kifu").insert(row)).select("id").single();
   if (error) return /100(판|개)/.test(error.message) ? error.message : "저장하지 못했습니다: " + error.message;
-  mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder; mineStudy = study;
+  mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder; mineStudy = study; mineBranch = study && branch;
   mineDirtyAt = 0;   // 자동 저장: nothing left to write
   const fname = folder && (mineFolders.find(f => f.id === folder) || {}).name;
-  $("err").textContent = study ? `학습방 '${STUDY[study]} 연구'에 ${update ? "덮어썼습니다" : "저장했습니다"}`
+  $("err").textContent = study ? `학습방 '${studyLabel(study, branch)} 연구'에 ${update ? "덮어썼습니다" : "저장했습니다"}`
     : (fname ? `'${fname}' 분류 · ` : "") + (update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다");
   return "";
 }
@@ -2710,7 +2730,7 @@ async function runFinishPlan(p) {
   const c = await mineClient(); if (!c) return;
   const keep = p.stop ? " · GPU는 켜 둡니다" : "";
   try {
-    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder, p.study); if (why) { $("err").textContent = why + keep; return; } }
+    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder, p.study, p.branch); if (why) { $("err").textContent = why + keep; return; } }
     if (!p.stop) {   // the member is here: the mistake list opens to pick from
       if (p.notes) $("addNote").onclick();
       if (p.kifu) $("err").textContent = "분석이 끝나 " + $("err").textContent;
@@ -2917,7 +2937,8 @@ async function loadMineList() {
   const c = await mineClient(); if (!c) return;
   mineMsg("불러오는 중…");
   const list = cols => selectSized(cols => c.from("saved_kifu").select(cols).order("updated_at", {ascending: false}), cols);
-  let [{data, error}] = await Promise.all([list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,study"), loadMineFolders(c)]);
+  let [{data, error}] = await Promise.all([list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,study,study_folder_id"), loadMineFolders(c), loadStudyFolders(c)]);
+  if (error && /study_folder_id/.test(error.message || "")) ({data, error} = await list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,study"));   // before DB 20261009b
   if (error && /study/.test(error.message || "")) ({data, error} = await list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id"));   // before DB 20261009a
   if (error) { mineMsg("목록을 불러오지 못했습니다: " + error.message, true); return; }
   mineList = data || [];
@@ -2925,14 +2946,14 @@ async function loadMineList() {
   $("mineCount").textContent = `${mineList.length - studies} / 100판` + (studies ? ` · 학습방 ${studies} / 100개` : "");
   const day = iso => new Date(iso).toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"});
   $("mineRows").innerHTML = mineList.map((k, i) =>
-    `<tr data-i="${i}" data-folder="${STUDY[k.study] ? "study:" + k.study : mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name, k.board_size && k.board_size !== 19 ? k.board_size + "줄" : ""].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${sizeTag(k)}${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
+    `<tr data-i="${i}" data-folder="${STUDY[k.study] ? `study:${k.study}:${(studyFolders || []).some(f => f.id === k.study_folder_id && f.study === k.study) ? k.study_folder_id : ""}` : mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name, STUDY[k.study] ? studyLabel(k.study, k.study_folder_id) : "", k.board_size && k.board_size !== 19 ? k.board_size + "줄" : ""].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${sizeTag(k)}${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
     `<td class="w">${escHtml(resultText(k.result || ""))}</td><td>${k.moves}</td><td>${k.analyzed}</td><td class="w">${day(k.updated_at)}</td>` +
     `<td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
   mineMsg(mineList.length ? "기보를 누르면 저장된 분석과 함께 열립니다." : "저장한 기보가 없습니다. 분석한 기보를 파일 메뉴의 '내 기보에 저장'으로 저장하세요.");
   $("mineFindRow").hidden = mineList.length < 2 && !studies;
-  const pick = $("mineFolderPick"), keep = pick.value || (mineStudy ? "study:" + mineStudy : "all");   // first time: the side of the game on screen
+  const pick = $("mineFolderPick"), keep = pick.value || (mineStudy ? `study:${mineStudy}${mineBranch ? ":" + mineBranch : ""}` : "all");   // first time: the side of the game on screen
   pick.innerHTML = `<optgroup label="내 기보"><option value="all">전체</option>` + mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="none">분류 없음</option></optgroup>` +
-    (studies ? `<optgroup label="학습방">${Object.entries(STUDY).map(([t, name]) => `<option value="study:${t}">${name} 연구</option>`).join("")}</optgroup>` : "");
+    (studies ? `<optgroup label="학습방">${studyOptions()}</optgroup>` : "");
   pick.value = [...pick.options].some(o => o.value === keep) ? keep : "all";
   pick.hidden = !mineFolders.length && !studies;
   findMine();
@@ -2942,7 +2963,8 @@ function findMine() {   // 기보 찾기: every word typed must appear in the ti
   const folder = $("mineFolderPick").hidden ? "all" : $("mineFolderPick").value;
   let shown = 0;
   for (const tr of $("mineRows").rows) {
-    const ok = (folder === "all" ? !tr.dataset.folder.startsWith("study:") : tr.dataset.folder === (folder === "none" ? "" : folder)) && words.every(w => tr.dataset.find.includes(w));
+    const ok = (folder === "all" ? !tr.dataset.folder.startsWith("study:") : folder.split(":").length === 2 ? tr.dataset.folder.startsWith(folder + ":")   // a topic: with its 갈래
+      : tr.dataset.folder === (folder === "none" ? "" : folder)) && words.every(w => tr.dataset.find.includes(w));
     tr.hidden = !ok; shown += ok;
   }
   if (words.length || folder !== "all") mineMsg(shown ? `${shown}판 찾음 · 기보를 누르면 저장된 분석과 함께 열립니다.` : "찾는 기보가 없습니다.");
@@ -2970,12 +2992,13 @@ async function openMineKifu(id) {
   if (mineDirtyAt) await mineAutoSave(false);   // 자동 저장: the game on screen before this one replaces it
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 내 기보를 열 수 있습니다"; return false; }
-  let {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study").eq("id", id).maybeSingle();
+  let {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study,study_folder_id").eq("id", id).maybeSingle();
+  if (error && /study_folder_id/.test(error.message || "")) ({data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study").eq("id", id).maybeSingle());   // before DB 20261009b
   if (error && /study/.test(error.message || "")) ({data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id").eq("id", id).maybeSingle());   // before DB 20261009a
   if (error || !k) { $("err").textContent = "기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
   try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
-  mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null;
+  mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null;
   $("err").textContent = mineStudy ? `학습방 '${k.title}'을(를) 열었습니다` : `내 기보 '${k.title}'을(를) 열었습니다`;
   return true;
 }

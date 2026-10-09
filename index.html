@@ -393,13 +393,14 @@
           <button class="primary" id="studyNew" title="빈 판에서 수를 두며 분석하고 학습방에 저장합니다">＋ 새 연구</button>
         </div>
         <div class="seg2 study-topics" id="studyTopics" role="group" aria-label="연구 주제"></div>
+        <div class="study-branches hidden" id="studyBranches" role="group" aria-label="갈래"></div>
         <div class="table-wrap scroll-box hidden" id="studyList">
           <table>
-            <thead><tr><th>제목</th><th class="num hide-sm">수</th><th class="num hide-sm" title="저장된 분석이 있는 국면 수">분석</th><th class="hide-sm">저장</th><th class="folder-col">주제</th><th></th></tr></thead>
+            <thead><tr><th>제목</th><th class="num hide-sm">수</th><th class="num hide-sm" title="저장된 분석이 있는 국면 수">분석</th><th class="hide-sm">저장</th><th class="folder-col">주제·갈래</th><th></th></tr></thead>
             <tbody id="studyRows"></tbody>
           </table>
         </div>
-        <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다.</p>
+        <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구, 그 안의 갈래)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다.</p>
       </div>
     </div>
 
@@ -840,13 +841,19 @@ let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" 
 // board_size (9줄·13줄, DB 20260929e) likewise: without it every game shows as 19x19
 // source (타이젬 기보 PC 동기화, DB 20261007a): games the PC app added count apart (300) from the 100 saved by hand
 // study (학습방 연구, DB 20261009a): rows with a topic are the member's 정석·포석 research, listed in 학습방, not here
-let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study", canShare = true;
+// study_folder_id (학습방 갈래, DB 20261009b): the research's 갈래 inside its topic (정석 › 화점), null = 갈래 없음
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study,study_folder_id", canShare = true;
 let studies = [], studyTopic = "";   // 학습방 연구, and the topic shown ("" = 전체)
+let studyFolders = [], canBranch = true, studyBranch = "";   // the 갈래 ({id, study, name}), and the one shown ("" = 전체, "none" = 갈래 없음)
 const STUDY = { joseki: "정석", fuseki: "포석", other: "기타" };
 async function loadMine() {
   let [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && /study_folder_id/.test(error.message || "")) {
+    KIFU_COLS = KIFU_COLS.replace(",study_folder_id", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error && /study/.test(error.message || "")) {
     KIFU_COLS = KIFU_COLS.replace(",study", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
@@ -865,6 +872,8 @@ async function loadMine() {
   }
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; $("studyInfo").textContent = "내 연구를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요."; return; }
   studies = (data || []).filter((k) => STUDY[k.study]); mine = (data || []).filter((k) => !STUDY[k.study]); folders = fr.error ? [] : fr.data || [];
+  const sf = KIFU_COLS.includes("study_folder_id") ? await sb.from("study_folders").select("id,study,name").order("created_at") : { error: true };
+  canBranch = !sf.error; studyFolders = canBranch ? sf.data || [] : [];
   showStudies();
   if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
   const auto = mine.filter((k) => k.source).length;
@@ -1350,36 +1359,78 @@ $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]")
 // 내 연구: the study rows of saved_kifu (loadMine), by topic; opened like a game of 내 기보 (with the ready GPU to go on)
 function showStudies() {
   const n = (t) => studies.filter((k) => !t || k.study === t).length;
-  if (studyTopic && !n(studyTopic)) studyTopic = "";
+  const branchOf = (k) => studyFolders.find((f) => f.id === k.study_folder_id && f.study === k.study);
   $("studyInfo").textContent = studies.length ? `${studies.length} / 100개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`
     : "정석·포석을 직접 두어 보며 분석한 것을 저장해 두고 언제든 다시 열어 봅니다.";
-  $("studyTopics").classList.toggle("hidden", !studies.length);
   $("studyTopics").innerHTML = [["", "전체"], ...Object.entries(STUDY)].map(([t, name]) =>
-    `<button type="button" data-topic="${t}" class="${t === studyTopic ? "on" : ""}" aria-pressed="${t === studyTopic}"${t && !n(t) ? " disabled" : ""}>${name}<small>${n(t)}개</small></button>`).join("");
-  const rows = studies.map((k, i) => ({ k, i })).filter(({ k }) => !studyTopic || k.study === studyTopic);
+    `<button type="button" data-topic="${t}" class="${t === studyTopic ? "on" : ""}" aria-pressed="${t === studyTopic}">${name}<small>${n(t)}개</small></button>`).join("");
+  // 갈래 of the topic shown: 전체 · each 갈래 · 갈래 없음 · ＋ 새 갈래 (and, for the one picked, 이름 바꾸기 · 지우기)
+  const branches = studyFolders.filter((f) => f.study === studyTopic);
+  if (studyBranch && studyBranch !== "none" && !branches.some((f) => f.id === studyBranch)) studyBranch = "";
+  if (studyBranch === "none" && !branches.length) studyBranch = "";
+  const inTopic = studies.filter((k) => k.study === studyTopic);
+  const chip = (v, name, count) => `<button type="button" data-branch="${v}" class="${v === studyBranch ? "on" : ""}" aria-pressed="${v === studyBranch}">${esc(name)}<small>${count}</small></button>`;
+  $("studyBranches").classList.toggle("hidden", !studyTopic || !canBranch);
+  $("studyBranches").innerHTML = !studyTopic ? "" : chip("", "전체", inTopic.length) +
+    branches.map((f) => chip(f.id, f.name, inTopic.filter((k) => k.study_folder_id === f.id).length)).join("") +
+    (branches.length ? chip("none", "갈래 없음", inTopic.filter((k) => !branchOf(k)).length) : "") +
+    `<button type="button" class="quiet" data-branch-add title="예: 화점, 소목, 삼삼">＋ 새 갈래</button>` +
+    (branches.some((f) => f.id === studyBranch) ? `<span class="study-branch-tools"><button type="button" class="quiet" data-branch-rename>이름 바꾸기</button><button type="button" class="quiet" data-branch-del>갈래 지우기</button></span>` : "");
+  const rows = studies.map((k, i) => ({ k, i })).filter(({ k }) => (!studyTopic || k.study === studyTopic) &&
+    (!studyBranch || (studyBranch === "none" ? !branchOf(k) : k.study_folder_id === studyBranch)));
   $("studyList").classList.toggle("hidden", !studies.length);
-  const opts = (sel) => Object.entries(STUDY).map(([t, name]) => `<option value="${t}"${t === sel ? " selected" : ""}>${name}</option>`).join("");
+  // 주제·갈래 칸: 정석 / 정석 › 화점 … (a 갈래 is in one topic, so the two are picked together)
+  const opts = (k) => { const b = branchOf(k); return Object.entries(STUDY).map(([t, name]) => `<optgroup label="${name}">` +
+    [["", name], ...studyFolders.filter((f) => f.study === t).map((f) => [f.id, `${name} › ${f.name}`])].map(([id, label]) =>
+      `<option value="${t}:${id}"${t === k.study && id === (b ? b.id : "") ? " selected" : ""}>${esc(label)}</option>`).join("") + `</optgroup>`).join(""); };
   $("studyRows").innerHTML = rows.map(({ k, i }) =>
     `<tr class="pick" data-study="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b><span class="mine-meta">${[`${k.moves}수`, k.analyzed ? `분석 ${k.analyzed}` : "", when(k.updated_at)].filter(Boolean).map(esc).join(" · ")}</span></td>` +
     `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
-    `<td class="folder-col"><select data-topic-move="${i}" aria-label="주제 옮기기">${opts(k.study)}</select></td>` +
-    `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("");
+    `<td class="folder-col"><select data-topic-move="${i}" aria-label="주제·갈래 옮기기">${opts(k)}</select></td>` +
+    `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
+    || `<tr><td colspan="6" class="muted">${studyBranch ? "이 갈래에는 연구가 없습니다." : "이 주제에는 연구가 없습니다."}</td></tr>`;
 }
 const gpuHash = () => session && session.status === "ready" && session.web_url && session.web_token
   ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
-$("studyTopics").onclick = (ev) => { const b = ev.target.closest("[data-topic]"); if (!b || b.disabled) return; studyTopic = b.dataset.topic; showStudies(); };
+$("studyTopics").onclick = (ev) => { const b = ev.target.closest("[data-topic]"); if (!b || b.disabled) return; if (studyTopic !== b.dataset.topic) studyBranch = ""; studyTopic = b.dataset.topic; showStudies(); };
+$("studyBranches").onclick = async (ev) => {   // 갈래: show one, make one, rename or delete the one shown
+  const b = ev.target.closest("button"); if (!b || !studyTopic) return;
+  const name = (ask, was = "") => { const v = (prompt(ask, was) || "").trim(); if (v.length > 30) { toast("갈래 이름은 30자까지입니다.", true); return ""; } return v; };
+  const same = (e) => /duplicate|unique/i.test(e.message) ? `${STUDY[studyTopic]}에 같은 이름의 갈래가 이미 있습니다.` : e.message;
+  const f = studyFolders.find((x) => x.id === studyBranch);
+  if ("branch" in b.dataset) { studyBranch = b.dataset.branch; showStudies(); }
+  else if ("branchAdd" in b.dataset) {
+    const v = name(`${STUDY[studyTopic]} 안에 새 갈래 (예: ${studyTopic === "joseki" ? "화점, 소목, 삼삼" : studyTopic === "fuseki" ? "중국류, 미니 중국류, 향소목" : "사활, 끝내기"})`); if (!v) return;
+    const { data, error } = await sb.from("study_folders").insert({ study: studyTopic, name: v }).select("id").single();
+    if (error) { toast(same(error), true); return; }
+    studyBranch = data.id; await loadMine(); toast(`'${STUDY[studyTopic]} › ${v}' 갈래를 만들었습니다. 연구의 주제·갈래 칸으로 옮기거나, 여기서 ＋ 새 연구를 시작하세요.`);
+  } else if ("branchRename" in b.dataset && f) {
+    const v = name("갈래 이름 바꾸기", f.name); if (!v || v === f.name) return;
+    const { error } = await sb.from("study_folders").update({ name: v }).eq("id", f.id);
+    if (error) toast(same(error), true);
+    loadMine();
+  } else if ("branchDel" in b.dataset && f) {
+    const c = studies.filter((k) => k.study_folder_id === f.id).length;
+    if (!confirm(`'${STUDY[f.study]} › ${f.name}' 갈래를 지울까요?` + (c ? `\n안에 있던 연구 ${c}개는 지워지지 않고 '${STUDY[f.study]}'의 갈래 없음으로 갑니다.` : ""))) return;
+    const { error } = await sb.from("study_folders").delete().eq("id", f.id);
+    if (error) { toast("지우지 못했습니다: " + error.message, true); return; }
+    studyBranch = ""; toast("갈래를 지웠습니다."); loadMine();
+  }
+};
 $("studyNew").onclick = () => {   // an empty board: on the ready GPU to analyse as it goes, else to record the moves only
   if (studies.length >= 100) { toast("학습방 연구는 100개까지 저장할 수 있습니다. 필요 없는 연구를 지운 뒤 시작하세요.", true); return; }
   const topic = studyTopic || "joseki", gpu = gpuHash();
   if (!gpu && !confirm("켜져 있는 GPU가 없어 분석 없이 수순만 두어 저장합니다. GPU를 켜면 두면서 바로 분석할 수 있습니다.\n\n이대로 시작할까요?")) return;
-  openPage(`analysis.html?v=${Date.now()}#${gpu ? gpu + "new=1" : "record=1"}&study=${topic}`);
+  const branch = studyTopic && studyFolders.some((f) => f.id === studyBranch) ? `&sf=${studyBranch}` : "";   // saved into the 갈래 on screen
+  openPage(`analysis.html?v=${Date.now()}#${gpu ? gpu + "new=1" : "record=1"}&study=${topic}${branch}`);
 };
-$("studyRows").onchange = async (ev) => {   // 주제 칸: 정석 / 포석 / 기타
+$("studyRows").onchange = async (ev) => {   // 주제·갈래 칸: 정석 / 정석 › 화점 / 포석 …
   const sel = ev.target.closest("select[data-topic-move]"); if (!sel) return;
   const k = studies[+sel.dataset.topicMove]; if (!k) return;
-  const { error } = await sb.from("saved_kifu").update({ study: sel.value }).eq("id", k.id);
+  const [t, id] = sel.value.split(":"), f = studyFolders.find((x) => x.id === id);
+  const { error } = await sb.from("saved_kifu").update(canBranch ? { study: t, study_folder_id: id || null } : { study: t }).eq("id", k.id);
   if (error) { toast("옮기지 못했습니다: " + error.message, true); loadMine(); return; }
-  k.study = sel.value; toast(`'${STUDY[sel.value]}' 연구로 옮겼습니다.`); showStudies();
+  k.study = t; k.study_folder_id = id || null; toast(`'${STUDY[t]}${f ? " › " + f.name : ""}' 연구로 옮겼습니다.`); showStudies();
 };
 $("studyRows").onclick = async (ev) => {
   if (ev.target.closest("select")) return;

@@ -57,6 +57,14 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 #mineCard.no-folders .folder-col { display: none; }
 #studyCard .study-topics { margin-top: 16px; }
 #studyCard .table-wrap { margin-top: 12px; }
+/* 학습방 갈래 (정석 › 화점 …): chips under the topic tabs */
+.study-branches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.study-branches button { min-height: 36px; padding: 6px 14px; font-size: 14px; }
+.study-branches button small { margin-left: 5px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.study-branches button.on { background: var(--blue); color: #fff; }
+.study-branches button.on small { color: rgba(255, 255, 255, .8); }
+.study-branch-tools { display: inline-flex; margin-left: auto; }
+.study-branch-tools button { padding-inline: 10px; }
 #studyRows td:first-child { white-space: normal; overflow-wrap: anywhere; min-width: 160px; }   /* 학습방 is narrow: a long title wraps, the buttons stay in view */
 .mine-find input[type=search] { flex: 1 1 260px; min-width: 0; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
