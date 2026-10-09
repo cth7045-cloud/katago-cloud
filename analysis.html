@@ -4055,25 +4055,33 @@ function blunderColor(node) {
 let treeHits = [];
 function drawTree() {
   const box = $("treeBox"); if (getComputedStyle(box).display === "none") return;
-  const cells = []; let maxLane = 0, maxDepth = 0;
-  const stack = [[root, 0]];
-  while (stack.length) {
-    const [nd, lane] = stack.pop(); cells.push([nd, lane]); maxDepth = Math.max(maxDepth, nd.depth);
-    for (let k = nd.children.length - 1; k >= 1; k--) { maxLane++; stack.push([nd.children[k], maxLane]); }
-    if (nd.children[0]) stack.push([nd.children[0], lane]);
-  }
+  // Layout (user request 2026-10-09): the main line goes down one column; a 갈래 starts on the row right under the move
+  // it leaves and runs to the right, and a 갈래 inside it the same way, one row further down. No line passes behind
+  // another 갈래's dot (the old lanes did: a later 갈래's line crossed the earlier ones and looked joined to them).
+  // A portrait phone turns it 90 degrees: the main line runs right, a 갈래 goes down under its move.
+  const at = new Map(), cells = []; let rows = 0, cols = 0;
+  const set = (n, c, r) => { at.set(n, [c, r]); cells.push([n]); cols = Math.max(cols, c); };
+  const variation = (start, col) => {
+    const line = []; for (let n = start; n; n = n.children[0]) line.push(n);
+    const r = rows++; line.forEach((n, i) => set(n, col + i, r));
+    // the 갈래 of its later moves first (nearer rows), so a line going down from an earlier move meets no dot
+    for (let i = line.length - 1; i >= 0; i--) for (let k = 1; k < line[i].children.length; k++) variation(line[i].children[k], col + i + 1);
+  };
+  for (let n = root; n; n = n.children[0]) { set(n, 0, rows++); for (let k = 1; k < n.children.length; k++) variation(n.children[k], 1); }
+  const turn = matchMedia("(orientation: portrait)").matches;
   const trunk = new Set(lineThrough(cur));
   // Content size only: sizing to the box made scrollbars appear/disappear every frame (flicker).
-  const W = (maxLane + 1) * XS + 20, H = (maxDepth + 1) * YS + 20;
+  const W = (turn ? rows : cols + 1) * XS + 20, H = (turn ? cols + 1 : rows) * YS + 20;
   const g = sizeCanvas(treeCv, W, H);
-  const lanes = new Map(cells);
-  const pos = n => [10 + lanes.get(n) * XS, 10 + n.depth * YS];
+  const P = (c, r) => turn ? [15.5 + r * XS, 15.5 + c * YS] : [15.5 + c * XS, 15.5 + r * YS];   // a dot's centre
+  const pos = n => { const [x, y] = P(...at.get(n)); return [x - 5.5, y - 5.5]; };
   treeHits = [];
-  for (const [nd] of cells) if (nd.parent) {  // lines
-    const [x, y] = pos(nd), [px, py] = pos(nd.parent);
+  for (const [nd] of cells) if (nd.parent) {  // lines, centre to centre (the dots are drawn over them)
+    const [c, r] = at.get(nd), [pc, pr] = at.get(nd.parent);
+    const path = c === pc || r === pr ? [[pc, pr], [c, r]]   // along the main line / along a 갈래
+      : [[pc, pr], [pc, r - .75], [c, r]];                  // a 갈래 leaves: down beside its move, then slanting in
     g.strokeStyle = trunk.has(nd) ? TH.ink : TH.branch; g.lineWidth = 1; g.beginPath();
-    if (x === px) { g.moveTo(x + 5.5, py + DOT); g.lineTo(x + 5.5, y); }
-    else { g.moveTo(px + 5.5 + 5, py + 5.5); g.lineTo(x + 5.5 - XS + 5, py + 5.5); g.lineTo(x + 5.5, y + 5.5); }
+    path.forEach((q, i) => { const [x, y] = P(...q); i ? g.lineTo(x, y) : g.moveTo(x, y); });
     g.stroke();
   }
   for (const [nd] of cells) {
