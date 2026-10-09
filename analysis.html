@@ -271,9 +271,10 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #promote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20V8M7 13l5-5 5 5M5 4h14'/></svg>"); }
 #menuBody #studyStart { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 21V4M5 4h11l-2 4 2 4H5'/></svg>"); }
 #menuBody #deleteNode { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'/></svg>"); }
-#barLabel, #graphLabel { display: none; }   /* portrait menu only (the landscape screen always shows both) */
+#barLabel, #graphLabel, #treeLabel { display: none; }   /* portrait menu only (the landscape screen always shows them) */
 #menuBody #barLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='9' width='18' height='6' rx='1'/><path d='M12 9v6'/></svg>"); }
 #menuBody #graphLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 3v18h18'/><path d='M7 14l4-4 3 3 5-6'/></svg>"); }
+#menuBody #treeLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='6' cy='5' r='2'/><circle cx='6' cy='19' r='2'/><circle cx='17' cy='13' r='2'/><path d='M6 7v10M6 8c0 4 4 5 9 5'/></svg>"); }
 #menuBody #resetBoard { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5'/></svg>"); }
 .error { color: var(--bad); padding-left: 6px; }
 .error:empty { display: none; }
@@ -521,6 +522,10 @@ button.primary:hover { background: var(--blue-deep); }
   .bar-off #statBox { display: none; }
   .bar-off.graph-open #graphBox { margin-top: 0; }
   .bar-off:not(.graph-open) .left { display: none; }
+  /* 변화도 under the board, switched in the menu like the graph (user request 2026-10-09); scrolls inside its box */
+  .tree-open .right { display: flex; order: 3; padding: 8px 8px 0; }
+  .tree-open .right > :not(#treeBox) { display: none; }
+  .tree-open #treeBox { flex: none; height: 120px; }
   #board { box-shadow: none; }
   .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start; align-self: start;   /* its own height: layout() measures it */
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
@@ -650,6 +655,7 @@ button.primary:hover { background: var(--blue-deep); }
       <label class="check" id="hideLabel" title="승률·후보수·그래프·형세를 모두 가립니다. 분석값은 지워지지 않습니다"><input type="checkbox" id="hideEval"> 승률 가리기</label>
       <label class="check" id="barLabel"><input type="checkbox" id="showBar" checked> 승률 막대</label>
       <label class="check" id="graphLabel"><input type="checkbox" id="showGraph"> 승률 그래프</label>
+      <label class="check" id="treeLabel"><input type="checkbox" id="showTree"> 변화도</label>
       <hr>
       <button id="nums">수순</button>
       <button id="coords">좌표</button>
@@ -4165,7 +4171,7 @@ const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["복기", ["strengthOpen", "strengthLevel", "addNote", "openNotes"]],
               ["대국", ["newGame", "pass", "gameScore", "gameResign"]],
               ["바둑판", ["sizeLabel", "handicapLabel", "komiLabel", "placeRow"]],
-              ["보기", ["candsLabel", "ownerLabel", "hideLabel", "barLabel", "graphLabel", "nums", "coords"]],
+              ["보기", ["candsLabel", "ownerLabel", "hideLabel", "barLabel", "graphLabel", "treeLabel", "nums", "coords"]],
               ["편집", ["promote", "studyStart", "deleteNode", "resetBoard"]],
               ["정보", ["aboutOss"]]];
 const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
@@ -4223,7 +4229,7 @@ function layout() {
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
   const side = matchMedia("(orientation: portrait)").matches
     ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight
-        - document.querySelector(".left").offsetHeight - document.querySelector(".toolbar").offsetHeight - 2))
+        - document.querySelector(".left").offsetHeight - document.querySelector(".right").offsetHeight - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
   boardG = geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
@@ -4274,15 +4280,16 @@ new ResizeObserver(() => {
   const [w, h] = fitBox($("graphBox"));
   if (w !== graphW || h !== graphH) { [graphW, graphH] = [w, h]; graphCtx = sizeCanvas(graphCv, graphW, graphH); drawGraph(); }
 }).observe($("graphBox"));
-// Portrait: the win-rate bar and graph under the board are switched in the menu (remembered on this device).
+// Portrait: the win-rate bar, graph and 변화도 under the board are switched in the menu (remembered on this device).
 function applyPanels() {
   document.body.classList.toggle("bar-off", !$("showBar").checked);
   document.body.classList.toggle("graph-open", $("showGraph").checked);
+  document.body.classList.toggle("tree-open", $("showTree").checked);
 }
-try { const v = JSON.parse(localStorage.getItem("kgv.panels") || "null"); if (v) { $("showBar").checked = !!v.bar; $("showGraph").checked = !!v.graph; } } catch { /* storage blocked */ }
+try { const v = JSON.parse(localStorage.getItem("kgv.panels") || "null"); if (v) { $("showBar").checked = !!v.bar; $("showGraph").checked = !!v.graph; $("showTree").checked = !!v.tree; } } catch { /* storage blocked */ }
 applyPanels();
-for (const id of ["showBar", "showGraph"]) $(id).onchange = () => {
-  try { localStorage.setItem("kgv.panels", JSON.stringify({bar: $("showBar").checked, graph: $("showGraph").checked})); } catch { /* storage blocked */ }
+for (const id of ["showBar", "showGraph", "showTree"]) $(id).onchange = () => {
+  try { localStorage.setItem("kgv.panels", JSON.stringify({bar: $("showBar").checked, graph: $("showGraph").checked, tree: $("showTree").checked})); } catch { /* storage blocked */ }
   applyPanels(); layout();
 };
 
