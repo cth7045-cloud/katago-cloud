@@ -3798,20 +3798,18 @@ document.addEventListener("touchstart", () => { if (touchCursor) clearCursor(); 
 document.addEventListener("mousedown", () => { if (touchCursor) clearCursor(); }, true);
 
 // Mouse wheel = previous / next move, like YZY (panels that scroll keep their own wheel).
-// On a study (studyBoard) the gestures only go back: the next move is played on the board (or ▶ / →), one by one.
-const gestureStep = d => { if (d > 0 && studyBoard()) return; step(d); };
 let wheelAcc = 0, wheelAt = 0;
 document.querySelector(".main").addEventListener("wheel", ev => {
   if (ev.ctrlKey || ev.target.closest("#treeBox, .table-box, #comment")) return;
   ev.preventDefault();
   const dy = ev.deltaMode === 1 ? ev.deltaY * 40 : ev.deltaY, now = performance.now();
   // a mouse notch (big, and not in the middle of a touchpad swipe, whose fast part can be big too) = one move
-  if (Math.abs(dy) >= 50 && now - wheelAt > 300) { gestureStep(Math.sign(dy)); return; }
+  if (Math.abs(dy) >= 50 && now - wheelAt > 300) { step(Math.sign(dy)); return; }
   if (now - wheelAt > 300) wheelAcc = 0;                            // touchpad: small deltas add up
   // Touchpads scroll "naturally" by default (Windows and Mac: fingers down = content down = negative deltaY), so the sign
   // is turned around to match two fingers on the phone: fingers down = next move.
   wheelAt = now; wheelAcc -= dy;
-  while (Math.abs(wheelAcc) >= 60) { gestureStep(Math.sign(wheelAcc)); wheelAcc -= 60 * Math.sign(wheelAcc); }
+  while (Math.abs(wheelAcc) >= 60) { step(Math.sign(wheelAcc)); wheelAcc -= 60 * Math.sign(wheelAcc); }
 }, {passive: false});
 
 // Touch: 1 finger long-press (+ slide) on the board = put the invisible cursor there; it stays after lifting,
@@ -3846,7 +3844,7 @@ mainEl.addEventListener("touchmove", ev => {
   if (tg.n === 2 && ev.touches.length === 2) {
     ev.preventDefault();
     tg.acc += y - tg.lastY; tg.lastY = y;   // fingers down = next move
-    while (Math.abs(tg.acc) >= TWO_FINGER_STEP) { gestureStep(Math.sign(tg.acc)); tg.acc -= TWO_FINGER_STEP * Math.sign(tg.acc); }
+    while (Math.abs(tg.acc) >= TWO_FINGER_STEP) { step(Math.sign(tg.acc)); tg.acc -= TWO_FINGER_STEP * Math.sign(tg.acc); }
   }
 }, {passive: false});
 mainEl.addEventListener("touchend", ev => {
