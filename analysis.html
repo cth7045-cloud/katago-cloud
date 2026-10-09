@@ -4042,7 +4042,7 @@ graphCv.addEventListener("click", ev => {
 });
 
 // ------------------------------------------------------------------ variation tree (VariationTree.java)
-const treeCv = $("tree"), XS = 20, YS = 20, DOT = 11, CENTER = 5;
+const treeCv = $("tree"), XS = 20, YS = 20, DOT = 11, CENTER = 5, OFF_PATH = .5;    // OFF_PATH: 지금 길이 아닌 갈래의 불투명도
 const BLUNDER_T = [-24, -12, -6, -3, -1, 3, 100];
 const BLUNDER_C = [[155, 25, 150], [208, 16, 19], [200, 140, 50], [180, 180, 0], [140, 202, 34], [0, 220, 0], [0, 230, 230]];
 function blunderColor(node) {
@@ -4080,10 +4080,11 @@ function drawTree() {
     const [c, r] = at.get(nd), [pc, pr] = at.get(nd.parent);
     const path = c === pc || r === pr ? [[pc, pr], [c, r]]   // along the main line / along a 갈래
       : [[pc, pr], [pc, r - .75], [c, r]];                  // a 갈래 leaves: down beside its move, then slanting in
-    g.strokeStyle = trunk.has(nd) ? TH.ink : TH.branch; g.lineWidth = 1; g.beginPath();
+    g.strokeStyle = trunk.has(nd) ? TH.ink : TH.branch; g.lineWidth = 1; g.globalAlpha = trunk.has(nd) ? 1 : OFF_PATH; g.beginPath();
     path.forEach((q, i) => { const [x, y] = P(...q); i ? g.lineTo(x, y) : g.moveTo(x, y); });
     g.stroke();
   }
+  g.globalAlpha = 1;
   for (const [nd] of cells) {
     const [x, y] = pos(nd); treeHits.push({node: nd, x: x + 5.5, y: y + 5.5});
     if (!nd.parent) {
@@ -4091,8 +4092,10 @@ function drawTree() {
       if (nd === cur) { g.fillStyle = "#f00"; g.fillRect(x + 2, y + 2, DOT - 4, DOT - 4); }
       continue;
     }
+    // a 갈래 off the current line is faded, not darkened (user choice 2026-10-09, like Sabaki): the line being read stands out
+    g.globalAlpha = trunk.has(nd) ? 1 : OFF_PATH;
     g.fillStyle = blunderColor(nd); g.beginPath(); g.arc(x + 5.5, y + 5.5, DOT / 2, 0, Math.PI * 2); g.fill();
-    if (!trunk.has(nd)) { g.fillStyle = "rgba(0,0,0,.153)"; g.fill(); }
+    g.globalAlpha = 1;
     if (nd === cur) { g.fillStyle = TH.curDot; g.beginPath(); g.arc(x + 5.5, y + 5.5, CENTER / 2, 0, Math.PI * 2); g.fill(); }
   }
   const [cx, cy] = pos(cur);
