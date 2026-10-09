@@ -55,6 +55,9 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .mine-meta { display: none; }
 .folder-col select { min-height: 34px; padding: 4px 8px; font-size: 13px; max-width: 150px; }
 #mineCard.no-folders .folder-col { display: none; }
+#studyCard .study-topics { margin-top: 16px; }
+#studyCard .table-wrap { margin-top: 12px; }
+#studyRows td:first-child { white-space: normal; overflow-wrap: anywhere; min-width: 160px; }   /* 학습방 is narrow: a long title wraps, the buttons stay in view */
 .mine-find input[type=search] { flex: 1 1 260px; min-width: 0; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
@@ -270,8 +273,16 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   /* top bar on a phone: the two stones stay as the home link, the name gives its room to the links */
   #startCard th, #offerRows td { padding-left: 4px; padding-right: 4px; font-size: 13px; }   /* 지역·GPU·VRAM·시간당·성능/$ fit a phone */
   /* 내 기보 on a phone: one card per game — the title on its own line, a small line under it, then 분류 · 공유 · 삭제 */
-  #mineCard thead { display: none; }
-  #mineCard table, #mineRows { display: block; }
+  #mineCard thead, #studyCard thead { display: none; }
+  #mineCard table, #mineRows, #studyCard table, #studyRows { display: block; }
+  #studyRows tr.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; padding: 14px 8px; border-bottom: 1px solid var(--line); }
+  #studyRows tr.pick:last-child { border-bottom: 0; }
+  #studyRows tr.pick td { display: block; padding: 0; border: 0; background: none; }
+  #studyRows tr.pick td.hide-sm { display: none; }
+  #studyRows tr.pick td:first-child { flex: 1 0 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
+  #studyRows tr.pick td:first-child b { font-size: 16px; font-weight: 650; }
+  #studyRows .mine-meta { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); }
+  #studyRows tr.pick td:last-child { margin-left: auto; }
   #mineRows tr.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; padding: 14px 8px; border-bottom: 1px solid var(--line); transition: background-color .2s; }
   #mineRows tr.pick:last-child { border-bottom: 0; }
   #mineRows tr.pick:hover { background: var(--soft); }

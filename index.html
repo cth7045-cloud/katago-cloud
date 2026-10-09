@@ -383,6 +383,24 @@
         </div>
         <div class="row hidden" id="notesPhases" style="margin-top:12px;gap:8px;flex-wrap:wrap"></div>
       </div>
+      <!-- 내 연구 (user request 2026-10-09): 정석·포석 research saved on the analysis screen with its analysis -->
+      <div class="panel" id="studyCard">
+        <div class="row">
+          <div class="grow">
+            <h2 style="margin:0 0 4px">내 연구</h2>
+            <div class="small muted" id="studyInfo"></div>
+          </div>
+          <button class="primary" id="studyNew" title="빈 판에서 수를 두며 분석하고 학습방에 저장합니다">＋ 새 연구</button>
+        </div>
+        <div class="seg2 study-topics" id="studyTopics" role="group" aria-label="연구 주제"></div>
+        <div class="table-wrap scroll-box hidden" id="studyList">
+          <table>
+            <thead><tr><th>제목</th><th class="num hide-sm">수</th><th class="num hide-sm" title="저장된 분석이 있는 국면 수">분석</th><th class="hide-sm">저장</th><th class="folder-col">주제</th><th></th></tr></thead>
+            <tbody id="studyRows"></tbody>
+          </table>
+        </div>
+        <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다.</p>
+      </div>
     </div>
 
     <!-- 잔액 충전 (#charge): members ask on the site (2026-09-30); the admin approves after the money arrives -->
@@ -821,11 +839,18 @@ let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" 
 // share_token (기보 공유, DB 20260929b): until that column exists the list loads without it and 공유 stays hidden;
 // board_size (9줄·13줄, DB 20260929e) likewise: without it every game shows as 19x19
 // source (타이젬 기보 PC 동기화, DB 20261007a): games the PC app added count apart (300) from the 100 saved by hand
-let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source", canShare = true;
+// study (학습방 연구, DB 20261009a): rows with a topic are the member's 정석·포석 research, listed in 학습방, not here
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study", canShare = true;
+let studies = [], studyTopic = "";   // 학습방 연구, and the topic shown ("" = 전체)
+const STUDY = { joseki: "정석", fuseki: "포석", other: "기타" };
 async function loadMine() {
   let [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && /study/.test(error.message || "")) {
+    KIFU_COLS = KIFU_COLS.replace(",study", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error && /source/.test(error.message || "")) {
     KIFU_COLS = KIFU_COLS.replace(",source", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
@@ -838,8 +863,9 @@ async function loadMine() {
     canShare = false; KIFU_COLS = KIFU_COLS.replace(",share_token", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
   }
-  if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; return; }
-  mine = data || []; folders = fr.error ? [] : fr.data || [];
+  if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; $("studyInfo").textContent = "내 연구를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요."; return; }
+  studies = (data || []).filter((k) => STUDY[k.study]); mine = (data || []).filter((k) => !STUDY[k.study]); folders = fr.error ? [] : fr.data || [];
+  showStudies();
   if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
   const auto = mine.filter((k) => k.source).length;
   $("mineCount").textContent = `${mine.length - auto} / 100판` + (auto ? ` · 타이젬 자동 ${auto} / 300판` : "");
@@ -1321,6 +1347,55 @@ function openNotes(phase = "") {
 $("notesOpen").onclick = () => openNotes();
 $("dashReview").onclick = () => { if ($("dashNotes").textContent === "0") location.hash = "#study"; else openNotes(); };
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
+// 내 연구: the study rows of saved_kifu (loadMine), by topic; opened like a game of 내 기보 (with the ready GPU to go on)
+function showStudies() {
+  const n = (t) => studies.filter((k) => !t || k.study === t).length;
+  if (studyTopic && !n(studyTopic)) studyTopic = "";
+  $("studyInfo").textContent = studies.length ? `${studies.length} / 100개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`
+    : "정석·포석을 직접 두어 보며 분석한 것을 저장해 두고 언제든 다시 열어 봅니다.";
+  $("studyTopics").classList.toggle("hidden", !studies.length);
+  $("studyTopics").innerHTML = [["", "전체"], ...Object.entries(STUDY)].map(([t, name]) =>
+    `<button type="button" data-topic="${t}" class="${t === studyTopic ? "on" : ""}" aria-pressed="${t === studyTopic}"${t && !n(t) ? " disabled" : ""}>${name}<small>${n(t)}개</small></button>`).join("");
+  const rows = studies.map((k, i) => ({ k, i })).filter(({ k }) => !studyTopic || k.study === studyTopic);
+  $("studyList").classList.toggle("hidden", !studies.length);
+  const opts = (sel) => Object.entries(STUDY).map(([t, name]) => `<option value="${t}"${t === sel ? " selected" : ""}>${name}</option>`).join("");
+  $("studyRows").innerHTML = rows.map(({ k, i }) =>
+    `<tr class="pick" data-study="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b><span class="mine-meta">${[`${k.moves}수`, k.analyzed ? `분석 ${k.analyzed}` : "", when(k.updated_at)].filter(Boolean).map(esc).join(" · ")}</span></td>` +
+    `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
+    `<td class="folder-col"><select data-topic-move="${i}" aria-label="주제 옮기기">${opts(k.study)}</select></td>` +
+    `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("");
+}
+const gpuHash = () => session && session.status === "ready" && session.web_url && session.web_token
+  ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
+$("studyTopics").onclick = (ev) => { const b = ev.target.closest("[data-topic]"); if (!b || b.disabled) return; studyTopic = b.dataset.topic; showStudies(); };
+$("studyNew").onclick = () => {   // an empty board: on the ready GPU to analyse as it goes, else to record the moves only
+  if (studies.length >= 100) { toast("학습방 연구는 100개까지 저장할 수 있습니다. 필요 없는 연구를 지운 뒤 시작하세요.", true); return; }
+  const topic = studyTopic || "joseki", gpu = gpuHash();
+  if (!gpu && !confirm("켜져 있는 GPU가 없어 분석 없이 수순만 두어 저장합니다. GPU를 켜면 두면서 바로 분석할 수 있습니다.\n\n이대로 시작할까요?")) return;
+  openPage(`analysis.html?v=${Date.now()}#${gpu ? gpu + "new=1" : "record=1"}&study=${topic}`);
+};
+$("studyRows").onchange = async (ev) => {   // 주제 칸: 정석 / 포석 / 기타
+  const sel = ev.target.closest("select[data-topic-move]"); if (!sel) return;
+  const k = studies[+sel.dataset.topicMove]; if (!k) return;
+  const { error } = await sb.from("saved_kifu").update({ study: sel.value }).eq("id", k.id);
+  if (error) { toast("옮기지 못했습니다: " + error.message, true); loadMine(); return; }
+  k.study = sel.value; toast(`'${STUDY[sel.value]}' 연구로 옮겼습니다.`); showStudies();
+};
+$("studyRows").onclick = async (ev) => {
+  if (ev.target.closest("select")) return;
+  const share = ev.target.closest("[data-share]");
+  if (share) { openShare(studies[+share.dataset.share]); return; }
+  const del = ev.target.closest("[data-del]");
+  if (del) {
+    const k = studies[+del.dataset.del];
+    if (!k || !confirm(`'${k.title}'을(를) 지울까요? 되돌릴 수 없습니다.`)) return;
+    const { error } = await sb.from("saved_kifu").delete().eq("id", k.id);
+    if (error) toast("지우지 못했습니다: " + error.message, true); else toast("연구를 지웠습니다.");
+    loadMine(); return;
+  }
+  const tr = ev.target.closest("[data-study]"); const k = tr && studies[+tr.dataset.study]; if (!k) return;
+  openPage(`analysis.html?v=${Date.now()}#${gpuHash()}kifu=${k.id}`);
+};
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
   if (mine.filter((k) => !k.source).length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
@@ -1466,7 +1541,7 @@ function showPage() {
   if (profile) dashShow();
   if (page === "mineView") showMineFolder();
   if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
-  if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView")) loadMine();
+  if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView" || page === "studyView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
   window.scrollTo(0, 0);
   if (page === "homeView" && jumpTo === "device") $("deviceCard").scrollIntoView({ block: "center" });
@@ -1783,7 +1858,7 @@ async function setShare(on) {
   $("shareError").textContent = "";
   const { data, error } = await sb.rpc("set_kifu_share", { p_id: shareKifu.id, p_on: on });
   if (error) { $("shareError").textContent = "바꾸지 못했습니다: " + error.message; return false; }
-  shareKifu.share_token = data || null; showShare(); showMine();
+  shareKifu.share_token = data || null; showShare(); showMine(); showStudies();
   return true;
 }
 $("shareOn").onclick = async () => { if (await setShare(true)) toast("공유 링크를 만들었습니다. 복사해서 보내세요."); };
