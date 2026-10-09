@@ -707,8 +707,12 @@ async function refresh() {
     api("/admin/vast").then((v) => { vastBalance = v; refresh(); }).catch(() => {});
   }
   const balance = p.is_admin && vastBalance?.krw != null ? vastBalance.krw : p.balance_krw;
-  countTo($("balance"), balance); countTo($("dashBalance"), balance);
-  document.querySelectorAll("[data-bal]").forEach((el) => { el.textContent = won(balance); });
+  // an admin's balance is 관리자 잔액 (Vast − members), which takes a moment to fetch: until then "-", not their unused
+  // profile balance (user report 2026-10-09: every reload showed that number for about a second)
+  const known = !p.is_admin || vastBalance?.krw != null, shown = known ? won(balance) : "-";
+  if (known) { countTo($("balance"), balance); countTo($("dashBalance"), balance); }
+  else for (const id of ["balance", "dashBalance"]) { $(id).textContent = "-"; delete $(id).dataset.v; }
+  document.querySelectorAll("[data-bal]").forEach((el) => { el.textContent = shown; });
   document.querySelectorAll("[data-bal-link]").forEach((a) => { a.href = p.is_admin ? "#gpu" : "#charge"; });
   $("dashBalLabel").textContent = p.is_admin ? "관리자 잔액" : "내 잔액";
   $("dashCharge").classList.toggle("hidden", !!p.is_admin);
@@ -723,7 +727,7 @@ async function refresh() {
   $("meTitle").textContent = p.name || p.email; $("meNameVal").textContent = p.name || "";
   $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
-  $("meBalance").textContent = won(balance); $("chargeBalance").textContent = won(balance);
+  $("meBalance").textContent = shown; $("chargeBalance").textContent = shown;
   if (!p.is_admin && (chargeOpen || !chargeAt) && Date.now() - chargeAt > 15_000) loadCharge();   // an open 충전 요청: approved yet?
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   document.querySelectorAll("[data-admin-link]").forEach((a) => a.classList.toggle("hidden", !p.is_admin));
