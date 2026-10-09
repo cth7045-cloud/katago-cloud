@@ -532,7 +532,9 @@ button.primary:hover { background: var(--blue-deep); }
   /* 변화도 under the board, switched in the menu like the graph (user request 2026-10-09); scrolls inside its box */
   .tree-open .right { display: flex; order: 3; padding: 8px 8px 0; }
   .tree-open .right > :not(#treeBox) { display: none; }
-  .tree-open #treeBox { flex: none; height: 120px; }
+  /* contain: a wide tree (many 갈래) scrolls sideways inside its box; without it the canvas widened the whole page and
+     the board and buttons were pushed off a phone (user report 2026-10-09) */
+  .tree-open #treeBox { flex: none; height: 120px; contain: inline-size; }
   #board { box-shadow: none; }
   .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start; align-self: start;   /* its own height: layout() measures it */
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
