@@ -175,7 +175,7 @@ details.menu .items #placeRow { display: flex; gap: 10px; min-height: 40px; padd
 details.menu .items #placeRow .stone-seg { margin-left: auto; }
 #boardMenu .items { min-width: 270px; }
 @media (max-width: 1500px) { .menubar .brand span:last-child { display: none; } }   /* 노트북 폭에서도 위 바 한 줄(앱 아이콘은 남김) */
-@media (orientation: landscape) and (max-width: 1300px) { .menubar #vps { display: none; } }   /* 1280 노트북: visits/s는 빼서 한 줄 */
+.menubar #vps.nofit { display: none; }   /* 가로 화면: 위 바가 한 줄에 안 들어갈 때만 visits/s를 뺌(fitVps) */
 @media (orientation: landscape) and (max-width: 1100px) { .menubar { gap: 6px; padding-inline: 10px; } }   /* 태블릿 가로(966px): 그 몫으로 한 줄 */
 details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
 .toolbar .nav { display: inline-flex; align-items: center; gap: 4px; }
@@ -1248,6 +1248,7 @@ function onMessage(msg) {
     else if (now - q.t0 > 200) {
       const vps = Math.round((v - q.v0) * 1000 / (now - q.t0));
       if (analyzing) $("vps").textContent = `${vps} visits/s`;   // a report still in flight after 분석 정지 keeps the 0
+      if (now - vpsFitAt > 3000) { vpsFitAt = now; fitVps(); }   // it just appeared, or room freed on the bar: no resize says so
       reportSpeed(vps, now - q.t0, v - q.v0);
     }
   }
@@ -4252,7 +4253,18 @@ function render() {
 // text/table updates must not clear the canvases.
 let lastSize = "";
 const bars = [document.querySelector(".menubar"), document.querySelector(".toolbar")];
+// visits/s on the top bar gives way only when the bar would not fit on one line. It used to be dropped on every landscape
+// screen up to 1300px, so a 1280급 창 with room to spare showed no visits/s (user report 2026-10-09).
+// Portrait keeps its own rule (it shrinks first).
+let vpsFitAt = 0;
+function fitVps() {
+  const bar = bars[0], v = $("vps"); v.classList.remove("nofit");
+  if (!v.offsetParent || matchMedia("(orientation: portrait)").matches) return;
+  const kids = [...bar.children].filter(e => e.offsetParent), top = Math.min(...kids.map(e => e.offsetTop));
+  if (bar.scrollWidth > bar.clientWidth + 1 || kids.some(e => e.offsetTop > top + 20)) v.classList.add("nofit");
+}
 const sizeObserver = new ResizeObserver(() => {
+  requestAnimationFrame(fitVps);   // next frame: hiding it here would resize the bar inside this callback
   const s = [innerWidth, innerHeight, dpr(), ...bars.map(b => b.offsetHeight)].join("x");
   if (s !== lastSize) { lastSize = s; layout(); }
 });
