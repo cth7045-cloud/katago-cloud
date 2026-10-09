@@ -322,6 +322,13 @@ body.dropping::after { content: "여기에 놓으면 기보를 엽니다"; posit
   box-shadow: 0 2px 4px rgba(90, 60, 20, .12), 0 30px 60px -24px rgba(120, 80, 20, .45); }
 .main { touch-action: pan-x pan-y; }   /* two-finger gestures instead of pinch zoom */
 #treeBox { flex: 0 0 26%; min-height: 90px; overflow: auto; position: relative; }
+#tree { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }   /* 길게 누르기 = 미리 보기, 브라우저 메뉴 아님 */
+/* 변화도 미리 보기: the position of the node under the mouse / a long-pressed finger, on a small board */
+.tree-peek { position: fixed; z-index: 40; padding: 6px 6px 4px; border-radius: 12px; background: var(--panel); pointer-events: none;
+  box-shadow: 0 2px 6px rgba(23, 26, 34, .08), 0 16px 32px -10px rgba(23, 26, 34, .35); }
+.tree-peek[hidden] { display: none; }
+.tree-peek canvas { display: block; }
+.tree-peek span { display: block; padding-top: 3px; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); }
 #tree { display: block; }
 .table-box { flex: 0 0 auto; height: 22%; min-height: 110px; overflow: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink); }
@@ -865,6 +872,8 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="mini-box" id="miniBox"><canvas id="mini" aria-label="변화 미리보기"></canvas></div>
   </aside>
 </div>
+
+<div class="tree-peek" id="treePeek" hidden><canvas id="peek" aria-hidden="true"></canvas><span id="peekText"></span></div>
 
 <footer class="toolbar">
   <div id="quizBar" hidden>
@@ -4081,10 +4090,53 @@ function drawTree() {
   if (cy < box.scrollTop + 20 || cy > box.scrollTop + box.clientHeight - 30) box.scrollTop = Math.round((cy - box.clientHeight / 2) / YS) * YS + 2;
   if (cx < box.scrollLeft + 20 || cx > box.scrollLeft + box.clientWidth - 30) box.scrollLeft = Math.round((cx - box.clientWidth / 2) / XS) * XS + 2;
 }
-treeCv.addEventListener("click", ev => {
+const treeHit = ev => {
   const rect = treeCv.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
-  const hit = treeHits.find(h => Math.abs(h.x - x) < 9 && Math.abs(h.y - y) < 9); if (hit) goTo(hit.node);
-});
+  const hit = treeHits.find(h => Math.abs(h.x - x) < 9 && Math.abs(h.y - y) < 9); return hit ? hit.node : null;
+};
+treeCv.addEventListener("click", ev => { const n = treeHit(ev); if (n) goTo(n); });
+// 변화도 미리 보기 (user request 2026-10-09): a node's position on a small board, without going there — the mouse resting
+// on a node (PC), or a long press (phone: slide the finger along the tree to see others, lift it to close).
+const peekBox = $("treePeek"), peekCv = $("peek");
+let peekG = null, peekCtx = null, peekKey = "", peekNode = null, peekTouch = null;
+function showPeek(node, pt, touch) {
+  if (!node) { hidePeek(); return; }
+  const css = Math.round(Math.min(200, innerWidth * .5)), k = dpr();
+  if (peekKey !== css + "x" + k) { peekKey = css + "x" + k; peekG = geometry(Math.floor(css * k), false, k); peekCtx = sizeCanvasDevice(peekCv, peekG.size); peekNode = null; }
+  if (node !== peekNode) {
+    peekNode = node; peekCtx.clearRect(0, 0, peekG.size, peekG.size);
+    renderBoard(peekCtx, peekG, node, {coords: false, candidates: false, branch: null, hover: null, numbers: "", ownership: false});
+    $("peekText").textContent = node === root ? "처음" : `${node.depth}수`;
+  }
+  peekBox.hidden = false;
+  const w = peekBox.offsetWidth, h = peekBox.offsetHeight, tb = $("treeBox").getBoundingClientRect();
+  // beside the mouse (the tree is on the right: to its left); a finger: above the tree, or beside the finger if no room
+  let left = pt.clientX - w - 16, top = pt.clientY - h / 2;
+  if (touch && tb.top - h - 8 >= 8) { left = pt.clientX - w / 2; top = tb.top - h - 8; }
+  else if (left < 8) left = pt.clientX + 16;
+  peekBox.style.left = Math.round(Math.max(8, Math.min(innerWidth - w - 8, left))) + "px";
+  peekBox.style.top = Math.round(Math.max(8, Math.min(innerHeight - h - 8, top))) + "px";
+}
+function hidePeek() { peekBox.hidden = true; peekNode = null; }
+treeCv.addEventListener("pointermove", ev => { if (ev.pointerType === "mouse") showPeek(treeHit(ev), ev, false); });
+treeCv.addEventListener("pointerleave", ev => { if (ev.pointerType === "mouse") hidePeek(); });
+$("treeBox").addEventListener("scroll", () => { if (!peekTouch) hidePeek(); }, {passive: true});
+function endPeekTouch() { if (peekTouch) { clearTimeout(peekTouch.timer); if (peekTouch.on) hidePeek(); } peekTouch = null; }
+treeCv.addEventListener("touchstart", ev => {
+  endPeekTouch(); if (ev.touches.length !== 1) return;
+  const t = ev.touches[0], st = {x0: t.clientX, y0: t.clientY, last: {clientX: t.clientX, clientY: t.clientY}, on: false, timer: 0};
+  st.timer = setTimeout(() => { st.timer = 0; const n = treeHit(st.last); if (n) { st.on = true; showPeek(n, st.last, true); } }, 350);
+  peekTouch = st;
+}, {passive: true});
+treeCv.addEventListener("touchmove", ev => {
+  const st = peekTouch; if (!st || ev.touches.length !== 1) { endPeekTouch(); return; }
+  const t = ev.touches[0]; st.last = {clientX: t.clientX, clientY: t.clientY};
+  if (st.on) { ev.preventDefault(); const n = treeHit(st.last); if (n) showPeek(n, st.last, true); }   // no scrolling while it shows
+  else if (Math.hypot(t.clientX - st.x0, t.clientY - st.y0) > 10) endPeekTouch();   // the finger scrolls the tree
+}, {passive: false});
+treeCv.addEventListener("touchend", ev => { if (peekTouch && peekTouch.on) ev.preventDefault(); endPeekTouch(); }, {passive: false});   // no click: a look, not a move
+treeCv.addEventListener("touchcancel", endPeekTouch);
+treeCv.addEventListener("contextmenu", ev => ev.preventDefault());
 
 // ------------------------------------------------------------------ table, comment
 function drawSide() {
