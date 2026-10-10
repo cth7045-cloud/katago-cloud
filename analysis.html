@@ -553,6 +553,8 @@ button.primary:hover { background: var(--blue-deep); }
   #moveNo { width: 100%; text-align: center; }
   #back { order: 3; } #moveNo { order: 4; } #fwd { order: 5; } #fwd10 { order: 6; } #last { order: 7; }
   #analyze { grid-column: span 6; order: 8; } #autoAnalyze { grid-column: span 4; order: 9; }
+  #autoAnalyze.on { font-size: 12px; line-height: 1.2; white-space: normal; overflow: hidden; }   /* 자동분석 취소 / 131/261 in two lines */
+  #autoAnalyze .count { display: block; font-variant-numeric: tabular-nums; }
   #menuOpen { display: block; grid-column: span 4; order: 10; }
   .toolbar .error { order: 11; grid-column: 1 / -1; }
   #quizBar { grid-column: 1 / -1; }
@@ -1380,7 +1382,9 @@ levelButtons();
 function autoButton() {   // 자동분석 n/N while running, 재분석 once the whole line is analysed at this level
   const q = autoId && queries.get(autoId);
   $("autoAnalyze").classList.toggle("on", !!q);
-  $("autoAnalyze").textContent = q ? `■ 자동분석 취소 ${autoDone}/${q.todo}` : mainLine().every(analysed) ? "재분석" : "자동분석";
+  // the count on a line of its own on a phone held upright, where the button is a quarter of the width (2026-10-10)
+  if (q) $("autoAnalyze").innerHTML = `■ 자동분석 취소 <span class="count">${autoDone}/${q.todo}</span>`;
+  else $("autoAnalyze").textContent = mainLine().every(analysed) ? "재분석" : "자동분석";
   $("autoAnalyze").title = q ? "누르면 자동분석을 멈춥니다. 이미 분석된 수의 결과는 남습니다." : "";
 }
 // 자동분석 always takes the main line (each node's first child), whichever variation is on screen: a variation being
