@@ -3727,12 +3727,15 @@ function drawSuggestions(ctx, G, node, hoverI, branch) {
 function drawNextMoves(ctx, G, node, branch) {
   if (branch) return;
   const {margin: m, sq, r} = G;
+  // a study (학습방 연구) has no main line to speak of (user request 2026-10-10): solid only where the line does not branch
+  const allDashed = studyBoard() && node.children.length > 1;
   ctx.save();
   node.children.forEach((c, j) => {
     if (!c.move || c.move.pass) return;
+    const dashed = j > 0 || allDashed;
     ctx.strokeStyle = c.move.c === "B" ? "#000" : "#fff";   // its own stone (흑만·백만 놓기 can differ from the turn)
-    ctx.setLineDash(j ? [sq * .12, sq * .08] : []);
-    strokeCircle(ctx, m + sq * c.move.x, m + sq * c.move.y, r + 2, j ? Math.max(r / 10, 1.5) : Math.max(r / 7, 2));
+    ctx.setLineDash(dashed ? [sq * .12, sq * .08] : []);
+    strokeCircle(ctx, m + sq * c.move.x, m + sq * c.move.y, r + 2, dashed ? Math.max(r / 10, 1.5) : Math.max(r / 7, 2));
   });
   ctx.restore();
 }
