@@ -64,7 +64,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .study-branches button.on small { color: rgba(255, 255, 255, .8); }
 .study-branch-tools { display: inline-flex; margin-left: auto; }
 .study-branch-tools button { padding-inline: 10px; }
-/* 내 연구 cards (user request 2026-10-10): a small board on top (정석 = its corner, 포석 = the whole board), then the
+/* 내 연구 cards (user request 2026-10-10): a small board on top (정석 = its corner, 포석 = the whole board; no move numbers), then the
    title, 수 · 분석 · 저장, 주제·갈래 and 공유 · 삭제. The board keeps its wood colour in dark mode, like the analysis screen. */
 .study-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 14px; }
 .study-item { display: flex; flex-direction: column; min-width: 0; border-radius: 18px; background: var(--soft); overflow: hidden; cursor: pointer;
@@ -79,9 +79,6 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .study-thumb .sw { fill: #f8f8f4; stroke: #8a7a62; stroke-width: .04; }
 .study-thumb .lb { fill: none; stroke: #fff; stroke-width: .07; }
 .study-thumb .lw { fill: none; stroke: #1d1d20; stroke-width: .07; }
-.study-thumb text { font-family: inherit; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
-.study-thumb .tb { fill: #fff; }
-.study-thumb .tw { fill: #1d1d20; }
 .study-nopic { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 6px; border-radius: 0 0 10px 10px; background: rgba(23, 26, 34, .55);
   color: #fff; font-size: 12px; text-align: center; }
 .study-body { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 10px; min-width: 0; }

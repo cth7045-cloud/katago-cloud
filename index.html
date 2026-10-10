@@ -1452,8 +1452,8 @@ function showStudies() {
 }
 // 학습방 미리보기 (user request 2026-10-10): the card's small board, from saved_kifu.preview (the analysis screen saves the
 // stones of the 시작 국면, or the end of the main line, with the study: {n, g = one of . x o per point, m = their move numbers, 0 = set up}).
-// 정석: the corner its stones are in, with move numbers; 포석·기타: the whole board with the last move ringed. A study
-// without one yet (saved before this) gets an empty board until it is opened once.
+// 정석: the corner its stones are in; 포석·기타: the whole board. No move numbers (user request 2026-10-10), only the last
+// move ringed. A study without one yet (saved before this) gets an empty board until it is opened once.
 function studyThumb(k) {
   let p = null; try { p = k.preview ? JSON.parse(k.preview) : null; } catch { /* drawn empty */ }
   const n = p && p.n >= 5 && p.n <= 25 && typeof p.g === "string" && p.g.length === p.n * p.n ? p.n : 0, N = n || k.board_size || 19;
@@ -1478,13 +1478,12 @@ function studyThumb(k) {
   let dots = "";
   for (const sx of star) for (const sy of star) if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1 && (N === 19 || (sx === star[1]) === (sy === star[1])))   // 9·13줄: corners and 천원
     dots += `<circle cx="${sx}" cy="${sy}" r=".13"/>`;
-  const numbers = k.study === "joseki", last = stones.reduce((a, s) => (s.num > (a ? a.num : 0) ? s : a), null);
+  const last = stones.reduce((a, s) => (s.num > (a ? a.num : 0) ? s : a), null);
   let st = "";
   for (const s of stones) {
     if (s.x < x0 || s.x > x1 || s.y < y0 || s.y > y1) continue;
     st += `<circle class="${s.b ? "sb" : "sw"}" cx="${s.x}" cy="${s.y}" r=".47"/>`;
-    if (numbers && s.num) st += `<text x="${s.x}" y="${s.y}" class="${s.b ? "tb" : "tw"}" font-size="${s.num >= 100 ? .36 : .48}">${s.num}</text>`;
-    else if (!numbers && s === last) st += `<circle class="${s.b ? "lb" : "lw"}" cx="${s.x}" cy="${s.y}" r=".22"/>`;
+    if (s === last) st += `<circle class="${s.b ? "lb" : "lw"}" cx="${s.x}" cy="${s.y}" r=".22"/>`;
   }
   const pad = .62, vb = `${x0 - pad} ${y0 - pad} ${x1 - x0 + 2 * pad} ${y1 - y0 + 2 * pad}`;
   return `<svg viewBox="${vb}" role="img" aria-label="${n ? (x1 - x0 + 1 < N ? "귀 확대 미리보기" : "판 전체 미리보기") : "미리보기 없음"}">` +
