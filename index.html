@@ -2153,7 +2153,7 @@ function installHow() {
 // home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
 const inPcApp = typeof window.kgcAppSync === "function";
 const windowsPc = /Windows NT/.test(ua) && !/Windows Phone/.test(ua);
-const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.3" };   // a new app: replace the file, KataGoCloud.json and this version
+const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.4" };   // a new app: replace the file, KataGoCloud.json and this version
 document.querySelectorAll("[data-pcapp]").forEach((el) => {
   el.innerHTML = `<span class="app-icon" aria-hidden="true"></span>
     <div class="grow" style="flex:1 1 300px;min-width:0"><b>윈도우 PC 앱 설치</b>
