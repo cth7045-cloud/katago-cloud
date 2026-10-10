@@ -56,7 +56,6 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .folder-col select { min-height: 34px; padding: 4px 8px; font-size: 13px; max-width: 150px; }
 #mineCard.no-folders .folder-col { display: none; }
 #studyCard .study-topics { margin-top: 16px; }
-#studyCard .table-wrap { margin-top: 12px; }
 /* 학습방 갈래 (정석 › 화점 …): chips under the topic tabs */
 .study-branches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .study-branches button { min-height: 36px; padding: 6px 14px; font-size: 14px; }
@@ -65,7 +64,38 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .study-branches button.on small { color: rgba(255, 255, 255, .8); }
 .study-branch-tools { display: inline-flex; margin-left: auto; }
 .study-branch-tools button { padding-inline: 10px; }
-#studyRows td:first-child { white-space: normal; overflow-wrap: anywhere; min-width: 160px; }   /* 학습방 is narrow: a long title wraps, the buttons stay in view */
+/* 내 연구 cards (user request 2026-10-10): a small board on top (정석 = its corner, 포석 = the whole board), then the
+   title, 수 · 분석 · 저장, 주제·갈래 and 공유 · 삭제. The board keeps its wood colour in dark mode, like the analysis screen. */
+.study-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 14px; }
+.study-item { display: flex; flex-direction: column; min-width: 0; border-radius: 18px; background: var(--soft); overflow: hidden; cursor: pointer;
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.study-item:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(23, 26, 34, .35); }
+.study-thumb { position: relative; padding: 10px 10px 0; }
+.study-thumb svg { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; }
+.study-thumb .wood { fill: #e2bd78; }
+.study-thumb .ln { stroke: #5d4526; stroke-width: .045; fill: none; stroke-linecap: square; }
+.study-thumb circle { fill: #5d4526; }
+.study-thumb .sb { fill: #1d1d20; }
+.study-thumb .sw { fill: #f8f8f4; stroke: #8a7a62; stroke-width: .04; }
+.study-thumb .lb { fill: none; stroke: #fff; stroke-width: .07; }
+.study-thumb .lw { fill: none; stroke: #1d1d20; stroke-width: .07; }
+.study-thumb text { font-family: inherit; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.study-thumb .tb { fill: #fff; }
+.study-thumb .tw { fill: #1d1d20; }
+.study-nopic { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 6px; border-radius: 0 0 10px 10px; background: rgba(23, 26, 34, .55);
+  color: #fff; font-size: 12px; text-align: center; }
+.study-body { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 10px; min-width: 0; }
+.study-title { font-size: 15px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.study-meta { font-size: 12px; color: var(--muted); }
+.study-body select { width: 100%; min-height: 36px; padding: 4px 8px; font-size: 13px; }
+.study-tools { display: flex; justify-content: flex-end; gap: 2px; margin-right: -6px; }
+.study-tools button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+.study-none { margin: 14px 0 0; }
+@media (max-width: 640px) {   /* two cards a row on a phone */
+  .study-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .study-thumb { padding: 8px 8px 0; }
+  .study-body { padding: 8px 10px 8px; }
+}
 .mine-find input[type=search] { flex: 1 1 260px; min-width: 0; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
@@ -281,16 +311,8 @@ a.brand:hover { text-decoration: none; opacity: .75; }
   /* top bar on a phone: the two stones stay as the home link, the name gives its room to the links */
   #startCard th, #offerRows td { padding-left: 4px; padding-right: 4px; font-size: 13px; }   /* 지역·GPU·VRAM·시간당·성능/$ fit a phone */
   /* 내 기보 on a phone: one card per game — the title on its own line, a small line under it, then 분류 · 공유 · 삭제 */
-  #mineCard thead, #studyCard thead { display: none; }
-  #mineCard table, #mineRows, #studyCard table, #studyRows { display: block; }
-  #studyRows tr.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; padding: 14px 8px; border-bottom: 1px solid var(--line); }
-  #studyRows tr.pick:last-child { border-bottom: 0; }
-  #studyRows tr.pick td { display: block; padding: 0; border: 0; background: none; }
-  #studyRows tr.pick td.hide-sm { display: none; }
-  #studyRows tr.pick td:first-child { flex: 1 0 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
-  #studyRows tr.pick td:first-child b { font-size: 16px; font-weight: 650; }
-  #studyRows .mine-meta { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); }
-  #studyRows tr.pick td:last-child { margin-left: auto; }
+  #mineCard thead { display: none; }
+  #mineCard table, #mineRows { display: block; }
   #mineRows tr.pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; padding: 14px 8px; border-bottom: 1px solid var(--line); transition: background-color .2s; }
   #mineRows tr.pick:last-child { border-bottom: 0; }
   #mineRows tr.pick:hover { background: var(--soft); }

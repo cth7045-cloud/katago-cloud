@@ -2782,7 +2782,7 @@ async function addAllNotes(c, title) {   // every candidate by the criteria last
   return ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
 }
 async function putMine(c, title, asNew, folder = null, study = null, branch = null) {   // the game on screen into 내 기보 (folder: its 분류) or 학습방 (study: its topic, branch: its 갈래): "" when saved, else why not
-  const row = await mineRow(title);
+  const row = await mineRow(title, !!study);
   if (!row) return "기보가 너무 큽니다(분석 포함 2MB 초과). 필요 없는 변화도를 지운 뒤 저장하세요.";
   row.folder_id = folder;
   if (study) row.study = study;   // (a game leaves the column out: saving still works before DB 20261009a)
@@ -2820,7 +2820,7 @@ async function mineAutoSave(say) {   // say: tell the member it was saved (not f
   mineSaving = (async () => {
     try {
       const c = await mineClient(); if (!c) return;
-      const row = await mineRow(title);
+      const row = await mineRow(title, !!mineStudy);
       if (!row) { $("err").textContent = "기보가 너무 커서(분석 포함 2MB 초과) 분석을 자동 저장하지 못했습니다. 필요 없는 변화도를 지운 뒤 내 기보 저장을 누르세요."; return; }
       const {error} = await c.from("saved_kifu").update(row).eq("id", id);
       if (error) { $("err").textContent = `분석을 ${mineWhere()}에 자동 저장하지 못했습니다: ` + error.message; return; }
@@ -2869,13 +2869,23 @@ async function stopGpuNow(before = "") {
   } catch (err) { $("err").textContent = (before ? before + " " : "") + "GPU를 끄지 못했습니다. 'GPU 종료'를 눌러 주세요: " + err.message; }
   if (recheckGpu) recheckGpu();
 }
-async function mineRow(title) {   // the saved_kifu row for the game on screen, or null if it is over 2MB
+async function mineRow(title, study = false) {   // the saved_kifu row for the game on screen, or null if it is over 2MB
   const cut = (v, n) => v ? String(v).slice(0, n) : null;
   const sgf = toSgf(true), zip = typeof CompressionStream === "function";
   const data = zip ? await gzip64(sgf) : sgf;
   if (data.length > 2e6) return null;
   return {title, black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60), game_date: cut(root.info.DT, 40),
-          ...mineStats(), ...(await sizeColumn() ? {board_size: N} : {}), encoding: zip ? "gzip-b64" : "plain", data};
+          ...mineStats(), ...(await sizeColumn() ? {board_size: N} : {}), encoding: zip ? "gzip-b64" : "plain", data,
+          ...(study ? {preview: studyPreview()} : {})};
+}
+// 학습방 미리보기 (user request 2026-10-10, DB 20261010b): the stones at the end of the main line and their move numbers
+// (0 = set up), so the website's 학습방 draws a small board without downloading the study (~300KB with its analysis).
+// t makes every save's preview new: the DB drops a preview that a save of the game left unchanged (a tab from before).
+function studyPreview() {
+  const line = mainLine(), end = line[line.length - 1], m = [];
+  let g = "";
+  for (let i = 0; i < N * N; i++) { g += ".xo"[end.grid[i]] || "."; if (end.grid[i]) m.push(end.num[i]); }
+  return JSON.stringify({v: 1, n: N, g, m: m.join(","), t: Date.now()});
 }
 
 // ------------------------------------------------------------------ 여러 기보 분석 (the website's GPU page runs this screen hidden)
@@ -3118,6 +3128,8 @@ async function openMineKifu(id) {
   try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
   mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null;
+  // a study saved before 미리보기 (or by a tab from before): give it one now; the game itself is unchanged
+  if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).is("preview", null).then(() => {}, () => {});
   $("err").textContent = mineStudy ? `학습방 '${k.title}'을(를) 열었습니다` : `내 기보 '${k.title}'을(를) 열었습니다`;
   return true;
 }

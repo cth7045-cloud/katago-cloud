@@ -398,12 +398,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         </div>
         <div class="seg2 study-topics" id="studyTopics" role="group" aria-label="연구 주제"></div>
         <div class="study-branches hidden" id="studyBranches" role="group" aria-label="갈래"></div>
-        <div class="table-wrap scroll-box hidden" id="studyList">
-          <table>
-            <thead><tr><th>제목</th><th class="num hide-sm">수</th><th class="num hide-sm" title="저장된 분석이 있는 국면 수">분석</th><th class="hide-sm">저장</th><th class="folder-col">주제·갈래</th><th></th></tr></thead>
-            <tbody id="studyRows"></tbody>
-          </table>
-        </div>
+        <div class="hidden" id="studyList"><div class="study-grid" id="studyRows"></div></div>
         <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구, 그 안의 갈래)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다.</p>
       </div>
     </div>
@@ -898,7 +893,8 @@ let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" 
 // source (타이젬 기보 PC 동기화, DB 20261007a): games the PC app added count apart (300) from the 100 saved by hand
 // study (학습방 연구, DB 20261009a): rows with a topic are the member's 정석·포석 research, listed in 학습방, not here
 // study_folder_id (학습방 갈래, DB 20261009b): the research's 갈래 inside its topic (정석 › 화점), null = 갈래 없음
-let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study,study_folder_id", canShare = true;
+// preview (학습방 미리보기, DB 20261010b): the stones at the end of a study's main line, drawn as its card's small board
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study,study_folder_id,preview", canShare = true;
 let studies = [], studyTopic = "";   // 학습방 연구, and the topic shown ("" = 전체)
 let studyFolders = [], canBranch = true, studyBranch = "";   // the 갈래 ({id, study, name}), and the one shown ("" = 전체, "none" = 갈래 없음)
 const STUDY = { joseki: "정석", fuseki: "포석", other: "기타" };
@@ -906,6 +902,10 @@ async function loadMine() {
   let [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && /preview/.test(error.message || "")) {
+    KIFU_COLS = KIFU_COLS.replace(",preview", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error && /study_folder_id/.test(error.message || "")) {
     KIFU_COLS = KIFU_COLS.replace(",study_folder_id", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
@@ -1441,12 +1441,55 @@ function showStudies() {
   const opts = (k) => { const b = branchOf(k); return Object.entries(STUDY).map(([t, name]) => `<optgroup label="${name}">` +
     [["", name], ...studyFolders.filter((f) => f.study === t).map((f) => [f.id, `${name} › ${f.name}`])].map(([id, label]) =>
       `<option value="${t}:${id}"${t === k.study && id === (b ? b.id : "") ? " selected" : ""}>${esc(label)}</option>`).join("") + `</optgroup>`).join(""); };
+  // one card each (user request 2026-10-10): the small board on top, then the title, 수 · 분석 · 저장, 주제·갈래, 공유 · 삭제
   $("studyRows").innerHTML = rows.map(({ k, i }) =>
-    `<tr class="pick" data-study="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b><span class="mine-meta">${[`${k.moves}수`, k.analyzed ? `분석 ${k.analyzed}` : "", when(k.updated_at)].filter(Boolean).map(esc).join(" · ")}</span></td>` +
-    `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
-    `<td class="folder-col"><select data-topic-move="${i}" aria-label="주제·갈래 옮기기">${opts(k)}</select></td>` +
-    `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
-    || `<tr><td colspan="6" class="muted">${studyBranch ? "이 갈래에는 연구가 없습니다." : "이 주제에는 연구가 없습니다."}</td></tr>`;
+    `<div class="study-item pick" data-study="${i}"><div class="study-thumb">${studyThumb(k)}</div><div class="study-body">` +
+    `<b class="study-title">${sizeTag(k)}${esc(k.title)}</b>` +
+    `<span class="study-meta">${[`${k.moves}수`, k.analyzed ? `분석 ${k.analyzed}` : "", when(k.updated_at)].filter(Boolean).map(esc).join(" · ")}</span>` +
+    `<select data-topic-move="${i}" aria-label="주제·갈래 옮기기">${opts(k)}</select>` +
+    `<div class="study-tools">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></div></div></div>`).join("")
+    || `<p class="muted study-none">${studyBranch ? "이 갈래에는 연구가 없습니다." : "이 주제에는 연구가 없습니다."}</p>`;
+}
+// 학습방 미리보기 (user request 2026-10-10): the card's small board, from saved_kifu.preview (the analysis screen saves the
+// stones at the end of the main line with the study: {n, g = one of . x o per point, m = their move numbers, 0 = set up}).
+// 정석: the corner its stones are in, with move numbers; 포석·기타: the whole board with the last move ringed. A study
+// without one yet (saved before this) gets an empty board until it is opened once.
+function studyThumb(k) {
+  let p = null; try { p = k.preview ? JSON.parse(k.preview) : null; } catch { /* drawn empty */ }
+  const n = p && p.n >= 5 && p.n <= 25 && typeof p.g === "string" && p.g.length === p.n * p.n ? p.n : 0, N = n || k.board_size || 19;
+  const nums = n && p.m ? String(p.m).split(",").map(Number) : [], stones = [];
+  if (n) for (let i = 0, j = 0; i < n * n; i++) if (p.g[i] === "x" || p.g[i] === "o") stones.push({ x: i % n, y: (i / n) | 0, b: p.g[i] === "x", num: nums[j++] || 0 });
+  // the view: x0..x1, y0..y1. 정석 on a big board: the corner that needs the smallest square to hold every stone, one line more
+  let x0 = 0, y0 = 0, x1 = N - 1, y1 = N - 1;
+  if (k.study === "joseki" && stones.length && N >= 13) {
+    const xs = stones.map((s) => s.x), ys = stones.map((s) => s.y);
+    const w = [Math.max(...xs) + 1, N - Math.min(...xs)], h = [Math.max(...ys) + 1, N - Math.min(...ys)];   // [from left/top, from right/bottom]
+    let best = null;
+    for (const r of [0, 1]) for (const b of [0, 1]) { const size = Math.max(w[r], h[b]) + 1; if (!best || size < best.size) best = { r, b, size }; }
+    const size = Math.max(best.size, Math.ceil(N / 2));
+    if (size < N - 2) { x0 = best.r ? N - size : 0; x1 = x0 + size - 1; y0 = best.b ? N - size : 0; y1 = y0 + size - 1; }
+  }
+  // lines run past the view on a side that is cut (the board goes on there), and stop at the board's own edge
+  const ext = (a, edge) => (a === edge ? 0 : .5), lx0 = x0 - ext(x0, 0), lx1 = x1 + ext(x1, N - 1), ly0 = y0 - ext(y0, 0), ly1 = y1 + ext(y1, N - 1);
+  let svg = "";
+  for (let x = x0; x <= x1; x++) svg += `M${x} ${ly0}V${ly1}`;
+  for (let y = y0; y <= y1; y++) svg += `M${lx0} ${y}H${lx1}`;
+  const star = N === 19 ? [3, 9, 15] : N === 13 ? [3, 6, 9] : N === 9 ? [2, 4, 6] : [];
+  let dots = "";
+  for (const sx of star) for (const sy of star) if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1 && (N === 19 || (sx === star[1]) === (sy === star[1])))   // 9·13줄: corners and 천원
+    dots += `<circle cx="${sx}" cy="${sy}" r=".13"/>`;
+  const numbers = k.study === "joseki", last = stones.reduce((a, s) => (s.num > (a ? a.num : 0) ? s : a), null);
+  let st = "";
+  for (const s of stones) {
+    if (s.x < x0 || s.x > x1 || s.y < y0 || s.y > y1) continue;
+    st += `<circle class="${s.b ? "sb" : "sw"}" cx="${s.x}" cy="${s.y}" r=".47"/>`;
+    if (numbers && s.num) st += `<text x="${s.x}" y="${s.y}" class="${s.b ? "tb" : "tw"}" font-size="${s.num >= 100 ? .36 : .48}">${s.num}</text>`;
+    else if (!numbers && s === last) st += `<circle class="${s.b ? "lb" : "lw"}" cx="${s.x}" cy="${s.y}" r=".22"/>`;
+  }
+  const pad = .62, vb = `${x0 - pad} ${y0 - pad} ${x1 - x0 + 2 * pad} ${y1 - y0 + 2 * pad}`;
+  return `<svg viewBox="${vb}" role="img" aria-label="${n ? (x1 - x0 + 1 < N ? "귀 확대 미리보기" : "판 전체 미리보기") : "미리보기 없음"}">` +
+    `<rect x="${x0 - pad}" y="${y0 - pad}" width="${x1 - x0 + 2 * pad}" height="${y1 - y0 + 2 * pad}" class="wood"/>` +
+    `<path d="${svg}" class="ln"/>${dots}${st}</svg>` + (n ? "" : `<span class="study-nopic">한 번 열면 미리보기가 생깁니다</span>`);
 }
 const gpuHash = () => session && session.status === "ready" && session.web_url && session.web_token
   ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
