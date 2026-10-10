@@ -2878,11 +2878,12 @@ async function mineRow(title, study = false) {   // the saved_kifu row for the g
           ...mineStats(), ...(await sizeColumn() ? {board_size: N} : {}), encoding: zip ? "gzip-b64" : "plain", data,
           ...(study ? {preview: studyPreview()} : {})};
 }
-// 학습방 미리보기 (user request 2026-10-10, DB 20261010b): the stones at the end of the main line and their move numbers
-// (0 = set up), so the website's 학습방 draws a small board without downloading the study (~300KB with its analysis).
+// 학습방 미리보기 (user request 2026-10-10, DB 20261010b): the stones of the study's 시작 국면 ('여기서 열리게 하기'), or
+// with none set the end of the main line, and their move numbers (0 = set up), so the website's 학습방 draws a small
+// board without downloading the study (~300KB with its analysis).
 // t makes every save's preview new: the DB drops a preview that a save of the game left unchanged (a tab from before).
 function studyPreview() {
-  const line = mainLine(), end = line[line.length - 1], m = [];
+  const line = mainLine(), end = startNode() || line[line.length - 1], m = [];
   let g = "";
   for (let i = 0; i < N * N; i++) { g += ".xo"[end.grid[i]] || "."; if (end.grid[i]) m.push(end.num[i]); }
   return JSON.stringify({v: 1, n: N, g, m: m.join(","), t: Date.now()});
@@ -3128,8 +3129,9 @@ async function openMineKifu(id) {
   try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
   mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null;
-  // a study saved before 미리보기 (or by a tab from before): give it one now; the game itself is unchanged
-  if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).is("preview", null).then(() => {}, () => {});
+  // the preview again on every open (a study saved before 미리보기, by a tab from before, or before it followed the
+  // 시작 국면): one small write, the game itself is unchanged so its 저장 time stays
+  if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).then(() => {}, () => {});
   $("err").textContent = mineStudy ? `학습방 '${k.title}'을(를) 열었습니다` : `내 기보 '${k.title}'을(를) 열었습니다`;
   return true;
 }

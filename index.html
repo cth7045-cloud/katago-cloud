@@ -893,7 +893,7 @@ let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" 
 // source (타이젬 기보 PC 동기화, DB 20261007a): games the PC app added count apart (300) from the 100 saved by hand
 // study (학습방 연구, DB 20261009a): rows with a topic are the member's 정석·포석 research, listed in 학습방, not here
 // study_folder_id (학습방 갈래, DB 20261009b): the research's 갈래 inside its topic (정석 › 화점), null = 갈래 없음
-// preview (학습방 미리보기, DB 20261010b): the stones at the end of a study's main line, drawn as its card's small board
+// preview (학습방 미리보기, DB 20261010b): the stones of a study's 시작 국면 (or the end of its main line), drawn as its card's small board
 let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study,study_folder_id,preview", canShare = true;
 let studies = [], studyTopic = "";   // 학습방 연구, and the topic shown ("" = 전체)
 let studyFolders = [], canBranch = true, studyBranch = "";   // the 갈래 ({id, study, name}), and the one shown ("" = 전체, "none" = 갈래 없음)
@@ -1451,7 +1451,7 @@ function showStudies() {
     || `<p class="muted study-none">${studyBranch ? "이 갈래에는 연구가 없습니다." : "이 주제에는 연구가 없습니다."}</p>`;
 }
 // 학습방 미리보기 (user request 2026-10-10): the card's small board, from saved_kifu.preview (the analysis screen saves the
-// stones at the end of the main line with the study: {n, g = one of . x o per point, m = their move numbers, 0 = set up}).
+// stones of the 시작 국면, or the end of the main line, with the study: {n, g = one of . x o per point, m = their move numbers, 0 = set up}).
 // 정석: the corner its stones are in, with move numbers; 포석·기타: the whole board with the last move ringed. A study
 // without one yet (saved before this) gets an empty board until it is opened once.
 function studyThumb(k) {
