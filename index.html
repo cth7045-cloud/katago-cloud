@@ -678,7 +678,7 @@ sb.auth.onAuthStateChange((_event, s) => {
 
 function leave() {
   vastBalance = null; vastAt = 0; chargeOpen = null; chargeAt = 0;
-  entered = false; clearInterval(pollTimer); profile = null; history = null; delete $("balance").dataset.v;
+  entered = false; clearInterval(pollTimer); profile = null; readCache = null; delete $("balance").dataset.v;
   // the next member on this device must not see this one's 기보 분석 (files, progress, Fox games) (2026-10-10)
   if (batchJob || batchFrame || batchQueued || batchFiles.length || foxGames.length) {
     if (batchJob) clearInterval(batchJob.timer);
@@ -708,7 +708,7 @@ let lastModel = null, modelTouched = false, defaultModel = null;   // the model 
 // last full read (rentals 100, 내역 100), which is read again each minute, and at once when the balance went up or
 // changed with no GPU on (a top-up, a refund: a new 내역 line). One read at a time: a call while one runs makes one
 // more afterwards, so a slow network neither piles requests up nor lets an old answer overwrite a newer one (2026-10-10).
-let history = null, refreshing = null, refreshAgain = null;
+let readCache = null, refreshing = null, refreshAgain = null;
 function refresh(light = false) {
   if (refreshing) { refreshAgain = refreshAgain === "full" || !light ? "full" : "light"; return refreshing; }
   refreshing = refreshNow(light).catch((err) => console.error("refresh", err)).finally(() => {
@@ -718,7 +718,7 @@ function refresh(light = false) {
   return refreshing;
 }
 async function readAll(light) {
-  const full = !light || !history || Date.now() - history.at > 60_000;
+  const full = !light || !readCache || Date.now() - readCache.at > 60_000;
   const ledger = () => sb.from("ledger").select("*").is("session_id", null).order("created_at", { ascending: false }).limit(100);   // top-ups etc.
   const [{ data: p }, { data: s }, { data: l }] = await Promise.all([
     sb.from("profiles").select("*").single(),
@@ -727,18 +727,18 @@ async function readAll(light) {
   ]);
   if (!p) return null;
   if (full) {
-    if (s && l) history = { s, l, at: Date.now(), bal: p.balance_krw };
+    if (s && l) readCache = { s, l, at: Date.now(), bal: p.balance_krw };
     return { p, s, l };
   }
-  let rows = history.s;
+  let rows = readCache.s;
   if (s && s[0]) { rows = rows.slice(); const i = rows.findIndex((x) => x.id === s[0].id); if (i >= 0) rows[i] = s[0]; else rows.unshift(s[0]); }
   const on = rows[0] && ACTIVE.includes(rows[0].status);
-  if (p.balance_krw > history.bal || (p.balance_krw !== history.bal && !on)) {
+  if (p.balance_krw > readCache.bal || (p.balance_krw !== readCache.bal && !on)) {
     const { data } = await ledger();
-    if (data) history.l = data;
+    if (data) readCache.l = data;
   }
-  history.s = rows; history.bal = p.balance_krw;
-  return { p, s: rows, l: history.l };
+  readCache.s = rows; readCache.bal = p.balance_krw;
+  return { p, s: rows, l: readCache.l };
 }
 async function refreshNow(light) {
   const got = await readAll(light);
