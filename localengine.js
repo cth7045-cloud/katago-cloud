@@ -43,28 +43,43 @@ let sized = null;   // {n, s}: the session for a 9x9 or 13x13 board (one at a ti
 const post = m => postMessage(m);
 
 // ---------------------------------------------------------------- loading
-async function fetchModel(model, quiet) {   // the whole file; progress is over all its parts
-  let cache = null, done = 0, said = -1;
+// Written straight into one buffer of the model's size (2026-10-10): the parts are not held twice over (a 159MB model
+// took several copies at once, too much for a phone with little memory). A download that stops sending for 30 s is an
+// error instead of a progress bar that never moves, and a cached copy of the wrong size (a file replaced under the same
+// name) is dropped and downloaded again.
+const STALL_MS = 30000;
+async function fetchModel(model, quiet, fresh = false) {   // the whole file; progress is over all its parts
+  let cache = null, done = 0, said = -1, cached = false;
   try { cache = await caches.open("kgc-models-v1"); } catch { cache = null; }
-  const files = [];
-  for (const url of model.parts) {
-    let hit = null; try { hit = cache && await cache.match(url); } catch { hit = null; }
-    if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); files.push(b); done += b.length; continue; }
-    const r = await fetch(url); if (!r.ok) throw new Error("모델 파일을 받지 못했습니다 (" + r.status + ")");
-    const reader = r.body.getReader(), chunks = []; let got = 0;
-    for (;;) {
-      const {done: end, value} = await reader.read(); if (end) break;
-      chunks.push(value); got += value.length;
-      const pct = Math.min(99, Math.floor((done + got) / model.size * 100));
-      if (pct !== said && !quiet) { said = pct; post({local: "progress", pct, mb: Math.round((done + got) / 1e6)}); }
+  const out = new Uint8Array(model.size);
+  const put = b => { if (done + b.length > out.length) throw new Error("size"); out.set(b, done); done += b.length; };
+  try {
+    for (const url of model.parts) {
+      let hit = null; try { hit = !fresh && cache && await cache.match(url); } catch { hit = null; }
+      if (hit) { cached = true; put(new Uint8Array(await hit.arrayBuffer())); continue; }
+      const r = await fetch(url); if (!r.ok) throw new Error("모델 파일을 받지 못했습니다 (" + r.status + ")");
+      const reader = r.body.getReader(), from = done;
+      for (;;) {
+        let timer;
+        const stall = new Promise((_, no) => { timer = setTimeout(() => no(new Error("stall")), STALL_MS); });
+        let step;
+        try { step = await Promise.race([reader.read(), stall]); }
+        catch (e) { reader.cancel().catch(() => {}); throw e.message === "stall" ? new Error("모델 파일 받기가 멈췄습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.") : e; }
+        finally { clearTimeout(timer); }
+        if (step.done) break;
+        put(step.value);
+        const pct = Math.min(99, Math.floor(done / model.size * 100));
+        if (pct !== said && !quiet) { said = pct; post({local: "progress", pct, mb: Math.round(done / 1e6)}); }
+      }
+      try { if (cache) await cache.put(url, new Response(out.subarray(from, done))); } catch { /* storage full or blocked: download again next time */ }
     }
-    const b = new Uint8Array(got); let o = 0; for (const c of chunks) { b.set(c, o); o += c.length; }
-    try { if (cache) await cache.put(url, new Response(b.slice())); } catch { /* storage full or blocked: download again next time */ }
-    files.push(b); done += got;
+    if (done !== out.length) throw new Error("size");
+  } catch (e) {
+    if (e.message !== "size") throw e;
+    if (cached && !fresh) return fetchModel(model, quiet, true);   // the cached copy is stale: download it again
+    throw new Error("모델 파일 크기가 맞지 않습니다. 새로고침 후 다시 시도해 주세요.");
   }
-  if (files.length === 1) return files[0].buffer;
-  const buf = new Uint8Array(done); let o = 0; for (const b of files) { buf.set(b, o); o += b.length; }
-  return buf.buffer;
+  return out.buffer;
 }
 async function load() {
   try {

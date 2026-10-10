@@ -27,9 +27,13 @@
 <meta name="apple-mobile-web-app-title" content="KataGo Cloud">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet">
+<!-- the font (the sign-in board's win rates) never holds up the first paint (2026-10-10) -->
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="style.css">
 <script>document.documentElement.classList.add("js")</script>
+<script>   // no login saved: the sign-in page's board comes next, fetch it alongside (2026-10-10)
+try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) for (const f of ["hero.js", "hero-data.js"]) { const l = document.createElement("link"); l.rel = "modulepreload"; l.href = f; document.head.appendChild(l); } } catch { /* storage blocked */ }
+</script>
 <script src="theme.js"></script>
 </head>
 <body>
@@ -606,10 +610,14 @@
     </div>
   </footer>
 </main>
+<!-- the page's code did not start (its library could not be downloaded, an old browser): say so instead of a blank page -->
+<div id="bootFail" class="hidden" style="position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;background:var(--paper);color:var(--ink)">
+  <div><p style="margin:0 0 14px">화면을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.</p><button class="btn primary" onclick="location.reload()">새로고침</button></div>
+</div>
+<script>setTimeout(() => { const f = document.getElementById("bootFail"); if (f && document.getElementById("authView").classList.contains("hidden") && document.getElementById("appView").classList.contains("hidden")) f.classList.remove("hidden"); }, 12000);</script>
 
 <script type="module">
 import { $, api, esc, sb, toast, when, won } from "./app.js";
-import { startHeroBoard } from "./hero.js";
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 let mode = "login", profile = null, session = null, offers = [], picked = null, pollTimer = null;
@@ -675,14 +683,25 @@ sb.auth.onAuthStateChange((_event, s) => {
 
 function leave() {
   vastBalance = null; vastAt = 0; chargeOpen = null; chargeAt = 0;
-  entered = false; clearInterval(pollTimer); profile = null; delete $("balance").dataset.v;
+  entered = false; clearInterval(pollTimer); profile = null; history = null; delete $("balance").dataset.v;
+  // the next member on this device must not see this one's 기보 분석 (files, progress, Fox games) (2026-10-10)
+  if (batchJob || batchFrame || batchQueued || batchFiles.length || foxGames.length) {
+    if (batchJob) clearInterval(batchJob.timer);
+    if (batchFrame) { batchFrame.remove(); batchFrame = null; }
+    batchJob = null; batchQueued = false; batchFiles = []; batchRun = []; foxGames = []; foxShow(); batchShow();
+  }
+  startHero(); $("bootFail")?.remove();
   swap(() => { document.body.classList.remove("authed"); $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
 async function enter() {
   swap(() => { document.body.classList.add("authed"); $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
+  $("bootFail")?.remove();
   await refresh();
   loadOffers(); loadMine(); loadNotesCard(); resumeBatch();
-  clearInterval(pollTimer); pollTimer = setInterval(refresh, 4000);
+  // every 4 s while the page is in front; in the background only while a GPU is on or a 기보 분석 waits for one (its
+  // 준비 완료 alert and the reserved start need it) — a tab or the PC app left open all day asks nothing (2026-10-10)
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => { if (document.visibilityState === "visible" || session || batchQueued) refresh(true); }, 4000);
 }
 // a tab left in the background (phones pause its timers) is out of date when it comes back: refresh at once
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && profile) refresh(); });
@@ -690,13 +709,46 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 // ------------------------------------------------------------------ data
 let vastBalance = null, vastAt = 0;   // admins: the operator's Vast balance is their balance (checked once a minute)
 let lastModel = null, modelTouched = false, defaultModel = null;   // the model list's start (pickModel)
-async function refresh() {
+// refresh(): everything again. refresh(true), the 4-second poll: the profile and the newest rental only, laid over the
+// last full read (rentals 100, 내역 100), which is read again each minute, and at once when the balance went up or
+// changed with no GPU on (a top-up, a refund: a new 내역 line). One read at a time: a call while one runs makes one
+// more afterwards, so a slow network neither piles requests up nor lets an old answer overwrite a newer one (2026-10-10).
+let history = null, refreshing = null, refreshAgain = null;
+function refresh(light = false) {
+  if (refreshing) { refreshAgain = refreshAgain === "full" || !light ? "full" : "light"; return refreshing; }
+  refreshing = refreshNow(light).catch((err) => console.error("refresh", err)).finally(() => {
+    refreshing = null; const again = refreshAgain; refreshAgain = null;
+    if (again) refresh(again === "light");
+  });
+  return refreshing;
+}
+async function readAll(light) {
+  const full = !light || !history || Date.now() - history.at > 60_000;
+  const ledger = () => sb.from("ledger").select("*").is("session_id", null).order("created_at", { ascending: false }).limit(100);   // top-ups etc.
   const [{ data: p }, { data: s }, { data: l }] = await Promise.all([
     sb.from("profiles").select("*").single(),
-    sb.from("gpu_sessions").select("*").order("created_at", { ascending: false }).limit(100),
-    sb.from("ledger").select("*").is("session_id", null).order("created_at", { ascending: false }).limit(100),   // top-ups etc.
+    sb.from("gpu_sessions").select("*").order("created_at", { ascending: false }).limit(full ? 100 : 1),
+    full ? ledger() : { data: null },
   ]);
-  if (!p) return;
+  if (!p) return null;
+  if (full) {
+    if (s && l) history = { s, l, at: Date.now(), bal: p.balance_krw };
+    return { p, s, l };
+  }
+  let rows = history.s;
+  if (s && s[0]) { rows = rows.slice(); const i = rows.findIndex((x) => x.id === s[0].id); if (i >= 0) rows[i] = s[0]; else rows.unshift(s[0]); }
+  const on = rows[0] && ACTIVE.includes(rows[0].status);
+  if (p.balance_krw > history.bal || (p.balance_krw !== history.bal && !on)) {
+    const { data } = await ledger();
+    if (data) history.l = data;
+  }
+  history.s = rows; history.bal = p.balance_krw;
+  return { p, s: rows, l: history.l };
+}
+async function refreshNow(light) {
+  const got = await readAll(light);
+  if (!got) return;
+  const { p, s, l } = got;
   profile = p;
   keepPush();
   // the model this member rented last (any device) is picked next time (user request 2026-09-29); not an admin test rental
@@ -1283,9 +1335,11 @@ function watchJob(id) {
   batchPoll();
 }
 async function batchPoll() {   // the GPU's job as the database has it
-  if (!batchJob) return;
-  const { data: j, error } = await sb.from("gpu_batches").select("status,progress,saved,failed,auto_stop,created_at,finished_at").eq("id", batchJob.id).maybeSingle();
-  if (error || !j || !batchJob) return;   // asked again in 3 s
+  if (!batchJob || batchJob.busy) return;   // one read at a time on a slow network
+  const job = batchJob; job.busy = true;
+  const { data: j, error } = await sb.from("gpu_batches").select("status,progress,saved,failed,auto_stop,created_at,finished_at").eq("id", job.id).maybeSingle()
+    .finally(() => { job.busy = false; });
+  if (error || !j || batchJob !== job) return;   // asked again in 3 s (or the job is no longer shown)
   batchStartedAt = new Date(j.created_at).getTime();
   const p = j.progress || {};
   batchRun.forEach((f, k) => {
@@ -1312,7 +1366,7 @@ async function resumeBatch() {   // a job the GPU is still running (this page wa
   const { data } = await sb.from("gpu_batches").select("id,games").in("status", ["queued", "running"]).order("created_at", { ascending: false }).limit(1);
   const j = data && data[0];
   if (!j || batchJob || batchFrame) return;
-  batchFiles = j.games.map((g) => ({ file: { name: g.name }, state: "wait", text: "대기", ...(g.mine ? { mine: { id: g.mine } } : {}) }));
+  batchFiles = (j.games || []).map((g) => ({ file: { name: g.name }, state: "wait", text: "대기", ...(g.mine ? { mine: { id: g.mine } } : {}) }));
   batchRun = batchFiles.slice();
   watchJob(j.id);
 }
@@ -1577,7 +1631,15 @@ $("startButton").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ logged-out page
-startHeroBoard($("heroBoard"), () => !$("authView").classList.contains("hidden"));
+// the sign-in page's board: loaded only when that page shows (a member already signed in never downloads it; the head
+// preloads it when no login is saved, so it starts as fast as before) (2026-10-10)
+let heroStarted = false;
+function savedLogin() { try { return Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch { return false; } }
+function startHero() {
+  if (heroStarted) return; heroStarted = true;
+  import("./hero.js").then((m) => m.startHeroBoard($("heroBoard"), () => !$("authView").classList.contains("hidden"))).catch(() => { heroStarted = false; });
+}
+if (!savedLogin()) startHero();
 new IntersectionObserver((entries, io) => {
   if (entries.some((e) => e.isIntersecting)) { $("how").classList.add("in"); io.disconnect(); }
 }, { threshold: .2 }).observe($("how"));
@@ -2014,7 +2076,7 @@ function installHow() {
 // home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
 const inPcApp = typeof window.kgcAppSync === "function";
 const windowsPc = /Windows NT/.test(ua) && !/Windows Phone/.test(ua);
-const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.2" };   // a new app: replace the file, KataGoCloud.json and this version
+const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.3" };   // a new app: replace the file, KataGoCloud.json and this version
 document.querySelectorAll("[data-pcapp]").forEach((el) => {
   el.innerHTML = `<span class="app-icon" aria-hidden="true"></span>
     <div class="grow" style="flex:1 1 300px;min-width:0"><b>윈도우 PC 앱 설치</b>

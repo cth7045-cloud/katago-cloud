@@ -710,10 +710,17 @@ $("reload").onclick = () => { load(); loadCharges(); };
 const { data } = await sb.auth.getSession();
 if (!data.session) location.href = "index.html";
 else {
-  load(); setInterval(load, 15000);
-  loadCharges(); setInterval(loadCharges, 15000); showPush().catch(() => {});
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") loadCharges(); });
-  loadEngine(); setInterval(() => { if (!engDirty && !$("enginePanel").contains(document.activeElement)) loadEngine(); }, 30000);
+  // the polls run while this page is in front (each read once at a time) and catch up the moment it is back: a hidden
+  // admin tab no longer asks Vast every 15 s all day; new 충전 요청 still come as push notifications (2026-10-10)
+  const once = (fn) => { let busy = false; return () => { if (busy) return; busy = true; Promise.resolve(fn()).finally(() => { busy = false; }); }; };
+  const front = () => document.visibilityState === "visible";
+  const poll = once(load), pollCharges = once(loadCharges);
+  const pollEngine = once(() => { if (!engDirty && !$("enginePanel").contains(document.activeElement)) return loadEngine(); });
+  poll(); setInterval(() => { if (front()) poll(); }, 15000);
+  pollCharges(); setInterval(() => { if (front()) pollCharges(); }, 15000); showPush().catch(() => {});
+  loadEngine(); setInterval(() => { if (front()) pollEngine(); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (front()) { poll(); pollCharges(); pollEngine(); } });
+  sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") location.href = "index.html"; });   // signed out in another tab
 }
 </script>
 </body>
