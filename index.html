@@ -399,7 +399,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <div class="seg2 study-topics" id="studyTopics" role="group" aria-label="연구 주제"></div>
         <div class="study-branches hidden" id="studyBranches" role="group" aria-label="갈래"></div>
         <div class="hidden" id="studyList"><div class="study-grid" id="studyRows"></div></div>
-        <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구, 그 안의 갈래)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다.</p>
+        <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구, 그 안의 갈래)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다. 카드를 끌어 놓으면 순서가 바뀝니다(휴대폰은 카드를 길게 누른 뒤 끌기).</p>
       </div>
     </div>
 
@@ -894,7 +894,8 @@ let curFolder = null;          // the folder open (#mine/<key>): "all" | "none" 
 // study (학습방 연구, DB 20261009a): rows with a topic are the member's 정석·포석 research, listed in 학습방, not here
 // study_folder_id (학습방 갈래, DB 20261009b): the research's 갈래 inside its topic (정석 › 화점), null = 갈래 없음
 // preview (학습방 미리보기, DB 20261010b): the stones of a study's 시작 국면 (or the end of its main line), drawn as its card's small board
-let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study,study_folder_id,preview", canShare = true;
+// sort_key (학습방 카드 순서, DB 20261010c): the member's own order of their studies, set by dragging the cards
+let KIFU_COLS = "id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,share_token,board_size,source,study,study_folder_id,preview,sort_key", canShare = true;
 let studies = [], studyTopic = "";   // 학습방 연구, and the topic shown ("" = 전체)
 let studyFolders = [], canBranch = true, studyBranch = "";   // the 갈래 ({id, study, name}), and the one shown ("" = 전체, "none" = 갈래 없음)
 const STUDY = { joseki: "정석", fuseki: "포석", other: "기타" };
@@ -902,6 +903,10 @@ async function loadMine() {
   let [{ data, error }, fr] = await Promise.all([
     sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }),
     sb.from("kifu_folders").select("id,name").order("name")]);
+  if (error && /sort_key/.test(error.message || "")) {
+    KIFU_COLS = KIFU_COLS.replace(",sort_key", "");
+    ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
+  }
   if (error && /preview/.test(error.message || "")) {
     KIFU_COLS = KIFU_COLS.replace(",preview", "");
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
@@ -927,7 +932,7 @@ async function loadMine() {
     ({ data, error } = await sb.from("saved_kifu").select(KIFU_COLS).order("updated_at", { ascending: false }));
   }
   if (error) { $("mineRows").innerHTML = `<tr><td colspan="9" class="muted">불러오지 못했습니다.</td></tr>`; $("studyInfo").textContent = "내 연구를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요."; return; }
-  studies = (data || []).filter((k) => STUDY[k.study]); mine = (data || []).filter((k) => !STUDY[k.study]); folders = fr.error ? [] : fr.data || [];
+  studies = sortStudies((data || []).filter((k) => STUDY[k.study])); mine = (data || []).filter((k) => !STUDY[k.study]); folders = fr.error ? [] : fr.data || [];
   const sf = KIFU_COLS.includes("study_folder_id") ? await sb.from("study_folders").select("id,study,name").order("created_at") : { error: true };
   canBranch = !sf.error; studyFolders = canBranch ? sf.data || [] : [];
   showStudies();
@@ -1449,6 +1454,36 @@ function showStudies() {
     `<select data-topic-move="${i}" aria-label="주제·갈래 옮기기">${opts(k)}</select>` +
     `<div class="study-tools">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></div></div></div>`).join("")
     || `<p class="muted study-none">${studyBranch ? "이 갈래에는 연구가 없습니다." : "이 주제에는 연구가 없습니다."}</p>`;
+  if (rows.length > 1 && KIFU_COLS.includes("sort_key")) studyDrag();
+}
+// 카드 순서 (user request 2026-10-10): drag a card to another place (on a phone: hold it first, so a swipe still
+// scrolls). The member's order is kept in saved_kifu.sort_key; a study that has none (new) comes first, newest first.
+// On a topic or 갈래 tab only the cards shown move, into the places those cards had in the whole list.
+function sortStudies(list) {
+  return list.slice().sort((a, b) => (a.sort_key == null) !== (b.sort_key == null) ? (a.sort_key == null ? -1 : 1)
+    : a.sort_key == null ? new Date(b.updated_at) - new Date(a.updated_at) : a.sort_key - b.sort_key);
+}
+let studySortable = null;
+async function studyDrag() {
+  if (studySortable) return;
+  let Sortable;
+  try { ({ default: Sortable } = await import("https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/+esm")); } catch { return; }   // no dragging, the list still works
+  if (studySortable) return;
+  studySortable = Sortable.create($("studyRows"), {
+    draggable: ".study-item", animation: 180, delay: 300, delayOnTouchOnly: true, touchStartThreshold: 6,
+    filter: "select, button", preventOnFilter: false, ghostClass: "study-ghost", chosenClass: "study-chosen",
+    onEnd: async (ev) => {
+      if (ev.oldIndex === ev.newIndex) return;
+      const shown = [...$("studyRows").querySelectorAll(".study-item")].map((el) => studies[+el.dataset.study]).filter(Boolean);
+      const shownSet = new Set(shown), order = studies.slice();
+      let j = 0;
+      for (let i = 0; i < order.length; i++) if (shownSet.has(order[i])) order[i] = shown[j++];
+      const { error } = await sb.rpc("reorder_studies", { p_ids: order.map((k) => k.id) });
+      if (error) { toast("순서를 저장하지 못했습니다: " + error.message, true); loadMine(); return; }
+      order.forEach((k, i) => { k.sort_key = i + 1; });
+      studies = order; showStudies();
+    },
+  });
 }
 // 학습방 미리보기 (user request 2026-10-10): the card's small board, from saved_kifu.preview (the analysis screen saves the
 // stones of the 시작 국면, or the end of the main line, with the study: {n, g = one of . x o per point, m = their move numbers, 0 = set up}).

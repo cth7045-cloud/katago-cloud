@@ -88,6 +88,9 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .study-tools { display: flex; justify-content: flex-end; gap: 2px; margin-right: -6px; }
 .study-tools button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
 .study-none { margin: 14px 0 0; }
+.study-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }   /* 길게 눌러 끌기: no text selection or menu */
+.study-ghost { opacity: .35; }
+.study-chosen { box-shadow: 0 0 0 2px var(--blue), 0 18px 36px -16px rgba(23, 26, 34, .45); }
 @media (max-width: 640px) {   /* two cards a row on a phone */
   .study-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .study-thumb { padding: 8px 8px 0; }
