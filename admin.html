@@ -281,6 +281,7 @@ showTab(location.hash.slice(1));
 addEventListener("hashchange", () => showTab(location.hash.slice(1)));   // a notification tap opens #charges
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;   // the installed app (as index.html)
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
 const PAGE = 10, pages = { session: 1, ledger: 1, speed: 1 }, lists = { session: [], ledger: [], speed: [] };
 const render = { session: null, ledger: null, speed: null };
@@ -372,8 +373,10 @@ async function load() {
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td class="note">${esc(note)}</td>` +
         `<td style="white-space:nowrap">${x.status === "ready" && x.web_url && x.web_token && !mine
-          // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing)
-          ? `<a class="btn" target="_blank" rel="noopener" href="analysis.html?v=${Date.now()}#u=${encodeURIComponent(x.web_url)}&t=${encodeURIComponent(x.web_token)}&view=1">화면 보기</a> ` : ""}` +
+          // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing).
+          // In the installed app the same window, like the member pages: a new window there has no page to go back to,
+          // so the back button closed the whole app (user report 2026-10-11).
+          ? `<a class="btn"${standalone ? "" : ' target="_blank" rel="noopener"'} href="analysis.html?v=${Date.now()}#u=${encodeURIComponent(x.web_url)}&t=${encodeURIComponent(x.web_token)}&view=1">화면 보기</a> ` : ""}` +
         `${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
     }).join("") || `<tr><td colspan="10" class="muted">없음</td></tr>`; };
     showPage("session");
