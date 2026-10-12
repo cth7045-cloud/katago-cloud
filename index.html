@@ -219,8 +219,8 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         </div>
         <div class="glist scroll-box">
           <table>
-            <thead><tr><th class="rd"></th><th>GPU · 지역</th><th class="num hide-sm">VRAM</th><th class="num">시간당</th><th class="num" title="가격 대비 성능: Vast 성능 점수(dlperf) ÷ 시간당 요금($). 높을수록 같은 돈에 빠릅니다">성능/$</th><th class="num hide-sm">CPU</th></tr></thead>
-            <tbody id="offerRows"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
+            <thead><tr><th class="rd"></th><th>GPU · 지역</th><th class="num hide-sm">VRAM</th><th class="num">시간당</th><th class="num hide-sm">CPU</th></tr></thead>
+            <tbody id="offerRows"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
         <!-- the chosen GPU and its start button, fixed at the bottom of the screen while one is picked -->
@@ -1635,7 +1635,7 @@ const modelWord = (name) => name.replace(/^KataGo\s*\((.+)\)$/, "$1");
 $("model").addEventListener("change", () => { modelTouched = true; });
 async function loadOffers() {
   picked = null; updatePick();   // takes the start bar out of the table before the rows are replaced
-  $("offerRows").innerHTML = `<tr><td colspan="6" class="muted">불러오는 중…</td></tr>`;
+  $("offerRows").innerHTML = `<tr><td colspan="5" class="muted">불러오는 중…</td></tr>`;
   try {
     const r = await api("/offers");
     // by country (the server's regionTier: 한국 → 일본 → 대만/홍콩 → 동남아), then dearest first (user request 2026-10-12)
@@ -1652,10 +1652,10 @@ async function loadOffers() {
       `<td><b class="gname">${esc(o.gpu)}</b><span class="m">${esc(o.region).replace("/", "/<wbr>")}<span class="show-sm"> · ${Math.round(o.vramGb)}GB</span></span>` +
       `${o.fast ? ` <span class="t2 fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1분 안팎)">⚡빠른 시작</span>` : ""}</td>` +
       `<td class="num hide-sm v">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
-      `<td class="num v">${o.perfPerDollar ? Math.round(o.perfPerDollar) : "-"}</td><td class="num hide-sm v">${o.cpuCores}</td></tr>`).join("")
-      || `<tr><td colspan="6" class="muted">지금 빌릴 수 있는 GPU가 없습니다.</td></tr>`;
+      `<td class="num hide-sm v">${o.cpuCores}</td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">지금 빌릴 수 있는 GPU가 없습니다.</td></tr>`;
   } catch (err) {
-    $("offerRows").innerHTML = `<tr><td colspan="6" class="error">${esc(err.message)}</td></tr>`;
+    $("offerRows").innerHTML = `<tr><td colspan="5" class="error">${esc(err.message)}</td></tr>`;
   }
 }
 $("refreshOffers").onclick = loadOffers;
