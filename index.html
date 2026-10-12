@@ -179,7 +179,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <div class="label" id="balanceLabel">내 잔액</div>
           <div class="big" id="balance">-</div>
         </div>
-        <p class="note" id="walletNote">충전은 관리자에게 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.</p>
       </div>
 
       <!-- running session -->
@@ -224,7 +223,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <tbody id="offerRows"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
-        <div class="small muted" id="pickHint" style="margin-top:14px">GPU를 누르면 아래에 시작 버튼이 나옵니다. 가격대비 성능과 안정성이 좋은 GPU만 추렸습니다. 반응이 느린 먼 지역(중국·호주·미국·유럽 등)은 뺐습니다. 한국에 가까울수록 반응이 빠릅니다. <span class="pill good fast">⚡빠른 시작</span>은 최근에 써 본 서버라 준비가 더 빠릅니다.</div>
         <!-- the chosen GPU and its start button, fixed at the bottom of the screen while one is picked -->
         <div class="cta-bar hidden" id="pickBar">
           <div class="in"><div class="grow"><b id="pickName"></b><span id="pickInfo"></span></div><button class="primary" id="startButton" disabled>시작</button></div>
@@ -346,7 +344,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <button class="primary" type="button" data-mine-add title="GPU 없이 빈 판에 기보를 직접 두어 기록합니다">＋ 기보 추가</button>
         </div>
         <nav class="folder-cards" id="folderCards" aria-label="분류"></nav>
-        <p class="small muted">분류는 <b>＋ 새 분류</b>로 직접 만들고(예: 타이젬 기보, 오프라인 기보), 분류를 연 뒤 기보마다 <b>분류</b> 칸에서 옮깁니다. 분류를 지워도 안의 기보는 '분류 없음'으로 갑니다.</p>
       </div>
       <!-- one folder's games (#mine/<all|none|id>) -->
       <div class="panel hidden" id="mineCard">
@@ -370,7 +367,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <tbody id="mineRows"><tr><td colspan="9" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
-        <div class="small muted" style="margin-top:14px">분석 화면의 '내 기보 저장'으로 저장한 기보입니다(최대 100판). <b>기보 추가</b>를 누르면 GPU 없이 빈 판에 수를 두어 기보를 기록하고 저장할 수 있습니다(이 분류로 저장). 각 기보의 <b>분류</b> 칸에서 다른 분류로 옮깁니다. 기보를 누르면 GPU 없이도 저장된 분석을 볼 수 있고, GPU가 켜져 있으면 그 GPU로 열려 이어서 분석할 수 있습니다.</div>
       </div>
     </div>
 
@@ -399,7 +395,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <div class="seg2 study-topics" id="studyTopics" role="group" aria-label="연구 주제"></div>
         <div class="study-branches hidden" id="studyBranches" role="group" aria-label="갈래"></div>
         <div class="hidden" id="studyList"><div class="study-grid" id="studyRows"></div></div>
-        <p class="small muted" style="margin:12px 0 0">분석 화면의 <b>내 기보 저장</b>에서 저장할 곳을 <b>학습방</b>(정석·포석·기타 연구, 그 안의 갈래)으로 고르면 수순·변화도와 분석값이 여기 저장됩니다(최대 100개, 내 기보 100판과 따로). 연구를 누르면 GPU 없이도 저장된 분석을 보고, GPU가 켜져 있으면 이어서 분석하며 자동 저장됩니다. 카드를 끌어 놓으면 순서가 바뀝니다(휴대폰은 카드를 길게 누른 뒤 끌기).</p>
       </div>
     </div>
 
@@ -766,10 +761,6 @@ async function refreshNow(light) {
   $("balanceLabel").textContent = !(p.is_admin && vastBalance?.krw != null) ? "내 잔액"
     : vastBalance.totalKrw != null ? `관리자 잔액 · Vast ${won(vastBalance.totalKrw)}($${vastBalance.usd.toFixed(2)}) − 회원 잔액 ${won(vastBalance.membersKrw)}`
     : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;   // a server before 2026-09-27 sends only the Vast balance
-  $("walletNote").textContent = p.is_admin
-    ? "관리자 잔액은 Vast 잔액에서 회원들이 충전해 둔 잔액을 뺀 금액입니다. 관리자 GPU는 원가로 여기서 나가고, 0원이 되면 자동으로 꺼집니다."
-    : "";
-  if (!p.is_admin) $("walletNote").innerHTML = `충전은 <a href="#charge">잔액 충전</a>에서 요청하세요. GPU를 쓰는 동안 1분 단위로 차감되고, 잔액이 떨어지면 GPU가 자동으로 꺼집니다.`;
   $("helloName").textContent = `${p.name || "회원"}님`;
   $("meTitle").textContent = p.name || p.email; $("meNameVal").textContent = p.name || "";
   $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();
