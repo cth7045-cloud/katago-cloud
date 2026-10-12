@@ -1200,7 +1200,9 @@ function requestLive() {
   if (!analyzing || quiz) return;   // solving a 오답노트 problem: no live search (it would give the answer away)
   const pda = pdaAt(cur);
   liveId = "q" + (++qn) + (pda ? "~" + pda : "");   // the PDA rides in the id, so other devices' copies (peerQuery) carry it too
-  queries.set(liveId, {node: cur});
+  // fresh: no analysis of this position on this screen yet (none of its own, 자동분석's, a saved one's or another
+  // device's), so KataGo's neural-net cache has not seen it either — only such searches go to the speed table (reportSpeed)
+  queries.set(liveId, {node: cur, fresh: !cur.analysis && !cur.pdaAn});
   // No visit limit: analysis runs until the member stops it or moves (like YZY pondering); AI moves use it too.
   // priority: KataGo serves queued positions first-come, so without it a new live query waited behind every
   // queued 자동분석 / 대국 리포트 turn and the main board looked stopped; higher priority goes to the next free thread.
@@ -1301,7 +1303,7 @@ function onMessage(msg) {
       const vps = Math.round((v - q.v0) * 1000 / (now - q.t0));
       if (analyzing) $("vps").textContent = `${vps} visits/s`;   // a report still in flight after 분석 정지 keeps the 0
       if (now - vpsFitAt > 3000) { vpsFitAt = now; fitVps(); }   // it just appeared, or room freed on the bar: no resize says so
-      reportSpeed(vps, now - q.t0, v - q.v0);
+      if (q.fresh) reportSpeed(vps, now - q.t0, v - q.v0);
     }
   }
   schedule();
@@ -1331,8 +1333,9 @@ function queryFailed(id) {
 }
 // GPU·모델별 속도 (admin page, 2026-09-29): the live analysis's visits/s goes to the database with this GPU's token
 // (report_speed: counted only while the rental is ready, one report per 8 s per rental; sent every 10 s). Only a clean measure: the
-// search ran at least 5 s (past its warm-up) and nothing else of this screen shares the GPU (자동분석, 대국 리포트,
-// 여러 기보 분석). Website only (the GPU's own page has no database access); an admin watching never reports.
+// search ran at least 5 s (past its warm-up), nothing else of this screen shares the GPU (자동분석, 대국 리포트,
+// 여러 기보 분석), and the position was new to this screen (requestLive's fresh, 2026-10-12: going back to a position
+// read its evaluations from KataGo's neural-net cache, and visits/s jumped — 105,223 on an RTX 5090). Website only (the GPU's own page has no database access); an admin watching never reports.
 let speedAt = -Infinity;
 function reportSpeed(vps, ms, visits) {
   if (!token || viewOnly || batchMode || GPU_HOST.test(location.hostname)) return;

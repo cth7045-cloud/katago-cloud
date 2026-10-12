@@ -128,10 +128,10 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 
     <div class="panel">
       <h2>GPU·모델별 속도</h2>
-      <p class="muted small lead">회원이 실시간 분석을 돌릴 때 10초마다 잰 visits/s입니다. '벤치마크'는 GPU 준비·시험 대여 때 KataGo가 잰 값입니다.</p>
+      <p class="muted small lead">회원이 실시간 분석을 돌릴 때 10초마다 잰 visits/s입니다(처음 분석하는 국면만 — 다시 본 국면은 신경망 캐시로 빨라져 뺌). '벤치마크'는 GPU 준비·시험 대여 때 KataGo가 잰 값입니다.</p>
       <label class="field" style="max-width:260px">모델<select id="speedModel"><option value="">전체</option></select></label>
       <div class="table-wrap"><table>
-        <thead><tr><th>GPU</th><th class="num">평균 visits/s</th><th>모델</th><th class="num">최고</th><th class="num" title="측정한 대여 수 · 기록 횟수">대여·기록</th><th class="num">스레드</th><th>마지막 측정</th><th>출처</th></tr></thead>
+        <thead><tr><th>GPU</th><th class="num">평균 visits/s</th><th>모델</th><th class="num" title="측정한 대여 수 · 기록 횟수">대여·기록</th><th class="num">스레드</th><th>마지막 측정</th><th>출처</th></tr></thead>
         <tbody id="speedRows"></tbody>
       </table></div>
       <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
@@ -400,7 +400,7 @@ const MODEL_NAMES = { "transformer-large": "Transformer 대형", "transformer-me
 let speedRows = [];
 const modelName = (r) => r.model_name || MODEL_NAMES[r.model_id] || r.model_id;
 function showSpeed() {
-  if (speedRows == null) { $("speedRows").innerHTML = `<tr><td colspan="8" class="muted">속도 기록을 불러오지 못했습니다.</td></tr>`; $("speedPager").innerHTML = ""; return; }
+  if (speedRows == null) { $("speedRows").innerHTML = `<tr><td colspan="7" class="muted">속도 기록을 불러오지 못했습니다.</td></tr>`; $("speedPager").innerHTML = ""; return; }
   const pick = $("speedModel"), keep = pick.value;
   const ids = [...new Set(speedRows.map((r) => r.model_id))].sort((a, b) => modelName({ model_id: a }).localeCompare(modelName({ model_id: b }), "ko"));
   pick.innerHTML = `<option value="">전체</option>` + ids.map((id) => `<option value="${esc(id)}">${esc(modelName({ model_id: id }))}</option>`).join("");
@@ -410,10 +410,10 @@ function showSpeed() {
   showPage("speed");
 }
 render.speed = (list) => { $("speedRows").innerHTML = list.map((r) => `<tr><td>${esc(r.gpu_name)}</td><td class="num"><b>${Number(r.avg_vps).toLocaleString()}</b></td>` +
-  `<td>${esc(modelName(r))}</td><td class="num">${Number(r.best_vps).toLocaleString()}</td>` +
+  `<td>${esc(modelName(r))}</td>` +
   `<td class="num">${r.source === "use" ? `${r.sessions} · ${r.samples}` : ""}</td><td class="num">${r.threads ?? ""}</td><td>${when(r.last_at)}</td>` +
   `<td class="small muted">${r.source === "use" ? "실사용" : "벤치마크"}</td></tr>`).join("")
-  || `<tr><td colspan="8" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
+  || `<tr><td colspan="7" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
 $("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
 
 // ------------------------------------------------------------------ KataGo 엔진·모델 (engine_models / engine_config / engine_updates)
