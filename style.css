@@ -712,6 +712,7 @@ a.subline:hover { text-decoration: none; }
   .show-sm { display: inline; }
   #startCard .glist th, #startCard .glist td { padding: 11px 6px; font-size: 14px; }
   #startCard .glist .rd { width: 30px; padding-left: 10px; }
+  #startCard .glist td:nth-child(2) { white-space: normal; }   /* long names: RTX PRO 6000 Max-Q, RTX 4090 ×4 */
   .glist .t2 { margin-top: 4px; }
 }
 
