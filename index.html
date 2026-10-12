@@ -1647,7 +1647,8 @@ async function loadOffers() {
   $("offerRows").innerHTML = `<tr><td colspan="6" class="muted">불러오는 중…</td></tr>`;
   try {
     const r = await api("/offers");
-    offers = r.offers;
+    // by country (the server's regionTier: 한국 → 일본 → 대만/홍콩 → 동남아), then dearest first (user request 2026-10-12)
+    offers = r.offers.slice().sort((a, b) => (a.regionTier ?? 9) - (b.regionTier ?? 9) || b.priceKrw - a.priceKrw || b.perfPerDollar - a.perfPerDollar);
     const sel = $("model"), keep = sel.value;
     sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
     defaultModel = r.defaultModel;
