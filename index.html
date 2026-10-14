@@ -223,6 +223,8 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <tbody id="offerRows"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
+        <!-- members' rentals 2026-10-08~14: ⚡ median 71 s (3/4 within 2.3 min), others 123 s (3/4 within 2.8 min) -->
+        <p class="muted small" style="margin:10px 2px 0">보통 준비 시간 <span class="t2 fast">⚡빠른 시작</span> 1~2분 · 그 외 2~3분</p>
         <!-- the chosen GPU and its start button, fixed at the bottom of the screen while one is picked -->
         <div class="cta-bar hidden" id="pickBar">
           <div class="in"><div class="grow"><b id="pickName"></b><span id="pickInfo"></span></div><button class="primary" id="startButton" disabled>시작</button></div>
@@ -1650,7 +1652,7 @@ async function loadOffers() {
     else $("testEngine").checked = false;
     $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td class="rd"><span class="radio" aria-hidden="true"></span></td>` +
       `<td><b class="gname">${esc(o.gpu)}</b><span class="m"><span class="show-sm">${Math.round(o.vramGb)}GB</span></span>` +
-      `${o.fast ? ` <span class="t2 fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1분 안팎)">⚡빠른 시작</span>` : ""}</td>` +
+      `${o.fast ? ` <span class="t2 fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1~2분)">⚡빠른 시작</span>` : ""}</td>` +
       `<td class="num hide-sm v">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
       `<td class="num hide-sm v">${o.cpuCores}</td></tr>`).join("")
       || `<tr><td colspan="5" class="muted">지금 빌릴 수 있는 GPU가 없습니다.</td></tr>`;
@@ -1677,7 +1679,7 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
 $("startButton").onclick = async () => {
   if (!picked) return;
   const pay = profile?.is_admin ? "관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다" : "1분 단위로 잔액에서 차감됩니다";
-  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1분 안팎" : "보통 1~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
+  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1~2분" : "보통 2~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
   const autoBatch = batchAutoOk();
   if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
