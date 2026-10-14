@@ -262,6 +262,7 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 
 /* ------------------------------------------------------------------ admin */
 .admin-form { display: grid; grid-template-columns: 1.4fr 180px 1.4fr auto; gap: 12px; align-items: end; }
+.caps input { width: 110px; text-align: right; }
 
 /* ------------------------------------------------------------------ toast */
 #toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 24px) scale(.96); opacity: 0; pointer-events: none; z-index: 50;

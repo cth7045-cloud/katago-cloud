@@ -219,7 +219,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         </div>
         <div class="glist scroll-box">
           <table>
-            <thead><tr><th class="rd"></th><th>GPU · 지역</th><th class="num hide-sm">VRAM</th><th class="num">시간당</th><th class="num hide-sm">CPU</th></tr></thead>
+            <thead><tr><th class="rd"></th><th>GPU</th><th class="num hide-sm">VRAM</th><th class="num">시간당</th><th class="num hide-sm">CPU</th></tr></thead>
             <tbody id="offerRows"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
@@ -844,7 +844,7 @@ function showSession(s) {
   if (!s) return;
   const st = s.status, ready = st === "ready", live = ACTIVE.includes(st);
   $("sessionCard").classList.toggle("is-ready", ready);
-  $("sessionTitle").textContent = `${s.gpu_name || "GPU"} · ${s.region || ""} · ${currentModelName(s)}`;
+  $("sessionTitle").textContent = `${s.gpu_name || "GPU"} · ${currentModelName(s)}`;
   const pill = { creating: ["대여 중", "warn"], booting: ["부팅 중", "warn"], setup: ["설치 중", "warn"], ready: ["사용 가능", "good"],
                  stopping: ["종료 중", "warn"], stopped: ["종료됨", ""], failed: ["실패", "bad"] }[st] || [st, ""];
   $("sessionPill").textContent = pill[0]; $("sessionPill").className = "pill " + pill[1];
@@ -1638,8 +1638,8 @@ async function loadOffers() {
   $("offerRows").innerHTML = `<tr><td colspan="5" class="muted">불러오는 중…</td></tr>`;
   try {
     const r = await api("/offers");
-    // by country (the server's regionTier: 한국 → 일본 → 대만/홍콩 → 동남아), then dearest first (user request 2026-10-12)
-    offers = r.offers.slice().sort((a, b) => (a.regionTier ?? 9) - (b.regionTier ?? 9) || b.priceKrw - a.priceKrw || b.perfPerDollar - a.perfPerDollar);
+    // dearest first, no countries shown (user 2026-10-14; by country first from 2026-10-12); same price: nearer first
+    offers = r.offers.slice().sort((a, b) => b.priceKrw - a.priceKrw || (a.regionTier ?? 9) - (b.regionTier ?? 9) || b.perfPerDollar - a.perfPerDollar);
     const sel = $("model"), keep = sel.value;
     sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
     defaultModel = r.defaultModel;
@@ -1649,7 +1649,7 @@ async function loadOffers() {
     if (r.testEngine) $("testEngineText").textContent = `시험 엔진 ${r.testEngine}로 켜기 (지금 ${r.engine})`;
     else $("testEngine").checked = false;
     $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td class="rd"><span class="radio" aria-hidden="true"></span></td>` +
-      `<td><b class="gname">${esc(o.gpu)}</b><span class="m">${esc(o.region).replace("/", "/<wbr>")}<span class="show-sm"> · ${Math.round(o.vramGb)}GB</span></span>` +
+      `<td><b class="gname">${esc(o.gpu)}</b><span class="m"><span class="show-sm">${Math.round(o.vramGb)}GB</span></span>` +
       `${o.fast ? ` <span class="t2 fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1분 안팎)">⚡빠른 시작</span>` : ""}</td>` +
       `<td class="num hide-sm v">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
       `<td class="num hide-sm v">${o.cpuCores}</td></tr>`).join("")
@@ -1670,14 +1670,14 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
   document.body.classList.toggle("has-pick", !!picked);
   $("startButton").disabled = !picked;
   if (picked) {
-    $("pickName").textContent = `${picked.gpu} · ${picked.region} · ${modelWord($("model").selectedOptions[0]?.textContent || "")}`;
+    $("pickName").textContent = `${picked.gpu} · ${modelWord($("model").selectedOptions[0]?.textContent || "")}`;
     $("pickInfo").textContent = `시간당 ${won(picked.priceKrw)} · 쓰는 만큼 1분 단위`;
   }
 }
 $("startButton").onclick = async () => {
   if (!picked) return;
   const pay = profile?.is_admin ? "관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다" : "1분 단위로 잔액에서 차감됩니다";
-  const msg = `${picked.gpu} (${picked.region})\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1분 안팎" : "보통 1~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
+  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1분 안팎" : "보통 1~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
   const autoBatch = batchAutoOk();
   if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";

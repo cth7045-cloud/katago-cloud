@@ -250,6 +250,21 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <p class="muted small" id="settingsLine"></p>
     </div>
 
+    <div class="panel">
+      <h2>GPU 종류별 원가 상한</h2>
+      <p class="muted small lead">카드 1장의 시간당 원가가 상한보다 비싼 GPU는 회원 목록에서 뺍니다. 2~4장 기계는 장수만큼 곱합니다. 칸을 비우면 그 종류는 상한이 없습니다.</p>
+      <div class="table-wrap"><table class="caps">
+        <thead><tr><th>GPU</th><th class="num">원가 상한</th><th class="num">회원가 상한</th></tr></thead>
+        <tbody id="capRows"></tbody>
+      </table></div>
+      <form id="capAdd" class="inline-form" style="margin-top:12px">
+        <label class="field">GPU 이름 (Vast 표기, 예: RTX 4070S)<input id="capName" maxlength="24" placeholder="RTX 4070S"></label>
+        <label class="field">원가 상한(원)<input id="capWon" type="number" min="10" max="100000" step="10"></label>
+        <button class="quiet" type="submit">추가</button>
+        <button class="primary" type="button" id="capSave">상한 저장</button>
+      </form>
+    </div>
+
     </section>
 
   </div>
@@ -327,6 +342,8 @@ async function load() {
       || `<tr><td colspan="6" class="muted">없음</td></tr>`;
     const s = d.settings;
     if (!priceDirty) { $("pRate").value = Number(s.usd_krw); $("pMarkup").value = Number(s.markup); showExample(); }
+    capSettings = s;
+    if (!capsDirty) { caps = { ...(s.gpu_caps || {}) }; drawCaps(); }
     $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
     const plain = d.members.filter((m) => !m.is_admin), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
     $("memberCount").textContent = `${d.members.length}명`;
@@ -568,6 +585,38 @@ $("priceForm").onsubmit = async (ev) => {
     priceDirty = false;
     toast(`저장했습니다. 환율 ${Number(r.usd_krw).toLocaleString()}원 · 배율 ${Number(r.markup)}배`);
     load();
+  } catch (e) { toast(e.message, true); }
+};
+
+// price caps per GPU kind (app_settings.gpu_caps, the server's worthRenting): cost of one card, won per hour
+let caps = {}, capsDirty = false, capSettings = null;
+function drawCaps() {
+  const markup = Number(capSettings?.markup) || 1;
+  const rows = Object.entries(caps).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  $("capRows").innerHTML = rows.map(([g, v]) => `<tr><td>${esc(g)}</td>` +
+    `<td class="num"><input type="number" min="10" max="100000" step="10" value="${v}" data-cap="${esc(g)}" aria-label="${esc(g)} 원가 상한"></td>` +
+    `<td class="num muted">${won(Math.ceil(v * markup / 10) * 10)}</td></tr>`).join("")
+    || `<tr><td colspan="3" class="muted">상한 없음 — 모든 종류가 가성비 기준만 받습니다.</td></tr>`;
+}
+$("capRows").addEventListener("change", (ev) => {
+  const g = ev.target.dataset?.cap; if (!g) return;
+  const v = Math.round(Number(ev.target.value));
+  if (ev.target.value === "" || !(v > 0)) delete caps[g]; else caps[g] = v;
+  capsDirty = true; drawCaps();
+});
+$("capAdd").onsubmit = (ev) => {
+  ev.preventDefault();
+  const g = $("capName").value.trim().replace(/\s+/g, " "), v = Math.round(Number($("capWon").value));
+  if (!/^RTX \d{4}/.test(g)) return toast("GPU 이름은 'RTX 4070S'처럼 Vast 표기대로 넣어 주세요.", true);
+  if (!(v >= 10)) return toast("원가 상한을 넣어 주세요.", true);
+  caps[g] = v; capsDirty = true; $("capName").value = ""; $("capWon").value = ""; drawCaps();
+};
+$("capSave").onclick = async () => {
+  if (!confirm(`GPU ${Object.keys(caps).length}종의 원가 상한을 저장할까요?\n회원 GPU 목록에 바로 적용됩니다.`)) return;
+  try {
+    const r = await api("/admin/settings", { gpu_caps: caps });
+    capsDirty = false; caps = { ...(r.gpu_caps || {}) }; drawCaps();
+    toast("상한을 저장했습니다.");
   } catch (e) { toast(e.message, true); }
 };
 
