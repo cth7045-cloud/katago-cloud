@@ -2150,6 +2150,16 @@ function setLocal(stage, pill, text) {
   $("localProgress").textContent = text;
 }
 function endLocal() { if (localWorker) { localWorker.terminate(); localWorker = null; } }
+// 내 기기로 분석 기록 (2026-10-15): one row when it is ready or failed, for the admin's list of members' use (no charge;
+// how long it is used afterwards is not tracked)
+function logDevice(status, model, device, error) {
+  const ua = navigator.userAgent;
+  const os = /Windows/.test(ua) ? "Windows" : iOS ? "iPhone·iPad" : android ? "Android" : /Mac OS/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "기타";
+  const app = window.kgcAppSync ? "PC 앱" : standalone ? "설치 앱" : /SamsungBrowser/.test(ua) ? "삼성 인터넷" : /Edg\//.test(ua) ? "Edge" : /Whale/.test(ua) ? "웨일"
+    : /CriOS|Chrome/.test(ua) ? "Chrome" : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "";
+  sb.from("device_runs").insert({ status, model, device: device || null, platform: [os, app].filter(Boolean).join(" · "),
+    error: error ? String(error).slice(0, 300) : null }).then(() => {}, () => {});
+}
 $("deviceStart").onclick = () => {
   endLocal();
   const m = $("deviceModel").value, w = localWorker = new Worker("localengine.js" + (m === "balanced" ? "?m=balanced" : ""));
@@ -2159,7 +2169,7 @@ $("deviceStart").onclick = () => {
   $("localOpen").classList.add("hidden"); $("localStop").textContent = "준비 취소"; $("localError").textContent = "";
   setLocal(1, ["준비 중", "warn"], "모델 확인 중");
   const fail = (msg) => {
-    endLocal(); setLocal(0, ["실패", "bad"], "");
+    endLocal(); setLocal(0, ["실패", "bad"], ""); logDevice("failed", LOCAL_MODELS[m], null, msg);
     $("localError").textContent = "엔진을 켜지 못했습니다: " + msg; $("localStop").textContent = "닫기";
     alertMember("내 기기 준비 실패", "이 기기에서 엔진을 켜지 못했습니다.", true);
   };
@@ -2178,6 +2188,7 @@ $("deviceStart").onclick = () => {
       setLocal(3, ["사용 가능", "good"], "");
       $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}로 계산`;
       $("localOpen").href = url; $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
+      logDevice("ready", LOCAL_MODELS[m], d.device);
       alertMember("내 기기 준비 완료", "준비가 끝났습니다. '분석 화면 열기'를 누르세요.", true);
     }
   };

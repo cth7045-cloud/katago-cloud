@@ -121,7 +121,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 
     <section class="tab" data-tab="gpu">
     <div class="panel">
-      <h2>실행 중이거나 최근 GPU</h2>
+      <h2>실행 중이거나 최근 사용 <span class="muted small">GPU · 내 기기</span></h2>
       <p class="muted small lead" id="costLine"></p>
       <div class="table-wrap"><table>
         <thead><tr><th>회원</th><th>상태</th><th title="GPU · 지역 / 모델">GPU · 모델</th><th class="num" title="회원 요금 · Vast 원가($)">시간당</th><th title="시작 시각 · 사용 시간(부팅 포함)">시작</th><th class="num">받은 요금</th>
@@ -403,8 +403,15 @@ async function load() {
       const m = Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000));
       return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
     };
-    lists.session = d.sessions;
+    // 내 기기로 분석 (2026-10-15): the members' own-device runs between the rentals, newest first (no charge, no length)
+    lists.session = [...d.sessions, ...(d.devices || []).map((r) => ({ ...r, dev: true }))]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     render.session = (list) => { $("sessionRows").innerHTML = list.map((x) => {
+      if (x.dev) return `<tr class="devrow"><td title="${esc(who(x.user_id))}">${esc(whoName(x.user_id))}</td>` +
+        `<td><span class="pill ${x.status === "ready" ? "" : "bad"}">${x.status === "ready" ? "내 기기" : "내 기기 실패"}</span></td>` +
+        `<td>내 기기${x.device ? ` · ${esc(x.device)}` : ""}<span class="sub">${esc(x.model)}</span></td><td class="num muted">무료</td>` +
+        `<td>${when(x.created_at)}<span class="sub">${esc(x.platform || "")}</span></td><td></td><td></td><td></td>` +
+        `<td class="note">${esc(x.error || "")}</td><td></td></tr>`;
       const live = ACTIVE.includes(x.status);
       const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
       const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;
