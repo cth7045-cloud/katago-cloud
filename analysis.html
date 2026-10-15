@@ -627,7 +627,7 @@ button.primary:hover { background: var(--blue-deep); }
   <details class="menu" id="fileMenu">
     <summary>기보</summary>
     <div class="items">
-      <button id="openSgf">SGF·GIB 열기…</button>
+      <button id="openSgf">기보 파일 열기…</button>
       <button id="openMine" hidden>내 기보 열기</button>
       <button id="kifuOpen">한큐 기보 불러오기…</button>
       <button id="photoKifu">사진으로 배치 입력…</button>
@@ -680,7 +680,7 @@ button.primary:hover { background: var(--blue-deep); }
   <span class="status" id="vps"></span>
   <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button></span>
   <span class="status" id="connStatus"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
-  <input type="file" id="fileInput" accept=".sgf,.gib,application/x-go-sgf" hidden>
+  <input type="file" id="fileInput" accept=".sgf,.gib,.ngf,.ugf,.ugi,.mgt,application/x-go-sgf" hidden>
 </header>
 
 <dialog id="kifuDlg" aria-label="기보 불러오기">
@@ -1832,7 +1832,7 @@ function starXY(k) {
 }
 const HANDICAP_POINTS = {2: "tr bl", 3: "tr bl br", 4: "tr bl br tl", 5: "tr bl br tl c", 6: "tr bl br tl l r",
                          7: "tr bl br tl l r c", 8: "tr bl br tl l r t b", 9: "tr bl br tl l r t b c"};
-const HANDICAP_FOX = {3: "tr bl tl"};   // 한큐바둑 3점: 좌상·우상·좌하 (나머지는 위와 같음)
+const HANDICAP_FOX = {3: "tr bl tl"};   // 한큐바둑·타이젬 3점: 좌상·우상·좌하 (나머지는 위와 같음; 타이젬은 2026-10-15 실제 기보로 확인)
 function handicapRoot(n) { return HANDICAP_POINTS[n] && n <= HANDICAP_MAX[N] ? makeRoot({B: HANDICAP_POINTS[n].split(" ").map(starXY), W: []}, "W") : makeRoot(); }
 // 판 크기: a 9x9 board takes at most 5 handicap stones (the four corners and the middle)
 function limitHandicap(sel, n) {
@@ -1956,9 +1956,101 @@ function gibToSgf(text) {
   if (ha >= 2 && ha <= 9 && n >= 9) {
     const lo = n >= 13 ? 3 : 2, hi = n - 1 - lo, mid = (n - 1) / 2;
     const pt = {tr: c(hi, lo), bl: c(lo, hi), br: c(hi, hi), tl: c(lo, lo), c: c(mid, mid), l: c(lo, mid), r: c(hi, mid), t: c(mid, lo), b: c(mid, hi)};
-    sgf += `HA[${ha}]AB` + HANDICAP_POINTS[ha].split(" ").map(k => `[${pt[k]}]`).join("") + "PL[W]";
+    sgf += `HA[${ha}]AB` + (HANDICAP_FOX[ha] || HANDICAP_POINTS[ha]).split(" ").map(k => `[${pt[k]}]`).join("") + "PL[W]";
   }
   return sgf + moves + ")";
+}
+// 다른 바둑 사이트의 기보 파일(사용자 요청 2026-10-15 "다른 사이트들의 기보 파일도 전부"). 서버별 형식: 한큐·OGS·KGS·대부분 = SGF
+// (.sgf, 옛 .mgt도 내용은 SGF), 타이젬 = GIB(위), 위바둑(옛 사이버오로) = NGF, 판다넷 = UGF(.ugf·.ugi). NGF·UGF는 공개 명세가 없어
+// 공개 변환기 Sabaki(MIT)·gofish·sgfutils와 같게 읽는다(시험 파일도 Sabaki의 것). 모두 SGF로 바꿔 같은 길로 연다.
+const kifuEsc = v => String(v).trim().replace(/[\\\]]/g, "\\$&");
+const kifuXY = (x, y, n) => x >= 0 && x < n && y >= 0 && y < n ? String.fromCharCode(97 + x, 97 + y) : "";   // 판 밖 = 쉼
+const kifuDate = s => { const d = (s || "").match(/(\d{4})\D?(\d{1,2})\D?(\d{1,2})/); return d ? `DT[${d[1]}-${d[2].padStart(2, "0")}-${d[3].padStart(2, "0")}]` : ""; };
+function kifuRank(s) {   // "9DP"·"9p" 프로, "7D*"·"7d" 단, "15K"·"2k?" 급
+  const m = (s || "").trim().match(/^(\d{1,2})\s*(DP|P|D|K)/i);
+  if (!m) return "";
+  const k = m[2].toUpperCase();
+  return k === "K" ? `${m[1]}급` : k === "D" ? `${m[1]}단` : `프로 ${m[1]}단`;
+}
+const kifuPlayer = (side, name, rank) => (name ? `P${side}[${kifuEsc(name)}]` : "") + (kifuRank(rank) ? `${side}R[${kifuRank(rank)}]` : "");
+// 위바둑 .ngf: 줄 단위 머리글 — 0 대국 이름, 1 판 크기, 2 백 "이름 9DP", 3 흑, 4 사이트, 5 접바둑 돌 수, 7 덤(정수면 반집: 6 → 6.5),
+// 8 날짜 "20170316 [09:37]", 10 결과 "Black wins by 0.5!" · "White wins by  resign!" — 그다음 수순 "PM" + 수 번호 2글자 + 색 +
+// 열·행(B = 첫 줄) + 같은 좌표 거꾸로. 옛 파일(머리글 줄마다 "GI")은 0 대국, 1·2 대국자, 5 날짜, 6 판 크기, 7 접바둑, 9 덤.
+// 접바둑 돌은 적혀 있지 않다: HA만 넣으면 loadSgf가 놓는다(백 먼저).
+const isNgf = text => !/\(\s*;/.test(text) && /(^|\n)\s*PM[A-Z]{2}[BW][A-Z]{2}/i.test(text);
+function ngfToSgf(text) {
+  const lines = text.split(/\r?\n/).map(s => s.trim()), old = /^GI/.test(lines[0]);
+  const h = old ? lines.map(s => s.replace(/^GI/, "")) : lines;
+  const [size, ha, km, date, white, black] = old ? [+h[6], +h[7], parseFloat(h[9]), h[5], h[1], h[2]] : [+h[1], +h[5], parseFloat(h[7]), h[8], h[2], h[3]];
+  const n = SIZES.includes(size) ? size : 19;
+  let sgf = `(;GM[1]FF[4]CA[UTF-8]SZ[${n}]`;
+  const who = s => { const p = (s || "").split(/\s+/).filter(Boolean); return p.length > 1 && kifuRank(p[p.length - 1]) ? [p.slice(0, -1).join(" "), p[p.length - 1]] : [p.join(" "), ""]; };
+  sgf += kifuPlayer("B", ...who(black)) + kifuPlayer("W", ...who(white)) + kifuDate(date);
+  if (h[0] && !/^rated game$/i.test(h[0])) sgf += `EV[${kifuEsc(h[0])}]`;
+  if (Number.isFinite(km)) sgf += `KM[${ha >= 2 ? km : km > 0 && Number.isInteger(km) ? km + .5 : km}]`;
+  if (ha >= 2 && ha <= 9) sgf += `HA[${ha}]`;
+  const res = old ? "" : h[10] || "";
+  const win = /black\s+win|white\s+lose|흑\S*\s*승/i.test(res) ? "B" : /white\s+win|black\s+lose|백\S*\s*승/i.test(res) ? "W" : "";
+  if (win) sgf += `RE[${win}+${/resign|불계/i.test(res) ? "R" : /time|시간/i.test(res) ? "T" : (res.match(/\d+(\.\d+)?/) || [""])[0]}]`;
+  for (const line of lines) {
+    const m = line.match(/^PM[A-Z]{2}([BW])([A-Z])([A-Z])/i);
+    if (m) sgf += `;${m[1].toUpperCase()}[${kifuXY(m[2].toUpperCase().charCodeAt(0) - 66, m[3].toUpperCase().charCodeAt(0) - 66, n)}]`;
+  }
+  return sgf + ")";
+}
+// 판다넷 .ugf·.ugi: [Header] "이름=값"(Size, Hdcp=접바둑,덤 — 덤이 음수면 역덤, PlayerB=이름,급수,…, Date=2019/03/08,…, Winner=B,7.50,
+// Title, Place) + [Data] "좌표,색n,수 번호,시간"(좌표 두 글자 A = 첫 줄, CoordinateType=IGS면 행을 아래에서부터 셈, YA처럼 판 밖 = 쉼,
+// 수 번호 0 = 접바둑 돌). 검토 파일의 변화도·해설([ReviewNode]·[ReviewComment])은 읽지 않고 실제 대국 수순만.
+const isUgf = text => /^\s*(#[^\n]*\n\s*)*\[Header\]/i.test(text) && /\[Data\]/i.test(text);
+function ugfToSgf(text) {
+  const head = {}, data = [];
+  let section = "";
+  for (const raw of text.split(/\r?\n|\r/)) {
+    const line = raw.trim(), sec = line.match(/^\[(\w+)\]$/);
+    if (sec) { section = sec[1].toLowerCase(); continue; }
+    if (section === "header") { const i = line.indexOf("="); if (i > 0) head[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim(); }
+    else if (section === "data" && line) data.push(line.split(","));
+  }
+  const size = parseInt(head.size, 10), n = SIZES.includes(size) ? size : 19, igs = /igs/i.test(head.coordinatetype || "");
+  const [ha, km] = (head.hdcp || "").split(",").map(parseFloat);
+  const xy = c => { const s = (c || "").toUpperCase(), x = s.charCodeAt(0) - 65, y = s.charCodeAt(1) - 65; return kifuXY(x, igs ? n - 1 - y : y, n); };
+  let sgf = `(;GM[1]FF[4]CA[UTF-8]SZ[${n}]`;
+  for (const [side, key] of [["B", "playerb"], ["W", "playerw"]]) { const p = (head[key] || "").split(","); sgf += kifuPlayer(side, p[0], p[1]); }
+  sgf += kifuDate(head.date);
+  const title = (head.title || "").split(",").filter(s => s && !/^\d{4}$/.test(s)).join(" ");
+  if (title) sgf += `EV[${kifuEsc(title)}]`;
+  if (Number.isFinite(km)) sgf += `KM[${km}]`;
+  if (ha >= 2 && ha <= 9) sgf += `HA[${ha}]`;
+  const w = (head.winner || "").split(","), margin = parseFloat(w[1]);
+  if (/^[BW]$/i.test(w[0])) sgf += `RE[${w[0].toUpperCase()}+${Number.isFinite(margin) && margin > 0 ? margin : /r/i.test(w[1] || "") ? "R" : ""}]`;
+  else if (/^D$/i.test(w[0])) sgf += "RE[0]";
+  const stones = data.filter(d => +d[2] === 0 && /^B/i.test(d[1] || "")).map(d => xy(d[0])).filter(Boolean);
+  if (stones.length) sgf += "AB" + stones.map(p => `[${p}]`).join("") + "PL[W]";
+  for (const d of data) if (+d[2] > 0 && /^[BW]/i.test(d[1] || "")) sgf += `;${d[1][0].toUpperCase()}[${xy(d[0])}]`;
+  return sgf + ")";
+}
+const kifuToSgf = text => isGib(text) ? gibToSgf(text) : isUgf(text) ? ugfToSgf(text) : isNgf(text) ? ngfToSgf(text) : text;
+const KIFU_FILE = /\.(sgf|gib|ngf|ugf|ugi|mgt)$/i;
+// 기보 파일의 글자(대국자 이름 등): UTF-8이 아니면 파일이 알려 주는 글자 집합(SGF CA[…], 판다넷 Lang=…)으로, 없으면 내용으로 고른다 —
+// 가나가 있으면 일본어(Shift_JIS), 한국어(EUC-KR)로 읽은 한글이 흔한 글자가 아니면(중국어를 한국어로 읽으면 드문 한글이 나옴) 중국어(GB18030),
+// 아니면 한국어. 수순은 글자와 상관없이 같다.
+const KIFU_CHARSETS = {"euc-kr": "euc-kr", "ks_c_5601-1987": "euc-kr", cp949: "euc-kr", uhc: "euc-kr", gb2312: "gb18030", gbk: "gb18030",
+  gb18030: "gb18030", cp936: "gb18030", big5: "big5", "shift_jis": "shift_jis", sjis: "shift_jis", cp932: "shift_jis", "windows-31j": "shift_jis",
+  "euc-jp": "euc-jp", "utf-8": "utf-8", utf8: "utf-8", "iso-8859-1": "windows-1252", latin1: "windows-1252"};
+const KO_COMMON = new Set("이가의는을를에서하고다지기사대한국정김박최조강윤장임신오권황안송류홍전고문양손배백흑승패단급집반불계시간바둑보님선수왕명인천원성배회결준예본리그타젬로큐위아마프민영현진호석철재동우상훈경희연주혜은미유용태수도");
+function decodeKifu(buf) {
+  const bytes = new Uint8Array(buf);
+  try { return new TextDecoder("utf-8", {fatal: true}).decode(bytes); } catch { /* not UTF-8 */ }
+  const head = new TextDecoder("windows-1252").decode(bytes.subarray(0, 8192));
+  const hint = (head.match(/CA\[([^\]]+)\]/) || head.match(/^\s*Lang=([^\r\n,]+)/im) || [])[1];
+  const named = hint && KIFU_CHARSETS[hint.trim().toLowerCase()];
+  if (named) try { return new TextDecoder(named).decode(bytes); } catch { /* not known to this browser */ }
+  const kr = new TextDecoder("euc-kr").decode(bytes), jp = new TextDecoder("shift_jis").decode(bytes);
+  const hangul = kr.match(/[가-힣]/g) || [], kana = (jp.match(/[ぁ-ヿ]/g) || []).length;
+  const korean = hangul.length > 0 && hangul.filter(c => KO_COMMON.has(c)).length >= hangul.length * .2;
+  if (!korean && kana >= 2 && !jp.includes("�")) return jp;
+  if (hangul.length ? !korean : /[一-鿿]/.test(kr)) return new TextDecoder("gb18030").decode(bytes);
+  return kr;
 }
 // 한큐(Fox) SGF 파일을 직접 열 때의 덤(2026-10-15 회원 제보: 한큐 호선 기보를 파일로 열었더니 정선·덤 0, 빈 판 흑 94%).
 // 사이트의 한큐 불러오기는 서버가 고쳐 주지만(kifu.ts cleanFoxSgf) 파일에는 한큐 그대로 적혀 있다: 덤을 100배로
@@ -1970,7 +2062,7 @@ function foxKomi(first, km) {
   return km === 0 && !chinese && !(ha >= 1 && ha <= 9) ? 6.5 : km;
 }
 function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main line only, like YZY
-  if (isGib(text)) text = gibToSgf(text);
+  text = kifuToSgf(text);
   const t = parseSgf(text), first = t.nodes[0] || {};
   const size = first.SZ ? parseInt(first.SZ[0], 10) : 19;
   if (!SIZES.includes(size)) throw new Error("9줄·13줄·19줄 기보만 지원합니다");
@@ -1986,6 +2078,11 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   if (ha >= 2 && ha <= HANDICAP_MAX[size] && !setup.B.length && !setup.W.length && toPlay === "W") {
     setSize(size);   // starXY reads the board size
     tries = [...new Set([HANDICAP_FOX[ha], HANDICAP_POINTS[ha]].filter(Boolean))].map(s => ({B: s.split(" ").map(starXY), W: []}));
+  } else if (ha === 3 && SIZES.includes(size) && !setup.W.length && toPlay === "W") {
+    // 2026-10-15 전에 타이젬 3점을 우하에 놓아 바꾼 기보(분석 화면·PC 앱이 내 기보에 넣은 것): 둘 수 없는 수가 나오면 타이젬 배치로
+    setSize(size);
+    const key = pts => pts.map(p => p.join(",")).sort().join(" ");
+    if (key(setup.B) === key(HANDICAP_POINTS[3].split(" ").map(starXY))) tries.push({B: HANDICAP_FOX[3].split(" ").map(starXY), W: []});
   }
   let newRoot, skipped;
   for (const s of tries) {
@@ -2150,8 +2247,7 @@ function nodeByMoves(text) {   // "BQ16 WD4 Bpass" from the root, or null
   return n;
 }
 async function readSgfFile(file) {
-  const buf = await file.arrayBuffer();
-  try { return new TextDecoder("utf-8", {fatal: true}).decode(buf); } catch { return new TextDecoder("euc-kr").decode(buf); }
+  return decodeKifu(await file.arrayBuffer());
 }
 // 드롭다운(기보 · 바둑판 · 보기 · 편집): 하나만 열림, 바깥을 누르거나 Esc면 닫힘, 일을 하는 버튼을 누르면 닫힘(켜고 끄는 것은 열린 채)
 const dropMenus = [...document.querySelectorAll("details.menu")];
@@ -2160,7 +2256,7 @@ document.addEventListener("pointerdown", ev => dropMenus.forEach(d => { if (d.op
 document.addEventListener("keydown", ev => { if (ev.key === "Escape") dropMenus.forEach(d => d.open = false); });
 dropMenus.forEach(d => d.querySelector(".items").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && b.id !== "nums" && b.id !== "coords" && !b.closest(".lvl, .stone-seg")) d.open = false; }));
 $("openSgf").onclick = () => { $("fileMenu").open = false; $("fileInput").click(); };
-async function openSgfFile(f) { try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "SGF 오류: " + err.message; } }
+async function openSgfFile(f) { try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "기보 파일 오류: " + err.message; } }
 $("fileInput").onchange = async e => { const f = e.target.files[0]; if (!f) return; await openSgfFile(f); e.target.value = ""; };
 // A computer: drag an SGF file from the desktop / explorer onto the page = 파일 → SGF 열기.
 // (Without preventDefault the browser would leave the page to show the file.)
@@ -2170,9 +2266,9 @@ addEventListener("dragleave", ev => { if (!ev.relatedTarget) document.body.class
 addEventListener("drop", async ev => {
   if (!dragsFiles(ev)) return;
   ev.preventDefault(); document.body.classList.remove("dropping");
-  const files = [...ev.dataTransfer.files], f = files.find(x => /\.(sgf|gib)$/i.test(x.name));
+  const files = [...ev.dataTransfer.files], f = files.find(x => KIFU_FILE.test(x.name));
   if (quiz) { $("err").textContent = "오답노트 문제를 푸는 중에는 기보를 열 수 없습니다"; return; }
-  if (!f) { $("err").textContent = "SGF·GIB 기보 파일만 열 수 있습니다"; return; }
+  if (!f) { $("err").textContent = "기보 파일(SGF·GIB·NGF·UGF)만 열 수 있습니다"; return; }
   await openSgfFile(f);
   if (files.length > 1 && !$("err").textContent) $("err").textContent = `기보는 한 번에 하나만 열 수 있어 ${f.name}을(를) 열었습니다`;
 });
@@ -2950,7 +3046,7 @@ async function batchLoad(f, c) {   // puts the game on the board; → its 내 �
   return null;
 }
 const batchTitle = (saved, name) => (saved ? saved.title
-  : (root.info.PB || root.info.PW || root.info.DT ? mineDefaultTitle() : name.replace(/\.(sgf|gib)$/i, ""))).slice(0, 100);
+  : (root.info.PB || root.info.PW || root.info.DT ? mineDefaultTitle() : name.replace(KIFU_FILE, ""))).slice(0, 100);
 // 기보 분석 on the GPU (2026-10-08): what the website's function needs to save the game once the GPU has analysed it,
 // without this screen: the record with a marker where each position still to analyse gets its KGA, the row's columns,
 // and for 오답노트 the main line (moves, the record up to each position, the stored analysis of the positions not
