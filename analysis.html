@@ -1960,6 +1960,15 @@ function gibToSgf(text) {
   }
   return sgf + moves + ")";
 }
+// 한큐(Fox) SGF 파일을 직접 열 때의 덤(2026-10-15 회원 제보: 한큐 호선 기보를 파일로 열었더니 정선·덤 0, 빈 판 흑 94%).
+// 사이트의 한큐 불러오기는 서버가 고쳐 주지만(kifu.ts cleanFoxSgf) 파일에는 한큐 그대로 적혀 있다: 덤을 100배로
+// (중국룰은 돌 수로 375 → 7.5), 호선 대국은 KM[0] HA[0](정선은 HA[1]). 서버가 고친 기보에 다시 해도 그대로다.
+function foxKomi(first, km) {
+  if (!(first.AP || []).some(v => /fox/i.test(v))) return km;
+  const chinese = /^\s*(chinese|cn)/i.test((first.RU || [""])[0]), ha = parseInt((first.HA || ["0"])[0], 10);
+  if (Math.abs(km) >= 50) { km /= 100; if (chinese && Math.abs(km) <= 4) km *= 2; }
+  return km === 0 && !chinese && !(ha >= 1 && ha <= 9) ? 6.5 : km;
+}
 function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main line only, like YZY
   if (isGib(text)) text = gibToSgf(text);
   const t = parseSgf(text), first = t.nodes[0] || {};
@@ -2000,7 +2009,7 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   newRoot.comment = (first.C || [""])[0];
   for (const k of GAME_INFO) if (first[k]) newRoot.info[k] = first[k][0];
   if (first.KGA) newRoot.analysis = unpackAnalysis(first.KGA[0]);
-  if (first.KM) setKomi(parseFloat(first.KM[0]) || 0);
+  if (first.KM) setKomi(foxKomi(first, parseFloat(first.KM[0]) || 0));
   if (!(ha >= 2 && ha <= 9) && !newRoot.setup.B.length && !newRoot.setup.W.length && toPlay === "B" && komi() === 0) $("handicap").value = handicapShown = "1";   // 정선
   root = newRoot;
   goTo(root);
