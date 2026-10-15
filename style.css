@@ -408,9 +408,7 @@ button.quiet.shared { color: var(--good); }
   font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .charge-account span { flex: 1; min-width: 0; }
 .charge-account button { flex: none; min-height: 36px; padding: 6px 14px; background: var(--panel); }
-.charge-ask { max-width: 520px; margin: 0 auto 20px; }
 #chargeHistory { max-width: 520px; margin: 0 auto 20px; }
-.charge-ask summary { cursor: pointer; font-weight: 700; }
 .charge-ask-body { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px; text-align: center; }
 .charge-qr { display: block; width: min(240px, 64vw); height: auto; border-radius: 18px; box-shadow: 0 0 0 1px var(--line); }
 .charge-open { min-width: 240px; background: #fee500 !important; color: #191600 !important; box-shadow: 0 8px 20px -10px rgba(120, 100, 0, .6) !important; }
@@ -814,6 +812,7 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
   .item .ic[style*="#fbefd9"] { background: #3a2c14 !important; color: #e6b866 !important; }
   .item .ic[style*="#e5f5ec"] { background: #133524 !important; }
   .item .ic[style*="#ece9fd"] { background: #25204a !important; color: #a99bff !important; }
+  .item .ic[style*="#fff6bf"] { background: #3a3412 !important; color: #f0d34a !important; }
   .seg2 { background: #0a0f1c; }
   .seg2 button.on { background: #26304a; box-shadow: none; }
   .nested .seg2 { background: #0a0f1c; }

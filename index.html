@@ -437,14 +437,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         </table></div>
       </div>
 
-      <details class="panel charge-ask">
-        <summary>문의 · 카카오톡 오픈채팅</summary>
-        <div class="charge-ask-body">
-          <img class="charge-qr" src="charge/kakao-openchat-qr.png" width="800" height="800" alt="카카오톡 오픈채팅방 QR 코드" loading="lazy">
-          <p class="muted small hide-sm" style="margin:0">휴대폰 카메라로 QR 코드를 찍으면 오픈채팅방이 열립니다.</p>
-          <a class="btn primary charge-open" href="https://open.kakao.com/o/ssRZTShi" target="_blank" rel="noopener">카카오톡 오픈채팅 열기</a>
-        </div>
-      </details>
     </div>
 
     <!-- my account (#me): grouped like a phone's settings (2026-10-05) -->
@@ -501,6 +493,17 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
       <div class="group-t">도움말</div>
       <div class="list">
+        <!-- 문의: moved here from under the charge page (user 2026-10-15) -->
+        <details class="item-d" id="askBox">
+          <summary class="item"><span class="ic" style="background:#fff6bf;color:#8a7300" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span><span class="grow">문의<span class="item-note">카카오톡 오픈채팅</span></span><span class="chev" aria-hidden="true">›</span></summary>
+          <div class="item-body">
+            <div class="charge-ask-body">
+              <img class="charge-qr" src="charge/kakao-openchat-qr.png" width="800" height="800" alt="카카오톡 오픈채팅방 QR 코드" loading="lazy">
+              <p class="muted small hide-sm" style="margin:0">휴대폰 카메라로 QR 코드를 찍으면 오픈채팅방이 열립니다.</p>
+              <a class="btn primary charge-open" href="https://open.kakao.com/o/ssRZTShi" target="_blank" rel="noopener">카카오톡 오픈채팅 열기</a>
+            </div>
+          </div>
+        </details>
         <a class="item hidden" id="pcAppItem" href="download/KataGoCloud.exe" download="KataGoCloud.exe"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">윈도우 PC 앱 받기<span class="item-note" id="pcAppNote">앱 창으로 열리고, 타이젬 기보를 내 기보에 자동으로 넣습니다</span></span><span class="chev" aria-hidden="true">↓</span></a>
         <div class="item hidden" id="pcVerItem"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">PC 앱 버전<span class="item-note" id="pcVerNote"></span></span><button type="button" class="primary hidden" data-app-update>업데이트</button></div>
         <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
@@ -1790,7 +1793,7 @@ async function loadCharge() {
   $("chargeOpen").classList.toggle("hidden", !open);
   if (open) {
     $("coAmount").textContent = won(open.amount_krw);
-    $("coAccount").textContent = data.account || "계좌 안내가 아직 없습니다. 아래 카카오톡 오픈채팅으로 문의해 주세요.";
+    $("coAccount").textContent = data.account || "계좌 안내가 아직 없습니다. 내 정보의 문의(카카오톡 오픈채팅)로 알려 주세요.";
     $("coCopy").hidden = !data.account;
     $("coDepositor").textContent = open.depositor;
     $("coWhen").textContent = shortWhen(open.created_at);
