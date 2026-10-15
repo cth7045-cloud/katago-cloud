@@ -111,6 +111,13 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     <!-- 홈 = 현황판 (2026-10-05): GPU 상태 · 잔액 · 오늘의 복습 · 최근 사용 내역. 고르는 일은 각 탭에서 -->
     <div class="wrap app dash hidden" id="hubView">
       <div class="hello"><h1 id="helloName">반가워요</h1><p id="helloSub">오늘도 한 판 복기해 볼까요?</p></div>
+      <!-- 공지 (2026-10-15): the newest unread notice; 확인 marks it read, the rest are in 내 정보 › 공지 -->
+      <section class="cardx notice-card hidden" id="noticeCard">
+        <div class="hd"><span class="nc-tag" id="ncTag">공지</span><span class="nc-when grow" id="ncWhen"></span><a href="#notices" id="ncMore"></a></div>
+        <b class="nc-title" id="ncTitle"></b>
+        <p class="nc-body" id="ncBody"></p>
+        <button class="primary" type="button" id="ncOk">확인</button>
+      </section>
       <!-- GPU: 꺼짐 / 준비 중 / 켜짐 -->
       <section class="cardx" id="dashOff">
         <div class="offcard">
@@ -493,6 +500,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
       <div class="group-t">도움말</div>
       <div class="list">
+        <!-- 공지 (2026-10-15): every notice for this member, newest first; opening the list marks them read -->
+        <details class="item-d" id="noticeBox">
+          <summary class="item"><span class="ic" style="background:#e8eefe;color:var(--blue)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16.5 9a4 4 0 0 1 0 6"/></svg></span><span class="grow">공지<span class="item-note" id="noticeNote">공지가 없습니다</span></span><span class="nbadge hidden" id="noticeBadge"></span><span class="chev" aria-hidden="true">›</span></summary>
+          <div class="item-body"><div class="notice-list" id="noticeList"></div></div>
+        </details>
         <!-- 문의: moved here from under the charge page (user 2026-10-15) -->
         <details class="item-d" id="askBox">
           <summary class="item"><span class="ic" style="background:#fff6bf;color:#8a7300" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span><span class="grow">문의<span class="item-note">카카오톡 오픈채팅</span></span><span class="chev" aria-hidden="true">›</span></summary>
@@ -803,7 +815,56 @@ async function refreshNow(light) {
   $("dashLedger").innerHTML = rows.slice(0, 3).map((r) => `<div><span class="grow">${esc(r.note || r.kind)}<span>${when(r.created_at)}</span></span>` +
     `<span class="amt${r.amount_krw > 0 ? " plus" : ""}">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</span></div>`).join("")
     || `<div class="muted small">아직 내역이 없습니다.</div>`;
+  loadNotices().catch(() => {});
 }
+// ------------------------------------------------------------------ 공지 (2026-10-15)
+// The admin's notices to everyone (user_id null) or to this member (RLS), read again at most once a minute. Unread:
+// no notice_reads row; a notice to everyone from before the member joined is not shown as new.
+let notices = [], noticeRead = new Set(), noticeAt = 0;
+async function loadNotices(force) {
+  if (!profile || (!force && Date.now() - noticeAt < 60_000)) return;
+  noticeAt = Date.now();
+  const [n, r] = await Promise.all([
+    sb.from("notices").select("id, user_id, title, body, created_at").order("id", { ascending: false }).limit(30),
+    sb.from("notice_reads").select("notice_id").order("read_at", { ascending: false }).limit(500),
+  ]);
+  if (n.error || !n.data) return;   // e.g. a site newer than the database
+  notices = n.data; noticeRead = new Set((r.data || []).map((x) => x.notice_id));
+  drawNotices();
+}
+const noticeNew = (x) => !noticeRead.has(x.id) && (x.user_id || !profile?.created_at || new Date(x.created_at) >= new Date(profile.created_at));
+const noticeDay = (iso) => new Date(iso).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+function drawNotices() {
+  const fresh = notices.filter(noticeNew), top = fresh[0];
+  $("noticeCard").classList.toggle("hidden", !top);
+  if (top) {
+    $("ncTag").textContent = top.user_id ? "나에게 온 공지" : "공지";
+    $("ncWhen").textContent = noticeDay(top.created_at);
+    $("ncTitle").textContent = top.title; $("ncBody").textContent = top.body;
+    $("ncMore").textContent = fresh.length > 1 ? `읽지 않은 공지 ${fresh.length}개 ›` : "";
+    $("noticeCard").dataset.id = top.id;
+  }
+  $("noticeBadge").textContent = fresh.length; $("noticeBadge").classList.toggle("hidden", !fresh.length);
+  $("noticeNote").textContent = !notices.length ? "공지가 없습니다" : fresh.length ? `읽지 않은 공지 ${fresh.length}개` : `최근 ${noticeDay(notices[0].created_at)}`;
+  $("noticeList").innerHTML = notices.map((x) => `<div class="notice${noticeNew(x) ? " new" : ""}"><div class="nl-hd">` +
+    `<span class="nc-tag${x.user_id ? " me" : ""}">${x.user_id ? "나에게" : "전체"}</span><span>${noticeDay(x.created_at)}</span></div>` +
+    `<b>${esc(x.title)}</b>${x.body ? `<p>${esc(x.body)}</p>` : ""}</div>`).join("") || `<div class="muted small">아직 공지가 없습니다.</div>`;
+}
+async function markNotices(ids) {
+  ids = ids.filter((id) => !noticeRead.has(id));
+  if (!ids.length) return;
+  ids.forEach((id) => noticeRead.add(id));
+  const { error } = await sb.from("notice_reads").upsert(ids.map((notice_id) => ({ notice_id })), { onConflict: "user_id,notice_id", ignoreDuplicates: true });
+  if (error) { ids.forEach((id) => noticeRead.delete(id)); toast("공지를 읽음으로 저장하지 못했습니다.", true); }
+}
+$("ncOk").onclick = async () => { const id = Number($("noticeCard").dataset.id); const p = markNotices([id]); drawNotices(); await p; drawNotices(); };
+// the list stays as it was while open (new ones keep their mark), the badges clear
+$("noticeBox").addEventListener("toggle", () => {
+  if (!$("noticeBox").open) return drawNotices();
+  const ids = notices.filter(noticeNew).map((x) => x.id);
+  markNotices(ids).then(() => { $("noticeBadge").classList.add("hidden"); $("noticeCard").classList.add("hidden");
+    $("noticeNote").textContent = notices.length ? `최근 ${noticeDay(notices[0].created_at)}` : "공지가 없습니다"; });
+});
 // ------------------------------------------------------------------ 홈 현황판의 GPU 카드 · 다른 화면의 실시간 알약 (2026-10-05)
 let gpuState = "", curPage = "hubView";
 function dashShow() {
@@ -1719,7 +1780,7 @@ new IntersectionObserver((entries, io) => {
 }, { threshold: .2 }).observe($("how"));
 
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
-const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#study": "studyView", "#me": "meView", "#charge": "chargeView" };
+const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
 function showPage() {
   const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : "hubView");
   // one set of GPU parts (balance, my GPU, choosing one): on the 기보 분석 page while it shows, else on GPU 대여
@@ -1737,6 +1798,7 @@ function showPage() {
   window.scrollTo(0, 0);
   if (page === "homeView" && jumpTo === "device") $("deviceCard").scrollIntoView({ block: "center" });
   if (page === "meView" && jumpTo === "ledger") { $("ledgerBox").open = true; $("ledgerBox").scrollIntoView({ block: "start" }); }
+  if (location.hash === "#notices") { $("noticeBox").open = true; $("noticeBox").scrollIntoView({ block: "start" }); loadNotices(true).catch(() => {}); }
   jumpTo = "";
 }
 let jumpTo = "";   // a part of the page to show after it opens (홈's 내 기기로 분석 / 최근 사용 내역 links)

@@ -117,11 +117,12 @@ button.danger:hover { background: #fbdcde; }
 button.quiet { background: transparent; color: var(--muted); padding-inline: 12px; }
 button.quiet:hover { background: var(--soft); color: var(--ink); }
 button:disabled { opacity: .45; cursor: default; transform: none; }
-input, select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+input, select, textarea { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
   padding: 10px 13px; min-height: 44px; transition: border-color .2s, box-shadow .2s; }
-input:focus, select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(44, 92, 246, .14); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(44, 92, 246, .14); }
 label.field { display: grid; gap: 6px; font-size: 14px; font-weight: 500; color: var(--muted); }
 label.field input { width: 100%; }
+label.field textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.5; }
 
 /* ------------------------------------------------------------------ panels & tables */
 .panel { background: var(--panel); border-radius: 24px; padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
@@ -612,6 +613,22 @@ body[data-page="mineView"] .app, body[data-page="studyView"] .app, body[data-pag
 .cardx { padding: 20px 22px; border-radius: 24px; background: var(--panel); box-shadow: var(--shadow); margin-bottom: 14px; }
 .cardx .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .cardx .hd b { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.notice-card { border: 1.5px solid rgba(79, 123, 255, .35); }
+.notice-card .hd { justify-content: flex-start; margin-bottom: 8px; }
+.notice-card .hd a { font-size: 13.5px; font-weight: 700; }
+.nc-tag { display: inline-block; padding: 2px 9px; border-radius: 999px; background: #e8eefe; color: var(--blue); font-size: 12.5px; font-weight: 800; }
+.nc-tag.me { background: #fbefd9; color: #9a6a1f; }
+.nc-when { font-size: 13px; color: var(--muted); }
+.nc-title { display: block; font-size: 17px; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.nc-body { margin: 6px 0 14px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); font-size: 15px; line-height: 1.55; max-height: 9.5em; overflow: auto; }
+.nc-body:empty { margin: 0 0 14px; }
+.notice-list { display: grid; gap: 10px; }
+.notice { padding: 12px 14px; border-radius: 14px; background: var(--soft); }
+.notice.new { box-shadow: inset 3px 0 0 var(--blue); }
+.notice .nl-hd { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.notice b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
+.notice p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.55; }
+.nbadge { min-width: 20px; padding: 0 6px; margin-right: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; }
 .cardx .hd a { font-size: 14px; font-weight: 700; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .grid2 > .cardx { margin-bottom: 0; }
@@ -813,6 +830,8 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
   .item .ic[style*="#e5f5ec"] { background: #133524 !important; }
   .item .ic[style*="#ece9fd"] { background: #25204a !important; color: #a99bff !important; }
   .item .ic[style*="#fff6bf"] { background: #3a3412 !important; color: #f0d34a !important; }
+  .nc-tag { background: #1b2748; color: #8eabff; }
+  .nc-tag.me { background: #3a2c14; color: #e6b866; }
   .seg2 { background: #0a0f1c; }
   .seg2 button.on { background: #26304a; box-shadow: none; }
   .nested .seg2 { background: #0a0f1c; }

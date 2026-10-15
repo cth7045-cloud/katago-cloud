@@ -65,7 +65,11 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .card .btns button { min-height: 32px; padding: 4px 12px; font-size: 14px; }
   .card.model input.name { max-width: none; }
 }
-.atabs button[data-tab="gpu"], .atabs button[data-tab="charges"] { white-space: nowrap; }
+.atabs button[data-tab="gpu"], .atabs button[data-tab="charges"], .atabs button[data-tab="notice"] { white-space: nowrap; }
+.notice-form { display: grid; gap: 14px; max-width: 640px; }
+.notice-form .seg, .notice-form button.primary { justify-self: start; }
+.notice-form label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.notice-form label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
 .charge-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .charge-item { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-radius: 16px; background: var(--soft); }
 .charge-item .amt { font-size: 20px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
@@ -112,6 +116,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <button data-tab="members" role="tab">회원·잔액</button>
       <button data-tab="engine" role="tab">엔진·모델<span class="n" id="updCount" hidden></span></button>
       <button data-tab="price" role="tab">요금 설정</button>
+      <button data-tab="notice" role="tab">공지</button>
     </nav>
 
     <section class="tab" data-tab="gpu">
@@ -237,6 +242,31 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 
     </section>
 
+    <!-- 공지 (2026-10-15): to every member or one; members see it on 홈 and in 내 정보 › 공지 -->
+    <section class="tab" data-tab="notice" hidden>
+    <div class="panel">
+      <h2>공지 보내기</h2>
+      <form id="noticeForm" class="notice-form">
+        <div class="seg" id="nTarget" role="group" aria-label="받는 사람">
+          <button type="button" data-to="all" aria-pressed="true">전체 회원</button>
+          <button type="button" data-to="one" aria-pressed="false">한 회원</button>
+        </div>
+        <label class="field hidden" id="nWhoField">회원(이름 또는 이메일)<input id="nWho" list="memberNames" autocomplete="off"></label>
+        <label class="field">제목<input id="nTitle" maxlength="80" required></label>
+        <label class="field">내용<textarea id="nBody" maxlength="2000" rows="5"></textarea></label>
+        <label class="check"><input type="checkbox" id="nPush" checked> 알림도 보내기 <span class="muted small">(알림을 끈 회원은 빼고)</span></label>
+        <button class="primary" type="submit">보내기</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h2>보낸 공지</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>보낸 때</th><th>받는 사람</th><th>제목</th><th class="num">읽음</th><th></th></tr></thead>
+        <tbody id="noticeRows"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
+      </table></div>
+    </div>
+    </section>
+
     <section class="tab" data-tab="price" hidden>
     <div class="panel">
       <h2>요금 설정</h2>
@@ -283,12 +313,13 @@ const STATE = { creating: ["준비 중", "warn"], booting: ["준비 중", "warn"
                 stopping: ["끄는 중", "warn"], stopped: ["종료", ""], failed: ["실패", "bad"] };
 
 // tabs (remembered in the address: admin.html#engine)
-const TABS = ["gpu", "charges", "members", "engine", "price"];
+const TABS = ["gpu", "charges", "members", "engine", "price", "notice"];
 function showTab(name) {
   if (!TABS.includes(name)) name = "gpu";
   for (const sec of document.querySelectorAll("section.tab")) sec.hidden = sec.dataset.tab !== name;
   for (const b of $("tabs").children) { const on = b.dataset.tab === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); }
   if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  if (name === "notice") loadNoticeList();
 }
 $("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) showTab(b.dataset.tab); };
 document.querySelector(".kpis").onclick = (ev) => { const b = ev.target.closest("[data-go]"); if (b) { showTab(b.dataset.go); $("tabs").scrollIntoView({ block: "start", behavior: "smooth" }); } };
@@ -406,6 +437,7 @@ async function load() {
     showPage("ledger");
     speedRows = speed;
     showSpeed();
+    drawNoticeList();   // names of the members the notices went to
   } catch (e) {
     $("err").textContent = e.message;
   }
@@ -618,6 +650,62 @@ $("capSave").onclick = async () => {
     capsDirty = false; caps = { ...(r.gpu_caps || {}) }; drawCaps();
     toast("상한을 저장했습니다.");
   } catch (e) { toast(e.message, true); }
+};
+
+// ------------------------------------------------------------------ 공지 (2026-10-15)
+let noticeTo = "all";
+$("nTarget").onclick = (ev) => {
+  const b = ev.target.closest("[data-to]"); if (!b) return;
+  noticeTo = b.dataset.to;
+  for (const x of $("nTarget").children) x.setAttribute("aria-pressed", x === b);
+  $("nWhoField").classList.toggle("hidden", noticeTo !== "one");
+};
+let noticeData = null;
+async function loadNoticeList() {
+  try { noticeData = (await api("/admin/notices")).notices || []; drawNoticeList(); }
+  catch (e) { $("noticeRows").innerHTML = `<tr><td colspan="5" class="error">${esc(e.message)}</td></tr>`; }
+}
+function drawNoticeList() {
+  if (!noticeData) return;
+  const notices = noticeData;
+  {
+    const who = (id) => { const m = (members || []).find((x) => x.id === id); return m ? (names[id] || m.email) : members?.length ? "탈퇴한 회원" : "…"; };
+    const plain = (members || []).filter((m) => !m.is_admin).length;
+    $("noticeRows").innerHTML = (notices || []).map((n) => `<tr><td>${when(n.created_at)}</td>` +
+      `<td>${n.user_id ? esc(who(n.user_id)) : "전체 회원"}</td><td><b>${esc(n.title)}</b>${n.body ? `<div class="muted small" style="white-space:pre-wrap;max-width:420px">${esc(n.body.length > 140 ? n.body.slice(0, 140) + "…" : n.body)}</div>` : ""}</td>` +
+      `<td class="num">${n.user_id ? (n.reads ? "읽음" : "안 읽음") : `${n.reads}명${plain ? ` / ${plain}` : ""}`}</td>` +
+      `<td><button class="quiet" data-del-notice="${n.id}">삭제</button></td></tr>`).join("")
+      || `<tr><td colspan="5" class="muted">보낸 공지가 없습니다.</td></tr>`;
+  }
+}
+$("noticeForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const title = $("nTitle").value.trim(), text = $("nBody").value.trim(), push = $("nPush").checked;
+  let email = null, label = "전체 회원";
+  if (noticeTo === "one") {
+    const typed = $("nWho").value.trim();
+    const found = typed.includes("@") ? members.filter((m) => m.email === typed.toLowerCase()) : members.filter((m) => (m.name || "").trim() === typed);
+    if (!typed) return toast("받을 회원을 넣어 주세요.", true);
+    if (found.length > 1) return toast(`'${typed}' 이름의 회원이 ${found.length}명입니다. 이메일로 입력해 주세요.`, true);
+    if (!found.length) return toast(`'${typed}' 회원이 없습니다.`, true);
+    email = found[0].email; label = found[0].name ? `${found[0].name}(${email})` : email;
+  }
+  if (!title) return toast("제목을 넣어 주세요.", true);
+  if (!confirm(`${label}에게 공지를 보낼까요?\n\n${title}${push ? "\n\n알림도 함께 보냅니다." : ""}`)) return;
+  try {
+    const r = await api("/admin/notice", { title, body: text, email, push });
+    toast(push ? `보냈습니다. 알림 ${r.pushed}건` : "보냈습니다.");
+    $("nTitle").value = ""; $("nBody").value = "";
+    loadNoticeList();
+  } catch (e) { toast(e.message, true); }
+};
+$("noticeRows").onclick = async (ev) => {
+  const id = ev.target.dataset?.delNotice; if (!id) return;
+  if (!confirm("이 공지를 지울까요? 회원 화면에서도 사라집니다.")) return;
+  ev.target.disabled = true;
+  try { await api("/admin/notice/delete", { id: Number(id) }); toast("지웠습니다."); }
+  catch (e) { toast(e.message, true); }
+  loadNoticeList();
 };
 
 $("topupForm").onsubmit = async (ev) => {
