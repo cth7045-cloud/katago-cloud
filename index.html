@@ -804,7 +804,7 @@ async function refreshNow(light) {
   batchShow();
   // GPU use: one line per session (its per-minute charges add up to charged_krw)
   const uses = (s || []).filter((x) => x.charged_krw > 0 || ACTIVE.includes(x.status)).map((x) => {
-    const start = x.instance_created_at || x.created_at, live = ACTIVE.includes(x.status);
+    const start = x.ready_at || x.instance_created_at || x.created_at, live = ACTIVE.includes(x.status);
     const min = Math.max(0, Math.round((new Date(live ? Date.now() : x.stopped_at || start) - new Date(start)) / 60000));
     return { created_at: start, amount_krw: -x.charged_krw || 0, note: `GPU 사용 ${min}분 (${x.gpu_name || "GPU"})${live ? " · 사용 중" : ""}` };
   });
@@ -873,7 +873,7 @@ function dashShow() {
   $("helloSub").textContent = !live ? "오늘도 한 판 복기해 볼까요?" : ready ? "GPU가 켜져 있어요." : s.status === "stopping" ? "GPU를 끄고 있어요."
     : "GPU를 준비하고 있어요. 다른 일을 하셔도 준비되면 알려 드려요.";
   document.querySelectorAll('#tabnav [data-tab="gpu"]').forEach((a) => a.classList.toggle("live", live));
-  const min = live ? Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at).getTime()) / 60000)) : 0;
+  const min = live ? Math.max(0, Math.round((Date.now() - new Date(s.ready_at || s.instance_created_at || s.created_at).getTime()) / 60000)) : 0;
   if (live) {
     $("dashLive").classList.toggle("is-ready", ready);
     $("dashLiveHead").innerHTML = `${ready ? '<span class="live-dot" aria-hidden="true"></span>' : ""}${esc(s.gpu_name || "GPU")} · ${esc(currentModelName(s))} · ${esc(gpuState)}`;
@@ -917,7 +917,7 @@ function showSession(s) {
   const stage = ["creating", "booting"].includes(st) ? 1 : st === "setup" ? 2 : ready ? 3 : 0;
   [1, 2, 3].forEach((n) => { $("step" + n).className = "step" + (n < stage || (ready && n === 3) ? " done" : n === stage ? " on" : ""); });
   $("sessionProgress").textContent = live ? (s.progress || "") : (s.stop_reason ? `종료 사유: ${s.stop_reason}` : "");
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at).getTime()) / 60000));
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(s.ready_at || s.instance_created_at || s.created_at).getTime()) / 60000));
   $("sessionMeta").innerHTML = `시간당 <b>${won(s.price_krw_per_hour)}</b> · ${live ? `${minutes}분 경과 · ` : ""}지금까지 <b>${won(s.charged_krw)}</b>` +
     (s.tuning?.visitsPerSecond ? ` · 초당 약 ${Math.round(s.tuning.visitsPerSecond)}번 탐색` : "");
   const open = $("openAnalysis");
@@ -1743,7 +1743,7 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
 $("startButton").onclick = async () => {
   if (!picked) return;
   const pay = profile?.is_admin ? "관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다" : "1분 단위로 잔액에서 차감됩니다";
-  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1~2분" : "보통 2~3분"}) 시간도 요금에 포함됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
+  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1~2분" : "보통 2~3분"}) 시간은 요금이 들지 않고, 분석 준비가 끝난 뒤부터 계산됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
   const autoBatch = batchAutoOk();
   if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
