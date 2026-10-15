@@ -628,7 +628,8 @@ body[data-page="mineView"] .app, body[data-page="studyView"] .app, body[data-pag
 .notice .nl-hd { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .notice b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
 .notice p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.55; }
-.nbadge { min-width: 20px; padding: 0 6px; margin-right: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; }
+.notice-wrap { padding: 12px; }
+.notice-wrap > button.quiet { width: 100%; margin-top: 8px; }
 .cardx .hd a { font-size: 14px; font-weight: 700; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .grid2 > .cardx { margin-bottom: 0; }
