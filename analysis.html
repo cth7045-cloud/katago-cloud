@@ -4585,7 +4585,7 @@ async function watchGpu() {
   // Only when the page opens: never pulls away a board the member started here, nor 기보 기록 / a 내 기보 / a shared game.
   let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("notes") && !batchMode;
   async function tick() {
-    const cols = "status,charged_krw,instance_created_at,created_at,web_url,web_token,gpu_name";
+    const cols = "status,charged_krw,ready_at,instance_created_at,created_at,web_url,web_token,gpu_name";
     const {data: s} = await (mine ? site.sb.from("gpu_sessions").select(cols).in("status", LIVE).order("created_at", {ascending: false})
       : site.sb.from("gpu_sessions").select(cols).eq("web_token", token)).limit(1).maybeSingle();
     if (!s) { $("gpuMeter").hidden = true; return; }   // not logged in on this browser, or not this member's GPU
@@ -4602,7 +4602,8 @@ async function watchGpu() {
       gpuGone = true; clearTimeout(retryTimer);
       if (!ws) gpuEnded();   // waiting for the next try; a socket still open or opening says so when it drops (lost)
     }
-    const min = Math.max(0, Math.round((Date.now() - new Date(s.instance_created_at || s.created_at)) / 60000));
+    // billed from ready_at (2026-10-15): the boot and setup minutes are free, so they are not counted here either
+    const min = Math.max(0, Math.round((Date.now() - new Date(s.ready_at || s.instance_created_at || s.created_at)) / 60000));
     $("gpuUse").textContent = (mine ? `켜진 GPU ${s.gpu_name || ""} · ` : "") + (live ? `${min}분 · ${site.won(s.charged_krw)}` : `GPU 종료됨 · ${site.won(s.charged_krw)}`);
     $("gpuStop").hidden = !live || s.status === "stopping";
     $("gpuMeter").hidden = false;
