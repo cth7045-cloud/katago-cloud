@@ -407,11 +407,18 @@ async function load() {
     lists.session = [...d.sessions, ...(d.devices || []).map((r) => ({ ...r, dev: true }))]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     render.session = (list) => { $("sessionRows").innerHTML = list.map((x) => {
-      if (x.dev) return `<tr class="devrow"><td title="${esc(who(x.user_id))}">${esc(whoName(x.user_id))}</td>` +
-        `<td><span class="pill ${x.status === "ready" ? "" : "bad"}">${x.status === "ready" ? "내 기기" : "내 기기 실패"}</span></td>` +
-        `<td>내 기기${x.device ? ` · ${esc(x.device)}` : ""}<span class="sub">${esc(x.model)}</span></td><td class="num muted">무료</td>` +
-        `<td>${when(x.created_at)}<span class="sub">${esc(x.platform || "")}</span></td><td></td><td></td><td></td>` +
-        `<td class="note">${esc(x.error || "")}</td><td></td></tr>`;
+      if (x.dev) {   // open = the member's analysis screen said so within 2.5 minutes (it does each minute) and did not close
+        const open = x.status === "ready" && !x.ended_at && Date.now() - new Date(x.last_seen) < 150_000, mineRun = admins.has(x.user_id);
+        const usedDev = x.status === "ready" ? span(x.created_at, open ? Date.now() : x.ended_at || x.last_seen) : "";
+        return `<tr class="devrow"><td title="${esc(who(x.user_id))}">${esc(whoName(x.user_id))}</td>` +
+          `<td><span class="pill ${x.status !== "ready" ? "bad" : open ? "good" : ""}">${x.status !== "ready" ? "내 기기 실패" : open ? "내 기기 사용 중" : "내 기기 종료"}</span></td>` +
+          `<td>내 기기${x.device ? ` · ${esc(x.device)}` : ""}<span class="sub">${esc(x.model)}</span></td><td class="num muted">무료</td>` +
+          `<td title="${x.ended_at ? "종료 " + when(x.ended_at) : x.status === "ready" && !open ? "마지막 확인 " + when(x.last_seen) : ""}">${when(x.created_at)}` +
+          `<span class="sub">${usedDev}${open ? " (사용 중)" : ""}</span></td><td></td><td></td><td></td>` +
+          `<td class="note">${esc([x.platform, x.error].filter(Boolean).join(" · "))}</td>` +
+          `<td style="white-space:nowrap">${open && x.watch_token && !mineRun
+            ? `<a class="btn"${standalone ? "" : ' target="_blank" rel="noopener"'} href="analysis.html?v=${Date.now()}#view=1&lw=${encodeURIComponent(x.watch_token)}">화면 보기</a>` : ""}</td></tr>`;
+      }
       const live = ACTIVE.includes(x.status);
       const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
       const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;

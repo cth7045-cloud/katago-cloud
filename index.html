@@ -2150,8 +2150,8 @@ function setLocal(stage, pill, text) {
   $("localProgress").textContent = text;
 }
 function endLocal() { if (localWorker) { localWorker.terminate(); localWorker = null; } }
-// 내 기기로 분석 기록 (2026-10-15): one row when it is ready or failed, for the admin's list of members' use (no charge;
-// how long it is used afterwards is not tracked)
+// 내 기기로 분석 기록 (2026-10-15): a device that cannot prepare KataGo is one 'failed' row in the admin's list of
+// members' use; the run itself (time used, 화면 보기) is recorded by the analysis screen it opens (startLocalRun)
 function logDevice(status, model, device, error) {
   const ua = navigator.userAgent;
   const os = /Windows/.test(ua) ? "Windows" : iOS ? "iPhone·iPad" : android ? "Android" : /Mac OS/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "기타";
@@ -2188,7 +2188,6 @@ $("deviceStart").onclick = () => {
       setLocal(3, ["사용 가능", "good"], "");
       $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}로 계산`;
       $("localOpen").href = url; $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
-      logDevice("ready", LOCAL_MODELS[m], d.device);
       alertMember("내 기기 준비 완료", "준비가 끝났습니다. '분석 화면 열기'를 누르세요.", true);
     }
   };

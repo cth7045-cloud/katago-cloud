@@ -1073,6 +1073,9 @@ let onMirror = null;   // set by mirrorScreen(): copies of the member's screen a
 // a Web Worker with ONNX Runtime Web: the graphics where the browser offers them, else the CPU) and answers the same
 // analysis-engine queries, so this screen talks to it exactly as to the GPU's bridge (no shared board, no other devices).
 const localMode = hashParams.get("local") === "1" && !GPU_HOST.test(location.hostname);
+// An admin watching a member's 내 기기 (admin page 화면 보기, #view=1&lw=<watch token>, 2026-10-15): there is no GPU or
+// engine to connect to; the member's analysis screen sends its copy through a Supabase Realtime channel instead.
+const watchLocal = hashParams.get("view") === "1" ? hashParams.get("lw") || "" : "";
 function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름); #ep=wasm: the CPU only (GPU 대여's 시작 found no usable graphics)
   const args = new URLSearchParams();
   if (hashParams.get("m") === "balanced") args.set("m", "balanced");
@@ -1090,6 +1093,7 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
       else if (m.local === "failed") { $("conn").textContent = "내 기기 · 엔진을 켜지 못했습니다"; $("err").textContent = "내 기기 엔진 오류: " + m.error; }
       else if (m.local === "ready") {
         sock.readyState = 1; $("dot").classList.add("on"); $("conn").textContent = `내 기기 · ${m.device}`; $("err").textContent = "";
+        startLocalRun(m.device);
         send({id: "ver", action: "query_version"}); ping();
         if (analyzing) requestLive();
       }
@@ -1104,6 +1108,7 @@ let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message o
 // (2 s, then 4, 8, 16, at most 30); gpuGone = the website says this GPU has ended: no more tries.
 let pingAt = 0, retryWait = 2000, gpuGone = false;
 function connect() {
+  if (watchLocal) { $("conn").textContent = "회원의 내 기기 화면"; return; }
   if (localMode) { if (!ws) connectLocal(); return; }
   if (!token) { openWithoutGpu(); return; }
   clearTimeout(retryTimer);
@@ -4538,12 +4543,48 @@ function gunzip(m) {
   const bytes = Uint8Array.from(atob(m.z), c => c.charCodeAt(0));
   return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
 }
-async function mirrorScreen() {
-  if (!token || GPU_HOST.test(location.hostname) || !window.crypto || !crypto.subtle) return;
+async function mirrorScreen(key = token) {
+  if (!key || GPU_HOST.test(location.hostname) || !window.crypto || !crypto.subtle) return;
   let site; try { site = await import("./app.js"); } catch { return; }
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)));
   const channel = site.sb.channel("kgv-watch-" + [...digest.slice(0, 12)].map(b => b.toString(16).padStart(2, "0")).join(""));
-  if (viewOnly) watchMember(channel); else offerMirror(channel);
+  if (viewOnly) watchMember(channel);
+  else { if (localMode) mirrorChannel = channel; offerMirror(channel); }
+}
+// 내 기기 has no bridge: the copy goes through the Realtime channel itself (mirrorChannel), cut into parts under
+// Realtime's message limit (256 KB on the free plan); the admin's page puts them together (watchMember).
+const MIRROR_PART = 150000;
+let mirrorChannel = null, mirrorChannelOk = false;
+function mirrorSend(state) {
+  if (!mirrorChannel) return send({action: "state", state});
+  if (!mirrorChannelOk) return false;
+  const text = JSON.stringify(state), c = Math.random().toString(36).slice(2, 10), n = Math.max(1, Math.ceil(text.length / MIRROR_PART));
+  for (let i = 0; i < n; i++) mirrorChannel.send({type: "broadcast", event: "state", payload: {c, i, n, p: text.slice(i * MIRROR_PART, (i + 1) * MIRROR_PART)}});
+  return true;
+}
+
+// 내 기기로 분석 기록 (2026-10-15, user: "the same as a paid GPU"): a device_runs row once the engine is ready, kept
+// up to date each minute while this screen is open and closed when it goes (the admin's list shows the time used), and
+// the screen copy for 화면 보기 goes through a channel named after the row's watch token. Only for a logged-in member.
+async function startLocalRun(device) {
+  if (startLocalRun.done || viewOnly || batchMode || GPU_HOST.test(location.hostname) || !window.crypto || !crypto.randomUUID) return;
+  startLocalRun.done = true;
+  let site; try { site = await import("./app.js"); } catch { return; }
+  let session = null; try { ({data: {session}} = await site.sb.auth.getSession()); } catch { /* offline */ }
+  if (!session) return;
+  const ua = navigator.userAgent, iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const os = /Windows/.test(ua) ? "Windows" : iOS ? "iPhone·iPad" : /Android/.test(ua) ? "Android" : /Mac OS/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "기타";
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const app = window.kgcAppSync ? "PC 앱" : standalone ? "설치 앱" : /SamsungBrowser/.test(ua) ? "삼성 인터넷" : /Edg\//.test(ua) ? "Edge" : /Whale/.test(ua) ? "웨일"
+    : /CriOS|Chrome/.test(ua) ? "Chrome" : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "";
+  const id = crypto.randomUUID(), watch = [...crypto.getRandomValues(new Uint8Array(18))].map(b => b.toString(16).padStart(2, "0")).join("");
+  const {error} = await site.sb.from("device_runs").insert({id, status: "ready", model: hashParams.get("m") === "balanced" ? "KataGo(균형)" : "KataGo(빠름)",
+    device: String(device || "").slice(0, 20) || null, platform: [os, app].filter(Boolean).join(" · "), watch_token: watch});
+  if (error) return;
+  const touch = fields => site.sb.from("device_runs").update(fields).eq("id", id).then(() => {}, () => {});
+  setInterval(() => touch({last_seen: new Date().toISOString()}), 60000);   // the server stamps the time itself
+  addEventListener("pagehide", () => touch({ended_at: new Date().toISOString()}));
+  mirrorScreen(watch);
 }
 
 // The member's side: send the screen while watched.
@@ -4551,7 +4592,7 @@ function offerMirror(channel) {
   const dev = Math.random().toString(36).slice(2, 10);
   let watchedUntil = 0, lastInput = 0, active = false, dirty = true, busy = false, lastHtml = "", lastSc = "", sentAt = 0, ptrAt = 0;
   const others = new Map();   // the member's other devices sending their screen: dev -> {at, seen}; the one used last wins
-  channel.on("broadcast", {event: "watch"}, () => { watchedUntil = Date.now() + 10000; }).subscribe();
+  channel.on("broadcast", {event: "watch"}, () => { watchedUntil = Date.now() + 10000; }).subscribe(status => { mirrorChannelOk = status === "SUBSCRIBED"; });
   onMirror = st => { const m = st && st.mirror; if (m && m.dev && m.dev !== dev) others.set(m.dev, {at: m.at || 0, seen: Date.now()}); };
   new MutationObserver(() => { dirty = true; }).observe(document.body, {subtree: true, childList: true, attributes: true, characterData: true});
   for (const t of ["input", "change", "scroll", "toggle"]) addEventListener(t, () => { dirty = true; }, true);
@@ -4562,9 +4603,9 @@ function offerMirror(channel) {
   }
   const point = e => {
     lastInput = Date.now();
-    if (!active || (e.type === "pointermove" && Date.now() - ptrAt < 80)) return;
+    if (!active || (e.type === "pointermove" && Date.now() - ptrAt < (mirrorChannel ? 200 : 80))) return;   // Realtime: fewer messages
     ptrAt = Date.now();
-    send({action: "state", state: {mptr: {dev, x: Math.round(e.clientX), y: Math.round(e.clientY), d: e.buttons ? 1 : 0, k: e.pointerType === "mouse" ? "m" : "t"}}});
+    mirrorSend({mptr: {dev, x: Math.round(e.clientX), y: Math.round(e.clientY), d: e.buttons ? 1 : 0, k: e.pointerType === "mouse" ? "m" : "t"}});
   };
   for (const t of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) addEventListener(t, point, {capture: true, passive: true});
   for (const t of ["keydown", "wheel"]) addEventListener(t, () => { lastInput = Date.now(); }, {capture: true, passive: true});
@@ -4617,11 +4658,11 @@ function offerMirror(channel) {
     const now = Date.now();
     for (const [d, o] of others) if (now - o.seen > 8000) others.delete(d);
     const mine = [...others].every(([d, o]) => lastInput > o.at || (lastInput === o.at && dev > d));
-    const on = now < watchedUntil && document.visibilityState === "visible" && mine && !!ws && ws.readyState === 1;
+    const on = now < watchedUntil && document.visibilityState === "visible" && mine && (mirrorChannel ? mirrorChannelOk : !!ws && ws.readyState === 1);
     if (on !== active) {
       active = on;
       if (on) { lastHtml = ""; dirty = true; document.querySelectorAll("canvas").forEach(c => { c.mDirty = true; c.mSent = null; }); }
-      else if (now >= watchedUntil) send({action: "state", state: Object.fromEntries(["mirror", "mptr", ...canvasKeys()].map(k => [k, null]))});   // nobody watches: drop the copy
+      else if (now >= watchedUntil) mirrorSend(Object.fromEntries(["mirror", "mptr", ...canvasKeys()].map(k => [k, null])));   // nobody watches: drop the copy
     }
     if (!active || busy) return;
     busy = true;
@@ -4632,8 +4673,8 @@ function offerMirror(channel) {
         const html = snapshot(), sc = scrolls();
         if (html !== lastHtml || sc !== lastSc || now - sentAt > 3000) {
           lastHtml = html; lastSc = sc; sentAt = now;
-          send({action: "state", state: {mirror: {dev, at: lastInput, w: innerWidth, h: innerHeight, sc: JSON.parse(sc), touch: coarse,
-                attrs: [...document.body.attributes].map(a => [a.name, a.value]), ...await gzip(html)}}});
+          mirrorSend({mirror: {dev, at: lastInput, w: innerWidth, h: innerHeight, sc: JSON.parse(sc), touch: coarse,
+                attrs: [...document.body.attributes].map(a => [a.name, a.value]), ...await gzip(html)}});
         }
       }
       for (const c of document.querySelectorAll("canvas[id]")) {
@@ -4642,7 +4683,7 @@ function offerMirror(channel) {
         const u = await picture(c);
         if (!u || u === c.mSent || u.length > 900000) continue;   // the page redraws every canvas on each report: send only changes (bridge frames ≤ 1 MB)
         c.mSent = u;
-        send({action: "state", state: {["mc_" + c.id]: {dev, u}}});
+        mirrorSend({["mc_" + c.id]: {dev, u}});
       }
     } finally { busy = false; }
   }, 250);
@@ -4651,6 +4692,18 @@ function offerMirror(channel) {
 // The admin's side: show the copy in a script-less frame of the member's size.
 function watchMember(channel) {
   const beat = () => channel.send({type: "broadcast", event: "watch", payload: {}});
+  const parts = new Map();   // a 내 기기's copy comes through the channel in parts (mirrorSend)
+  channel.on("broadcast", {event: "state"}, ({payload: m}) => {
+    if (!m || typeof m.p !== "string" || !(m.n >= 1)) return;
+    const now = Date.now();
+    for (const [c, v] of parts) if (now - v.at > 15000) parts.delete(c);
+    let got = parts.get(m.c);
+    if (!got) parts.set(m.c, got = {at: now, n: m.n, have: 0, p: []});
+    if (got.p[m.i] === undefined) { got.p[m.i] = m.p; got.have++; }
+    if (got.have < got.n) return;
+    parts.delete(m.c);
+    try { if (onMirror) onMirror(JSON.parse(got.p.join(""))); } catch { /* a broken part */ }
+  });
   channel.subscribe(status => { if (status === "SUBSCRIBED") beat(); });
   setInterval(beat, 4000);
   const stage = document.createElement("div"), frame = document.createElement("iframe"), note = document.createElement("div"), finger = document.createElement("div");
@@ -4758,12 +4811,13 @@ function watchMember(channel) {
   stage.addEventListener("dblclick", () => resetZoom());
   function label() {
     const age = Math.round((Date.now() - fresh) / 1000);
-    note.textContent = !size ? "회원 화면을 기다리는 중…"
+    note.textContent = !size ? "회원 화면을 기다리는 중…" + (watchLocal ? " (회원이 분석 화면을 보고 있을 때 보입니다)" : "")
       : `회원 화면 · ${size.w > size.h ? "가로" : "세로"} ${size.w}×${size.h}` + (age > 8 ? ` · ${age}초 전 화면 (회원 화면이 꺼져 있거나 다른 앱을 보는 중)` : "");
   }
   label(); setInterval(label, 1000);
   setTimeout(() => {   // a member's page from before this feature never sends its screen: show the shared board instead
     if (size) return;
+    if (watchLocal) return;   // a 내 기기: no shared board here to fall back to, keep waiting
     stage.hidden = true;
     if (viewTag) viewTag.textContent = "회원 화면을 받지 못해 바둑판·분석만 보입니다\n(회원이 분석 화면을 안 보고 있거나 예전 화면)";
   }, 15000);
@@ -4844,7 +4898,7 @@ function watchMember(channel) {
 
 document.fonts && document.fonts.ready.then(schedule);
 document.fonts && document.fonts.addEventListener && document.fonts.addEventListener("loadingdone", schedule);   // the win-rate font arriving after the first drawing (its stylesheet loads without blocking)
-layout(); connect(); if (!localMode) watchGpu(); if (!batchMode && !localMode) mirrorScreen();   // the hidden 여러 기보 분석 frame is not the member's screen
+layout(); connect(); if (!localMode && !watchLocal) watchGpu(); if (!batchMode && !localMode) mirrorScreen(watchLocal || token);   // the hidden 여러 기보 분석 frame is not the member's screen
 </script>
 </body>
 </html>
