@@ -191,6 +191,15 @@ details.menu .items #placeRow .stone-seg { margin-left: auto; }
   #conn:has(.conn-word) { min-width: 4.6em; }   /* = "999 ms" */
   .conn-word { display: none; }
 }
+/* 폴드를 펼쳐 가로로 든 폭(약 900px, 회원 화면 2026-10-16): AI 대국 중('■ 대국 중지')에도 visits/s가 남게 사이·여백을 더 줄이고
+   '내 기보 저장'의 아이콘만 뺌 */
+@media (orientation: landscape) and (max-width: 1023px) and (min-height: 521px) {
+  .menubar { gap: 4px; padding-inline: 8px; }
+  .menubar > button, .menubar details.menu > summary { padding-inline: 8px; }
+  .menubar .status:not(:empty) { padding-inline: 6px; }
+  .menubar #vps { min-width: calc(13ch + 12px); }
+  .menubar #saveMine::before { display: none; }
+}
 details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
 .toolbar .nav { display: inline-flex; align-items: center; gap: 4px; }
 .toolbar button.mv { display: inline-grid; place-items: center; }
