@@ -495,6 +495,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <span class="ic" style="background:var(--cyan-soft);color:#0b8ea4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="grow">알림<span class="item-note" id="notifyNote"></span></span>
           <button type="button" class="switch" id="notifySwitch" role="switch" aria-checked="false" aria-label="알림 받기"><span></span></button>
         </div>
+        <!-- GPU 자동 종료 (2026-10-16): on by default; turning it off asks first -->
+        <div class="item">
+          <span class="ic" style="background:#fdeaea;color:#d64545" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></span><span class="grow">GPU 자동 종료<span class="item-note" id="idleStopNote"></span></span>
+          <button type="button" class="switch" id="idleStopSwitch" role="switch" aria-checked="true" aria-label="GPU 자동 종료"><span></span></button>
+        </div>
         <!-- 타이젬 기보 자동 동기화: only in the KataGo Cloud PC app (window.kgcAppSync), 2026-10-07 -->
         <div class="item hidden" id="tygemItem">
           <span class="ic" style="background:#e3f6ea;color:#1f9d55" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></span>
@@ -881,7 +886,7 @@ function dashShow() {
     const stage = ["creating", "booting"].includes(s.status) ? 1 : s.status === "setup" ? 2 : 3;
     $("dashSteps").classList.toggle("hidden", ready || s.status === "stopping"); $("dashStepNames").classList.toggle("hidden", ready || s.status === "stopping");
     [...$("dashSteps").children].forEach((i, k) => { i.className = k + 1 < stage ? "done" : k + 1 === stage ? "on" : ""; });
-    $("dashLiveNote").textContent = ready ? `시간당 ${won(s.price_krw_per_hour)} · 10분 동안 입력이 없으면 자동으로 꺼집니다` : s.progress || "";
+    $("dashLiveNote").textContent = ready ? `시간당 ${won(s.price_krw_per_hour)} · ` + (Number(s.idle_minutes) > 10 ? "자동 종료 꺼짐 — 다 쓰면 꼭 GPU를 끄세요" : "10분 동안 입력이 없으면 자동으로 꺼집니다") : s.progress || "";
     $("dashOpen").classList.toggle("hidden", !ready); if (ready) $("dashOpen").href = $("openAnalysis").href;
     $("dashSee").classList.toggle("hidden", ready);
     $("dashStop").textContent = ready ? "종료" : "준비 취소";
@@ -1743,7 +1748,8 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
 $("startButton").onclick = async () => {
   if (!picked) return;
   const pay = profile?.is_admin ? "관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다" : "1분 단위로 잔액에서 차감됩니다";
-  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1~2분" : "보통 2~3분"}) 시간은 요금이 들지 않고, 분석 준비가 끝난 뒤부터 계산됩니다.\n10분 동안 입력이 없으면 자동으로 꺼집니다.`;
+  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1~2분" : "보통 2~3분"}) 시간은 요금이 들지 않고, 분석 준비가 끝난 뒤부터 계산됩니다.\n` +
+    (idleStopOn() ? "10분 동안 입력이 없으면 자동으로 꺼집니다." : "자동 종료가 꺼져 있습니다(내 정보). 직접 끄거나 잔액이 떨어질 때까지 요금이 나갑니다.");
   const autoBatch = batchAutoOk();
   if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
@@ -2062,8 +2068,31 @@ if (typeof window.kgcAppSync === "function") {
   loadTygem();
   setInterval(() => { if (location.hash.startsWith("#me") && document.visibilityState === "visible") loadTygem(); }, 4000);
 }
+// GPU 자동 종료 (내 정보, user request 2026-10-16): on by default (10 minutes without input and the GPU deletes itself).
+// Off keeps the GPU on until the member stops it, the balance runs out or the operator's time limit; turning it off
+// warns first. profiles.idle_stop, read by the server when a GPU starts, so it applies from the next GPU.
+const idleStopOn = () => !profile || profile.idle_stop !== false;
+function showIdleStop() {
+  $("idleStopSwitch").setAttribute("aria-checked", String(idleStopOn()));
+  $("idleStopNote").textContent = idleStopOn() ? "10분 동안 입력이 없으면 GPU를 끕니다. 깜빡하고 안 꺼도 요금이 계속 나가지 않습니다."
+    : "꺼져 있습니다. 직접 끄거나 잔액이 떨어질 때까지 GPU가 켜져 있고 요금이 나갑니다.";
+}
+$("idleStopSwitch").onclick = async () => {
+  const sw = $("idleStopSwitch"), on = !idleStopOn();
+  if (!on && !confirm("GPU 자동 종료를 끌까요?\n\n끄면 분석을 하지 않고 탭을 닫거나 깜빡해도 GPU가 꺼지지 않고, 그동안 요금이 계속 나갑니다.\n" +
+    "직접 GPU 종료를 누르거나, 잔액이 다 떨어지거나, 최대 사용 시간이 될 때까지 켜져 있습니다.\n\n다 쓰면 꼭 GPU 종료를 눌러 주세요.")) return;
+  sw.disabled = true;
+  try {
+    const { error } = await sb.rpc("set_idle_stop", { p_on: on });
+    if (error) throw error;
+    if (profile) profile.idle_stop = on;
+    const live = session && ACTIVE.includes(session.status);
+    toast((on ? "GPU 자동 종료를 켰습니다." : "GPU 자동 종료를 껐습니다. 다 쓰면 꼭 GPU를 끄세요.") + (live ? " 지금 켜진 GPU는 그대로이고, 다음에 켜는 GPU부터 적용됩니다." : ""), !on);
+  } catch (e) { toast(e.message || String(e), true); }
+  finally { sw.disabled = false; showIdleStop(); }
+};
 function keepPush() {   // once per page: a device already allowed stays registered (the server's copy kept fresh)
-  showNotify();
+  showNotify(); showIdleStop();
   if (pushTried || !notifyOn() || !pushOk || Notification.permission !== "granted") return;
   pushTried = true;
   memberPush().then((ok) => { pushReady = ok; }).catch(() => {});
