@@ -244,7 +244,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     <!-- GPU별 탐색 스레드 (2026-10-17): tune_cache values per GPU kind × member model, and the kinds in the member list not measured yet -->
     <div class="panel">
       <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">GPU별 탐색 스레드</h2><button class="quiet" id="tuneReload">회원 목록 다시 보기</button></div>
-      <p class="muted small">지금 적용된 엔진으로 저장된 스레드 수입니다. 비어 있는 칸(미측정)은 그 GPU·모델의 첫 대여 때 벤치마크를 돌리므로 준비가 2~5분쯤 더 걸립니다. <span id="tuneLine"></span></p>
+      <p class="muted small">지금 적용된 엔진으로 잰 스레드 수입니다. 아직 안 잰 칸은 잰 값들로 정한 <b>추정값</b>(주황)으로 대여를 시작합니다(벤치마크 없음). 관리자 시험 대여를 하면 그 GPU·모델의 실측값으로 바뀝니다. <span id="tuneLine"></span></p>
       <div class="table-wrap"><table>
         <thead id="tuneHead"></thead>
         <tbody id="tuneRows"><tr><td class="muted">불러오는 중…</td></tr></tbody>
@@ -497,6 +497,12 @@ $("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
 // the kinds in the member list right now (/api/offers, the same search members get): kinds with a model not measured
 // yet first (their first rental with it runs the benchmark), then the fully measured ones, then kinds not listed now.
 let tuneLoaded = false;
+// Same as common.ts estimateThreads (server, 2026-10-17): per card [최강, 균형, 빠름] by GPU tier, × the card count.
+const THREAD_TIERS = [[/4090|5090|PRO 6000/, [40, 64, 128]], [/4080|5070 TI|5080/, [20, 32, 64]], [/3080|3090|4070|5070/, [12, 16, 32]], [/./, [12, 16, 24]]];
+const estimateThreads = (gpu, modelId) => {
+  const tier = THREAD_TIERS.find(([re]) => re.test(gpu.replace(/ ×\d$/, "").toUpperCase()))[1], id = modelId.toLowerCase();
+  return tier[/small/.test(id) ? 2 : /medium/.test(id) ? 1 : 0] * Number(/×(\d)$/.exec(gpu)?.[1] || 1);
+};
 const gpuOrder = (a, b) => a.replace(/ ×\d$/, "").localeCompare(b.replace(/ ×\d$/, ""), "en", { numeric: true }) ||
   Number(/×(\d)$/.exec(a)?.[1] || 1) - Number(/×(\d)$/.exec(b)?.[1] || 1);
 async function loadTune() {
@@ -515,7 +521,7 @@ async function loadTune() {
   const kinds = [...new Set([...listed.keys(), ...tune.filter((r) => models.some((m) => m.id === r.model_id)).map((r) => r.gpu_name)])].sort(gpuOrder);
   const done = (g) => models.filter((m) => saved.has(`${g}|${m.id}`)).length;
   const groups = [
-    ["회원 목록에 있음 · 측정 안 한 모델 있음", kinds.filter((g) => listed.has(g) && done(g) < models.length)],
+    ["회원 목록에 있음 · 추정값 쓰는 모델 있음", kinds.filter((g) => listed.has(g) && done(g) < models.length)],
     ["모두 측정됨", kinds.filter((g) => done(g) === models.length)],
     ["지금 회원 목록에 없음", kinds.filter((g) => !listed.has(g) && done(g) < models.length)],
   ];
@@ -524,7 +530,8 @@ async function loadTune() {
     models.map((m) => `<th class="num">${esc(m.name)}</th>`).join("") + "</tr>";
   const cell = (g, m) => {
     const r = saved.get(`${g}|${m.id}`);
-    return r ? `<td class="num" title="측정 ${esc(dateOnly(r.measured_at))}">${r.threads}</td>` : '<td class="num"><span class="pill warn">미측정</span></td>';
+    return r ? `<td class="num" title="측정 ${esc(dateOnly(r.measured_at))}">${r.threads}</td>`
+      : `<td class="num"><span class="pill warn" title="아직 안 잼 — 대여는 이 추정값으로 시작">추정 ${estimateThreads(g, m.id)}</span></td>`;
   };
   $("tuneRows").innerHTML = groups.filter(([, gs]) => gs.length).map(([title, gs]) =>
     `<tr class="tune-group"><th colspan="${cols}">${esc(title)} <span class="muted">${gs.length}종</span></th></tr>` +
@@ -534,7 +541,7 @@ async function loadTune() {
     }).join("")).join("") || `<tr><td colspan="${cols}" class="muted">없음</td></tr>`;
   const inList = [...listed.keys()];
   $("tuneLine").textContent = list ? `지금 회원 목록 ${inList.length}종: 모두 측정 ${inList.filter((g) => done(g) === models.length).length}종 · ` +
-    `일부만 ${inList.filter((g) => done(g) > 0 && done(g) < models.length).length}종 · 측정 안 함 ${inList.filter((g) => !done(g)).length}종.`
+    `일부만 ${inList.filter((g) => done(g) > 0 && done(g) < models.length).length}종 · 전부 추정 ${inList.filter((g) => !done(g)).length}종.`
     : "회원 목록을 불러오지 못해 저장된 값만 보입니다.";
 }
 $("tuneReload").onclick = () => loadTune();
