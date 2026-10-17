@@ -24,6 +24,9 @@
 .atabs button .n { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 12px; line-height: 20px; }
 .atabs button .n[hidden] { display: none; }
 section.tab[hidden] { display: none; }
+button.tune-measure { border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; min-height: 0; height: auto; padding: 3px 11px; line-height: 1.5; box-shadow: none; }
+button.tune-measure:hover { filter: brightness(.95); }
+button.tune-measure:disabled { opacity: .5; cursor: default; }
 tr.tune-group th { text-align: left; padding-top: 16px; font-size: 14px; color: var(--ink); background: transparent; }   /* GPU별 탐색 스레드의 묶음 제목 */
 .panel .lead { margin: -6px 0 14px; }
 td .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
@@ -244,7 +247,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     <!-- GPU별 탐색 스레드 (2026-10-17): tune_cache values per GPU kind × member model, and the kinds in the member list not measured yet -->
     <div class="panel">
       <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">GPU별 탐색 스레드</h2><button class="quiet" id="tuneReload">회원 목록 다시 보기</button></div>
-      <p class="muted small">지금 적용된 엔진으로 잰 스레드 수입니다. 아직 안 잰 칸은 잰 값들로 정한 <b>추정값</b>(주황)으로 대여를 시작합니다(벤치마크 없음). 관리자 시험 대여를 하면 그 GPU·모델의 실측값으로 바뀝니다. <span id="tuneLine"></span></p>
+      <p class="muted small">지금 적용된 엔진으로 잰 스레드 수입니다. 아직 안 잰 칸은 잰 값들로 정한 <b>추정값</b>(주황)으로 대여를 시작합니다(벤치마크 없음). 추정 칸을 누르면 그 GPU·모델을 시험 대여로 실측해 바꿉니다(원가, 자동 종료). <span id="tuneLine"></span></p>
       <div class="table-wrap"><table>
         <thead id="tuneHead"></thead>
         <tbody id="tuneRows"><tr><td class="muted">불러오는 중…</td></tr></tbody>
@@ -530,8 +533,12 @@ async function loadTune() {
     models.map((m) => `<th class="num">${esc(m.name)}</th>`).join("") + "</tr>";
   const cell = (g, m) => {
     const r = saved.get(`${g}|${m.id}`);
-    return r ? `<td class="num" title="측정 ${esc(dateOnly(r.measured_at))}">${r.threads}</td>`
-      : `<td class="num"><span class="pill warn" title="아직 안 잼 — 대여는 이 추정값으로 시작">추정 ${estimateThreads(g, m.id)}</span></td>`;
+    if (r) return `<td class="num" title="측정 ${esc(dateOnly(r.measured_at))}">${r.threads}</td>`;
+    const est = estimateThreads(g, m.id), k = listed.get(g);
+    // not measured: a click rents the cheapest of exactly this kind with this model and measures it (2026-10-17)
+    return k ? `<td class="num"><button type="button" class="pill warn tune-measure" data-gpu="${esc(g)}" data-model="${esc(m.id)}" data-name="${esc(m.name)}" data-krw="${k.min}"` +
+        ` title="아직 안 잼 — 대여는 이 추정값으로 시작. 누르면 시험 대여로 실측">추정 ${est}</button></td>`
+      : `<td class="num"><span class="pill warn" title="아직 안 잼 — 지금 회원 목록에 없어 잴 수 없음">추정 ${est}</span></td>`;
   };
   $("tuneRows").innerHTML = groups.filter(([, gs]) => gs.length).map(([title, gs]) =>
     `<tr class="tune-group"><th colspan="${cols}">${esc(title)} <span class="muted">${gs.length}종</span></th></tr>` +
@@ -545,6 +552,18 @@ async function loadTune() {
     : "회원 목록을 불러오지 못해 저장된 값만 보입니다.";
 }
 $("tuneReload").onclick = () => loadTune();
+$("tuneRows").onclick = async (ev) => {
+  const b = ev.target.closest("button.tune-measure"); if (!b) return;
+  // admins pay Vast's cost: the member price ÷ markup, for about 10 minutes (setup + benchmark, then it stops by itself)
+  const cost = Math.max(10, Math.round(Number(b.dataset.krw) / (Number(capSettings?.markup) || 1.5) / 6 / 10) * 10);
+  if (!confirm(`${b.dataset.gpu} + ${b.dataset.name}\n\n지금 목록에서 이 종류(${b.dataset.gpu}) 중 가장 싼 GPU를 빌려 KataGo 벤치마크로 탐색 스레드를 잰 뒤 자동으로 끕니다.\n` +
+    `보통 5~10분, 관리자 잔액에서 원가 약 ${won(cost)}이 나갑니다(처음 빌리는 기계면 조금 더). 한 번에 한 대만 잴 수 있습니다.\n\n시작할까요?`)) return;
+  b.disabled = true;
+  try {
+    await api("/admin/engine-test", { gpu: b.dataset.gpu, model_id: b.dataset.model });
+    toast("측정을 시작했습니다. 진행은 GPU 탭 목록에 보이고, 끝나면 '회원 목록 다시 보기'로 이 표에서 확인하세요."); load();
+  } catch (e) { toast(e.message, true); b.disabled = false; }
+};
 
 // ------------------------------------------------------------------ KataGo 엔진·모델 (engine_models / engine_config / engine_updates)
 // Loaded on its own (not in the 15 s refresh) so a name being typed is never overwritten; refreshed after each action
