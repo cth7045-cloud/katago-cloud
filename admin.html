@@ -24,6 +24,7 @@
 .atabs button .n { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 12px; line-height: 20px; }
 .atabs button .n[hidden] { display: none; }
 section.tab[hidden] { display: none; }
+tr.tune-group th { text-align: left; padding-top: 16px; font-size: 14px; color: var(--ink); background: transparent; }   /* GPU별 탐색 스레드의 묶음 제목 */
 .panel .lead { margin: -6px 0 14px; }
 td .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
 td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13px; }
@@ -240,6 +241,16 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       </form>
     </div>
 
+    <!-- GPU별 탐색 스레드 (2026-10-17): tune_cache values per GPU kind × member model, and the kinds in the member list not measured yet -->
+    <div class="panel">
+      <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">GPU별 탐색 스레드</h2><button class="quiet" id="tuneReload">회원 목록 다시 보기</button></div>
+      <p class="muted small">지금 적용된 엔진으로 저장된 스레드 수입니다. 비어 있는 칸(미측정)은 그 GPU·모델의 첫 대여 때 벤치마크를 돌리므로 준비가 2~5분쯤 더 걸립니다. <span id="tuneLine"></span></p>
+      <div class="table-wrap"><table>
+        <thead id="tuneHead"></thead>
+        <tbody id="tuneRows"><tr><td class="muted">불러오는 중…</td></tr></tbody>
+      </table></div>
+    </div>
+
     </section>
 
     <!-- 공지 (2026-10-15): to every member or one; members see it on 홈 and in 내 정보 › 공지 -->
@@ -313,6 +324,7 @@ const STATE = { creating: ["준비 중", "warn"], booting: ["준비 중", "warn"
                 stopping: ["끄는 중", "warn"], stopped: ["종료", ""], failed: ["실패", "bad"] };
 
 // tabs (remembered in the address: admin.html#engine)
+let adminReady = false;   // signed in as an admin (the start below): tabs opened before it load nothing yet
 const TABS = ["gpu", "charges", "members", "engine", "price", "notice"];
 function showTab(name) {
   if (!TABS.includes(name)) name = "gpu";
@@ -320,6 +332,7 @@ function showTab(name) {
   for (const b of $("tabs").children) { const on = b.dataset.tab === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); }
   if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
   if (name === "notice") loadNoticeList();
+  if (name === "engine" && adminReady && !tuneLoaded) loadTune();   // once, on first view: it runs the member list's search
 }
 $("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) showTab(b.dataset.tab); };
 document.querySelector(".kpis").onclick = (ev) => { const b = ev.target.closest("[data-go]"); if (b) { showTab(b.dataset.go); $("tabs").scrollIntoView({ block: "start", behavior: "smooth" }); } };
@@ -478,6 +491,53 @@ render.speed = (list) => { $("speedRows").innerHTML = list.map((r) => `<tr><td>$
   `<td class="small muted">${r.source === "use" ? "실사용" : "벤치마크"}</td></tr>`).join("")
   || `<tr><td colspan="7" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
 $("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
+
+// ------------------------------------------------------------------ GPU별 탐색 스레드 (user request 2026-10-17)
+// Saved thread counts (admin_tune = tune_cache for the engine in use) per GPU kind × model members can pick, set against
+// the kinds in the member list right now (/api/offers, the same search members get): kinds with a model not measured
+// yet first (their first rental with it runs the benchmark), then the fully measured ones, then kinds not listed now.
+let tuneLoaded = false;
+const gpuOrder = (a, b) => a.replace(/ ×\d$/, "").localeCompare(b.replace(/ ×\d$/, ""), "en", { numeric: true }) ||
+  Number(/×(\d)$/.exec(a)?.[1] || 1) - Number(/×(\d)$/.exec(b)?.[1] || 1);
+async function loadTune() {
+  tuneLoaded = true;
+  $("tuneLine").textContent = "회원 목록을 확인하는 중…";
+  const [tune, list] = await Promise.all([sb.rpc("admin_tune").then(({ data, error }) => (error ? error : data ?? [])),
+    api("/offers").catch(() => null), eng ? null : loadEngine()]);
+  if (!Array.isArray(tune)) { $("tuneLine").textContent = ""; $("tuneRows").innerHTML = `<tr><td class="error">스레드 값을 불러오지 못했습니다: ${esc(tune.message)}</td></tr>`; return; }
+  const models = (eng?.models ?? []).filter((m) => m.status === "on");
+  const saved = new Map(tune.map((r) => [`${r.gpu_name}|${r.model_id}`, r]));
+  const listed = new Map();   // kind -> {n, min price}
+  for (const o of list?.offers ?? []) {
+    const k = listed.get(o.gpu) ?? { n: 0, min: Infinity };
+    k.n++; k.min = Math.min(k.min, Number(o.priceKrw) || Infinity); listed.set(o.gpu, k);
+  }
+  const kinds = [...new Set([...listed.keys(), ...tune.filter((r) => models.some((m) => m.id === r.model_id)).map((r) => r.gpu_name)])].sort(gpuOrder);
+  const done = (g) => models.filter((m) => saved.has(`${g}|${m.id}`)).length;
+  const groups = [
+    ["회원 목록에 있음 · 측정 안 한 모델 있음", kinds.filter((g) => listed.has(g) && done(g) < models.length)],
+    ["모두 측정됨", kinds.filter((g) => done(g) === models.length)],
+    ["지금 회원 목록에 없음", kinds.filter((g) => !listed.has(g) && done(g) < models.length)],
+  ];
+  const cols = 2 + models.length;
+  $("tuneHead").innerHTML = `<tr><th>GPU</th><th class="num" title="지금 회원 목록에 뜬 개수 · 가장 싼 회원 요금">회원 목록</th>` +
+    models.map((m) => `<th class="num">${esc(m.name)}</th>`).join("") + "</tr>";
+  const cell = (g, m) => {
+    const r = saved.get(`${g}|${m.id}`);
+    return r ? `<td class="num" title="측정 ${esc(dateOnly(r.measured_at))}">${r.threads}</td>` : '<td class="num"><span class="pill warn">미측정</span></td>';
+  };
+  $("tuneRows").innerHTML = groups.filter(([, gs]) => gs.length).map(([title, gs]) =>
+    `<tr class="tune-group"><th colspan="${cols}">${esc(title)} <span class="muted">${gs.length}종</span></th></tr>` +
+    gs.map((g) => {
+      const k = listed.get(g);
+      return `<tr><td>${esc(g)}</td><td class="num${k ? "" : " muted"}">${k ? `${k.n}개 · ${won(k.min)}~` : "없음"}</td>` + models.map((m) => cell(g, m)).join("") + "</tr>";
+    }).join("")).join("") || `<tr><td colspan="${cols}" class="muted">없음</td></tr>`;
+  const inList = [...listed.keys()];
+  $("tuneLine").textContent = list ? `지금 회원 목록 ${inList.length}종: 모두 측정 ${inList.filter((g) => done(g) === models.length).length}종 · ` +
+    `일부만 ${inList.filter((g) => done(g) > 0 && done(g) < models.length).length}종 · 측정 안 함 ${inList.filter((g) => !done(g)).length}종.`
+    : "회원 목록을 불러오지 못해 저장된 값만 보입니다.";
+}
+$("tuneReload").onclick = () => loadTune();
 
 // ------------------------------------------------------------------ KataGo 엔진·모델 (engine_models / engine_config / engine_updates)
 // Loaded on its own (not in the 15 s refresh) so a name being typed is never overwritten; refreshed after each action
@@ -873,6 +933,7 @@ else {
   poll(); setInterval(() => { if (front()) poll(); }, 15000);
   pollCharges(); setInterval(() => { if (front()) pollCharges(); }, 15000); showPush().catch(() => {});
   loadEngine(); setInterval(() => { if (front()) pollEngine(); }, 30000);
+  adminReady = true; if (location.hash === "#engine") loadTune();
   document.addEventListener("visibilitychange", () => { if (front()) { poll(); pollCharges(); pollEngine(); } });
   sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") location.href = "index.html"; });   // signed out in another tab
 }
