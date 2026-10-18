@@ -443,9 +443,12 @@ async function load() {
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `준비 실패 환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
-      // 준비 시간 (user 2026-10-18): from the rental request to 분석 준비 완료 (ready_at), what the member waited
-      const prepS = x.ready_at ? Math.max(0, Math.round((new Date(x.ready_at) - new Date(x.created_at)) / 1000)) : null;
-      const prep = prepS == null ? "" : `준비 ${prepS >= 60 ? `${Math.floor(prepS / 60)}분 ${prepS % 60}초` : `${prepS}초`}`;
+      // 준비 시간 (user 2026-10-18): from the rental request to 분석 준비 완료 (ready_at), what the member waited; a rental
+      // that ended before it was ready (시간 초과, 회원 종료) shows how long it was preparing ('offer gone' rows: none)
+      const sec = (a, b) => Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
+      const mmss = (n) => (n >= 60 ? `${Math.floor(n / 60)}분 ${n % 60}초` : `${n}초`);
+      const prepS = x.ready_at ? sec(x.created_at, x.ready_at) : null, failS = !x.ready_at && !live && x.stopped_at ? sec(x.created_at, x.stopped_at) : 0;
+      const prep = prepS != null ? `준비 ${mmss(prepS)}` : failS > 0 ? `준비 못 함 ${mmss(failS)}` : "";
       return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${label}</span></td>` +
         `<td>${esc([x.gpu_name, x.region].filter(Boolean).join(" · "))}<span class="sub">${esc(models[x.id] ? models[x.id].model_name || MODEL_NAMES[models[x.id].model_id] : "")}</span></td>` +
         `<td class="num">${won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
