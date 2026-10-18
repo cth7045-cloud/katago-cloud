@@ -1106,7 +1106,7 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
   // graphics, and the admin list showed two runs): a newer 내 기기 screen tells the older ones to stop theirs.
   if (window.BroadcastChannel && !connectLocal.bc) {
     connectLocal.bc = new BroadcastChannel("kgc-local-engine");
-    connectLocal.bc.onmessage = ev => { if (ev.data && ev.data.newer) yieldLocal(); };
+    connectLocal.bc.onmessage = ev => { if (ev.data && (ev.data.newer || ev.data.gpu)) yieldLocal(ev.data.gpu ? "gpu" : ""); };
   }
   if (connectLocal.bc) connectLocal.bc.postMessage({newer: 1});
   const worker = new Worker("localengine.js" + (String(args) ? "?" + args : "")), sock = {readyState: 0, send: t => worker.postMessage(t), close: () => worker.terminate()};
@@ -1133,12 +1133,19 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
   worker.onerror = e => { $("conn").textContent = "내 기기 · 엔진을 켜지 못했습니다"; $("err").textContent = "내 기기 엔진 오류: " + (e.message || "알 수 없음"); };
 }
 let localYielded = false, endLocalRun = null;
-function yieldLocal() {   // another 내 기기 screen opened in this browser: stop this one's engine and close its run
+// reason "gpu": the member rented a GPU (user 2026-10-18: no 내 기기 while a GPU is on; GPU 대여 says so in this
+// browser at once, startLocalRun finds it on any device within a minute)
+function yieldLocal(reason) {   // another 내 기기 screen opened in this browser: stop this one's engine and close its run
   if (localYielded) return;
   localYielded = true;
   if (analyzing) setAnalyzing(false);
   lost(); clearTimeout(retryTimer);   // the worker goes with the connection; connect() starts no other (localYielded)
   if (endLocalRun) endLocalRun();
+  if (reason === "gpu") {
+    $("conn").textContent = "내 기기 · GPU 사용 중";
+    $("err").textContent = "GPU를 사용 중이라 이 기기의 엔진을 껐습니다. GPU 대여의 '분석 화면 열기'로 분석하세요. 내 기기 분석은 GPU를 끈 뒤에 쓸 수 있습니다.";
+    return;
+  }
   $("conn").textContent = "내 기기 · 다른 창에서 분석 중";
   $("err").textContent = "다른 창에서 내 기기 분석을 열어 이 창의 엔진을 껐습니다. 이 창에서 계속하려면 새로고침하세요.";
 }
@@ -4726,6 +4733,13 @@ async function startLocalRun(device) {
   let site; try { site = await import("./app.js"); } catch { return; }
   let session = null; try { ({data: {session}} = await site.sb.auth.getSession()); } catch { /* offline */ }
   if (!session) return;
+  // a GPU of this member's is on (or starting): no 내 기기 beside it (user 2026-10-18)
+  const gpuOn = async () => {
+    const {count, error} = await site.sb.from("gpu_sessions").select("id", {count: "exact", head: true})
+      .in("status", ["creating", "booting", "setup", "ready", "stopping"]);
+    return !error && count > 0;
+  };
+  if (await gpuOn().catch(() => false)) { yieldLocal("gpu"); return; }
   const ua = navigator.userAgent, iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const os = /Windows/.test(ua) ? "Windows" : iOS ? "iPhone·iPad" : /Android/.test(ua) ? "Android" : /Mac OS/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "기타";
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -4736,7 +4750,10 @@ async function startLocalRun(device) {
     device: String(device || "").slice(0, 20) || null, platform: [os, app].filter(Boolean).join(" · "), watch_token: watch});
   if (error) return;
   const touch = fields => site.sb.from("device_runs").update(fields).eq("id", id).then(() => {}, () => {});
-  const beat = setInterval(() => touch({last_seen: new Date().toISOString()}), 60000);   // the server stamps the time itself
+  const beat = setInterval(() => {   // the server stamps the time itself
+    touch({last_seen: new Date().toISOString()});
+    gpuOn().then(on => { if (on) yieldLocal("gpu"); }, () => {});
+  }, 60000);
   endLocalRun = () => { endLocalRun = null; clearInterval(beat); touch({ended_at: new Date().toISOString()}); };
   addEventListener("pagehide", () => { if (endLocalRun) endLocalRun(); });
   if (localYielded) endLocalRun();   // another screen took over while this run was being written

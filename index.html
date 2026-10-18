@@ -1760,6 +1760,7 @@ $("startButton").onclick = async () => {
     // 기보를 넣어 두고 GPU를 켜면 준비되자마자 알아서 분석 (user request 2026-10-08): the same as pressing 준비되면 분석 시작
     if (autoBatch && batchAutoOk()) { batchQueued = true; toast(`GPU가 준비되면 기보 ${autoBatch}판 분석을 자동으로 시작합니다.`); }
     else toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
+    stopLocalForGpu();
     await refresh();
   } catch (err) {
     $("startError").textContent = err.message;
@@ -2189,7 +2190,21 @@ function logDevice(status, model, device, error) {
   sb.from("device_runs").insert({ status, model, device: device || null, platform: [os, app].filter(Boolean).join(" · "),
     error: error ? String(error).slice(0, 300) : null }).then(() => {}, () => {});
 }
+// One engine per member (user 2026-10-18: a member ran 내 기기 on a phone while their rented GPU booted): no 내 기기
+// while a GPU is on; renting one stops this page's preparation and, in this browser, the 내 기기 analysis screens at
+// once (the server ends their runs, and screens on other devices stop within a minute: webui.html startLocalRun).
+function gpuBlocksLocal() {
+  if (!session) return false;
+  toast("GPU를 사용 중입니다. 내 기기 분석은 GPU를 끈 뒤에 쓸 수 있습니다.", true);
+  $("sessionCard").scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+}
+function stopLocalForGpu() {
+  endLocal(); $("localCard").classList.add("hidden"); $("deviceCard").classList.remove("hidden");
+  try { const bc = new BroadcastChannel("kgc-local-engine"); bc.postMessage({ gpu: 1 }); bc.close(); } catch { /* old browser */ }
+}
 $("deviceStart").onclick = () => {
+  if (gpuBlocksLocal()) return;
   endLocal();
   const m = $("deviceModel").value, w = localWorker = new Worker("localengine.js" + (m === "balanced" ? "?m=balanced" : ""));
   $("deviceCard").classList.add("hidden"); $("localCard").classList.remove("hidden");
@@ -2222,7 +2237,7 @@ $("deviceStart").onclick = () => {
   };
 };
 $("localStop").onclick = () => { endLocal(); $("localCard").classList.add("hidden"); $("deviceCard").classList.remove("hidden"); };
-$("localOpen").onclick = () => { if (!standalone) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
+$("localOpen").onclick = () => { if (gpuBlocksLocal()) { stopLocalForGpu(); return false; } if (!standalone) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
 let installing = false;  // the member said yes in the install window; the browser is still installing
