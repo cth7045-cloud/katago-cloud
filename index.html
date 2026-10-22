@@ -345,6 +345,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 3 6-7"/><circle cx="20" cy="7" r="1.2"/></svg></span>
         <span class="grow"><b>기보 분석</b><span>여러 판을 GPU로 한 번에 분석해 내 기보에 저장</span></span><span class="chev" aria-hidden="true">›</span>
       </a>
+      <!-- 기보실 (2026-10-22): public pro and AI games the server collects (DB public_kifu), to open at any time -->
+      <a class="batch-entry lib-entry" href="#library" id="libEntry">
+        <span class="hub-icon kifu" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M10 4h4v16h-4z"/><path d="M14.5 4.8l3.9-.8a1 1 0 0 1 1.2.8l2.3 13.9a1 1 0 0 1-.8 1.1l-3.9.8"/></svg></span>
+        <span class="grow"><b>기보실</b><span>프로 기보·AI 기보를 언제든 열어 보기 · 새 기보 자동 추가</span></span><span class="chev" aria-hidden="true">›</span>
+      </a>
       <!-- the folders, as cards (#mine) -->
       <div id="folderHome">
         <div class="row mine-top">
@@ -376,6 +381,27 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <tbody id="mineRows"><tr><td colspan="9" class="muted">불러오는 중…</td></tr></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- 기보실 (#library, 2026-10-22): 프로 기보 (타이젬) and AI 기보 (KataGo), collected every 10 minutes by the server -->
+    <div class="wrap app narrow hidden" id="libraryView">
+      <a class="back" href="#mine">‹ 내 기보</a>
+      <h1 class="page-title">기보실</h1>
+      <div class="panel">
+        <div class="row lib-top">
+          <div class="seg" id="libKind" role="group" aria-label="기보 종류">
+            <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
+            <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
+          </div>
+          <input type="search" id="libQuery" class="grow" placeholder="찾기: 대국자·대회 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
+        </div>
+        <p class="muted small lib-note" id="libNote"></p>
+        <div class="scroll-box fox-list lib-list">
+          <table><thead><tr><th>대국</th><th>결과</th></tr></thead>
+            <tbody id="libRows"><tr><td colspan="2" class="muted">불러오는 중…</td></tr></tbody></table>
+        </div>
+        <div class="row lib-more"><span class="muted small grow" id="libCount"></span><button class="quiet hidden" type="button" id="libMore">더 보기</button></div>
       </div>
     </div>
 
@@ -702,6 +728,7 @@ function leave() {
     if (batchFrame) { batchFrame.remove(); batchFrame = null; }
     batchJob = null; batchQueued = false; batchFiles = []; batchRun = []; foxGames = []; foxShow(); batchShow();
   }
+  libLoaded = false; libRows = [];   // 기보실 loads again for the next member
   startHero(); $("bootFail")?.remove();
   swap(() => { document.body.classList.remove("authed"); $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
@@ -710,6 +737,7 @@ async function enter() {
   $("bootFail")?.remove();
   await refresh();
   loadOffers(); loadMine(); loadNotesCard(); resumeBatch();
+  if (curPage === "libraryView" && !libLoaded) loadLibrary(true);   // opened at #library: showPage ran before the profile
   // every 4 s while the page is in front; in the background only while a GPU is on or a 기보 분석 waits for one (its
   // 준비 완료 alert and the reserved start need it) — a tab or the PC app left open all day asks nothing (2026-10-10)
   clearInterval(pollTimer);
@@ -893,7 +921,7 @@ function dashShow() {
     $("dashStop").classList.toggle("hidden", s.status === "stopping");
   }
   // the pill: on the pages without a GPU card of their own
-  const pill = live && ["mineView", "studyView", "meView", "chargeView"].includes(curPage);
+  const pill = live && ["mineView", "libraryView", "studyView", "meView", "chargeView"].includes(curPage);
   $("livePill").classList.toggle("hidden", !pill);
   if (pill) {
     $("livePillText").innerHTML = `${esc(s.gpu_name || "GPU")} · ${ready ? `${min}분 <span>· ${won(s.charged_krw)}</span>` : esc(gpuState)}`;
@@ -1678,6 +1706,53 @@ $("mineRows").onclick = async (ev) => {
   openPage(`analysis.html?v=${Date.now()}#${gpu}kifu=${k.id}`);
 };
 
+// ------------------------------------------------------------------ 기보실 (#library, DB 20261022c_public_kifu)
+// The server adds 프로 기보 (타이젬 뉴스 기보) and AI 기보 (KataGo 실력 측정 대국) every 10 minutes; members read them
+// newest first, 50 at a time, and a game opens in the analysis screen (#pub=<id>): on the member's ready GPU to analyse,
+// else the board only. '내 기보 저장' there keeps a copy.
+const LIB_PAGE = 50, LIB_NOTE = {
+  pro: "타이젬에 올라오는 프로 대국 기보입니다. 새 기보는 10분마다 자동으로 추가됩니다.",
+  ai: "KataGo 최상위 모델끼리 둔 실력 측정 대국(19줄, 150수 이상)입니다. 하루 30판씩 자동으로 추가됩니다.",
+};
+let libKind = "pro", libRows = [], libLoaded = false, libSeq = 0, libTimer = 0;
+const libName = (name, rank) => `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
+async function loadLibrary(reset) {
+  const seq = ++libSeq;
+  if (reset) { libRows = []; $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오는 중…</td></tr>`; }
+  $("libNote").textContent = LIB_NOTE[libKind];
+  // PostgREST filter syntax: commas, parentheses and wildcards would change the filter, so they are dropped
+  const q = $("libQuery").value.replace(/[,()*%"\\]/g, " ").trim();
+  let req = sb.from("public_kifu").select("id,played_on,event,black,white,black_rank,white_rank,result,moves", { count: reset ? "exact" : undefined })
+    .eq("source", libKind).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
+  if (q) req = req.or(["black", "white", "event"].map((c) => `${c}.ilike.*${q}*`).join(","));
+  const { data, error, count } = await req;
+  if (seq !== libSeq) return;   // a newer search or tab replaced this one
+  if (error) { $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오지 못했습니다: ${esc(error.message)}</td></tr>`; return; }
+  libLoaded = true;
+  libRows = libRows.concat(data);
+  if (reset) $("libCount").dataset.total = count ?? "";
+  const total = Number($("libCount").dataset.total) || libRows.length;
+  $("libCount").textContent = libRows.length ? `${total.toLocaleString()}판${q ? " 찾음" : ""}` : "";
+  $("libMore").classList.toggle("hidden", libRows.length >= total || data.length < LIB_PAGE);
+  $("libRows").innerHTML = libRows.map((k, i) => `<tr class="pick" data-lib="${i}"><td><div class="lib-players"><span class="stone b" aria-label="흑"></span>${libName(k.black, k.black_rank)}` +
+    ` <span class="muted">vs</span> <span class="stone w" aria-label="백"></span>${libName(k.white, k.white_rank)}</div>` +
+    `<div class="lib-meta">${esc(k.played_on || "")}${k.event ? " · " + esc(k.event) : ""}${k.moves ? ` · ${k.moves}수` : ""}</div></td>` +
+    `<td class="lib-result">${esc(k.result || "")}</td></tr>`).join("")
+    || `<tr><td colspan="2" class="muted">${q ? "찾는 기보가 없습니다." : "아직 모은 기보가 없습니다. 잠시 뒤에 다시 열어 보세요."}</td></tr>`;
+}
+$("libKind").onclick = (ev) => {
+  const b = ev.target.closest("[data-kind]"); if (!b || b.dataset.kind === libKind) return;
+  libKind = b.dataset.kind;
+  for (const x of $("libKind").children) x.setAttribute("aria-pressed", x === b);
+  loadLibrary(true);
+};
+$("libQuery").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(() => loadLibrary(true), 300); };
+$("libMore").onclick = () => loadLibrary(false);
+$("libRows").onclick = (ev) => {
+  const tr = ev.target.closest("[data-lib]"); const k = tr && libRows[+tr.dataset.lib]; if (!k) return;
+  openPage(`analysis.html?v=${Date.now()}#${gpuHash()}pub=${k.id}`);
+};
+
 // ------------------------------------------------------------------ offers / start
 // The model list starts on the member's last model (while they have not changed it here), else the admin's default.
 function pickModel() {
@@ -1787,7 +1862,7 @@ new IntersectionObserver((entries, io) => {
 }, { threshold: .2 }).observe($("how"));
 
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
-const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
+const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#library": "libraryView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
 function showPage() {
   const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : "hubView");
   // one set of GPU parts (balance, my GPU, choosing one): on the 기보 분석 page while it shows, else on GPU 대여
@@ -1795,10 +1870,11 @@ function showPage() {
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
   for (const v of ["hubView", ...Object.values(PAGES)]) $(v).classList.toggle("hidden", v !== page);
   curPage = page; document.body.dataset.page = page;
-  const tab = { hubView: "hub", homeView: "gpu", analyzeView: "kifu", mineView: "kifu", studyView: "study", meView: "me", chargeView: "charge" }[page];
+  const tab = { hubView: "hub", homeView: "gpu", analyzeView: "kifu", mineView: "kifu", libraryView: "kifu", studyView: "study", meView: "me", chargeView: "charge" }[page];
   document.querySelectorAll("#tabnav [data-tab]").forEach((a) => { a.classList.toggle("on", a.dataset.tab === tab); a.toggleAttribute("aria-current", a.dataset.tab === tab); });
   if (profile) dashShow();
   if (page === "mineView") showMineFolder();
+  if (profile && page === "libraryView" && !libLoaded) loadLibrary(true);
   if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView" || page === "studyView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();

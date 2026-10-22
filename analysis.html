@@ -1032,6 +1032,7 @@ const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : nul
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
+if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub");   // …or a 기보실 game (2026-10-22)
 const shareToken = /^[A-Za-z0-9_-]{24}$/.test(hashParams.get("share") || "") ? hashParams.get("share") : null;   // 기보 공유 link
 const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
@@ -3282,6 +3283,7 @@ $("mineRows").addEventListener("click", async ev => {
 async function openMineKifu(id) {
   pendingKifu = null;
   if (mineDirtyAt) await mineAutoSave(false);   // 자동 저장: the game on screen before this one replaces it
+  if (String(id).startsWith("pub:")) return openPublicKifu(String(id).slice(4));
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 내 기보를 열 수 있습니다"; return false; }
   let {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study,study_folder_id").eq("id", id).maybeSingle();
@@ -3295,6 +3297,21 @@ async function openMineKifu(id) {
   // 시작 국면): one small write, the game itself is unchanged so its 저장 time stays
   if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).then(() => {}, () => {});
   $("err").textContent = mineStudy ? `학습방 '${k.title}'을(를) 열었습니다` : `내 기보 '${k.title}'을(를) 열었습니다`;
+  return true;
+}
+
+// 기보실 (#pub=<id>, 2026-10-22, DB 20261022c_public_kifu): a pro or AI game the server collected. It opens like an SGF
+// file (no 내 기보 row behind it, so nothing is saved over); '내 기보 저장' keeps a copy with the analysis made here.
+async function openPublicKifu(id) {
+  const c = await mineClient();
+  if (!c) { $("err").textContent = "로그인한 사이트에서만 기보실 기보를 열 수 있습니다"; return false; }
+  const {data: k, error} = await c.from("public_kifu").select("id,event,black,white,sgf").eq("id", Number(id)).maybeSingle();
+  if (error || !k) { $("err").textContent = "기보실 기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
+  try { loadSgf(k.sgf); }
+  catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
+  const title = `${k.black || "?"} vs ${k.white || "?"}`;
+  document.title = `${title} · KataGo Cloud`;
+  $("err").textContent = `기보실 '${title}'${k.event ? " · " + k.event : ""} — '내 기보 저장'으로 내 기보에 넣을 수 있습니다`;
   return true;
 }
 
@@ -4638,7 +4655,7 @@ async function watchGpu() {
   // Opened plainly (the top bar's 분석 화면, 앱 아이콘) while the member's GPU is ready: go straight to it, so the board
   // left there (kept by the GPU's bridge) comes back as it was (user request 2026-09-29; the "이 GPU로 연결" button is gone).
   // Only when the page opens: never pulls away a board the member started here, nor 기보 기록 / a 내 기보 / a shared game.
-  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("notes") && !batchMode;
+  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !batchMode;
   async function tick() {
     const cols = "status,charged_krw,ready_at,instance_created_at,created_at,web_url,web_token,gpu_name";
     const {data: s} = await (mine ? site.sb.from("gpu_sessions").select(cols).in("status", LIVE).order("created_at", {ascending: false})
