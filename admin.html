@@ -91,54 +91,6 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .atabs { background: #1c2438; }
   .atabs button.on { box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
 }
-/* 2026-10-22 가독성: 폰에서 넓은 표 = 카드(칸 이름 + 값, 옆으로 밀지 않음), 탭 3개씩 두 줄, 글자처럼 보이던 버튼에 테두리,
-   요금 설정의 목록 범위(상한·해외·자동 열기)는 켜짐/꺼짐 줄로 */
-table:has(> #sessionRows) th, #sessionRows td { padding-inline: 7px; }
-#sessionRows td.note { min-width: 120px; }
-td.acts > .btn, td.acts > button { display: block; min-height: 32px; padding: 6px 12px; font-size: 13px; line-height: 1.5; text-align: center; white-space: nowrap; }
-td.acts > * + * { margin-top: 6px; }
-.app .panel button.quiet { box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
-.app .panel button.quiet:disabled { opacity: .5; }
-.card.model .arrows button { box-shadow: none !important; }
-.set-list { display: grid; border-top: 1px solid var(--line); }
-.set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
-.set-text { flex: 1 1 280px; min-width: 0; display: grid; gap: 4px; }
-.set-text b { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.set-text .pill { font-size: 12px; padding: 1px 9px; }
-.set-ctl { display: flex; align-items: center; gap: 8px; }
-.set-ctl input { width: 84px; text-align: right; }
-.set-row > button { min-width: 136px; }
-@media (max-width: 640px) {
-  .set-row > button { flex: 1 1 100%; }
-  .set-ctl { flex: 1 1 100%; } .set-ctl button { margin-left: auto; }
-  .table-wrap:has(> table.phone-cards) { margin: 0; overflow: visible; }
-  table.phone-cards thead { display: none; }
-  table.phone-cards, table.phone-cards tbody, table.phone-cards tr, table.phone-cards td { display: block; }
-  table.phone-cards tr { padding: 12px 14px; margin-bottom: 8px; border-radius: 16px; background: var(--soft); }
-  table.phone-cards tr:last-child { margin-bottom: 0; }
-  table.phone-cards td { padding: 3px 0; border: 0; white-space: normal; text-align: right; min-width: 0; max-width: none; overflow-wrap: anywhere; }
-  table.phone-cards td::before { content: attr(data-label); float: left; margin-right: 14px; color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.9; }
-  table.phone-cards td:first-child { text-align: left; font-weight: 700; font-size: 16px; padding-bottom: 6px; }
-  table.phone-cards td:first-child::before, table.phone-cards td[data-label=""]::before, table.phone-cards td[colspan]::before { content: none; }
-  table.phone-cards td[colspan] { text-align: left; font-weight: 400; font-size: inherit; }
-  table.phone-cards td:empty { display: none; }
-  table.phone-cards td.note, #noticeRows td:nth-child(3) { text-align: left; }   /* long text: the name above, the text below */
-  table.phone-cards td.note::before, #noticeRows td:nth-child(3)::before { float: none; display: block; }
-  #noticeRows td:nth-child(3) .muted { max-width: none !important; }
-  table.phone-cards td .sub { display: block; }
-  table.phone-cards td .btn, table.phone-cards td button { margin-top: 6px; }
-  table.phone-cards tr { position: relative; }
-  #sessionRows td:nth-child(2) { position: absolute; top: 12px; right: 14px; padding: 0; }   /* 상태: the card's top right */
-  #sessionRows td:nth-child(2)::before { content: none; }
-  table.phone-cards td.acts { display: flex; gap: 8px; width: auto; padding-top: 10px; }
-  table.phone-cards td.acts:empty { display: none; }
-  table.phone-cards td.acts > * { flex: 1 1 0; min-height: 38px; margin: 0 !important; font-size: 14px; }
-  table.phone-cards td.acts > .btn:not(.primary) { background: var(--panel); color: var(--ink); }
-}
-@media (max-width: 520px) {
-  .atabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-  .atabs button { white-space: nowrap; padding-inline: 4px; }
-}
 </style>
 <script src="theme.js"></script>
 </head>
@@ -330,26 +282,6 @@ td.acts > * + * { margin-top: 6px; }
     </section>
 
     <section class="tab" data-tab="price" hidden>
-    <!-- 회원 GPU 목록의 범위 (2026-10-22): 상한 켜고 끄기, 해외 열고 닫기, 한국이 적을 때 해외 자동 열기 -->
-    <div class="panel">
-      <div class="row" style="margin-bottom:4px"><h2 class="grow" style="margin:0">회원 GPU 목록</h2><button class="quiet" type="button" id="krRecount">다시 세기</button></div>
-      <p class="small" id="krCount" style="margin:0 0 14px">지금 회원 목록: 세는 중…</p>
-      <div class="set-list">
-        <div class="set-row">
-          <div class="set-text"><b>원가 상한 <span class="pill" id="capPill"></span></b><span class="muted small" id="capNote"></span></div>
-          <button type="button" id="capToggle">상한 모두 끄기</button>
-        </div>
-        <div class="set-row">
-          <div class="set-text"><b>해외 GPU <span class="pill" id="abroadPill"></span></b><span class="muted small" id="abroadNote"></span></div>
-          <button type="button" id="abroadToggle">해외 GPU 열기</button>
-        </div>
-        <form class="set-row" id="abroadAuto">
-          <div class="set-text"><b>해외 자동 열기 <span class="pill" id="autoPill"></span></b><span class="muted small">한국 GPU가 이 개수 이하로 줄면 해외 인증 기계도 보여 줍니다. 0이면 끔.</span></div>
-          <div class="set-ctl"><input id="abroadBelow" type="number" min="0" max="50" step="1" required aria-label="해외 자동 열기 기준(개)"><span class="muted small">개 이하</span><button type="submit">저장</button></div>
-        </form>
-      </div>
-    </div>
-
     <div class="panel">
       <h2>요금 설정</h2>
       <form id="priceForm" class="admin-form">
@@ -363,8 +295,18 @@ td.acts > * + * { margin-top: 6px; }
     </div>
 
     <div class="panel">
-      <h2>GPU 종류별 원가 상한</h2>
+      <h2>GPU 목록 범위·원가 상한</h2>
       <p class="muted small lead">카드 1장의 시간당 원가가 상한보다 비싼 GPU는 회원 목록에서 뺍니다. 2~4장 기계는 장수만큼 곱합니다. 칸을 비우면 그 종류는 상한이 없습니다.</p>
+      <div class="inline-form" style="margin-bottom:12px; align-items:center">
+        <button class="quiet" type="button" id="capToggle">상한 모두 끄기</button>
+        <button class="quiet" type="button" id="abroadToggle">해외 GPU 열기</button>
+      </div>
+      <form id="abroadAuto" class="inline-form" style="margin-bottom:12px">
+        <label class="field">한국 GPU가 이 개수 이하이면 해외 자동 열기 (0 = 끔)<input id="abroadBelow" type="number" min="0" max="50" step="1" required></label>
+        <button class="quiet" type="submit">저장</button>
+      </form>
+      <p class="small" style="margin:0 0 6px"><span id="krCount">지금 회원 목록: 세는 중…</span> <button class="quiet" type="button" id="krRecount" style="padding:2px 10px; font-size:inherit">다시 세기</button></p>
+      <p class="muted small" id="capState" style="margin:0 0 12px"></p>
       <div class="table-wrap" id="capTable"><table class="caps">
         <thead><tr><th>GPU</th><th class="num">원가 상한</th><th class="num">회원가 상한</th></tr></thead>
         <tbody id="capRows"></tbody>
@@ -372,7 +314,7 @@ td.acts > * + * { margin-top: 6px; }
       <form id="capAdd" class="inline-form" style="margin-top:12px">
         <label class="field">GPU 이름 (Vast 표기, 예: RTX 4070S)<input id="capName" maxlength="24" placeholder="RTX 4070S"></label>
         <label class="field">원가 상한(원)<input id="capWon" type="number" min="10" max="100000" step="10"></label>
-        <button type="submit">추가</button>
+        <button class="quiet" type="submit">추가</button>
         <button class="primary" type="button" id="capSave">상한 저장</button>
       </form>
     </div>
@@ -410,18 +352,6 @@ $("tabs").onclick = (ev) => { const b = ev.target.closest("button"); if (b) show
 document.querySelector(".kpis").onclick = (ev) => { const b = ev.target.closest("[data-go]"); if (b) { showTab(b.dataset.go); $("tabs").scrollIntoView({ block: "start", behavior: "smooth" }); } };
 showTab(location.hash.slice(1));
 addEventListener("hashchange", () => showTab(location.hash.slice(1)));   // a notification tap opens #charges
-
-// phone: the wide tables turn into cards (CSS table.phone-cards); each cell carries its column's name (2026-10-22)
-for (const id of ["sessionRows", "speedRows", "chargeDone", "memberRows", "ledgerRows", "formerRows", "noticeRows"]) {
-  const body = $(id), table = body.closest("table");
-  table.classList.add("phone-cards");
-  const label = () => {
-    const heads = [...table.tHead.rows[0].cells].map((th) => th.textContent.trim());
-    for (const tr of body.rows) [...tr.cells].forEach((td, i) => { if (td.colSpan === 1) td.dataset.label = heads[i] ?? ""; });
-  };
-  new MutationObserver(label).observe(body, { childList: true });
-  label();
-}
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;   // the installed app (as index.html)
@@ -481,7 +411,7 @@ async function load() {
     $("kFunds").textContent = funds?.krw != null ? won(funds.krw) : "확인 불가";
     $("kMembers").textContent = won(plain.reduce((a, m) => a + Number(m.balance_krw || 0), 0));
     $("kMembersSub").textContent = `회원 ${plain.length}명`;
-    $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${m.name ? esc(m.name) : '<span class="muted">이름 없음</span>'}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
+    $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
       `<td class="muted small">${esc(m.email)}</td><td class="num">${m.is_admin && funds?.krw != null
         ? `<span title="Vast ${won(funds.totalKrw)} − 회원 잔액 ${won(funds.membersKrw)}">${won(funds.krw)}</span>` : won(m.balance_krw)}</td>` +
       `<td>${when(m.created_at)}</td></tr>`).join("");
@@ -514,7 +444,7 @@ async function load() {
           `<td title="${x.ended_at ? "종료 " + when(x.ended_at) : x.status === "ready" && !open ? "마지막 확인 " + when(x.last_seen) : ""}">${when(x.created_at)}` +
           `<span class="sub">${usedDev}${open ? " (사용 중)" : ""}</span></td><td></td><td></td><td></td>` +
           `<td class="note">${esc([x.platform, x.error].filter(Boolean).join(" · "))}</td>` +
-          `<td class="acts">${open && x.watch_token && !mineRun
+          `<td style="white-space:nowrap">${open && x.watch_token && !mineRun
             ? `<a class="btn"${standalone ? "" : ' target="_blank" rel="noopener"'} href="analysis.html?v=${Date.now()}#view=1&lw=${encodeURIComponent(x.watch_token)}">화면 보기</a>` : ""}</td></tr>`;
       }
       const live = ACTIVE.includes(x.status);
@@ -538,7 +468,7 @@ async function load() {
         `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td class="note">${esc(note)}</td>` +
-        `<td class="acts">${x.status === "ready" && x.web_url && x.web_token && !mine
+        `<td style="white-space:nowrap">${x.status === "ready" && x.web_url && x.web_token && !mine
           // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing).
           // In the installed app the same window, like the member pages: a new window there has no page to go back to,
           // so the back button closed the whole app (user report 2026-10-11).
@@ -820,17 +750,16 @@ function drawCaps() {
 }
 // all caps off / back on (app_settings.gpu_caps_off, 2026-10-22): the table is kept and applies again when switched on
 function drawCapState() {
-  const off = !!capSettings?.gpu_caps_off, abroad = !!capSettings?.abroad_on, below = Number(capSettings?.abroad_auto_below) || 0;
-  const pill = (id, on, yes, no) => { $(id).textContent = on ? yes : no; $(id).className = `pill${on ? " good" : ""}`; };
-  pill("capPill", !off, "켜짐", "꺼짐");
-  $("capNote").textContent = off ? "상한에 걸리던 비싼 GPU도 회원 목록에 나옵니다. 아래 표는 그대로 두었다가 다시 켜면 적용됩니다."
-    : "아래 표보다 원가가 비싼 GPU는 회원 목록에서 뺍니다.";
+  const off = !!capSettings?.gpu_caps_off;
   $("capToggle").textContent = off ? "상한 다시 켜기" : "상한 모두 끄기";
+  $("capToggle").className = off ? "primary" : "quiet";
   $("capTable").style.opacity = off ? 0.45 : "";
-  pill("abroadPill", abroad, "열림", "닫힘");
-  $("abroadNote").textContent = abroad ? "일본·대만/홍콩·동남아의 Vast 인증 기계도 나옵니다(상한도 똑같이 적용)." : "한국 GPU만 나옵니다.";
+  const abroad = !!capSettings?.abroad_on, below = Number(capSettings?.abroad_auto_below) || 0;
   $("abroadToggle").textContent = abroad ? "해외 GPU 닫기" : "해외 GPU 열기";
-  pill("autoPill", !abroad && below > 0, `${below}개 이하`, abroad ? "해외 열림" : "꺼짐");
+  $("abroadToggle").className = abroad ? "primary" : "quiet";
+  $("capState").textContent = [off ? "상한 꺼짐 — 상한에 걸리던 비싼 GPU도 회원 목록에 나옵니다. 아래 표는 그대로 두었다가 다시 켜면 적용됩니다." : "",
+    abroad ? "해외 열림 — 일본·대만/홍콩·동남아의 Vast 인증 기계도 회원 목록에 나옵니다(상한도 똑같이 적용)."
+      : below ? `해외 닫힘 — 한국 GPU가 ${below}개 이하일 때만 해외 인증 기계도 나옵니다.` : "해외 닫힘 — 한국 GPU만 나옵니다."].filter(Boolean).join(" ");
   if (document.activeElement !== $("abroadBelow")) $("abroadBelow").value = below;
 }
 // how many Korean GPUs the member list has now (the same search as the member list: /api/offers, 2026-10-22)
