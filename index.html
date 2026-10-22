@@ -1028,7 +1028,7 @@ async function loadMine() {
   showStudies();
   if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
   const auto = mine.filter((k) => k.source).length;
-  $("mineCount").textContent = `${mine.length - auto} / 100판` + (auto ? ` · 타이젬 자동 ${auto} / 300판` : "");
+  $("mineCount").textContent = `${mine.length - auto} / 300판` + (auto ? ` · 타이젬 자동 ${auto} / 300판` : "");
   showMine();
 }
 // 기보 찾기: every word typed must appear in the title, a player, the game date or the result (흑/백, 불계, 집)
@@ -1513,7 +1513,7 @@ $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]")
 function showStudies() {
   const n = (t) => studies.filter((k) => !t || k.study === t).length;
   const branchOf = (k) => studyFolders.find((f) => f.id === k.study_folder_id && f.study === k.study);
-  $("studyInfo").textContent = studies.length ? `${studies.length} / 100개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`
+  $("studyInfo").textContent = studies.length ? `${studies.length} / 300개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`
     : "정석·포석을 직접 두어 보며 분석한 것을 저장해 두고 언제든 다시 열어 봅니다.";
   $("studyTopics").innerHTML = [["", "전체"], ...Object.entries(STUDY)].map(([t, name]) =>
     `<button type="button" data-topic="${t}" class="${t === studyTopic ? "on" : ""}" aria-pressed="${t === studyTopic}">${name}<small>${n(t)}개</small></button>`).join("");
@@ -1643,7 +1643,7 @@ $("studyBranches").onclick = async (ev) => {   // 갈래: show one, make one, re
   }
 };
 $("studyNew").onclick = () => {   // an empty board: on the ready GPU to analyse as it goes, else to record the moves only
-  if (studies.length >= 100) { toast("학습방 연구는 100개까지 저장할 수 있습니다. 필요 없는 연구를 지운 뒤 시작하세요.", true); return; }
+  if (studies.length >= 300) { toast("학습방 연구는 300개까지 저장할 수 있습니다. 필요 없는 연구를 지운 뒤 시작하세요.", true); return; }
   const topic = studyTopic || "joseki", gpu = gpuHash();
   if (!gpu && !confirm("켜져 있는 GPU가 없어 분석 없이 수순만 두어 저장합니다. GPU를 켜면 두면서 바로 분석할 수 있습니다.\n\n이대로 시작할까요?")) return;
   const branch = studyTopic && studyFolders.some((f) => f.id === studyBranch) ? `&sf=${studyBranch}` : "";   // saved into the 갈래 on screen
@@ -1674,7 +1674,7 @@ $("studyRows").onclick = async (ev) => {
 };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
-  if (mine.filter((k) => !k.source).length >= 100) { toast("기보는 100판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
+  if (mine.filter((k) => !k.source).length >= 300) { toast("기보는 300판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
   const folder = folders.some((f) => f.id === curFolder) ? `&folder=${curFolder}` : "";   // saved into the folder on screen
   openPage(`analysis.html?v=${Date.now()}#record=1${folder}`);
 }; });

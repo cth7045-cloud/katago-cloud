@@ -3183,7 +3183,7 @@ async function runBatch(files, lvl, notes, folder = null, gpu = null) {
       if (!row) { tell("error", {text: "분석 포함 2MB가 넘어 저장하지 못했습니다"}); continue; }
       if (!saved) row.folder_id = folder;   // 내 기보's own game keeps its 분류
       const {error} = !c ? {error: {message: "로그인이 필요합니다"}} : saved ? await c.from("saved_kifu").update(row).eq("id", saved.id) : await c.from("saved_kifu").insert(row);
-      if (error) { tell("error", {text: error.message.includes("100판") ? error.message : "저장하지 못했습니다: " + error.message}); continue; }
+      if (error) { tell("error", {text: error.message.includes("판까지") ? error.message : "저장하지 못했습니다: " + error.message}); continue; }
       let note = "";
       if (notes && NOTE_LEVELS[notes.level]) {   // 오답노트도: this game's mistakes, as the 오답노트에 담기 list would pick them
         const side = batchNotesSide(notes);
@@ -3236,7 +3236,7 @@ async function loadMineList() {
   if (error) { mineMsg("목록을 불러오지 못했습니다: " + error.message, true); return; }
   mineList = data || [];
   const studies = mineList.filter(k => STUDY[k.study]).length;   // 학습방 연구: in the list under their topic, not in 전체
-  $("mineCount").textContent = `${mineList.length - studies} / 100판` + (studies ? ` · 학습방 ${studies} / 100개` : "");
+  $("mineCount").textContent = `${mineList.length - studies} / 300판` + (studies ? ` · 학습방 ${studies} / 300개` : "");
   const day = iso => new Date(iso).toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"});
   $("mineRows").innerHTML = mineList.map((k, i) =>
     `<tr data-i="${i}" data-folder="${STUDY[k.study] ? `study:${k.study}:${(studyFolders || []).some(f => f.id === k.study_folder_id && f.study === k.study) ? k.study_folder_id : ""}` : mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name, STUDY[k.study] ? studyLabel(k.study, k.study_folder_id) : "", k.board_size && k.board_size !== 19 ? k.board_size + "줄" : ""].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${sizeTag(k)}${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
