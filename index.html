@@ -1716,7 +1716,7 @@ $("mineRows").onclick = async (ev) => {
 // 프로 기보 by year, and in a year by 대회 (DB 20261022g tournament); AI 기보 by year.
 const LIB_PAGE = 50, LIB_NOTE = {
   latest: "가장 최근에 둔 프로 대국 50판입니다. 새 기보는 몇 분마다 타이젬에서 추가됩니다.",
-  pro: "1970년부터의 프로 대국 기보입니다. 연도를 고르면 그해 대회별로 나눠 볼 수 있습니다. 예전 기보 중 일부는 대국자 이름이 영어이고 대회 정보가 없습니다.",
+  pro: "2001년부터의 프로 대회 기보입니다. 연도를 고르면 그해 대회별로 나눠 볼 수 있습니다.",
   ai: "KataGo 최상위 모델끼리 둔 실력 측정 대국(19줄, 150수 이상)입니다. 하루 30판씩 자동으로 추가됩니다.",
 };
 let libKind = "latest", libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {};
