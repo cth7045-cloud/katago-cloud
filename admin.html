@@ -72,6 +72,9 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 .atabs button[data-tab="gpu"], .atabs button[data-tab="charges"], .atabs button[data-tab="notice"] { white-space: nowrap; }
 .notice-form { display: grid; gap: 14px; max-width: 640px; }
 .notice-form .seg, .notice-form button.primary { justify-self: start; }
+#topupForm { grid-template-columns: 1.4fr auto 180px 1.4fr auto; }
+#topupForm .seg { justify-self: start; }
+@media (max-width: 860px) { #topupForm { grid-template-columns: 1fr; } #topupForm .seg { grid-template-columns: repeat(2, 1fr); justify-self: stretch; } }
 .notice-form label.check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
 .notice-form label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
 .charge-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
@@ -190,7 +193,11 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <form id="topupForm" class="admin-form">
         <label class="field">회원(이름 또는 이메일)<input id="tEmail" list="memberNames" autocomplete="off" required></label>
         <datalist id="memberNames"></datalist>
-        <label class="field">금액(원, 차감은 -)<input id="tAmount" type="number" step="1" required></label>
+        <div class="seg" id="tKind" role="group" aria-label="충전 또는 차감">
+          <button type="button" data-kind="1" aria-pressed="true">충전</button>
+          <button type="button" data-kind="-1" aria-pressed="false">차감</button>
+        </div>
+        <label class="field">금액(원)<input id="tAmount" inputmode="numeric" autocomplete="off" placeholder="예: 10000" required></label>
         <label class="field">메모<input id="tNote" maxlength="100" placeholder="예: 계좌이체 1만원"></label>
         <button class="primary" type="submit">적용</button>
       </form>
@@ -884,9 +891,18 @@ $("noticeRows").onclick = async (ev) => {
   loadNoticeList();
 };
 
+let tKind = 1;
+$("tKind").onclick = (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  tKind = Number(b.dataset.kind);
+  for (const x of $("tKind").children) x.setAttribute("aria-pressed", x === b);
+};
 $("topupForm").onsubmit = async (ev) => {
   ev.preventDefault();
-  const typed = $("tEmail").value.trim(), amount = Number($("tAmount").value);
+  // phone number pads have no minus key (2026-10-22), so 충전/차감 is a switch and the box takes digits only
+  const typed = $("tEmail").value.trim(), raw = $("tAmount").value.trim(), digits = raw.replace(/[^0-9]/g, "");
+  if (!digits || Number(digits) === 0) return toast("금액을 숫자로 입력해 주세요.", true);
+  const amount = Number(digits) * (raw.startsWith("-") ? -1 : tKind);
   // a name picks the member; two members with the same name need the email
   const found = typed.includes("@") ? members.filter((m) => m.email === typed.toLowerCase()) : members.filter((m) => (m.name || "").trim() === typed);
   if (found.length > 1) return toast(`'${typed}' 이름의 회원이 ${found.length}명입니다. 이메일로 입력해 주세요.`, true);
