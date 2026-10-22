@@ -394,6 +394,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
             <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
           </div>
+          <select id="libYear" aria-label="연도"><option value="">전체 연도</option></select>
           <input type="search" id="libQuery" class="grow" placeholder="찾기: 대국자·대회 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
         </div>
         <p class="muted small lib-note" id="libNote"></p>
@@ -728,7 +729,7 @@ function leave() {
     if (batchFrame) { batchFrame.remove(); batchFrame = null; }
     batchJob = null; batchQueued = false; batchFiles = []; batchRun = []; foxGames = []; foxShow(); batchShow();
   }
-  libLoaded = false; libRows = [];   // 기보실 loads again for the next member
+  libLoaded = false; libRows = []; libYears = {};   // 기보실 loads again for the next member
   startHero(); $("bootFail")?.remove();
   swap(() => { document.body.classList.remove("authed"); $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
@@ -737,7 +738,7 @@ async function enter() {
   $("bootFail")?.remove();
   await refresh();
   loadOffers(); loadMine(); loadNotesCard(); resumeBatch();
-  if (curPage === "libraryView" && !libLoaded) loadLibrary(true);   // opened at #library: showPage ran before the profile
+  if (curPage === "libraryView" && !libLoaded) { loadLibYears(); loadLibrary(true); }   // opened at #library: showPage ran before the profile
   // every 4 s while the page is in front; in the background only while a GPU is on or a 기보 분석 waits for one (its
   // 준비 완료 alert and the reserved start need it) — a tab or the PC app left open all day asks nothing (2026-10-10)
   clearInterval(pollTimer);
@@ -1711,10 +1712,23 @@ $("mineRows").onclick = async (ev) => {
 // newest first, 50 at a time, and a game opens in the analysis screen (#pub=<id>): on the member's ready GPU to analyse,
 // else the board only. '내 기보 저장' there keeps a copy.
 const LIB_PAGE = 50, LIB_NOTE = {
-  pro: "타이젬에 올라오는 프로 대국 기보입니다. 새 기보는 10분마다 자동으로 추가됩니다.",
+  pro: "1970년부터의 프로 대국 기보입니다. 연도를 골라 보세요. 새 기보는 10분마다 타이젬에서 추가되고, 예전 기보 중 일부는 대국자 이름이 영어로 나옵니다.",
   ai: "KataGo 최상위 모델끼리 둔 실력 측정 대국(19줄, 150수 이상)입니다. 하루 30판씩 자동으로 추가됩니다.",
 };
-let libKind = "pro", libRows = [], libLoaded = false, libSeq = 0, libTimer = 0;
+let libKind = "pro", libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {};
+// 연도 분류 (DB 20261022e public_kifu_years): each tab's years with their number of games, newest first
+async function loadLibYears() {
+  const kind = libKind;
+  if (!libYears[kind]) {
+    const { data, error } = await sb.rpc("public_kifu_years", { p_source: kind });
+    if (error) return;
+    libYears[kind] = data || [];
+  }
+  if (kind !== libKind) return;
+  const keep = $("libYear").value;
+  $("libYear").innerHTML = `<option value="">전체 연도</option>` + libYears[kind].map((y) => `<option value="${y.year}">${y.year}년 (${Number(y.n).toLocaleString()})</option>`).join("");
+  if (libYears[kind].some((y) => String(y.year) === keep)) $("libYear").value = keep;
+}
 const libName = (name, rank) => `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
 async function loadLibrary(reset) {
   const seq = ++libSeq;
@@ -1722,8 +1736,10 @@ async function loadLibrary(reset) {
   $("libNote").textContent = LIB_NOTE[libKind];
   // PostgREST filter syntax: commas, parentheses and wildcards would change the filter, so they are dropped
   const q = $("libQuery").value.replace(/[,()*%"\\]/g, " ").trim();
-  let req = sb.from("public_kifu").select("id,played_on,event,black,white,black_rank,white_rank,result,moves", { count: reset ? "exact" : undefined })
+  let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset ? "exact" : undefined })
     .eq("source", libKind).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
+  const year = $("libYear").value;
+  if (year) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
   if (q) req = req.or(["black", "white", "event"].map((c) => `${c}.ilike.*${q}*`).join(","));
   const { data, error, count } = await req;
   if (seq !== libSeq) return;   // a newer search or tab replaced this one
@@ -1732,22 +1748,24 @@ async function loadLibrary(reset) {
   libRows = libRows.concat(data);
   if (reset) $("libCount").dataset.total = count ?? "";
   const total = Number($("libCount").dataset.total) || libRows.length;
-  $("libCount").textContent = libRows.length ? `${total.toLocaleString()}판${q ? " 찾음" : ""}` : "";
+  $("libCount").textContent = libRows.length ? `${year ? year + "년 · " : ""}${total.toLocaleString()}판${q ? " 찾음" : ""}` : "";
   $("libMore").classList.toggle("hidden", libRows.length >= total || data.length < LIB_PAGE);
   $("libRows").innerHTML = libRows.map((k, i) => `<tr class="pick" data-lib="${i}"><td><div class="lib-players"><span class="stone b" aria-label="흑"></span>${libName(k.black, k.black_rank)}` +
     ` <span class="muted">vs</span> <span class="stone w" aria-label="백"></span>${libName(k.white, k.white_rank)}</div>` +
-    `<div class="lib-meta">${esc(k.played_on || "")}${k.event ? " · " + esc(k.event) : ""}${k.moves ? ` · ${k.moves}수` : ""}</div></td>` +
+    `<div class="lib-meta">${esc(k.date_text || k.played_on || "")}${k.event ? " · " + esc(k.event) : ""}${k.moves ? ` · ${k.moves}수` : ""}</div></td>` +
     `<td class="lib-result">${esc(k.result || "")}</td></tr>`).join("")
-    || `<tr><td colspan="2" class="muted">${q ? "찾는 기보가 없습니다." : "아직 모은 기보가 없습니다. 잠시 뒤에 다시 열어 보세요."}</td></tr>`;
+    || `<tr><td colspan="2" class="muted">${q || year ? "찾는 기보가 없습니다." : "아직 모은 기보가 없습니다. 잠시 뒤에 다시 열어 보세요."}</td></tr>`;
 }
 $("libKind").onclick = (ev) => {
   const b = ev.target.closest("[data-kind]"); if (!b || b.dataset.kind === libKind) return;
   libKind = b.dataset.kind;
   for (const x of $("libKind").children) x.setAttribute("aria-pressed", x === b);
-  loadLibrary(true);
+  $("libYear").value = "";
+  loadLibYears(); loadLibrary(true);
 };
 $("libQuery").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(() => loadLibrary(true), 300); };
 $("libMore").onclick = () => loadLibrary(false);
+$("libYear").onchange = () => loadLibrary(true);
 $("libRows").onclick = (ev) => {
   const tr = ev.target.closest("[data-lib]"); const k = tr && libRows[+tr.dataset.lib]; if (!k) return;
   openPage(`analysis.html?v=${Date.now()}#${gpuHash()}pub=${k.id}`);
@@ -1874,7 +1892,7 @@ function showPage() {
   document.querySelectorAll("#tabnav [data-tab]").forEach((a) => { a.classList.toggle("on", a.dataset.tab === tab); a.toggleAttribute("aria-current", a.dataset.tab === tab); });
   if (profile) dashShow();
   if (page === "mineView") showMineFolder();
-  if (profile && page === "libraryView" && !libLoaded) loadLibrary(true);
+  if (profile && page === "libraryView" && !libLoaded) { loadLibYears(); loadLibrary(true); }
   if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView" || page === "studyView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
