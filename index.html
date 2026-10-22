@@ -391,11 +391,13 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       <div class="panel">
         <div class="row lib-top">
           <div class="seg" id="libKind" role="group" aria-label="기보 종류">
-            <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
+            <button type="button" data-kind="latest" aria-pressed="true">최신 대국</button>
+            <button type="button" data-kind="pro" aria-pressed="false">프로 기보</button>
             <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
           </div>
-          <select id="libYear" aria-label="연도"><option value="">전체 연도</option></select>
-          <input type="search" id="libQuery" class="grow" placeholder="찾기: 대국자·대회 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
+          <select id="libYear" class="hidden" aria-label="연도"><option value="">전체 연도</option></select>
+          <select id="libTour" class="hidden" aria-label="대회"><option value="">전체 대회</option></select>
+          <input type="search" id="libQuery" class="grow hidden" placeholder="찾기: 대국자·대회 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
         </div>
         <p class="muted small lib-note" id="libNote"></p>
         <div class="scroll-box fox-list lib-list">
@@ -1708,23 +1710,38 @@ $("mineRows").onclick = async (ev) => {
 };
 
 // ------------------------------------------------------------------ 기보실 (#library, DB 20261022c_public_kifu)
-// The server adds 프로 기보 (타이젬 뉴스 기보) and AI 기보 (KataGo 실력 측정 대국) every 10 minutes; members read them
+// The server adds 프로 기보 (타이젬 뉴스 기보) and AI 기보 (KataGo 실력 측정 대국) every few minutes; members read them
 // newest first, 50 at a time, and a game opens in the analysis screen (#pub=<id>): on the member's ready GPU to analyse,
-// else the board only. '내 기보 저장' there keeps a copy.
+// else the board only. '내 기보 저장' there keeps a copy. Tabs (사용자 2026-10-22): 최신 대국 = the 50 newest pro games;
+// 프로 기보 by year, and in a year by 대회 (DB 20261022g tournament); AI 기보 by year.
 const LIB_PAGE = 50, LIB_NOTE = {
-  pro: "1970년부터의 프로 대국 기보입니다. 연도를 골라 보세요. 새 기보는 10분마다 타이젬에서 추가되고, 예전 기보 중 일부는 대국자 이름이 영어로 나옵니다.",
+  latest: "가장 최근에 둔 프로 대국 50판입니다. 새 기보는 몇 분마다 타이젬에서 추가됩니다.",
+  pro: "1970년부터의 프로 대국 기보입니다. 연도를 고르면 그해 대회별로 나눠 볼 수 있습니다. 예전 기보 중 일부는 대국자 이름이 영어이고 대회 정보가 없습니다.",
   ai: "KataGo 최상위 모델끼리 둔 실력 측정 대국(19줄, 150수 이상)입니다. 하루 30판씩 자동으로 추가됩니다.",
 };
-let libKind = "pro", libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {};
+let libKind = "latest", libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {};
+const libSource = () => (libKind === "ai" ? "ai" : "pro");
+// 대회: one year's tournaments with their number of games ("-" = no tournament known), for 프로 기보
+async function loadLibTours() {
+  const year = $("libYear").value, kind = libKind;
+  $("libTour").innerHTML = `<option value="">전체 대회</option>`;
+  $("libTour").classList.toggle("hidden", kind !== "pro" || !year);
+  if (kind !== "pro" || !year) return;
+  const { data, error } = await sb.rpc("public_kifu_tournaments", { p_source: "pro", p_year: Number(year) });
+  if (error || kind !== libKind || year !== $("libYear").value) return;
+  $("libTour").innerHTML = `<option value="">전체 대회</option>` + (data || []).map((t) =>
+    `<option value="${t.tournament ? esc(t.tournament) : "-"}">${t.tournament ? esc(t.tournament) : "대회 정보 없음"} (${Number(t.n).toLocaleString()})</option>`).join("");
+}
 // 연도 분류 (DB 20261022e public_kifu_years): each tab's years with their number of games, newest first
 async function loadLibYears() {
-  const kind = libKind;
+  const kind = libSource();
+  if (libKind === "latest") return;
   if (!libYears[kind]) {
     const { data, error } = await sb.rpc("public_kifu_years", { p_source: kind });
     if (error) return;
     libYears[kind] = data || [];
   }
-  if (kind !== libKind) return;
+  if (kind !== libSource() || libKind === "latest") return;
   const keep = $("libYear").value;
   $("libYear").innerHTML = `<option value="">전체 연도</option>` + libYears[kind].map((y) => `<option value="${y.year}">${y.year}년 (${Number(y.n).toLocaleString()})</option>`).join("");
   if (libYears[kind].some((y) => String(y.year) === keep)) $("libYear").value = keep;
@@ -1736,11 +1753,13 @@ async function loadLibrary(reset) {
   $("libNote").textContent = LIB_NOTE[libKind];
   // PostgREST filter syntax: commas, parentheses and wildcards would change the filter, so they are dropped
   const q = $("libQuery").value.replace(/[,()*%"\\]/g, " ").trim();
-  let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset ? "exact" : undefined })
-    .eq("source", libKind).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
-  const year = $("libYear").value;
+  const latest = libKind === "latest";
+  let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset && !latest ? "exact" : undefined })
+    .eq("source", libSource()).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
+  const year = latest ? "" : $("libYear").value, tour = libKind === "pro" && year ? $("libTour").value : "";
   if (year) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
-  if (q) req = req.or(["black", "white", "event"].map((c) => `${c}.ilike.*${q}*`).join(","));
+  if (tour) req = tour === "-" ? req.is("tournament", null) : req.eq("tournament", tour);
+  if (q && !latest) req = req.or(["black", "white", "event"].map((c) => `${c}.ilike.*${q}*`).join(","));
   const { data, error, count } = await req;
   if (seq !== libSeq) return;   // a newer search or tab replaced this one
   if (error) { $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오지 못했습니다: ${esc(error.message)}</td></tr>`; return; }
@@ -1748,24 +1767,32 @@ async function loadLibrary(reset) {
   libRows = libRows.concat(data);
   if (reset) $("libCount").dataset.total = count ?? "";
   const total = Number($("libCount").dataset.total) || libRows.length;
-  $("libCount").textContent = libRows.length ? `${year ? year + "년 · " : ""}${total.toLocaleString()}판${q ? " 찾음" : ""}` : "";
-  $("libMore").classList.toggle("hidden", libRows.length >= total || data.length < LIB_PAGE);
+  const where = [year && year + "년", tour && (tour === "-" ? "대회 정보 없음" : tour)].filter(Boolean).join(" · ");
+  $("libCount").textContent = !libRows.length ? "" : latest ? `최근 ${libRows.length}판` : `${where ? where + " · " : ""}${total.toLocaleString()}판${q ? " 찾음" : ""}`;
+  $("libMore").classList.toggle("hidden", latest || libRows.length >= total || data.length < LIB_PAGE);
   $("libRows").innerHTML = libRows.map((k, i) => `<tr class="pick" data-lib="${i}"><td><div class="lib-players"><span class="stone b" aria-label="흑"></span>${libName(k.black, k.black_rank)}` +
     ` <span class="muted">vs</span> <span class="stone w" aria-label="백"></span>${libName(k.white, k.white_rank)}</div>` +
     `<div class="lib-meta">${esc(k.date_text || k.played_on || "")}${k.event ? " · " + esc(k.event) : ""}${k.moves ? ` · ${k.moves}수` : ""}</div></td>` +
     `<td class="lib-result">${esc(k.result || "")}</td></tr>`).join("")
-    || `<tr><td colspan="2" class="muted">${q || year ? "찾는 기보가 없습니다." : "아직 모은 기보가 없습니다. 잠시 뒤에 다시 열어 보세요."}</td></tr>`;
+    || `<tr><td colspan="2" class="muted">${(q && !latest) || year ? "찾는 기보가 없습니다." : "아직 모은 기보가 없습니다. 잠시 뒤에 다시 열어 보세요."}</td></tr>`;
 }
 $("libKind").onclick = (ev) => {
   const b = ev.target.closest("[data-kind]"); if (!b || b.dataset.kind === libKind) return;
   libKind = b.dataset.kind;
   for (const x of $("libKind").children) x.setAttribute("aria-pressed", x === b);
-  $("libYear").value = "";
+  libControls();
   loadLibYears(); loadLibrary(true);
 };
+function libControls() {   // 최신 대국 is a fixed list: no year, 대회 or search
+  const latest = libKind === "latest";
+  $("libYear").value = ""; $("libTour").value = "";
+  $("libYear").classList.toggle("hidden", latest); $("libQuery").classList.toggle("hidden", latest);
+  $("libTour").classList.add("hidden");
+}
 $("libQuery").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(() => loadLibrary(true), 300); };
 $("libMore").onclick = () => loadLibrary(false);
-$("libYear").onchange = () => loadLibrary(true);
+$("libYear").onchange = () => { $("libTour").value = ""; loadLibTours(); loadLibrary(true); };
+$("libTour").onchange = () => loadLibrary(true);
 $("libRows").onclick = (ev) => {
   const tr = ev.target.closest("[data-lib]"); const k = tr && libRows[+tr.dataset.lib]; if (!k) return;
   openPage(`analysis.html?v=${Date.now()}#${gpuHash()}pub=${k.id}`);
