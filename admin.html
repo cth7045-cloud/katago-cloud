@@ -295,12 +295,17 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     </div>
 
     <div class="panel">
-      <h2>GPU 종류별 원가 상한</h2>
+      <h2>GPU 목록 범위·원가 상한</h2>
       <p class="muted small lead">카드 1장의 시간당 원가가 상한보다 비싼 GPU는 회원 목록에서 뺍니다. 2~4장 기계는 장수만큼 곱합니다. 칸을 비우면 그 종류는 상한이 없습니다.</p>
       <div class="inline-form" style="margin-bottom:12px; align-items:center">
         <button class="quiet" type="button" id="capToggle">상한 모두 끄기</button>
-        <span class="muted small" id="capState"></span>
+        <button class="quiet" type="button" id="abroadToggle">해외 GPU 열기</button>
       </div>
+      <form id="abroadAuto" class="inline-form" style="margin-bottom:12px">
+        <label class="field">한국 GPU가 이 개수 이하이면 해외 자동 열기 (0 = 끔)<input id="abroadBelow" type="number" min="0" max="50" step="1" required></label>
+        <button class="quiet" type="submit">저장</button>
+      </form>
+      <p class="muted small" id="capState" style="margin:0 0 12px"></p>
       <div class="table-wrap" id="capTable"><table class="caps">
         <thead><tr><th>GPU</th><th class="num">원가 상한</th><th class="num">회원가 상한</th></tr></thead>
         <tbody id="capRows"></tbody>
@@ -746,9 +751,36 @@ function drawCapState() {
   const off = !!capSettings?.gpu_caps_off;
   $("capToggle").textContent = off ? "상한 다시 켜기" : "상한 모두 끄기";
   $("capToggle").className = off ? "primary" : "quiet";
-  $("capState").textContent = off ? "지금 상한이 꺼져 있습니다 — 상한에 걸리던 비싼 GPU도 회원 목록에 나옵니다. 아래 표는 그대로 두었다가 다시 켜면 적용됩니다." : "";
   $("capTable").style.opacity = off ? 0.45 : "";
+  const abroad = !!capSettings?.abroad_on, below = Number(capSettings?.abroad_auto_below) || 0;
+  $("abroadToggle").textContent = abroad ? "해외 GPU 닫기" : "해외 GPU 열기";
+  $("abroadToggle").className = abroad ? "primary" : "quiet";
+  $("capState").textContent = [off ? "상한 꺼짐 — 상한에 걸리던 비싼 GPU도 회원 목록에 나옵니다. 아래 표는 그대로 두었다가 다시 켜면 적용됩니다." : "",
+    abroad ? "해외 열림 — 일본·대만/홍콩·동남아의 Vast 인증 기계도 회원 목록에 나옵니다(상한도 똑같이 적용)."
+      : below ? `해외 닫힘 — 한국 GPU가 ${below}개 이하일 때만 해외 인증 기계도 나옵니다.` : "해외 닫힘 — 한국 GPU만 나옵니다."].filter(Boolean).join(" ");
+  if (document.activeElement !== $("abroadBelow")) $("abroadBelow").value = below;
 }
+// abroad by itself (app_settings.abroad_auto_below): the server searches abroad too when Korea has this many or fewer
+$("abroadAuto").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const n = Math.trunc(Number($("abroadBelow").value));
+  if (!(n >= 0 && n <= 50)) return toast("0~50 사이로 넣어 주세요(0 = 끔).", true);
+  try {
+    const r = await api("/admin/settings", { abroad_auto_below: n });
+    capSettings = { ...capSettings, abroad_auto_below: Number(r.abroad_auto_below) || 0 }; $("abroadBelow").blur(); drawCapState();
+    toast(n ? `한국 GPU가 ${n}개 이하이면 해외를 자동으로 엽니다.` : "해외 자동 열기를 껐습니다.");
+  } catch (e) { toast(e.message, true); }
+};
+// abroad GPUs open / closed (app_settings.abroad_on, 2026-10-22): verified machines only, the server decides
+$("abroadToggle").onclick = async () => {
+  const on = !capSettings?.abroad_on;
+  if (!confirm(on ? "해외 GPU를 열까요?\n일본·대만/홍콩·동남아의 Vast 인증 기계가 회원 목록에 바로 나옵니다. 한국보다 화면 반응이 조금 늦습니다." : "해외 GPU를 닫을까요?\n회원 목록에 한국 GPU만 남습니다. 이미 켜진 해외 GPU는 그대로 씁니다.")) return;
+  try {
+    const r = await api("/admin/settings", { abroad_on: on });
+    capSettings = { ...capSettings, abroad_on: !!r.abroad_on }; drawCapState();
+    toast(r.abroad_on ? "해외 GPU를 열었습니다." : "해외 GPU를 닫았습니다.");
+  } catch (e) { toast(e.message, true); }
+};
 $("capToggle").onclick = async () => {
   const off = !capSettings?.gpu_caps_off;
   if (!confirm(off ? "모든 GPU의 원가 상한을 끌까요?\n비싼 GPU도 회원 목록에 바로 나옵니다." : "정해 둔 원가 상한을 다시 적용할까요?\n상한보다 비싼 GPU는 회원 목록에서 바로 빠집니다.")) return;
