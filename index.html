@@ -830,8 +830,11 @@ async function refreshNow(light) {
   gpuState = state;
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
   // 분석 화면 with a ready GPU opens on it, so the board left there comes back (the page also goes there by itself)
+  if (session && localSession()) stopLocalForGpu();   // a GPU rented elsewhere: no 내 기기 beside it (user 2026-10-18)
+  showLocalSession();
   const toAnalysis = session && session.status === "ready" && session.web_url && session.web_token
-    ? `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}` : "analysis.html";
+    ? `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}`
+    : !session && localSession() ? `analysis.html?v=${Date.now()}#${localHash()}`.replace(/&$/, "") : "analysis.html";   // …or on 내 기기 while it is on
   document.querySelectorAll("[data-analysis-link]").forEach((a) => { a.href = toAnalysis; });
   // 이번 달 GPU 사용: what this month's rentals charged (the sessions loaded above, newest 100)
   const month0 = new Date(); month0.setDate(1); month0.setHours(0, 0, 0, 0);
@@ -1506,9 +1509,7 @@ async function loadNotesCard() {   // 학습방: 오답노트 (and the start pag
     : due ? "오답노트에서 다시 볼 날이 된 문제" : "오늘 복습할 문제를 다 풀었어요";
 }
 function openNotes(phase = "") {
-  const gpu = session && session.status === "ready" && session.web_url && session.web_token
-    ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
-  openPage(`analysis.html?v=${Date.now()}#${gpu}notes${phase ? "&phase=" + phase : ""}`);
+  openPage(`analysis.html?v=${Date.now()}#${engineHash()}notes${phase ? "&phase=" + phase : ""}`);
 }
 $("notesOpen").onclick = () => openNotes();
 $("dashReview").onclick = () => { if ($("dashNotes").textContent === "0") location.hash = "#study"; else openNotes(); };
@@ -1621,6 +1622,8 @@ function studyThumb(k) {
 }
 const gpuHash = () => session && session.status === "ready" && session.web_url && session.web_token
   ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
+// the ready GPU, else 내 기기 분석 while it is on (user 2026-10-22: games open on it like on a rented GPU)
+const engineHash = () => gpuHash() || (session ? "" : localHash());
 $("studyTopics").onclick = (ev) => { const b = ev.target.closest("[data-topic]"); if (!b || b.disabled) return; if (studyTopic !== b.dataset.topic) studyBranch = ""; studyTopic = b.dataset.topic; showStudies(); };
 $("studyBranches").onclick = async (ev) => {   // 갈래: show one, make one, rename or delete the one shown
   const b = ev.target.closest("button"); if (!b || !studyTopic) return;
@@ -1648,7 +1651,7 @@ $("studyBranches").onclick = async (ev) => {   // 갈래: show one, make one, re
 };
 $("studyNew").onclick = () => {   // an empty board: on the ready GPU to analyse as it goes, else to record the moves only
   if (studies.length >= 300) { toast("학습방 연구는 300개까지 저장할 수 있습니다. 필요 없는 연구를 지운 뒤 시작하세요.", true); return; }
-  const topic = studyTopic || "joseki", gpu = gpuHash();
+  const topic = studyTopic || "joseki", gpu = engineHash();
   if (!gpu && !confirm("켜져 있는 GPU가 없어 분석 없이 수순만 두어 저장합니다. GPU를 켜면 두면서 바로 분석할 수 있습니다.\n\n이대로 시작할까요?")) return;
   const branch = studyTopic && studyFolders.some((f) => f.id === studyBranch) ? `&sf=${studyBranch}` : "";   // saved into the 갈래 on screen
   openPage(`analysis.html?v=${Date.now()}#${gpu ? gpu + "new=1" : "record=1"}&study=${topic}${branch}`);
@@ -1674,7 +1677,7 @@ $("studyRows").onclick = async (ev) => {
     loadMine(); return;
   }
   const tr = ev.target.closest("[data-study]"); const k = tr && studies[+tr.dataset.study]; if (!k) return;
-  openPage(`analysis.html?v=${Date.now()}#${gpuHash()}kifu=${k.id}`);
+  openPage(`analysis.html?v=${Date.now()}#${engineHash()}kifu=${k.id}`);
 };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); } });   // saved in the analysis tab: shows up on return
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
@@ -1704,10 +1707,8 @@ $("mineRows").onclick = async (ev) => {
     loadMine(); return;
   }
   const tr = ev.target.closest("[data-open]"); const k = tr && mine[+tr.dataset.open]; if (!k) return;
-  // the member's ready GPU: open it there to keep analysing; otherwise the stored analysis only
-  const gpu = session && session.status === "ready" && session.web_url && session.web_token
-    ? `u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&` : "";
-  openPage(`analysis.html?v=${Date.now()}#${gpu}kifu=${k.id}`);
+  // the member's ready GPU or 내 기기 분석: open it there to keep analysing; otherwise the stored analysis only
+  openPage(`analysis.html?v=${Date.now()}#${engineHash()}kifu=${k.id}`);
 };
 
 // ------------------------------------------------------------------ 기보실 (#library, DB 20261022c_public_kifu)
@@ -1831,7 +1832,7 @@ $("libQuery").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(()
 $("libMore").onclick = () => loadLibrary(false);
 $("libRows").onclick = (ev) => {
   const tr = ev.target.closest("[data-lib]"); const k = tr && libRows[+tr.dataset.lib]; if (!k) return;
-  openPage(`analysis.html?v=${Date.now()}#${gpuHash()}pub=${k.id}`);
+  openPage(`analysis.html?v=${Date.now()}#${engineHash()}pub=${k.id}`);
 };
 
 // ------------------------------------------------------------------ offers / start
@@ -1960,7 +1961,7 @@ function showPage() {
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView" || page === "studyView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
   window.scrollTo(0, 0);
-  if (page === "homeView" && jumpTo === "device") $("deviceCard").scrollIntoView({ block: "center" });
+  if (page === "homeView" && jumpTo === "device") $($("localCard").classList.contains("hidden") ? "deviceCard" : "localCard").scrollIntoView({ block: "center" });
   if (page === "meView" && jumpTo === "ledger") { $("ledgerBox").open = true; $("ledgerBox").scrollIntoView({ block: "start" }); }
   if (location.hash === "#notices") { $("noticeBox").open = true; $("noticeBox").scrollIntoView({ block: "start" }); loadNotices(true).catch(() => {}); }
   jumpTo = "";
@@ -2337,6 +2338,35 @@ function setLocal(stage, pill, text) {
   $("localProgress").textContent = text;
 }
 function endLocal() { if (localWorker) { localWorker.terminate(); localWorker = null; } }
+// 내 기기 분석 on = one session like a rented GPU's (user 2026-10-22 "유료 gpu처럼 작동하게 해줘, 10분 무입력 종료"):
+// from 준비 완료 until 종료 or 10 minutes without a query, kept in this browser (kgv.localSession, written by the
+// analysis screens too: webui.html connectLocal), and every game opened meanwhile opens on it (engineHash).
+const LOCAL_KEY = "kgv.localSession", LOCAL_IDLE = 10 * 60000;
+function localSession() {   // the session while on; one left over after its 10 minutes is ended here
+  let s = null; try { s = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null"); } catch { /* no storage */ }
+  if (s && !(Date.now() - s.at < LOCAL_IDLE)) { endLocalSession(true); return null; }
+  return s;
+}
+const localUrl = (s) => `analysis.html#local=1${s.m === "balanced" ? "&m=balanced" : ""}${s.ep === "wasm" ? "&ep=wasm" : ""}`;
+function localHash() { const s = localSession(); return s ? localUrl(s).split("#")[1] + "&" : ""; }
+function endLocalSession(idle) {   // 종료, a GPU rented or 10 minutes idle: the screens in this browser stop at once, its run ends
+  let s = null; try { s = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null"); localStorage.removeItem(LOCAL_KEY); } catch { /* no storage */ }
+  if (s && /^[0-9a-f-]{36}$/.test(s.run || "")) sb.from("device_runs").update({ ended_at: new Date().toISOString() }).eq("id", s.run).then(() => {}, () => {});
+  try { const bc = new BroadcastChannel("kgc-local-engine"); bc.postMessage({ end: 1, idle: !!idle }); bc.close(); } catch { /* old browser */ }
+}
+function showLocalSession() {   // GPU 대여's 내 기기 card as the session stands (another tab may have started or ended it)
+  if (localWorker) return;   // being prepared on this page
+  const s = localSession(), on = !!s;
+  if (!on && !$("localCard").classList.contains("is-ready")) return;   // the card is showing a failure or nothing
+  $("deviceCard").classList.toggle("hidden", on); $("localCard").classList.toggle("hidden", !on);
+  if (!on) { $("localCard").classList.remove("is-ready"); return; }
+  $("localTitle").textContent = `내 기기 · ${LOCAL_MODELS[s.m] || LOCAL_MODELS.fast}`;
+  setLocal(3, ["사용 가능", "good"], "10분 동안 분석하지 않으면 꺼집니다. 그동안 여는 기보는 이 기기로 분석됩니다.");
+  $("localMeta").textContent = `요금 없음 · 이 기기${s.device ? "의 " + s.device + (s.device === "CPU" ? "로" : "으로") : "에서"} 계산`;
+  $("localOpen").href = localUrl(s); $("localOpen").classList.remove("hidden"); $("localStop").textContent = "종료"; $("localError").textContent = "";
+}
+addEventListener("storage", (ev) => { if (ev.key === LOCAL_KEY || ev.key === null) showLocalSession(); });
+setInterval(showLocalSession, 30000);
 // 내 기기로 분석 기록 (2026-10-15): a device that cannot prepare KataGo is one 'failed' row in the admin's list of
 // members' use; the run itself (time used, 화면 보기) is recorded by the analysis screen it opens (startLocalRun)
 function logDevice(status, model, device, error) {
@@ -2357,12 +2387,13 @@ function gpuBlocksLocal() {
   return true;
 }
 function stopLocalForGpu() {
-  endLocal(); $("localCard").classList.add("hidden"); $("deviceCard").classList.remove("hidden");
+  endLocal(); $("localCard").classList.add("hidden"); $("localCard").classList.remove("is-ready"); $("deviceCard").classList.remove("hidden");
   try { const bc = new BroadcastChannel("kgc-local-engine"); bc.postMessage({ gpu: 1 }); bc.close(); } catch { /* old browser */ }
+  endLocalSession();
 }
 $("deviceStart").onclick = () => {
   if (gpuBlocksLocal()) return;
-  endLocal();
+  endLocal(); endLocalSession();
   const m = $("deviceModel").value, w = localWorker = new Worker("localengine.js" + (m === "balanced" ? "?m=balanced" : ""));
   $("deviceCard").classList.add("hidden"); $("localCard").classList.remove("hidden");
   $("localTitle").textContent = `내 기기 · ${LOCAL_MODELS[m]}`;
@@ -2384,16 +2415,22 @@ $("deviceStart").onclick = () => {
     else if (d.local === "failed") fail(d.error);
     else if (d.local === "ready") {
       endLocal();
-      const url = `analysis.html#local=1${m === "balanced" ? "&m=balanced" : ""}${d.device === "CPU" ? "&ep=wasm" : ""}`;
-      // like a rented GPU: ready, and 분석 화면 열기 opens it (in place in the app, a new tab in a browser)
-      setLocal(3, ["사용 가능", "good"], "");
-      $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}로 계산`;
-      $("localOpen").href = url; $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
+      // like a rented GPU: on until 종료 or 10 minutes idle, and 분석 화면 열기 opens it (in place in the app, a new tab in a browser)
+      try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ m, ep: d.device === "CPU" ? "wasm" : "", device: d.device, at: Date.now() })); } catch { /* no storage */ }
+      $("localCard").classList.add("is-ready"); showLocalSession();
+      if (!localSession()) {   // no storage: this card only, as before
+        setLocal(3, ["사용 가능", "good"], "");
+        $("localMeta").textContent = `요금 없음 · 이 기기의 ${d.device}${d.device === "CPU" ? "로" : "으로"} 계산`;
+        $("localOpen").href = localUrl({ m, ep: d.device === "CPU" ? "wasm" : "" }); $("localOpen").classList.remove("hidden"); $("localStop").textContent = "닫기";
+      }
       alertMember("내 기기 준비 완료", "준비가 끝났습니다. '분석 화면 열기'를 누르세요.", true);
     }
   };
 };
-$("localStop").onclick = () => { endLocal(); $("localCard").classList.add("hidden"); $("deviceCard").classList.remove("hidden"); };
+$("localStop").onclick = () => {
+  endLocal(); if (localSession()) { endLocalSession(); toast("내 기기 분석을 종료했습니다."); }
+  $("localCard").classList.add("hidden"); $("localCard").classList.remove("is-ready"); $("deviceCard").classList.remove("hidden");
+};
 $("localOpen").onclick = () => { if (gpuBlocksLocal()) { stopLocalForGpu(); return false; } if (!standalone) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;

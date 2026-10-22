@@ -1099,21 +1099,54 @@ const localMode = hashParams.get("local") === "1" && !GPU_HOST.test(location.hos
 // An admin watching a member's 내 기기 (admin page 화면 보기, #view=1&lw=<watch token>, 2026-10-15): there is no GPU or
 // engine to connect to; the member's analysis screen sends its copy through a Supabase Realtime channel instead.
 const watchLocal = hashParams.get("view") === "1" ? hashParams.get("lw") || "" : "";
+// 내 기기 분석 = one session like a rented GPU's (user 2026-10-22 "유료 gpu처럼 작동하게 해줘, 10분 무입력 종료, gpu
+// 종료전엔 계속 작동"): kept in this browser (localStorage kgv.localSession {m, ep, device, at, run, watch}) from 시작
+// until 종료 or 10 minutes without a query, so every game the website opens meanwhile opens on this device's engine
+// (index.html engineHash), each screen continuing the same device_runs row. at = the last query (what keeps a GPU on:
+// webbridge.py touches its activity file on each query but a plain query_version).
+const LOCAL_KEY = "kgv.localSession", LOCAL_IDLE = 10 * 60000;
+function localSession() { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || "null"); } catch { return null; } }
+function saveLocalSession(s) { try { if (s) localStorage.setItem(LOCAL_KEY, JSON.stringify(s)); else localStorage.removeItem(LOCAL_KEY); } catch { /* no storage */ } }
+let localUsedAt = 0;
+function localUsed() {   // a query: the session stays on (written at most every 15 s)
+  const now = Date.now(); if (now - localUsedAt < 15000) return;
+  const s = localSession(); if (!s) return;
+  localUsedAt = now; s.at = now; saveLocalSession(s);
+}
 function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름); #ep=wasm: the CPU only (GPU 대여's 시작 found no usable graphics)
   const args = new URLSearchParams();
   if (hashParams.get("m") === "balanced") args.set("m", "balanced");
   if (hashParams.get("ep") === "wasm") args.set("ep", "wasm");
+  const m = args.get("m") || "fast", was = localSession();
+  if (!was || was.m !== m || Date.now() - was.at >= LOCAL_IDLE) {   // a new session (an old one left over ends here)
+    saveLocalSession({m, ep: args.get("ep") || "", at: Date.now()});
+    if (was && /^[0-9a-f-]{36}$/.test(was.run || "")) import("./app.js").then(({sb}) => sb.from("device_runs").update({ended_at: new Date().toISOString()}).eq("id", was.run)).then(() => {}, () => {});
+  } else { was.at = Date.now(); saveLocalSession(was); }   // opening a game is use
+  if (!connectLocal.idle) connectLocal.idle = setInterval(() => {   // 종료 on the website, or 10 minutes without a query
+    if (localYielded) return;
+    const s = localSession();
+    if (!s) yieldLocal("end");
+    else if (Date.now() - s.at >= LOCAL_IDLE) {
+      saveLocalSession(null); yieldLocal("idle");
+      if (connectLocal.bc) connectLocal.bc.postMessage({end: 1, idle: true});
+    }
+  }, 30000);
   // One engine per browser (user 2026-10-17: a member had two 내 기기 tabs open, each running KataGo on the same
   // graphics, and the admin list showed two runs): a newer 내 기기 screen tells the older ones to stop theirs.
   if (window.BroadcastChannel && !connectLocal.bc) {
     connectLocal.bc = new BroadcastChannel("kgc-local-engine");
-    connectLocal.bc.onmessage = ev => { if (ev.data && (ev.data.newer || ev.data.gpu)) yieldLocal(ev.data.gpu ? "gpu" : ""); };
+    connectLocal.bc.onmessage = ev => { if (ev.data && (ev.data.newer || ev.data.gpu || ev.data.end)) yieldLocal(ev.data.gpu ? "gpu" : ev.data.idle ? "idle" : ev.data.end ? "end" : ""); };
   }
   if (connectLocal.bc) connectLocal.bc.postMessage({newer: 1});
-  const worker = new Worker("localengine.js" + (String(args) ? "?" + args : "")), sock = {readyState: 0, send: t => worker.postMessage(t), close: () => worker.terminate()};
+  const worker = new Worker("localengine.js" + (String(args) ? "?" + args : "")), sock = {readyState: 0, close: () => worker.terminate()};
+  sock.send = t => {   // use = what touches a GPU's activity file (webbridge.py handle): a query, not ping·state·the version asked on connecting
+    try { const o = JSON.parse(t); if ("id" in o && !(o.action === "query_version" && o.id !== "keep")) localUsed(); } catch { /* not ours */ }
+    worker.postMessage(t);
+  };
   ws = sock; heardAt = performance.now();
   $("conn").textContent = "내 기기 · 엔진 준비 중";
   if (pendingKifu) openMineKifu(pendingKifu);   // a 내 기보 opened this way: the board needs no engine
+  else if (freshStudy) newStudyBoard();         // 학습방 → 새 연구 on this device
   worker.onmessage = ev => {
     const m = ev.data; heardAt = performance.now();
     if (m && m.local) {
@@ -1122,7 +1155,9 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
       else if (m.local === "fallback") $("conn").textContent = "내 기기 · 그래픽을 쓸 수 없어 CPU로 준비 중";
       else if (m.local === "failed") { $("conn").textContent = "내 기기 · 엔진을 켜지 못했습니다"; $("err").textContent = "내 기기 엔진 오류: " + m.error; }
       else if (m.local === "ready") {
-        sock.readyState = 1; $("dot").classList.add("on"); $("conn").textContent = `내 기기 · ${m.device}`; $("err").textContent = "";
+        sock.readyState = 1; $("dot").classList.add("on"); $("conn").textContent = `내 기기 · ${m.device}`;
+        if ($("err").textContent.startsWith("내 기기 엔진 오류")) $("err").textContent = "";   // the game opened meanwhile keeps its line
+        const s = localSession(); if (s && !s.device) { s.device = m.device; saveLocalSession(s); }
         startLocalRun(m.device);
         send({id: "ver", action: "query_version"}); ping();
         if (analyzing) requestLive();
@@ -1135,16 +1170,24 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
 }
 let localYielded = false, endLocalRun = null;
 // reason "gpu": the member rented a GPU (user 2026-10-18: no 내 기기 while a GPU is on; GPU 대여 says so in this
-// browser at once, startLocalRun finds it on any device within a minute)
-function yieldLocal(reason) {   // another 내 기기 screen opened in this browser: stop this one's engine and close its run
+// browser at once, startLocalRun finds it on any device within a minute); "end": 종료 on the website; "idle": 10
+// minutes without a query. These end the session's run; "" (a newer screen in this browser) hands it over.
+function yieldLocal(reason) {   // another 내 기기 screen opened in this browser: stop this one's engine
   if (localYielded) return;
   localYielded = true;
   if (analyzing) setAnalyzing(false);
   lost(); clearTimeout(retryTimer);   // the worker goes with the connection; connect() starts no other (localYielded)
-  if (endLocalRun) endLocalRun();
+  if (reason === "gpu" && localSession()) saveLocalSession(null);
+  if (endLocalRun) endLocalRun(reason !== "");
   if (reason === "gpu") {
     $("conn").textContent = "내 기기 · GPU 사용 중";
     $("err").textContent = "GPU를 사용 중이라 이 기기의 엔진을 껐습니다. GPU 대여의 '분석 화면 열기'로 분석하세요. 내 기기 분석은 GPU를 끈 뒤에 쓸 수 있습니다.";
+    return;
+  }
+  if (reason === "idle" || reason === "end") {
+    $("conn").textContent = "내 기기 · 꺼짐";
+    $("err").textContent = (reason === "idle" ? "10분 동안 분석하지 않아 내 기기 엔진을 껐습니다." : "내 기기 분석을 종료했습니다.") +
+      " 저장된 분석은 그대로 볼 수 있고, 다시 분석하려면 새로고침하세요.";
     return;
   }
   $("conn").textContent = "내 기기 · 다른 창에서 분석 중";
@@ -4762,18 +4805,30 @@ async function startLocalRun(device) {
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   const app = window.kgcAppSync ? "PC 앱" : standalone ? "설치 앱" : /SamsungBrowser/.test(ua) ? "삼성 인터넷" : /Edg\//.test(ua) ? "Edge" : /Whale/.test(ua) ? "웨일"
     : /CriOS|Chrome/.test(ua) ? "Chrome" : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "";
-  const id = crypto.randomUUID(), watch = [...crypto.getRandomValues(new Uint8Array(18))].map(b => b.toString(16).padStart(2, "0")).join("");
-  const {error} = await site.sb.from("device_runs").insert({id, status: "ready", model: hashParams.get("m") === "balanced" ? "KataGo(균형)" : "KataGo(빠름)",
-    device: String(device || "").slice(0, 20) || null, platform: [os, app].filter(Boolean).join(" · "), watch_token: watch});
-  if (error) return;
+  // the session's run, written by an earlier screen of it (one row from 시작 to 종료, like a rented GPU's)
+  const s = localSession(), go = s && s.run && s.watch && /^[0-9a-f-]{36}$/.test(s.run);
+  const id = go ? s.run : crypto.randomUUID(), watch = go ? s.watch : [...crypto.getRandomValues(new Uint8Array(18))].map(b => b.toString(16).padStart(2, "0")).join("");
   const touch = fields => site.sb.from("device_runs").update(fields).eq("id", id).then(() => {}, () => {});
+  if (go) touch({last_seen: new Date().toISOString()});
+  else {
+    const {error} = await site.sb.from("device_runs").insert({id, status: "ready", model: hashParams.get("m") === "balanced" ? "KataGo(균형)" : "KataGo(빠름)",
+      device: String(device || "").slice(0, 20) || null, platform: [os, app].filter(Boolean).join(" · "), watch_token: watch});
+    if (error) return;
+    const now = localSession(); if (now) { now.run = id; now.watch = watch; saveLocalSession(now); }
+  }
   const beat = setInterval(() => {   // the server stamps the time itself
     touch({last_seen: new Date().toISOString()});
     gpuOn().then(on => { if (on) yieldLocal("gpu"); }, () => {});
   }, 60000);
-  endLocalRun = () => { endLocalRun = null; clearInterval(beat); touch({ended_at: new Date().toISOString()}); };
-  addEventListener("pagehide", () => { if (endLocalRun) endLocalRun(); });
-  if (localYielded) endLocalRun();   // another screen took over while this run was being written
+  // final: the session ends here (종료, 10 minutes idle, a GPU); else this screen only stops (closed, or a newer one took
+  // over) and the run goes on, unless the session has moved to another run
+  endLocalRun = final => {
+    endLocalRun = null; clearInterval(beat);
+    const cur = localSession();
+    if (final || !cur || cur.run !== id) touch({ended_at: new Date().toISOString()});
+  };
+  addEventListener("pagehide", () => { if (endLocalRun) endLocalRun(false); });
+  if (localYielded) endLocalRun(!localSession());   // another screen took over while this run was being written
   mirrorScreen(watch);
 }
 
