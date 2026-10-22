@@ -297,7 +297,11 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     <div class="panel">
       <h2>GPU 종류별 원가 상한</h2>
       <p class="muted small lead">카드 1장의 시간당 원가가 상한보다 비싼 GPU는 회원 목록에서 뺍니다. 2~4장 기계는 장수만큼 곱합니다. 칸을 비우면 그 종류는 상한이 없습니다.</p>
-      <div class="table-wrap"><table class="caps">
+      <div class="inline-form" style="margin-bottom:12px; align-items:center">
+        <button class="quiet" type="button" id="capToggle">상한 모두 끄기</button>
+        <span class="muted small" id="capState"></span>
+      </div>
+      <div class="table-wrap" id="capTable"><table class="caps">
         <thead><tr><th>GPU</th><th class="num">원가 상한</th><th class="num">회원가 상한</th></tr></thead>
         <tbody id="capRows"></tbody>
       </table></div>
@@ -391,6 +395,7 @@ async function load() {
     if (!priceDirty) { $("pRate").value = Number(s.usd_krw); $("pMarkup").value = Number(s.markup); showExample(); }
     capSettings = s;
     if (!capsDirty) { caps = { ...(s.gpu_caps || {}) }; drawCaps(); }
+    drawCapState();
     $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
     const plain = d.members.filter((m) => !m.is_admin), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
     $("memberCount").textContent = `${d.members.length}명`;
@@ -736,6 +741,23 @@ function drawCaps() {
     `<td class="num muted">${won(Math.ceil(v * markup / 10) * 10)}</td></tr>`).join("")
     || `<tr><td colspan="3" class="muted">상한 없음 — 모든 종류가 가성비 기준만 받습니다.</td></tr>`;
 }
+// all caps off / back on (app_settings.gpu_caps_off, 2026-10-22): the table is kept and applies again when switched on
+function drawCapState() {
+  const off = !!capSettings?.gpu_caps_off;
+  $("capToggle").textContent = off ? "상한 다시 켜기" : "상한 모두 끄기";
+  $("capToggle").className = off ? "primary" : "quiet";
+  $("capState").textContent = off ? "지금 상한이 꺼져 있습니다 — 상한에 걸리던 비싼 GPU도 회원 목록에 나옵니다. 아래 표는 그대로 두었다가 다시 켜면 적용됩니다." : "";
+  $("capTable").style.opacity = off ? 0.45 : "";
+}
+$("capToggle").onclick = async () => {
+  const off = !capSettings?.gpu_caps_off;
+  if (!confirm(off ? "모든 GPU의 원가 상한을 끌까요?\n비싼 GPU도 회원 목록에 바로 나옵니다." : "정해 둔 원가 상한을 다시 적용할까요?\n상한보다 비싼 GPU는 회원 목록에서 바로 빠집니다.")) return;
+  try {
+    const r = await api("/admin/settings", { gpu_caps_off: off });
+    capSettings = { ...capSettings, gpu_caps_off: !!r.gpu_caps_off }; drawCapState();
+    toast(r.gpu_caps_off ? "원가 상한을 껐습니다." : "원가 상한을 다시 켰습니다.");
+  } catch (e) { toast(e.message, true); }
+};
 $("capRows").addEventListener("change", (ev) => {
   const g = ev.target.dataset?.cap; if (!g) return;
   const v = Math.round(Number(ev.target.value));
