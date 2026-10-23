@@ -2808,7 +2808,7 @@ async function mineClient() {
 mineClient().then(c => {
   $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
-  if (hashParams.has("bank")) openBank(hashParams.get("bank"), +hashParams.get("k") || 0);   // the website's 문제 은행 link (k = a card)
+  if (hashParams.has("bank")) openBank(hashParams.get("bank"), +hashParams.get("k") || 0, hashParams.get("p") || "");   // the website's 문제 은행 link (k = a card; p = a 복습 card)
 });
 async function gzip64(text) {
   const buf = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
@@ -3718,7 +3718,7 @@ async function bankFind(r) {   // a record -> {p, pack, file, no}, or null when 
   }
   return null;
 }
-async function bankPick(spec) {   // -> [{p, pack, file}]
+async function bankPick(spec, start = "") {   // -> [{p, pack, file}]; start = a 복습 card's problem: the due ones from it on
   const sb = mineSb, out = [];
   if (spec === "review") {
     // records of books or problems taken off the site stay in the table: skip them, so they never fill the 10
@@ -3726,7 +3726,8 @@ async function bankPick(spec) {   // -> [{p, pack, file}]
     const {data, error} = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null).in("pack", ids)
       .lte("due_at", new Date().toISOString()).order("due_at").limit(200);
     if (error) throw error;
-    for (const r of data) {
+    const at = start ? data.findIndex(r => r.pid === start) : -1;   // the site's 복습 cards are in this order (due_at)
+    for (const r of at > 0 ? data.slice(at) : data) {
       const f = await bankFind(r);
       if (f) out.push(f);
       if (out.length >= BANK_SET) break;
@@ -3751,7 +3752,7 @@ async function bankPickFrom(spec, from) {   // -> problem number `from` on, in t
     for (const p of await bankFile(`${spec}-${file}`)) if (p.k >= from && out.length < BANK_SET) out.push({p, pack: spec, file, no: p.k});
   return out;
 }
-async function openBank(spec, from = 0) {   // from = a problem number: that one and the next ones in order (a card on the site)
+async function openBank(spec, from = 0, start = "") {   // from = a problem number: that one and the next ones in order (a card on the site)
   const say = text => { $("err").textContent = text; };
   if (!await mineClient()) { say("로그인한 사이트에서만 쓸 수 있습니다"); return; }
   if (game) { say("AI 대국 중에는 문제를 풀 수 없습니다. 대국을 멈춘 뒤 다시 여세요."); return; }
@@ -3760,7 +3761,7 @@ async function openBank(spec, from = 0) {   // from = a problem number: that one
   let list;
   try {
     if (!bankIndex) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error("목록 " + r.status); bankIndex = await r.json(); }
-    list = from ? await bankPickFrom(spec, from) : await bankPick(spec);
+    list = from ? await bankPickFrom(spec, from) : await bankPick(spec, start);
   } catch (err) { say("문제를 불러오지 못했습니다: " + (err.message || err)); return; }
   if (!list.length) { say(spec === "review" ? "오늘 복습할 문제가 없습니다" : bankBook(spec) ? "이 책의 문제를 모두 풀었습니다" : "없는 책입니다"); return; }
   if (!quiz) {   // the board being studied comes back when the problems end
@@ -3922,7 +3923,7 @@ function bankNext() {
 // analysis screen. A tab the website opened closes; the installed app (same window) goes back; otherwise the page is opened.
 function bankLeave() {
   const shelf = bankIndex && bankIndex.groups.find(g => g.books.some(b => b.id === quiz.bank));
-  const back = "index.html#study/bank" + (shelf ? `/${shelf.id}/${quiz.bank}` : "");
+  const back = "index.html#study/bank" + (quiz.bank === "review" ? "/review" : shelf ? `/${shelf.id}/${quiz.bank}` : "");
   if (window.opener || history.length === 1) { try { window.close(); } catch { /* not ours to close */ } }   // the site's tab (noopener: a fresh tab)
   setTimeout(() => {   // still here: the tab could not be closed
     let fromSite = false;

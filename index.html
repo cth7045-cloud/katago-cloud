@@ -1554,28 +1554,38 @@ async function loadBank() {
 }
 // 복습 = the due records whose problem is still on the site (= the analysis screen's #bank=review): records of books or problems
 // taken off the site stay in the table and in bank_summary's counts
-let bankDue = 0;
+let bankDue = [];   // [{p, book}] in the analysis screen's 복습 order (due_at): the 복습 cards (#study/bank/review)
 async function bankDueNow() {
   const books = new Map(bankIdx.groups.flatMap((g) => g.books.map((b) => [b.id, b])));
-  if (![...books.keys()].some((id) => bankStats[id]?.due)) return 0;
+  if (![...books.keys()].some((id) => bankStats[id]?.due)) return [];
   const { data } = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null).in("pack", [...books.keys()])
-    .lte("due_at", new Date().toISOString()).limit(200);
-  let n = 0;
+    .lte("due_at", new Date().toISOString()).order("due_at").limit(200);
+  const out = [];
   for (const r of data || []) {
     const book = books.get(r.pack), files = [r.file, ...Array.from({ length: book.files }, (_, i) => i).filter((i) => i !== r.file)].filter((i) => i < book.files);
-    try { for (const f of files) if ((await bankFile(`${r.pack}-${f}`)).some((p) => p.i === r.pid)) { n++; break; } } catch { n++; }
+    try { for (const f of files) { const p = (await bankFile(`${r.pack}-${f}`)).find((q) => q.i === r.pid); if (p) { out.push({ p, book }); break; } } } catch { /* a file that did not load: left out this time */ }
   }
-  return n;
+  return out;
 }
 const BOOK_ICON = '<svg viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/></svg>';
 function showBank() {   // #study/bank = 복습 and the shelves, #study/bank/<shelf> = its books, #study/bank/<shelf>/<book> = the book's problems as cards
   const [, shelfId, bookId] = location.hash.slice(1).split("/").slice(1);
   const shelf = bankIdx.groups.find((g) => g.id === shelfId), book = shelf && shelf.books.find((b) => b.id === bookId);
-  const due = bankDue;
+  const due = bankDue.length, review = shelfId === "review";
   const row = (href, cls, name, sub) => `<a class="batch-entry" href="${href}"><span class="hub-icon folder ${cls}" aria-hidden="true">${BOOK_ICON}</span>` +
     `<span class="grow"><b>${esc(name)}</b><span>${sub}</span></span><span class="chev" aria-hidden="true">›</span></a>`;
-  $("bankBooks").classList.toggle("hidden", !!book); $("bankBook").classList.toggle("hidden", !book);
-  if (book) {
+  $("bankBooks").classList.toggle("hidden", !!book || review); $("bankBook").classList.toggle("hidden", !book && !review);
+  $("bankGo").textContent = review ? "복습 시작" : "이어 풀기";
+  if (review) {   // 복습 as cards too (user 2026-10-23 "복습카테고리 눌러도 사활카드 보이게"): the due problems, the book under each number
+    $("studyHead").textContent = "복습";
+    $("studyBack").setAttribute("href", "#study/bank"); $("studyBack").textContent = "‹ 문제 은행";
+    bankOpen = { book: "review", file: 0 };
+    $("bankBookInfo").textContent = due ? `틀린 문제 ${due}개` : "오늘 복습할 문제가 없습니다";
+    $("bankGo").classList.toggle("hidden", !due); $("bankPages").classList.add("hidden");
+    $("bankCards").innerHTML = bankDue.map(({ p, book: b }) => `<div class="study-item bank-item" data-p="${esc(p.i)}"><div class="study-thumb">${bankThumb(p)}</div>` +
+      `<div class="study-body"><div class="study-title">${p.k}번</div><div class="study-meta">${esc(b.title + (b.sub ? " · " + b.sub : ""))}</div></div></div>`).join("");
+  } else if (book) {
+    $("bankGo").classList.remove("hidden");
     $("studyHead").textContent = book.title + (book.sub ? " · " + book.sub : "");
     $("studyBack").setAttribute("href", "#study/bank/" + shelf.id); $("studyBack").textContent = "‹ " + shelf.name;
     if (bankOpen.book !== book.id) bankOpen = { book: book.id, file: 0 };
@@ -1588,7 +1598,7 @@ function showBank() {   // #study/bank = 복습 and the shelves, #study/bank/<sh
       return row(`#study/bank/${shelf.id}/${b.id}`, "c" + (bankIdx.groups.indexOf(shelf) % 3 + 1), b.title, [b.sub && esc(b.sub), `${b.n.toLocaleString()}문제`, st && `푼 문제 ${st.solved.toLocaleString()}`].filter(Boolean).join(" · "));
     }).join("");
   } else {
-    $("bankBooks").innerHTML = (due ? row("#bank=review", "c4", "복습", `틀린 문제 ${due}개`) : "") + bankIdx.groups.map((g, gi) => {
+    $("bankBooks").innerHTML = (due ? row("#study/bank/review", "c4", "복습", `틀린 문제 ${due}개`) : "") + bankIdx.groups.map((g, gi) => {
       const n = g.books.reduce((t, b) => t + b.n, 0), solved = g.books.reduce((t, b) => t + (bankStats[b.id]?.solved || 0), 0);
       return row(`#study/bank/${g.id}`, "c" + (gi % 3 + 1), g.name, [`${g.books.length}권`, `${n.toLocaleString()}문제`, solved && `푼 문제 ${solved.toLocaleString()}`].filter(Boolean).join(" · "));
     }).join("");
@@ -1653,8 +1663,8 @@ async function showBankBook(book) {
 }
 $("bankPages").onclick = (ev) => { const b = ev.target.closest("[data-file]"); if (!b) return; bankOpen = { ...bankOpen, file: +b.dataset.file }; showBank(); };
 $("bankCards").onclick = (ev) => {
-  const c = ev.target.closest("[data-k]"); if (!c) return;
-  openPage(`analysis.html?v=${Date.now()}#bank=${bankOpen.book}&k=${c.dataset.k}`);
+  const c = ev.target.closest("[data-k], [data-p]"); if (!c) return;
+  openPage(`analysis.html?v=${Date.now()}#bank=${bankOpen.book}&` + (c.dataset.p ? `p=${encodeURIComponent(c.dataset.p)}` : `k=${c.dataset.k}`));
 };
 $("bankGo").onclick = () => openPage(`analysis.html?v=${Date.now()}#bank=${bankOpen.book}`);
 $("bankBooks").onclick = (ev) => {
