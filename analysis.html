@@ -3892,7 +3892,7 @@ $("quizFree").onclick = () => {
                shown: BANK_FREE_KEEP.filter(id => !$(id).hidden)};
   for (const id of BANK_FREE_KEEP) $(id).hidden = true;
   $("quizUndo").hidden = false; $("quizFree").textContent = "놓아보기 끝"; $("quizFree").classList.add("on");
-  bankFreeTitle();
+  bankFreeTitle(); schedule();   // the stones already there get their numbers
 };
 function bankFreePlay(p) {
   if (cur.grid[idx(p[0], p[1])]) return;
@@ -4338,7 +4338,7 @@ function drawMain() {
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   const sc = scoring && scoring.node === cur;
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
-    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && quiz.reveal ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && quiz.reveal),
+    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
   if (quiz && quiz.bank) drawBankMarks(boardCtx, boardG);
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
