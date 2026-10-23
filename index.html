@@ -231,7 +231,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           </table>
         </div>
         <!-- members' rentals 2026-10-08~14: ⚡ median 71 s (3/4 within 2.3 min), others 123 s (3/4 within 2.8 min) -->
-        <p class="muted small" style="margin:10px 2px 0">보통 준비 시간 <span class="t2 fast">⚡빠른 시작</span> 1~2분 · 그 외 2~3분</p>
         <!-- the chosen GPU and its start button, fixed at the bottom of the screen while one is picked -->
         <div class="cta-bar hidden" id="pickBar">
           <div class="in"><div class="grow"><b id="pickName"></b><span id="pickInfo"></span></div><button class="primary" id="startButton" disabled>시작</button></div>
@@ -280,11 +279,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <section class="panel stepcard">
           <span class="no">1</span>
           <div class="row"><h2 class="grow">기보 넣기</h2><button class="quiet" id="batchClear">목록 비우기</button></div>
-          <p class="sub">기보 파일(SGF·타이젬 GIB·위바둑 NGF·판다넷 UGF), 한큐 기보, 내 기보에 저장한 기보를 여러 개 한꺼번에 넣을 수 있습니다.<span class="hide-sm"> 컴퓨터에서는 파일을 이 화면에 끌어다 놓아도 됩니다.</span></p>
           <div class="drop">
-            <label class="btn" id="batchPick">📁 파일 추가<small>기보 파일 · 여러 개</small><input type="file" id="batchFiles" accept=".sgf,.gib,.ngf,.ugf,.ugi,.mgt,application/x-go-sgf" multiple hidden></label>
-            <button type="button" id="foxOpen">🔗 한큐 기보 불러오기<small>닉네임으로 최근 대국</small></button>
-            <button type="button" id="pickOpen" class="drop-wide">📚 내 기보에서 고르기<small>분석하면 그 기보에 덮어 저장</small></button>
+            <label class="btn" id="batchPick">📁 파일 추가<input type="file" id="batchFiles" accept=".sgf,.gib,.ngf,.ugf,.ugi,.mgt,application/x-go-sgf" multiple hidden></label>
+            <button type="button" id="foxOpen">🔗 한큐 기보 불러오기</button>
+            <button type="button" id="pickOpen" class="drop-wide">📚 내 기보에서 고르기</button>
           </div>
           <div class="table-wrap hidden" id="batchTable" style="margin-top:12px">
             <table><tbody id="batchRows"></tbody></table>
@@ -293,7 +291,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <section class="panel stepcard">
           <span class="no">2</span>
           <h2>분석 설정</h2>
-          <p class="sub">처음이면 그대로 두셔도 됩니다.</p>
           <div class="fld">
             <span class="lab">얼마나 꼼꼼히</span>
             <div class="seg2" data-seg-for="batchLevel" role="group" aria-label="분석 세기"></div>
@@ -303,11 +300,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
               <option value="precise" data-l="정밀" data-s="1000">정밀 · 한 수 1000 visits</option>
               <option value="ultra" data-l="초정밀" data-s="5000">초정밀 · 한 수 5000 visits</option>
             </select>
-            <span class="hint">숫자는 한 수마다 AI가 읽는 수(visits)입니다. 꼼꼼할수록 오래 걸립니다.</span>
             <p class="small hidden" id="batchWarn" style="margin:0;color:#c2410c;font-weight:600">⚠ 초정밀은 시간이 오래 걸립니다 — 정밀보다 약 5배(275수 한 판에 약 20분).</p>
           </div>
           <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류(내 기보에서 고른 기보는 원래 분류 그대로)"><option value="">분류 없음</option></select></label>
-          <label class="toggle-row"><span class="grow"><b>오답노트도 만들기</b><span>내 실수를 학습방 문제로 만듭니다</span></span><input type="checkbox" class="sw-input" id="batchNotes"></label>
+          <label class="toggle-row"><span class="grow"><b>오답노트도 만들기</b></span><input type="checkbox" class="sw-input" id="batchNotes"></label>
           <div class="nested batch-note-opts">
             <div class="fld"><span class="lab">누구의 실수를</span>
               <div class="seg2" data-seg-for="batchNoteSide" role="group" aria-label="누구의 실수"></div>
@@ -325,7 +321,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           </div>
         </section>
         <section class="panel">
-          <label class="toggle-row first"><span class="grow"><b>다 끝나면 GPU 끄기</b><span>켜 두면 끝난 뒤에도 요금이 나갑니다</span></span><input type="checkbox" class="sw-input" id="batchAutoStop" checked></label>
+          <label class="toggle-row first"><span class="grow"><b>다 끝나면 GPU 끄기</b></span><input type="checkbox" class="sw-input" id="batchAutoStop" checked></label>
         </section>
         <div class="cta-bar batch-cta" id="batchBar">
           <div class="batch-prog hidden" id="batchProg" role="progressbar" aria-label="기보 분석 진행" aria-valuemin="0" aria-valuemax="100"><i class="batch-fill" id="batchProgFill"></i></div>
@@ -1207,9 +1203,7 @@ function batchShow() {
   $("batchNote").textContent = batchJob ? "GPU가 분석하고 있습니다. 이 창을 닫거나 다른 앱으로 가도 GPU가 끝까지 분석해 내 기보에 저장하고, 다 끝나면 알림을 보냅니다."
     : running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
     : batchQueued ? "GPU가 준비되면 자동으로 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 닫지 마세요."
-    : ready ? "기보 여러 개를 분석 화면을 열지 않고 한꺼번에 분석해 내 기보에 저장합니다. 다 되면 내 기보에서 열어 보세요."
-    : session ? "GPU가 준비되면 시작할 수 있습니다. 기보 파일은 미리 골라 둘 수 있습니다."
-    : "아래에서 GPU를 골라 시작하세요. 기보 파일은 미리 골라 둘 수 있습니다.";
+    : "";   // 설명 문구는 사용자 2026-10-23 "이 화면에 있는 부가설명도 다 지워"로 뺌 (분석 중 안내만 남김)
   const done = batchRun.filter((f) => f.state === "saved").length;
   const prog = batchProgress(), pct = Math.floor(prog * 100), left = running ? batchLeft(prog) : "";
   $("hubBatch").textContent = running ? `기보 분석 중 · ${pct}% · ${done}/${batchRun.length}판` + (left ? ` · ${left}` : "") : batchQueued ? "기보 분석: GPU가 준비되면 시작합니다" : "";

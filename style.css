@@ -735,6 +735,7 @@ a.subline:hover { text-decoration: none; }
 
 /* ---------- 기보 분석: 세 단계 */
 .batch-note { margin: -8px 0 16px; color: var(--muted); font-size: 14.5px; }
+.batch-note:empty { display: none; }
 .stepcard { position: relative; padding-left: 64px; }
 .stepcard .no { position: absolute; left: 22px; top: 24px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 15px; background: var(--blue); color: #fff; }
 .stepcard h2 { margin: 2px 0 4px !important; }
