@@ -3868,6 +3868,7 @@ async function bankReveal() {   // 정답 보기: the answer from the start (bef
   if (!quiz.done) await bankFinish(false, "정답을 보았습니다");
   quiz.node.children = [];   // the tries so far would show as next-move rings
   quiz.answer = null; quiz.reveal = true;   // no ring left from a wrong try; the answer's stones get their numbers (user 2026-10-23)
+  $("quizTitle").className = ""; $("quizTitle").textContent = "정답 수순";   // not 오답 left over from the wrong try (user 2026-10-23)
   quiz.at = quiz.node; goTo(quiz.node); $("quizShow").hidden = true;
   await bankPlayLine(bankLine(quiz.prob.t) || [], quiz.prob.p);
 }
@@ -4241,7 +4242,7 @@ function renderBoard(ctx, G, node, o) {
     for (let i = 0; i < N * N; i++) {
       const n = node.num[i]; if (!n || !node.grid[i] || (o.numbers === "last" && i !== lastI)) continue;
       const [cx, cy] = P(i);
-      if (i === lastI) drawPolygonSmall(ctx, cx, cy, r);
+      if (i === lastI && !o.noLast) drawPolygonSmall(ctx, cx, cy, r);   // none on a problem's answer: the red corner read as 오답
       jString(ctx, UI_FONT, 400, String(n), cx + .5, cy + .5, r * 1.4, n >= 100 ? r * 1.85 : r * 1.4, node.grid[i] === 1 ? "#fff" : "#000");
     }
   } else if (node.move && !node.move.pass) {  // stone-indicator-type 1: circle in the opposite color
@@ -4337,7 +4338,7 @@ function drawMain() {
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   const sc = scoring && scoring.node === cur;
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
-    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && quiz.reveal ? "all" : $("nums").dataset.mode || "",
+    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && quiz.reveal ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && quiz.reveal),
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
   if (quiz && quiz.bank) drawBankMarks(boardCtx, boardG);
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
