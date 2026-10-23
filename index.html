@@ -762,7 +762,7 @@ async function enter() {
   await refresh();
   loadOffers(); loadMine(); loadNotesCard(); resumeBatch();
   if (curPage === "libraryView" && !libLoaded) libShow();   // opened at #library: showPage ran before the profile
-  if (location.hash === "#study/bank") loadBank();
+  if (location.hash.startsWith("#study/bank")) loadBank();
   // every 4 s while the page is in front; in the background only while a GPU is on or a 기보 분석 waits for one (its
   // 준비 완료 alert and the reserved start need it) — a tab or the PC app left open all day asks nothing (2026-10-10)
   clearInterval(pollTimer);
@@ -1547,19 +1547,28 @@ async function loadBank() {
   showBank();
 }
 const BOOK_ICON = '<svg viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/></svg>';
-function showBank() {
+function showBank() {   // #study/bank = 복습 and the shelves (사활 · 끝내기 …), #study/bank/<shelf> = that shelf's books
+  const shelf = bankIdx.groups.find((g) => location.hash === "#study/bank/" + g.id);
   const due = Object.values(bankStats).reduce((t, r) => t + r.due, 0);
   const row = (href, cls, name, sub) => `<a class="batch-entry" href="${href}"><span class="hub-icon folder ${cls}" aria-hidden="true">${BOOK_ICON}</span>` +
     `<span class="grow"><b>${esc(name)}</b><span>${sub}</span></span><span class="chev" aria-hidden="true">›</span></a>`;
-  $("bankBooks").innerHTML = (due ? row("#bank=review", "c4", "복습", `틀린 문제 ${due}개`) : "") +
-    bankIdx.groups.map((g, gi) => `<h2 class="bank-group">${esc(g.name)}</h2>` + g.books.map((b) => {
+  if (shelf) {
+    $("studyHead").textContent = shelf.name;
+    $("studyBack").setAttribute("href", "#study/bank"); $("studyBack").textContent = "‹ 문제 은행";
+    $("bankBooks").innerHTML = shelf.books.map((b) => {
       const st = bankStats[b.id];
-      return row(`#bank=${b.id}`, "c" + (gi % 3 + 1), b.title, [b.sub && esc(b.sub), `${b.n.toLocaleString()}문제`, st && `푼 문제 ${st.solved.toLocaleString()}`].filter(Boolean).join(" · "));
-    }).join("")).join("");
+      return row(`#bank=${b.id}`, "c" + (bankIdx.groups.indexOf(shelf) % 3 + 1), b.title, [b.sub && esc(b.sub), `${b.n.toLocaleString()}문제`, st && `푼 문제 ${st.solved.toLocaleString()}`].filter(Boolean).join(" · "));
+    }).join("");
+  } else {
+    $("bankBooks").innerHTML = (due ? row("#bank=review", "c4", "복습", `틀린 문제 ${due}개`) : "") + bankIdx.groups.map((g, gi) => {
+      const n = g.books.reduce((t, b) => t + b.n, 0), solved = g.books.reduce((t, b) => t + (bankStats[b.id]?.solved || 0), 0);
+      return row(`#study/bank/${g.id}`, "c" + (gi % 3 + 1), g.name, [`${g.books.length}권`, `${n.toLocaleString()}문제`, solved && `푼 문제 ${solved.toLocaleString()}`].filter(Boolean).join(" · "));
+    }).join("");
+  }
   $("bankMsg").classList.add("hidden");
 }
 $("bankBooks").onclick = (ev) => {
-  const a = ev.target.closest("a[href^='#bank=']"); if (!a) return;
+  const a = ev.target.closest("a[href^='#bank=']"); if (!a) return;   // a shelf (#study/bank/…) is an ordinary link
   ev.preventDefault();
   openPage(`analysis.html?v=${Date.now()}#${a.getAttribute("href").slice(1)}`);
 };
@@ -1727,7 +1736,7 @@ $("studyRows").onclick = async (ev) => {
   const tr = ev.target.closest("[data-study]"); const k = tr && studies[+tr.dataset.study]; if (!k) return;
   openPage(`analysis.html?v=${Date.now()}#${engineHash()}kifu=${k.id}`);
 };
-addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); if (location.hash === "#study/bank") loadBank(); } });   // saved in the analysis tab: shows up on return
+addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); if (location.hash.startsWith("#study/bank")) loadBank(); } });   // saved in the analysis tab: shows up on return
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
   if (mine.filter((k) => !k.source).length >= 300) { toast("기보는 300판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
   const folder = folders.some((f) => f.id === curFolder) ? `&folder=${curFolder}` : "";   // saved into the folder on screen
@@ -1989,13 +1998,14 @@ new IntersectionObserver((entries, io) => {
 
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
 const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#library": "libraryView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
-function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 · 문제 은행, or one of them (#study/notes, …)
-  const part = { "#study/notes": "notes", "#study/research": "research", "#study/bank": "bank" }[location.hash] || "";
+function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 · 문제 은행, or one of them (#study/notes, …; #study/bank/<책장>)
+  const part = location.hash.startsWith("#study/bank") ? "bank" : { "#study/notes": "notes", "#study/research": "research" }[location.hash] || "";
   $("studyHub").classList.toggle("hidden", !!part);
   $("notesCard").classList.toggle("hidden", part !== "notes"); $("studyCard").classList.toggle("hidden", part !== "research");
   $("bankCard").classList.toggle("hidden", part !== "bank");
   $("studyHead").textContent = { notes: "오답노트", research: "내 연구", bank: "문제 은행" }[part] || "학습방";
-  if (part === "bank" && profile) loadBank();
+  $("studyBack").setAttribute("href", "#study"); $("studyBack").textContent = "‹ 학습방";
+  if (part === "bank") { if (bankIdx) showBank(); if (profile) loadBank(); }
   $("studyBack").classList.toggle("hidden", !part);
 }
 function showPage() {
