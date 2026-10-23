@@ -256,7 +256,8 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody section > .status { display: flex; justify-content: flex-start; gap: 10px; min-height: 44px; margin: 2px 0; padding: 0 12px;
   border-radius: 14px; background: var(--soft); font-size: 14px; color: var(--ink); }
 #menuBody section > .status::before { display: none; }
-#menuBody #gpuStop { margin-left: auto; }
+#menuBody #gpuStop, #menuBody #localStop { margin-left: auto; }
+.menubar .sheet-only { display: none; }   /* 내 기기: the top bar has the button alone, the sheet names its row */
 #menuBody section > ::before { content: ""; flex: none; width: 22px; height: 22px; background: var(--muted);
   -webkit-mask: var(--i) center / 22px no-repeat; mask: var(--i) center / 22px no-repeat; }
 #menuBody section > button.on { background: var(--cyan-soft); color: var(--blue-deep); }
@@ -735,7 +736,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
   <span class="spacer"></span>
   <span class="status" id="vps"></span>
-  <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button></span>
+  <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button><button id="localStop" class="pink" hidden title="내 기기 분석 종료">종료</button></span>
   <span class="status" id="connStatus"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
   <input type="file" id="fileInput" accept=".sgf,.gib,.ngf,.ugf,.ugi,.mgt,application/x-go-sgf" hidden>
 </header>
@@ -1190,6 +1191,15 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
     connectLocal.bc.onmessage = ev => { if (ev.data && (ev.data.newer || ev.data.gpu || ev.data.end)) yieldLocal(ev.data.gpu ? "gpu" : ev.data.idle ? "idle" : ev.data.end ? "end" : ""); };
   }
   if (connectLocal.bc) connectLocal.bc.postMessage({newer: 1});
+  // 종료 on this screen too (user 2026-10-23), the same as the website's: the session ends in this browser and its run
+  $("gpuUse").textContent = "내 기기 분석"; $("gpuUse").classList.add("sheet-only"); $("gpuStop").hidden = true; $("localStop").hidden = $("gpuMeter").hidden = false;
+  $("localStop").onclick = () => {
+    if (!confirm("내 기기 분석을 끌까요?")) return;
+    const s = localSession(); saveLocalSession(null);
+    if (s && /^[0-9a-f-]{36}$/.test(s.run || "")) import("./app.js").then(({sb}) => sb.from("device_runs").update({ended_at: new Date().toISOString()}).eq("id", s.run)).then(() => {}, () => {});
+    if (connectLocal.bc) connectLocal.bc.postMessage({end: 1});
+    yieldLocal("end");
+  };
   const worker = new Worker("localengine.js" + (String(args) ? "?" + args : "")), sock = {readyState: 0, close: () => worker.terminate()};
   sock.send = t => {   // use = what touches a GPU's activity file (webbridge.py handle): a query, not ping·state·the version asked on connecting
     try { const o = JSON.parse(t); if ("id" in o && !(o.action === "query_version" && o.id !== "keep")) localUsed(); } catch { /* not ours */ }
@@ -1226,7 +1236,7 @@ let localYielded = false, endLocalRun = null;
 // minutes without a query. These end the session's run; "" (a newer screen in this browser) hands it over.
 function yieldLocal(reason) {   // another 내 기기 screen opened in this browser: stop this one's engine
   if (localYielded) return;
-  localYielded = true;
+  localYielded = true; $("gpuMeter").hidden = true;
   if (analyzing) setAnalyzing(false);
   lost(); clearTimeout(retryTimer);   // the worker goes with the connection; connect() starts no other (localYielded)
   if (reason === "gpu" && localSession()) saveLocalSession(null);
