@@ -4656,7 +4656,7 @@ function drawSuggestions(ctx, G, node, hoverI, branch) {
 // A next move that is not a candidate gets the ring on the empty point. Shown with the candidates only (so not while
 // 승률 가리기 / an AI game hides them), and not while a variation is previewed.
 function drawNextMoves(ctx, G, node, branch) {
-  if (branch) return;
+  if (branch || (quiz && (quiz.free || quiz.edit))) return;   // 놓아보기 · 답 고치기: no rings of the moves walked before (user report 2026-10-23 "잔상")
   const {margin: m, sq, r} = G;
   // a study (학습방 연구) has no main line to speak of (user request 2026-10-10): solid only where the line does not branch
   const allDashed = studyBoard() && node.children.length > 1;
@@ -4700,7 +4700,7 @@ function drawMain() {
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
     branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free || quiz.edit) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free || quiz.edit)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
-  if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else drawBankMarks(boardCtx, boardG); }
+  if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else if (!quiz.free) drawBankMarks(boardCtx, boardG); }
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
   if (sc) drawScoreMarks(boardCtx, boardG);
   boardCtx.setTransform(1, 0, 0, 1, 0, 0);
