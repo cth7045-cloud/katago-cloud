@@ -71,7 +71,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <span class="app-icon" aria-hidden="true"></span>
         <div class="grow">
           <b>홈 화면에 앱으로 설치</b>
-          <div class="small muted" data-install-how>주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</div>
+          <div class="small muted" data-install-how></div>
         </div>
         <button class="primary" type="button" data-install>설치</button>
       </div>
@@ -170,7 +170,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <span class="app-icon" aria-hidden="true"></span>
         <div class="grow">
           <b>홈 화면에 앱으로 설치</b>
-          <div class="small muted" data-install-how>주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.</div>
+          <div class="small muted" data-install-how></div>
         </div>
         <button class="primary" type="button" data-install>설치</button>
       </div>
@@ -477,7 +477,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <label class="field">금액 (1,000원 단위, 최대 50,000원)<input id="chargeAmount" type="number" inputmode="numeric" min="1000" max="50000" step="1000" required></label>
           <label class="field">입금자명<input id="chargeDepositor" maxlength="30" autocomplete="name" required></label>
           <button class="primary" type="submit" id="chargeSubmit">충전 요청</button>
-          <p class="muted small" style="margin:0">요청하면 입금할 계좌가 나옵니다. 입금이 확인되면 관리자가 잔액을 넣어 드립니다.</p>
           <div class="error" id="chargeError"></div>
         </form>
         <div class="charge-wait hidden" id="chargeOpen">
@@ -485,7 +484,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <p class="charge-lead"><span id="coAmount"></span>을 아래 계좌로 보내 주세요</p>
           <div class="charge-account"><span id="coAccount"></span><button type="button" id="coCopy">복사</button></div>
           <p class="small" style="margin:0">입금자명 <b id="coDepositor"></b> · <span id="coWhen"></span> 요청</p>
-          <p class="muted small" style="margin:0">입금자명이 다르면 확인이 늦어질 수 있습니다. 관리자가 확인하면 잔액이 바로 늘어납니다. 48시간 안에 확인되지 않으면 요청이 만료됩니다.</p>
+          <p class="muted small" style="margin:0">입금자명이 다르면 확인이 늦어질 수 있습니다. 48시간 안에 확인되지 않으면 요청이 만료됩니다.</p>
           <p class="small" style="margin:0" id="coPush"></p>
           <button class="quiet" type="button" id="coCancel">요청 취소</button>
         </div>
@@ -538,7 +537,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           </div>
         </details>
         <div class="item wrap-item">
-          <span class="ic" style="background:#ece9fd;color:#5b47d6" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></span><span class="grow">화면<span class="item-note">이 기기에서만 적용되고, 분석 화면도 같이 바뀝니다</span></span>
+          <span class="ic" style="background:#ece9fd;color:#5b47d6" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></span><span class="grow">화면</span>
           <div class="seg" id="themeSeg" role="group" aria-label="화면 밝기">
             <button type="button" data-theme="" title="휴대폰·PC의 다크 모드 설정을 따릅니다">자동</button>
             <button type="button" data-theme="light">밝게</button>
@@ -571,12 +570,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <div class="item-body">
             <div class="charge-ask-body">
               <img class="charge-qr" src="charge/kakao-openchat-qr.png" width="800" height="800" alt="카카오톡 오픈채팅방 QR 코드" loading="lazy">
-              <p class="muted small hide-sm" style="margin:0">휴대폰 카메라로 QR 코드를 찍으면 오픈채팅방이 열립니다.</p>
               <a class="btn primary charge-open" href="https://open.kakao.com/o/ssRZTShi" target="_blank" rel="noopener">카카오톡 오픈채팅 열기</a>
             </div>
           </div>
         </details>
-        <a class="item hidden" id="pcAppItem" href="download/KataGoCloud.exe" download="KataGoCloud.exe"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">윈도우 PC 앱 받기<span class="item-note" id="pcAppNote">앱 창으로 열리고, 타이젬 기보를 내 기보에 자동으로 넣습니다</span></span><span class="chev" aria-hidden="true">↓</span></a>
+        <a class="item hidden" id="pcAppItem" href="download/KataGoCloud.exe" download="KataGoCloud.exe"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">윈도우 PC 앱 받기<span class="item-note" id="pcAppNote"></span></span><span class="chev" aria-hidden="true">↓</span></a>
         <div class="item hidden" id="pcVerItem"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">PC 앱 버전<span class="item-note" id="pcVerNote"></span></span><button type="button" class="primary hidden" data-app-update>업데이트</button></div>
         <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
         <a class="item" href="licenses.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg></span><span class="grow">오픈소스 고지</span><span class="chev" aria-hidden="true">›</span></a>
@@ -620,7 +618,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <input type="text" id="foxName" class="grow" placeholder="한큐바둑 닉네임" autocomplete="off" enterkeyhint="search" maxlength="40" aria-label="한큐바둑 닉네임">
         <button type="submit">검색</button>
       </form>
-      <p class="muted small" id="foxMsg" style="margin:0">닉네임을 검색하면 최근 대국 약 100판이 나옵니다. 분석할 대국을 여러 개 고르세요.</p>
+      <p class="muted small" id="foxMsg" style="margin:0"></p>
       <div class="scroll-box fox-list hidden" id="foxTable">
         <table><thead><tr><th><input type="checkbox" id="foxAll" aria-label="모두 고르기"></th><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th class="num hide-sm">수</th></tr></thead>
           <tbody id="foxRows"></tbody></table>
@@ -638,7 +636,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <select id="pickFolder" aria-label="분류"></select>
         <label class="check"><input type="checkbox" id="pickRaw"> 분석 안 된 것만</label>
       </div>
-      <p class="muted small" id="pickMsg" style="margin:0">분석한 결과는 새로 저장하지 않고 그 기보에 덮어씁니다(제목·분류는 그대로).</p>
+      <p class="muted small" id="pickMsg" style="margin:0"></p>
       <div class="scroll-box fox-list pick-list">
         <table><thead><tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>기보</th><th class="hide-sm">대국일</th><th class="num">분석</th></tr></thead>
           <tbody id="pickRows"></tbody></table>
@@ -1215,7 +1213,7 @@ function batchShow() {
   if (batchFrame && !ready) batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin);   // the GPU is going away
   if (batchQueued && (!session || session.status === "stopping")) { batchQueued = false; toast("GPU가 꺼져 예약한 분석을 취소했습니다.", true); }
   if (batchQueued && ready && !running) { batchQueued = false; toast("GPU가 준비돼 예약한 기보 분석을 시작합니다."); return startBatch(); }
-  $("batchNote").textContent = batchJob ? "GPU가 분석하고 있습니다. 이 창을 닫거나 다른 앱으로 가도 GPU가 끝까지 분석해 내 기보에 저장하고, 다 끝나면 알림을 보냅니다."
+  $("batchNote").textContent = batchJob ? "GPU가 분석하고 있습니다"
     : running ? "분석 중입니다. 끝날 때까지 이 창을 열어 두세요(창을 닫거나 새로고침하면 멈춥니다)."
     : batchQueued ? "GPU가 준비되면 자동으로 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 닫지 마세요."
     : "";   // 설명 문구는 사용자 2026-10-23 "이 화면에 있는 부가설명도 다 지워"로 뺌 (분석 중 안내만 남김)
@@ -1312,7 +1310,7 @@ $("foxForm").onsubmit = async (e) => {
   try {
     const r = await api(`/kifu/fox/user?name=${encodeURIComponent(name)}`);
     foxGames = r.games || [];
-    $("foxMsg").textContent = foxGames.length ? `${r.user.name} (${r.user.dan}) · ${foxGames.length}판 · 분석할 대국을 고르세요.` : `${r.user.name}: 공개된 대국이 없습니다.`;
+    $("foxMsg").textContent = foxGames.length ? `${r.user.name} (${r.user.dan}) · ${foxGames.length}판` : `${r.user.name}: 공개된 대국이 없습니다.`;
   } catch (err) { foxGames = []; $("foxMsg").textContent = err.message; $("foxMsg").style.color = "var(--bad)"; }
   foxShow();
 };
@@ -1858,7 +1856,7 @@ $("studyBranches").onclick = async (ev) => {   // 갈래: show one, make one, re
     const v = name(`${STUDY[studyTopic]} 안에 새 갈래 (예: ${studyTopic === "joseki" ? "화점, 소목, 삼삼" : studyTopic === "fuseki" ? "중국류, 미니 중국류, 향소목" : "사활, 끝내기"})`); if (!v) return;
     const { data, error } = await sb.from("study_folders").insert({ study: studyTopic, name: v }).select("id").single();
     if (error) { toast(same(error), true); return; }
-    studyBranch = data.id; await loadMine(); toast(`'${STUDY[studyTopic]} › ${v}' 갈래를 만들었습니다. 연구의 주제·갈래 칸으로 옮기거나, 여기서 ＋ 새 연구를 시작하세요.`);
+    studyBranch = data.id; await loadMine(); toast(`'${STUDY[studyTopic]} › ${v}' 갈래를 만들었습니다`);
   } else if ("branchRename" in b.dataset && f) {
     const v = name("갈래 이름 바꾸기", f.name); if (!v || v === f.name) return;
     const { error } = await sb.from("study_folders").update({ name: v }).eq("id", f.id);
@@ -2397,22 +2395,18 @@ let appNotifyOn = false;
 if (appNotify) window.kgcAppNotify().then((v) => { appNotifyOn = !!v; showNotify(); }).catch(() => {});
 const switchOn = () => notifyOn() && (appNotify ? appNotifyOn : pushOk && Notification.permission === "granted");
 const winPc = /Windows NT/.test(navigator.userAgent);   // (windowsPc below is declared later in this script)
-const NOTIFY_WHAT = "GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과";
 function showNotify() {
   const p = pushOk ? Notification.permission : "unsupported";
   $("notifySwitch").setAttribute("aria-checked", String(switchOn()));
   $("notifyNote").textContent = appNotify
-    ? (switchOn() ? `${NOTIFY_WHAT}를 이 PC에 윈도우 알림으로 알려 드립니다. 창을 닫아도 시계 옆 아이콘으로 남아 알려 드립니다.`
-      : !notifyOn() && appNotifyOn ? "알림을 모두 껐습니다. GPU 준비·종료와 충전 결과는 화면에서 확인해 주세요."
-      : `켜면 ${NOTIFY_WHAT}를 이 PC에 윈도우 알림으로 알려 드립니다.`)
+    ? ""   // (what is notified: the guide — the switch shows on / off)
     : oldPcApp ? "이 PC 앱 버전은 알림을 받을 수 없습니다. 새 버전으로 업데이트하면(내 정보 → PC 앱 버전) 윈도우 알림으로 받을 수 있습니다."
     : !pushOk
     ? (/iPhone|iPad|iPod/.test(navigator.userAgent) ? "아이폰·아이패드는 Safari에서 '홈 화면에 추가'한 앱으로 열어야 알림을 받을 수 있습니다." : "이 브라우저는 알림을 지원하지 않습니다. 크롬에서 열어 주세요.")
-    : !notifyOn() ? "알림을 모두 껐습니다. GPU 준비·종료와 충전 결과는 화면에서 확인해 주세요."
+    : !notifyOn() ? ""
     : p === "denied" ? (winPc ? "이 브라우저에서 알림이 차단되어 있습니다. 주소창 왼쪽 아이콘 → 사이트 설정에서 알림을 허용하고, 윈도우 설정 → 시스템 → 알림에서 이 브라우저 알림이 켜져 있는지 확인한 뒤 다시 누르세요."
       : "이 기기에서 알림이 차단되어 있습니다. 휴대폰 설정(또는 브라우저 사이트 설정)에서 KataGo Cloud 알림을 허용한 뒤 다시 누르세요.")
-    : p === "granted" ? "GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과를 알려 드립니다."
-    : "켜면 GPU 준비 완료·실패, GPU 종료(잔액 부족·10분 무입력 포함), 잔액이 곧 떨어질 때, 충전 결과를 이 기기로 알려 드립니다.";
+    : "";
 }
 async function setNotify(on) {
   const { error } = await sb.rpc("set_notify", { p_on: on });
@@ -2442,7 +2436,7 @@ if (typeof window.kgcAppSync === "function") {
   const showTygem = (s) => {
     $("tygemSwitch").setAttribute("aria-checked", String(!!s.on));
     const folder = (s.folders || [])[0];
-    $("tygemNote").textContent = !s.on ? "켜면 이 PC에서 둔 타이젬 대국을 내 기보의 '타이젬 기보' 분류에 바로 넣습니다."
+    $("tygemNote").textContent = !s.on ? ""
       : [s.status, folder ? `폴더 ${folder.path}` : "", `넣은 판 ${s.auto_count} / ${s.limit}`, s.last_sync ? `확인 ${ago(s.last_sync)}` : ""].filter(Boolean).join(" · ");
     $("tygemFolder").classList.toggle("hidden", !(s.on && s.problem === "folder"));
   };
@@ -2464,7 +2458,7 @@ if (typeof window.kgcAppSync === "function") {
 const idleStopOn = () => !profile || profile.idle_stop !== false;
 function showIdleStop() {
   $("idleStopSwitch").setAttribute("aria-checked", String(idleStopOn()));
-  $("idleStopNote").textContent = idleStopOn() ? "10분 동안 입력이 없으면 GPU를 끕니다. 깜빡하고 안 꺼도 요금이 계속 나가지 않습니다."
+  $("idleStopNote").textContent = idleStopOn() ? ""
     : "꺼져 있습니다. 직접 끄거나 잔액이 떨어질 때까지 GPU가 켜져 있고 요금이 나갑니다.";
 }
 $("idleStopSwitch").onclick = async () => {
@@ -2592,7 +2586,7 @@ function showLocalSession() {   // GPU 대여's 내 기기 card as the session s
   $("deviceCard").classList.toggle("hidden", on); $("localCard").classList.toggle("hidden", !on);
   if (!on) { $("localCard").classList.remove("is-ready"); return; }
   $("localTitle").textContent = `내 기기 · ${LOCAL_MODELS[s.m] || LOCAL_MODELS.fast}`;
-  setLocal(3, ["사용 가능", "good"], "10분 동안 분석하지 않으면 꺼집니다. 그동안 여는 기보는 이 기기로 분석됩니다.");
+  setLocal(3, ["사용 가능", "good"], "");   // (how long it stays on: the guide)
   $("localMeta").textContent = `요금 없음 · 이 기기${s.device ? "의 " + s.device + (s.device === "CPU" ? "로" : "으로") : "에서"} 계산`;
   $("localOpen").href = localUrl(s); $("localOpen").classList.remove("hidden"); $("localStop").textContent = "종료"; $("localError").textContent = "";
 }
@@ -2681,11 +2675,8 @@ function installHow() {
     : "설치했습니다. 바탕화면이나 시작 메뉴의 KataGo Cloud로 여세요.";
   if (samsung) return "삼성 인터넷으로 설치하면 보안 경고가 뜹니다. 크롬에서 이 사이트를 열어 설치해 주세요.";
   if (installing) return "설치하는 중입니다. 잠시 기다려 주세요.";
-  if (installEvent) return "주소창 없이 앱처럼 열리고, GPU가 준비되면 알림을 받을 수 있습니다.";
-  if (iOS) return /CriOS|FxiOS|EdgiOS/.test(ua) ? "Safari로 이 사이트를 연 뒤 아래쪽 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요."
-    : "아래쪽(아이패드는 위쪽) 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요.";
-  if (android) return "브라우저 메뉴(⋮) → '홈 화면에 추가' 또는 '앱 설치'를 누르세요.";
-  return "Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕)을 누르세요. 이미 설치했다면 같은 자리의 '앱에서 열기'로 열 수 있습니다.";
+  if (installEvent) return "";
+  return "";   // how to install on each device: the guide (user 2026-10-23 — no how-to on screen)
 }
 // 윈도우 PC 앱 (katagovast pcsync, 2026-10-07): on a Windows computer the install card offers the app instead of the
 // home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
@@ -2695,12 +2686,11 @@ const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.5" };   // a ne
 document.querySelectorAll("[data-pcapp]").forEach((el) => {
   el.innerHTML = `<span class="app-icon" aria-hidden="true"></span>
     <div class="grow" style="flex:1 1 300px;min-width:0"><b>윈도우 PC 앱 설치</b>
-      <div class="small muted">사이트가 주소창 없는 앱 창으로 열리고, 이 PC에서 둔 타이젬 대국을 내 기보에 자동으로 넣습니다. Windows 10·11(64비트) · 버전 ${PC_APP.version}</div>
-      <div class="small muted" style="margin-top:4px">받은 파일을 실행하면 설치되고 바탕화면에 KataGo Cloud가 생깁니다. 'Windows의 PC 보호' 창이 뜨면 <span style="font-weight:600">추가 정보 → 실행</span>을 누르세요.</div></div>
+      <div class="small muted">Windows 10·11(64비트) · 버전 ${PC_APP.version}</div></div>
     <a class="btn primary" href="${PC_APP.file}" download="KataGoCloud.exe">다운로드</a>`;
 });
 if (windowsPc && !inPcApp) $("pcAppItem").classList.remove("hidden");
-$("pcAppNote").textContent += ` · 버전 ${PC_APP.version}`;
+$("pcAppNote").textContent = `버전 ${PC_APP.version}`;
 // 새 버전 안내 (inside the PC app, 2026-10-07): the app's version (kgcAppInfo; 0.2.0 had none) against PC_APP.version.
 // 업데이트 asks the app (kgcAppUpdate) to download the new exe, check it against download/KataGoCloud.json and run
 // it — the app then reopens as the new version. 0.2.0 cannot do that: it gets the file to download and run.
