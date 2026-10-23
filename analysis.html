@@ -3831,12 +3831,14 @@ function bankLine(t) {   // a way to the answer: [my move, reply, my move, …]
 async function bankReveal() {   // 정답 보기: the answer from the start (before answering = giving up)
   if (quiz.busy) return;
   if (!quiz.done) await bankFinish(false, "정답을 보았습니다");
+  quiz.node.children = [];   // the tries so far would show as next-move rings
   quiz.at = quiz.node; goTo(quiz.node); $("quizShow").hidden = true;
   await bankPlayLine(bankLine(quiz.prob.t) || [], quiz.prob.p);
 }
 $("quizRetry").onclick = () => {
   if (!quiz || !quiz.bank || quiz.busy) return;
   Object.assign(quiz, {at: quiz.node, t: quiz.prob.t, done: false, answer: null, grade: null});
+  quiz.node.children = [];   // a clean start: no rings for the moves tried before (user report 2026-10-23)
   goTo(quiz.node);
   $("quizTitle").className = ""; $("quizTitle").textContent = `다시 풀기 · ${quiz.list[quiz.i].no}번 · ${colorName(quiz.prob.p)} 차례`;
   $("quizRetry").hidden = true; $("quizNext").hidden = true; $("quizShow").hidden = false;
