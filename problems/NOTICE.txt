@@ -4,6 +4,12 @@
    https://online-go.com/api/v1/puzzles/collections/<id>/puzzles . Problem id "o<number>" = OGS puzzle <number>
    (https://online-go.com/puzzle/<number>).
 
+3. Classical collections (관자보 Guan Zi Pu, 현현기경 Xuan Xuan Qi Jing, 기경중묘 Qi Jing Zhong Miao) from Ulrich Görtz's
+   "Classical go problems", https://www.u-go.net/classic/ — prepared from the Flygo files (http://www.flygo.net/) with their
+   permission to make them available; 현현기경 compiled by Jean-Pierre Vesinet. Problem ids "u…".
+
+4. 망우청락집 Wangyou Qingle Ji: the SGF files in https://github.com/tasuki/tsumego (books/sources/wangyou-qingle-ji).
+
 2. Ten Thousand Tsumego, https://github.com/sanderland/tsumego (problem id "s…"), under this notice:
 
 Code is Copyright 2020 Sander Land and/or other authors of the content in this repository.

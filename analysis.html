@@ -3763,7 +3763,7 @@ async function openBank(spec, from = 0) {   // from = a problem number: that one
 const bankXY = m => m === "pass" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
 function bankShow() {
   const {p, pack, no} = quiz.list[quiz.i], book = bankBook(pack);
-  Object.assign(quiz, {prob: p, t: p.t, done: false, busy: false, recorded: false, answer: null, grade: null, shown: true, free: null});
+  Object.assign(quiz, {prob: p, t: p.t, done: false, busy: false, recorded: false, answer: null, grade: null, shown: true, free: null, reveal: false});
   $("quizUndo").hidden = true; $("quizFree").textContent = "놓아보기"; $("quizFree").classList.remove("on");
   const pts = s => (s.match(/../g) || []).map(m => `[${m}]`).join("");
   loadSgf(`(;GM[1]FF[4]SZ[${p.s}]KM[0]PL[${p.p}]` + (p.b ? "AB" + pts(p.b) : "") + (p.w ? "AW" + pts(p.w) : "") + ")");
@@ -3847,12 +3847,13 @@ async function bankReveal() {   // 정답 보기: the answer from the start (bef
   if (quiz.busy) return;
   if (!quiz.done) await bankFinish(false, "정답을 보았습니다");
   quiz.node.children = [];   // the tries so far would show as next-move rings
+  quiz.answer = null; quiz.reveal = true;   // no ring left from a wrong try; the answer's stones get their numbers (user 2026-10-23)
   quiz.at = quiz.node; goTo(quiz.node); $("quizShow").hidden = true;
   await bankPlayLine(bankLine(quiz.prob.t) || [], quiz.prob.p);
 }
 $("quizRetry").onclick = () => {
   if (!quiz || !quiz.bank || quiz.busy) return;
-  Object.assign(quiz, {at: quiz.node, t: quiz.prob.t, done: false, answer: null, grade: null});
+  Object.assign(quiz, {at: quiz.node, t: quiz.prob.t, done: false, answer: null, grade: null, reveal: false});
   quiz.node.children = [];   // a clean start: no rings for the moves tried before (user report 2026-10-23)
   goTo(quiz.node);
   $("quizTitle").className = ""; $("quizTitle").textContent = `다시 풀기 · ${quiz.list[quiz.i].no}번 · ${colorName(quiz.prob.p)} 차례`;
@@ -4316,7 +4317,7 @@ function drawMain() {
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   const sc = scoring && scoring.node === cur;
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
-    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: $("nums").dataset.mode || "",
+    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && quiz.reveal ? "all" : $("nums").dataset.mode || "",
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
   if (quiz && quiz.bank) drawBankMarks(boardCtx, boardG);
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
