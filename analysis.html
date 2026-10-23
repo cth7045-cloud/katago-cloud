@@ -3709,24 +3709,36 @@ async function bankFile(name) {   // problems/<pack>-<file>.json, kept for this 
   }
   return bankFiles.get(name);
 }
+async function bankFind(r) {   // a record -> {p, pack, file, no}, or null when the problem is gone; looks in the other files when a book was laid out anew
+  const book = bankBook(r.pack); if (!book) return null;
+  const files = [r.file, ...Array.from({length: book.files}, (_, i) => i).filter(i => i !== r.file)].filter(i => i < book.files);
+  for (const file of files) {
+    const p = (await bankFile(`${r.pack}-${file}`)).find(q => q.i === r.pid);
+    if (p) return {p, pack: r.pack, file, no: p.k};
+  }
+  return null;
+}
 async function bankPick(spec) {   // -> [{p, pack, file}]
   const sb = mineSb, out = [];
   if (spec === "review") {
-    const {data, error} = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null)
-      .lte("due_at", new Date().toISOString()).order("due_at").limit(BANK_SET);
+    // records of books or problems taken off the site stay in the table: skip them, so they never fill the 10
+    const ids = bankIndex.groups.flatMap(g => g.books.map(b => b.id));
+    const {data, error} = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null).in("pack", ids)
+      .lte("due_at", new Date().toISOString()).order("due_at").limit(200);
     if (error) throw error;
     for (const r of data) {
-      if (!bankBook(r.pack)) continue;   // a book taken off the site
-      const p = (await bankFile(`${r.pack}-${r.file}`)).find(q => q.i === r.pid);
-      if (p) out.push({p, pack: r.pack, file: r.file, no: p.k});
+      const f = await bankFind(r);
+      if (f) out.push(f);
+      if (out.length >= BANK_SET) break;
     }
     return out;
   }
   const book = bankBook(spec); if (!book) return out;
   for (let file = 0; file < book.files && out.length < BANK_SET; file++) {   // the book's order: the first ones not tried yet
-    const {data, error} = await sb.from("bank_progress").select("pid").eq("pack", spec).eq("file", file);
+    const rows = await bankFile(`${spec}-${file}`);   // by pid, not by the recorded file: a book laid out anew moves problems between files
+    const {data, error} = await sb.from("bank_progress").select("pid").eq("pack", spec).in("pid", rows.map(p => p.i));
     if (error) throw error;
-    const tried = new Set(data.map(r => r.pid)), rows = await bankFile(`${spec}-${file}`);
+    const tried = new Set(data.map(r => r.pid));
     rows.forEach(p => { if (!tried.has(p.i) && out.length < BANK_SET) out.push({p, pack: spec, file, no: p.k}); });
   }
   return out;
@@ -3773,9 +3785,17 @@ function bankShow() {
   $("quizSub").textContent = (quiz.bank === "review" ? "복습 · " : "") + book.title + (book.sub ? " · " + book.sub : "") + ` · ${quiz.i + 1}/${quiz.list.length}`;
   $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = $("quizFree").hidden = false;
 }
-function bankView(p) {   // the stones and first moves, 2 lines around, snapped to near edges, made square; null = most of the board
-  let x0 = N, y0 = N, x1 = -1, y1 = -1;
-  for (const m of [...(p.b.match(/../g) || []), ...(p.w.match(/../g) || []), ...Object.keys(p.t).filter(m => m !== "pass")]) {
+const bankMoves = (t, out = []) => {   // every move in a problem's tree (both sides)
+  for (const [m, r] of Object.entries(t)) {
+    out.push(m);
+    if (typeof r === "string") out.push(r);
+    else if (r && typeof r === "object") for (const [o, n] of Object.entries(r)) { out.push(o); if (n && typeof n === "object") bankMoves(n, out); }
+  }
+  return out;
+};
+function bankView(p) {   // the stones and every move of the answer, 2 lines around, snapped to near edges, made square; null = most of the board
+  let x0 = N, y0 = N, x1 = -1, y1 = -1;   // (every move: a later one off the view could not be played — 48 problems, 2026-10-23)
+  for (const m of [...(p.b.match(/../g) || []), ...(p.w.match(/../g) || []), ...bankMoves(p.t).filter(m => m !== "pass")]) {
     const x = m.charCodeAt(0) - 97, y = m.charCodeAt(1) - 97;
     x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
   }
