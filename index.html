@@ -390,6 +390,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     <div class="wrap app narrow hidden" id="libraryView">
       <a class="back" href="#mine">‹ 기보</a>
       <h1 class="page-title">기보실</h1>
+      <input type="search" class="lib-find" id="libFind" placeholder="대국자·대회 찾기 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
       <div class="seg lib-kind" id="libKind" role="group" aria-label="기보 종류">
         <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
         <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
@@ -400,7 +401,6 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       <div class="panel hidden" id="libListCard">
         <div class="row lib-top">
           <h2 class="grow" style="margin:0" id="libTitle"></h2>
-          <input type="search" id="libQuery" placeholder="찾기: 대국자·대회 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
         </div>
         <div class="scroll-box fox-list lib-list">
           <table><thead><tr><th>대국</th><th>결과</th></tr></thead>
@@ -757,7 +757,7 @@ function leave() {
     if (batchFrame) { batchFrame.remove(); batchFrame = null; }
     batchJob = null; batchQueued = false; batchFiles = []; batchRun = []; foxGames = []; foxShow(); batchShow();
   }
-  libLoaded = false; libRows = []; libYears = {}; libTours = {}; libYear = null; libTour = null;   // 기보실 loads again for the next member
+  libLoaded = false; libRows = []; libYears = {}; libTours = {}; libYear = null; libTour = null; $("libFind").value = "";   // 기보실 loads again for the next member
   startHero(); $("bootFail")?.remove();
   swap(() => { document.body.classList.remove("authed"); $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
@@ -1948,6 +1948,9 @@ let libKind = "pro", libYear = null, libTour = null;
 let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {}, libTours = {};
 const libSource = () => (libKind === "ai" ? "ai" : "pro");
 const libLatest = () => libKind === "pro" && libYear === "latest";
+// 찾기 (사용자 2026-10-23 "검색 기능은 프로기보, ai기보 위에 별도로"): the box above the tabs searches the whole 기보실
+// (both kinds, every year: DB 20261023g public_kifu_search); while it has words the tabs and cards give way to the results.
+const libFindQ = () => $("libFind").value.replace(/\s+/g, " ").trim();
 const libListing = () => libYear === "latest" || (libYear && (libKind === "ai" || libTour !== null));
 const libCard = (data, name, n, sub = "") => `<button type="button" class="lib-cat" ${data}><span class="grow"><b>${esc(name)}</b>` +
   `${sub ? `<span class="muted small">${esc(sub)}</span>` : ""}</span><span class="muted">${n}</span><span class="chev" aria-hidden="true">›</span></button>`;
@@ -1970,7 +1973,8 @@ async function libTourList(year) {
 }
 function libGo(year, tour = null) { libYear = year; libTour = tour; libYears = {}; libTours = {}; libShow(); window.scrollTo(0, 0); }   // counts read again: the collector keeps adding
 async function libShow() {
-  const seq = ++libSeq, kind = libSource(), listing = libListing();
+  const seq = ++libSeq, kind = libSource(), finding = !!libFindQ(), listing = finding || libListing();
+  $("libKind").classList.toggle("hidden", finding);
   const kindName = libKind === "ai" ? "AI 기보" : "프로 기보";
   // 위치: 프로 기보 › 2026년 › 몽백합배 세계바둑오픈전 (each part goes back there)
   const parts = [`<button type="button" class="quiet" data-crumb="root">${kindName}</button>`];
@@ -1980,10 +1984,10 @@ async function libShow() {
     if (libTour && libTour !== "*") parts.push(`<span>${esc(libTour)}</span>`);
     else if (libTour === "*" && libKind === "pro") parts.push(`<span>전체</span>`);
   }
-  $("libCrumb").innerHTML = libYear ? parts.join(`<span class="sep" aria-hidden="true">›</span>`) : "";
+  $("libCrumb").innerHTML = libYear && !finding ? parts.join(`<span class="sep" aria-hidden="true">›</span>`) : "";
   $("libListCard").classList.toggle("hidden", !listing);
   $("libCards").classList.toggle("hidden", listing);
-  if (listing) { $("libQuery").classList.toggle("hidden", libLatest()); loadLibrary(true); return; }
+  if (listing) { loadLibrary(true); return; }
   $("libCards").innerHTML = `<p class="muted lib-cat-msg">불러오는 중…</p>`;
   try {
     let html;
@@ -2005,18 +2009,21 @@ async function libShow() {
 }
 const libName = (name, rank) => `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
 async function loadLibrary(reset) {
-  const seq = ++libSeq, latest = libLatest();
+  const q = libFindQ(), seq = ++libSeq, latest = !q && libLatest();
   if (reset) { libRows = []; $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오는 중…</td></tr>`; }
   const year = latest ? "" : libYear, tour = libKind === "pro" && libTour && libTour !== "*" ? libTour : "";
-  $("libTitle").textContent = latest ? "최신 대국" : tour || `${year}년${libKind === "pro" ? " 전체" : ""}`;
-  // PostgREST filter syntax: commas, parentheses and wildcards would change the filter, so they are dropped
-  const q = latest ? "" : $("libQuery").value.replace(/[,()*%"\\]/g, " ").trim();
-  let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset && !latest ? "exact" : undefined })
-    .eq("source", libSource()).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
-  if (year) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
-  if (tour) req = req.eq("tournament", tour);
-  if (q) req = req.or(["black", "white", "event"].map((c) => `${c}.ilike.*${q}*`).join(","));
-  const { data, error, count } = await req;
+  $("libTitle").textContent = q ? "찾은 기보" : latest ? "최신 대국" : tour || `${year}년${libKind === "pro" ? " 전체" : ""}`;
+  let data, error, count;
+  if (q) {   // the whole 기보실; each row carries the number found
+    ({ data, error } = await sb.rpc("public_kifu_search", { p_q: q, p_offset: libRows.length, p_limit: LIB_PAGE }));
+    if (data && reset) count = data.length ? Number(data[0].total) : 0;
+  } else {
+    let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset && !latest ? "exact" : undefined })
+      .eq("source", libSource()).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
+    if (year) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
+    if (tour) req = req.eq("tournament", tour);
+    ({ data, error, count } = await req);
+  }
   if (seq !== libSeq) return;   // a newer search or place replaced this one
   if (error) { $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오지 못했습니다: ${esc(error.message)}</td></tr>`; return; }
   libLoaded = true;
@@ -2035,7 +2042,6 @@ $("libKind").onclick = (ev) => {
   const b = ev.target.closest("[data-kind]"); if (!b || b.dataset.kind === libKind) return;
   libKind = b.dataset.kind;
   for (const x of $("libKind").children) x.setAttribute("aria-pressed", x === b);
-  $("libQuery").value = "";
   libGo(null);
 };
 $("libCards").onclick = (ev) => {
@@ -2045,10 +2051,9 @@ $("libCards").onclick = (ev) => {
 };
 $("libCrumb").onclick = (ev) => {
   const b = ev.target.closest("[data-crumb]"); if (!b) return;
-  $("libQuery").value = "";
   if (b.dataset.crumb === "root") libGo(null); else libGo(libYear, null);
 };
-$("libQuery").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(() => loadLibrary(true), 300); };
+$("libFind").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(libShow, 300); };
 $("libMore").onclick = () => loadLibrary(false);
 $("libRows").onclick = (ev) => {
   const tr = ev.target.closest("[data-lib]"); const k = tr && libRows[+tr.dataset.lib]; if (!k) return;

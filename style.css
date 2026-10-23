@@ -870,6 +870,7 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
 .lib-top input[type=search] { flex: 1 1 220px; min-width: 0; }
 .lib-top select { flex: 0 0 auto; min-height: 44px; }
 .lib-kind { margin: 0 0 16px; }
+.lib-find { display: block; width: 100%; margin: 0 0 14px; }
 .lib-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 14px; font-weight: 700; }
 .lib-crumb:empty { display: none; }
 .lib-crumb button { min-height: 36px; padding: 5px 12px; font-weight: 700; }
