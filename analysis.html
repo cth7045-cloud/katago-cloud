@@ -586,6 +586,11 @@ button.primary:hover { background: var(--blue-deep); }
   /* the buttons share the width (4 of them after a 문제 은행 answer ran past a phone's edge and the page slid sideways — user report 2026-10-23) */
   .qz-actions { flex: 1 1 100%; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
   #quizBar button { width: 100%; min-width: 0; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 문제 은행: the buttons at the bottom of the screen, under the thumb (user 2026-10-23 "1번으로"); room for two rows is kept
+     whatever shows, so the board does not change size between answering and the next problem (layout() takes it off) */
+  body.bankq .qz-actions { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5;
+    display: flex; flex-wrap: wrap; align-content: flex-end; gap: 8px; height: 108px; }
+  body.bankq #quizBar .qz-actions button { flex: 1 1 30%; min-height: 50px; font-size: 15px; }
   #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
 }
 /* 다크모드: 기기 설정을 따름(2026-09-30). 색은 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판·돌 그림은 그대로. */
@@ -909,7 +914,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div id="quizBar" hidden>
     <div class="qz-text"><b id="quizTitle"></b><span id="quizSub"></span></div>
     <input type="text" id="quizMemo" maxlength="300" placeholder="메모: 왜 틀렸는지 적어 두세요 (Enter로 저장)" autocomplete="off" hidden>
-    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
+    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizUndo" hidden>무르기</button><button id="quizFree" hidden>놓아보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
   </div>
   <div id="clocks" hidden><span id="clockB"></span><span id="clockW"></span></div>
   <button id="analyze">▶ 분석 시작</button>
@@ -3662,7 +3667,7 @@ function endQuiz() {
   saveQuizMemo();
   const {prev, pending} = quiz;
   const bank = !!quiz.bank;
-  quiz = null; document.body.classList.remove("quiz", "bankq"); $("quizBar").hidden = $("quizRetry").hidden = true;
+  quiz = null; document.body.classList.remove("quiz", "bankq"); $("quizBar").hidden = $("quizRetry").hidden = $("quizFree").hidden = $("quizUndo").hidden = true;
   setSize(prev.size); root = prev.root; setKomi(prev.komi); $("handicap").value = handicapShown = prev.handicap;
   if (pending) applyState(pending);   // another device changed the shared board meanwhile: follow it
   else goTo(prev.cur);
@@ -3750,14 +3755,15 @@ async function openBank(spec) {
 const bankXY = m => m === "pass" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
 function bankShow() {
   const {p, pack, no} = quiz.list[quiz.i], book = bankBook(pack);
-  Object.assign(quiz, {prob: p, t: p.t, done: false, busy: false, recorded: false, answer: null, grade: null, shown: true});
+  Object.assign(quiz, {prob: p, t: p.t, done: false, busy: false, recorded: false, answer: null, grade: null, shown: true, free: null});
+  $("quizUndo").hidden = true; $("quizFree").textContent = "놓아보기"; $("quizFree").classList.remove("on");
   const pts = s => (s.match(/../g) || []).map(m => `[${m}]`).join("");
   loadSgf(`(;GM[1]FF[4]SZ[${p.s}]KM[0]PL[${p.p}]` + (p.b ? "AB" + pts(p.b) : "") + (p.w ? "AW" + pts(p.w) : "") + ")");
   quiz.view = bankView(p); layout();
   quiz.node = quiz.at = root; goTo(root);
   $("quizTitle").className = ""; $("quizTitle").textContent = `${no}번 · ${colorName(p.p)} 차례` + (BANK_GOALS[p.g] ? " · " + BANK_GOALS[p.g] : "");
   $("quizSub").textContent = (quiz.bank === "review" ? "복습 · " : "") + book.title + (book.sub ? " · " + book.sub : "") + ` · ${quiz.i + 1}/${quiz.list.length}`;
-  $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = false;
+  $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = $("quizFree").hidden = false;
 }
 function bankView(p) {   // the stones and first moves, 2 lines around, snapped to near edges, made square; null = most of the board
   let x0 = N, y0 = N, x1 = -1, y1 = -1;
@@ -3784,6 +3790,7 @@ async function bankPlayLine(moves, color) {   // plays moves one by one from qui
   q.busy = false;
 }
 async function answerBank(p) {
+  if (quiz.free) { bankFreePlay(p); return; }
   if (!quiz.node || quiz.busy || quiz.done) return;
   if (cur !== quiz.at) { goTo(quiz.at); return; }   // looked back through the moves: back to the latest first
   if (quiz.at.grid[idx(p[0], p[1])]) return;
@@ -3843,6 +3850,38 @@ $("quizRetry").onclick = () => {
   $("quizTitle").className = ""; $("quizTitle").textContent = `다시 풀기 · ${quiz.list[quiz.i].no}번 · ${colorName(quiz.prob.p)} 차례`;
   $("quizRetry").hidden = true; $("quizNext").hidden = true; $("quizShow").hidden = false;
 };
+// 놓아보기 (user 2026-10-23): both colours in turn from where the board is, nothing graded and nothing recorded; 무르기 takes
+// a stone back, 놓아보기 끝 returns to that position (the stones tried are dropped, no next-move rings left behind)
+const BANK_FREE_KEEP = ["quizShow", "quizRetry", "quizNext", "quizEnd"];
+function bankFreeTitle() { $("quizTitle").className = ""; $("quizTitle").textContent = `놓아보기 · ${colorName(cur.toPlay)} 차례`; }
+$("quizFree").onclick = () => {
+  if (!quiz || !quiz.bank || quiz.busy) return;
+  if (quiz.free) { bankFreeEnd(); return; }
+  if (cur !== quiz.at) goTo(quiz.at);
+  quiz.free = {start: cur, kids: cur.children.slice(), title: [$("quizTitle").className, $("quizTitle").textContent],
+               shown: BANK_FREE_KEEP.filter(id => !$(id).hidden)};
+  for (const id of BANK_FREE_KEEP) $(id).hidden = true;
+  $("quizUndo").hidden = false; $("quizFree").textContent = "놓아보기 끝"; $("quizFree").classList.add("on");
+  bankFreeTitle();
+};
+function bankFreePlay(p) {
+  if (cur.grid[idx(p[0], p[1])]) return;
+  const c = play(cur, cur.toPlay, p); if (!c) return;   // ko or suicide
+  goTo(c); bankFreeTitle();
+}
+$("quizUndo").onclick = () => {
+  const f = quiz && quiz.free; if (!f || cur === f.start) return;
+  const c = cur; goTo(c.parent); c.parent.children = c.parent.children.filter(x => x !== c);
+  bankFreeTitle();
+};
+function bankFreeEnd() {
+  const f = quiz.free; quiz.free = null;
+  f.start.children = f.kids;   // what the problem's own line had there, without the stones tried
+  goTo(f.start);
+  for (const id of f.shown) $(id).hidden = false;
+  $("quizUndo").hidden = true; $("quizFree").textContent = "놓아보기"; $("quizFree").classList.remove("on");
+  [$("quizTitle").className, $("quizTitle").textContent] = f.title;
+}
 function bankNext() {
   if (quiz.i + 1 < quiz.list.length) { quiz.i++; bankShow(); return; }
   const n = quiz.list.length, right = quiz.right, spec = quiz.bank;
@@ -4816,6 +4855,10 @@ if (!GPU_HOST.test(location.hostname)) {
   $("connStatus").addEventListener("pointerdown", () => { clearTimeout(t); t = setTimeout(show, 1000); });
   for (const e of ["pointerup", "pointerleave", "pointercancel"]) $("connStatus").addEventListener(e, () => clearTimeout(t));
 }
+function bankBarRoom() {   // the 문제 은행 buttons fixed at the bottom of a phone (see the CSS): the board stays above them
+  const bar = document.querySelector(".qz-actions");
+  return document.body.classList.contains("bankq") && getComputedStyle(bar).position === "fixed" ? bar.offsetHeight + 20 : 0;
+}
 function fitBox(el) { const r = el.getBoundingClientRect(); return [Math.floor(r.width), Math.floor(r.height)]; }
 function layout() {
   placeMenuItems();
@@ -4824,7 +4867,7 @@ function layout() {
   // line, the 오답노트 answer bar. Measured, not assumed (user report 2026-09-28: a fixed 110 px cut the bottom off on a
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
   const side = matchMedia("(orientation: portrait)").matches
-    ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - document.querySelector(".menubar").offsetHeight
+    ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - document.querySelector(".menubar").offsetHeight
         - document.querySelector(".left").offsetHeight - document.querySelector(".right").offsetHeight - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
