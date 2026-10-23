@@ -1118,10 +1118,8 @@ async function openWithoutGpu() {
     site = sb; $("conn").textContent = "GPU 없음 · 저장된 분석만 보기";
     if (pendingKifu) openMineKifu(pendingKifu);
     else if (recordMode && hashStudy) {   // 새 연구 without a GPU: the moves and variations only
-      $("conn").textContent = "GPU 없음 · 연구 기록"; studyRoot = root;
-      const say = () => `판을 눌러 수순과 변화도를 두고 '내 기보 저장'에서 학습방 '${studyLabel(hashStudy, hashBranch)} 연구'로 저장하세요. GPU를 켜면 분석할 수 있습니다.`;
-      $("err").textContent = say();
-      if (hashBranch) loadStudyFolders(await mineClient()).then(() => { if ($("err").textContent.startsWith("판을 눌러 수순과")) $("err").textContent = say(); });
+      $("conn").textContent = "GPU 없음 · 연구 기록"; studyRoot = root;   // (no how-to line under the board: it is in the guide — user 2026-10-23)
+      if (hashBranch) loadStudyFolders(await mineClient());
     } else if (recordMode) {
       $("conn").textContent = "GPU 없음 · 기보 기록";
       if (!root.info.DT) root.info.DT = new Date().toLocaleDateString("sv-SE");   // today, YYYY-MM-DD
@@ -2005,9 +2003,8 @@ $("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? 
 async function newStudyBoard() {   // 학습방 → 새 연구 on the GPU: the shared board's game is kept first if it is in 내 기보 / 학습방
   freshStudy = false;
   if (mineDirtyAt) await mineAutoSave(false);
-  emptyBoard(); studyRoot = root;
-  $("err").textContent = `새 연구 · 수를 두며 분석하고 '내 기보 저장'에서 학습방 '${STUDY[hashStudy]} 연구'로 저장하세요`;
-  if (hashBranch) loadStudyFolders(await mineClient()).then(() => { if ($("err").textContent.startsWith("새 연구")) $("err").textContent = `새 연구 · 수를 두며 분석하고 '내 기보 저장'에서 학습방 '${studyLabel(hashStudy, hashBranch)} 연구'로 저장하세요`; });
+  emptyBoard(); studyRoot = root;   // (no how-to line under the board: it is in the guide — user 2026-10-23)
+  if (hashBranch) loadStudyFolders(await mineClient());
 }
 // 접바둑: black's stones on the usual star points, white moves first
 // star points: the 4th line from the edge (3rd on 9x9) and the middle
