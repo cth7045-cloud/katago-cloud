@@ -3453,13 +3453,14 @@ async function openMineKifu(id) {
 async function openPublicKifu(id) {
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 기보실 기보를 열 수 있습니다"; return false; }
-  const {data: k, error} = await c.from("public_kifu").select("id,event,black,white,sgf").eq("id", Number(id)).maybeSingle();
+  const {data: k, error} = await c.from("public_kifu").select("id,event,black,white,played_on,sgf").eq("id", Number(id)).maybeSingle();
   if (error || !k) { $("err").textContent = "기보실 기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
   try { loadSgf(k.sgf); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
   const title = `${k.black || "?"} vs ${k.white || "?"}`;
   document.title = `${title} · KataGo Cloud`;
-  $("err").textContent = "";   // no hint line under the board: it made the board smaller on a phone (user report 2026-10-23)
+  // which game opened, as for 내 기보 (user 2026-10-23); the old hint about '내 기보 저장' stays out (it made the board smaller)
+  $("err").textContent = `기보실 '${title}${k.played_on ? " · " + k.played_on : ""}'을(를) 열었습니다`;
   return true;
 }
 
