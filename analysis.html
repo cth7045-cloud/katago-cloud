@@ -436,6 +436,17 @@ dialog[open] { animation: arrive .35s var(--ease); }
 #quizSub { color: var(--muted); font-size: 13px; }
 #quizMemo { flex: 1 1 240px; min-width: 0; }
 .qz-actions { display: flex; gap: 6px; }
+/* 문제 은행 편집 (관리자, user 2026-10-23): the answer tree and, for a new problem, the stones */
+#bankEdit { flex: 1 1 100%; min-width: 0; display: grid; gap: 8px; }
+#bankEdit[hidden], .be-set[hidden], #bankEdit label[hidden], #bankEdit button[hidden] { display: none; }
+.be-set { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.be-set label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+#bankEdit input[type=checkbox] { flex: none; width: 18px; height: 18px; min-height: 0; margin: 0; padding: 0; }
+.be-set input[type=text] { flex: 1 1 200px; min-width: 0; }
+.be-info { flex: 1 1 100%; font-size: 13px; color: var(--muted); }
+.be-msg { font-size: 13px; color: var(--muted); }
+.be-msg.bad { color: var(--bad); }
+body.bankedit .qz-actions { display: none !important; }
 body.quiz .toolbar > :not(#quizBar):not(#err) { display: none !important; }
 body.bankq .main { grid-template-columns: minmax(0, 1fr); }   /* 문제 은행: the board alone, no analysis panels */
 body.bankq .left, body.bankq .right { display: none !important; }
@@ -605,6 +616,7 @@ button.primary:hover { background: var(--blue-deep); }
     display: flex; flex-wrap: wrap; align-content: flex-end; gap: 8px; height: 108px; }
   body.bankq #quizBar .qz-actions button { flex: 1 1 30%; min-height: 50px; font-size: 15px; }
   #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
+  #quizBar #bankEdit button { width: auto; flex: 1 1 auto; min-height: 40px; padding: 2px 10px; }
 }
 /* 다크모드: 기기 설정을 따름(2026-09-30). 색은 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판·돌 그림은 그대로. */
 @media (prefers-color-scheme: dark) {
@@ -927,7 +939,28 @@ button.primary:hover { background: var(--blue-deep); }
   <div id="quizBar" hidden>
     <div class="qz-text"><b id="quizTitle"></b><span id="quizSub"></span></div>
     <input type="text" id="quizMemo" maxlength="300" placeholder="메모: 왜 틀렸는지 적어 두세요 (Enter로 저장)" autocomplete="off" hidden>
-    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizUndo" hidden>무르기</button><button id="quizFree" hidden>놓아보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
+    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizUndo" hidden>무르기</button><button id="quizFree" hidden>놓아보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEdit" hidden>답 고치기</button><button id="quizEnd">그만하기</button></div>
+    <div id="bankEdit" hidden>
+      <div class="be-set" id="beSetup" hidden>
+        <div class="lvl" id="beTool" role="group" aria-label="놓을 돌"><button data-v="b" class="on">흑 돌</button><button data-v="w">백 돌</button><button data-v="x">지우기</button></div>
+        <label>차례 <select id="beTurn"><option value="B">흑</option><option value="W">백</option></select></label>
+        <label>판 <select id="beSize"><option>19</option><option>13</option><option>9</option></select></label>
+        <button id="beTree" class="primary">답 만들기</button>
+      </div>
+      <div class="be-set" id="beLines">
+        <span class="be-info" id="beInfo"></span>
+        <button id="beRight">정답 수순으로</button><button id="beWrong">오답 수순으로</button><button id="beDel">이 수 지우기</button><button id="beBack">한 수 무르기</button><button id="beSetupBtn" hidden>배치 고치기</button>
+      </div>
+      <div class="be-set">
+        <label>목표 <select id="beGoal"><option value="">없음</option><option value="live">살리세요</option><option value="kill">잡으세요</option></select></label>
+        <input type="text" id="beNote" maxlength="300" placeholder="메모 (무엇을 고쳤는지)" autocomplete="off">
+        <label class="be-hide"><input type="checkbox" id="beHide"> 숨기기</label>
+      </div>
+      <div class="be-set">
+        <button id="beSave" class="primary">저장</button><button id="beReset">원래대로</button><button id="beClose">닫기</button>
+        <span class="be-msg" id="beMsg"></span>
+      </div>
+    </div>
   </div>
   <div id="clocks" hidden><span id="clockB"></span><span id="clockW"></span></div>
   <button id="analyze">▶ 분석 시작</button>
@@ -2860,7 +2893,10 @@ async function mineClient() {
 mineClient().then(c => {
   $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
-  if (hashParams.has("bank")) openBank(hashParams.get("bank"), +hashParams.get("k") || 0, hashParams.get("p") || "");   // the website's 문제 은행 link (k = a card; p = a 복습 card)
+  if (hashParams.has("bank")) {   // the website's 문제 은행 link (k = a card; p = a 복습 card; admin: q = a problem by id, edit = 답 고치기, add = 새 문제)
+    bankHashOnce = {q: hashParams.get("q") || "", edit: hashParams.get("edit") === "1", add: hashParams.get("add") === "1"};
+    openBank(hashParams.get("bank"), +hashParams.get("k") || 0, hashParams.get("p") || "");
+  }
 });
 async function gzip64(text) {
   const buf = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
@@ -3750,22 +3786,65 @@ function drawQuizMarks(ctx, G) {   // after answering: ✕ on the original mista
 // bank_record works out the review date).
 const BANK_SET = 10;
 const BANK_GOALS = {live: "살리세요", kill: "잡으세요"};
-let bankIndex = null;
+let bankIndex = null, bankRaw = null, bankAdmin = null, bankHashOnce = null;
 const bankFiles = new Map();
 const bankBook = id => bankIndex.groups.flatMap(g => g.books).find(b => b.id === id);
-async function bankFile(name) {   // problems/<pack>-<file>.json, kept for this visit
-  if (!bankFiles.has(name)) {
-    const r = await fetch(`problems/${name}.json?v=${bankIndex.v || ""}`);
-    if (!r.ok) throw new Error("문제 파일 " + r.status);
-    bankFiles.set(name, await r.json());
+// What an admin changed (DB bank_edits · bank_books, user 2026-10-23 "답 수정" · "문제 새로 추가") laid over problems/:
+// a fixed problem gets its new tree and goal, a hidden one is left out, the added ones of a book are one more file after
+// the book's own (file number = book.static), and an admin's own book has only that one. = index.html bankMerge.
+async function bankRows(sb, table, cols) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const {data, error} = await sb.from(table).select(cols).range(from, from + 999);
+    if (error) throw error;
+    out.push(...data); if (data.length < 1000) return out;
   }
-  return bankFiles.get(name);
 }
-async function bankFind(r) {   // a record -> {p, pack, file, no}, or null when the problem is gone; looks in the other files when a book was laid out anew
+function bankMerge(raw, edits, books) {
+  const idx = JSON.parse(JSON.stringify(raw)), by = new Map();
+  const of = id => by.get(id) || by.set(id, {fix: new Map(), hide: new Set(), add: [], hidAdd: [], hidFile: 0}).get(id);
+  for (const e of edits) {
+    const o = of(e.pack);
+    if (e.hidden) { o.hide.add(e.pid); if (!e.added) o.hidFile++; }
+    if (e.added) (e.hidden ? o.hidAdd : o.add).push({...e.prob, i: e.pid});
+    else if (e.prob) o.fix.set(e.pid, e.prob);
+  }
+  for (const b of books) (idx.groups.find(g => g.id === b.shelf) || idx.groups[0]).books.push({id: b.id, title: b.title, sub: b.sub || "", n: 0, files: 0, ks: [], own: true});
+  for (const g of idx.groups) for (const b of g.books) {
+    b.static = b.files; const o = by.get(b.id); if (!o) continue;
+    o.add.sort((x, y) => x.k - y.k); b.edit = o;
+    b.n += o.add.length - o.hidFile;
+    if (o.add.length) { b.files = b.static + 1; (b.ks ||= []).push([o.add[0].k, o.add[o.add.length - 1].k]); }
+  }
+  return idx;
+}
+async function bankLoad(fresh = false) {   // problems/index.json once, what the admins changed each time it is asked fresh
+  if (!bankRaw) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error("목록 " + r.status); bankRaw = await r.json(); }
+  if (bankIndex && !fresh) return;
+  const [edits, books] = await Promise.all([bankRows(mineSb, "bank_edits", "pid,pack,added,hidden,prob"), bankRows(mineSb, "bank_books", "id,shelf,title,sub")]);
+  bankIndex = bankMerge(bankRaw, edits, books); bankFiles.clear();
+}
+async function bankFile(name, hidden = false) {   // problems/<pack>-<file>.json with the admins' changes, kept for this visit
+  const key = name + (hidden ? "*" : "");   // hidden: the hidden ones too (an admin opening one to show it again)
+  if (!bankFiles.has(key)) {
+    const cut = name.lastIndexOf("-"), book = bankBook(name.slice(0, cut)), file = +name.slice(cut + 1), o = book && book.edit;
+    let rows;
+    if (book && file >= book.static) rows = o ? (hidden ? [...o.add, ...o.hidAdd].sort((x, y) => x.k - y.k) : o.add) : [];
+    else {
+      const r = await fetch(`problems/${name}.json?v=${bankIndex.v || ""}`);
+      if (!r.ok) throw new Error("문제 파일 " + r.status);
+      rows = await r.json();
+      if (o) rows = rows.filter(p => hidden || !o.hide.has(p.i)).map(p => { const f = o.fix.get(p.i); return f ? {...p, t: f.t, g: f.g || undefined} : p; });
+    }
+    bankFiles.set(key, rows);
+  }
+  return bankFiles.get(key);
+}
+async function bankFind(r, hidden = false) {   // a record -> {p, pack, file, no}, or null when the problem is gone; looks in the other files when a book was laid out anew
   const book = bankBook(r.pack); if (!book) return null;
-  const files = [r.file, ...Array.from({length: book.files}, (_, i) => i).filter(i => i !== r.file)].filter(i => i < book.files);
+  const files = [r.file, ...Array.from({length: book.static + 1}, (_, i) => i).filter(i => i !== r.file)].filter(i => i <= book.static);
   for (const file of files) {
-    const p = (await bankFile(`${r.pack}-${file}`)).find(q => q.i === r.pid);
+    const p = (await bankFile(`${r.pack}-${file}`, hidden)).find(q => q.i === r.pid);
     if (p) return {p, pack: r.pack, file, no: p.k};
   }
   return null;
@@ -3799,7 +3878,7 @@ async function bankPick(spec, start = "") {   // -> [{p, pack, file}]; start = a
 async function bankPickFrom(spec, from) {   // -> problem number `from` on, in the book's order, tried or not
   const book = bankBook(spec), out = []; if (!book) return out;
   let file = Math.min(book.files - 1, Math.floor((from - 1) / bankIndex.chunk));   // a file holds 200 in order; numbers can skip, so it is here or earlier
-  while (file > 0 && (await bankFile(`${spec}-${file}`))[0].k > from) file--;
+  while (file > 0 && ((await bankFile(`${spec}-${file}`))[0]?.k ?? Infinity) > from) file--;   // (a file can be empty: all hidden)
   for (; file < book.files && out.length < BANK_SET; file++)
     for (const p of await bankFile(`${spec}-${file}`)) if (p.k >= from && out.length < BANK_SET) out.push({p, pack: spec, file, no: p.k});
   return out;
@@ -3811,9 +3890,16 @@ async function openBank(spec, from = 0, start = "") {   // from = a problem numb
   if (strengthId) { say("대국 리포트 분석이 끝난 뒤에 풀 수 있습니다"); return; }
   say("문제를 불러오는 중…");
   let list;
+  const once = bankHashOnce || {}; bankHashOnce = null;
   try {
-    if (!bankIndex) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error("목록 " + r.status); bankIndex = await r.json(); }
-    list = from ? await bankPickFrom(spec, from) : await bankPick(spec, start);
+    await bankLoad();
+    if ((once.add || once.edit) && !await bankIsAdmin()) { say("관리자만 고칠 수 있습니다"); return; }
+    if (once.add) list = bankBook(spec) ? [bankNewItem(spec)] : [];
+    else if (once.q) {   // by id (the admin page's list): that one first, even hidden, then the book's next ones
+      const f = await bankFind({pid: once.q, pack: spec, file: 0}, await bankIsAdmin());
+      list = f ? [f, ...(await bankPickFrom(spec, f.no + 1)).slice(0, BANK_SET - 1)] : [];
+    }
+    else list = from ? await bankPickFrom(spec, from) : await bankPick(spec, start);
   } catch (err) { say("문제를 불러오지 못했습니다: " + (err.message || err)); return; }
   if (!list.length) { say(spec === "review" ? "오늘 복습할 문제가 없습니다" : bankBook(spec) ? "이 책의 문제를 모두 풀었습니다" : "없는 책입니다"); return; }
   if (!quiz) {   // the board being studied comes back when the problems end
@@ -3821,9 +3907,11 @@ async function openBank(spec, from = 0, start = "") {   // from = a problem numb
     quiz = {prev: {root, cur, komi: komi(), handicap: $("handicap").value, size: N}, pending: null};
     document.body.classList.add("quiz"); $("quizBar").hidden = false;
   }
-  Object.assign(quiz, {bank: spec, list, i: 0, right: 0, from: !!from});
+  Object.assign(quiz, {bank: spec, list, i: 0, right: 0, from: !!from || !!once.q});
   document.body.classList.add("bankq");
+  await bankIsAdmin();
   say(""); bankShow();
+  if (once.add || once.edit) bankEditOpen(!!once.add);
 }
 const bankXY = m => m === "pass" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
 function bankShow() {
@@ -3837,6 +3925,7 @@ function bankShow() {
   $("quizTitle").className = ""; $("quizTitle").textContent = `${no}번 · ${colorName(p.p)} 차례` + (BANK_GOALS[p.g] ? " · " + BANK_GOALS[p.g] : "");
   $("quizSub").textContent = (quiz.bank === "review" ? "복습 · " : "") + book.title + (book.sub ? " · " + book.sub : "") + ` · ${quiz.i + 1}/${quiz.list.length}`;
   $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = $("quizFree").hidden = false;
+  $("quizEdit").hidden = !bankAdmin;
 }
 const bankMoves = (t, out = []) => {   // every move in a problem's tree (both sides)
   for (const [m, r] of Object.entries(t)) {
@@ -3871,6 +3960,7 @@ async function bankPlayLine(moves, color) {   // plays moves one by one from qui
   q.busy = false;
 }
 async function answerBank(p) {
+  if (quiz.edit) { bankEditPlay(p); return; }
   if (quiz.free) { bankFreePlay(p); return; }
   if (!quiz.node || quiz.busy || quiz.done) return;
   if (cur !== quiz.at) { goTo(quiz.at); return; }   // looked back through the moves: back to the latest first
@@ -3935,7 +4025,7 @@ $("quizRetry").onclick = () => {
 };
 // 놓아보기 (user 2026-10-23): both colours in turn from where the board is, nothing graded and nothing recorded; 무르기 takes
 // a stone back, 놓아보기 끝 returns to that position (the stones tried are dropped, no next-move rings left behind)
-const BANK_FREE_KEEP = ["quizShow", "quizRetry", "quizNext", "quizEnd"];
+const BANK_FREE_KEEP = ["quizShow", "quizRetry", "quizNext", "quizEdit", "quizEnd"];
 function bankFreeTitle() { $("quizTitle").className = ""; $("quizTitle").textContent = `놓아보기 · ${colorName(cur.toPlay)} 차례`; }
 $("quizFree").onclick = () => {
   if (!quiz || !quiz.bank || quiz.busy) return;
@@ -3982,6 +4072,189 @@ function bankLeave() {
     try { fromSite = new URL(document.referrer).origin === location.origin && history.length > 1; } catch { /* no referrer */ }
     if (fromSite) history.back(); else location.href = back;
   }, 150);
+}
+// ------------------------------------------------------------------ 문제 은행 편집 (관리자, user 2026-10-23 "답 수정" · "문제 새로 추가")
+// 답 고치기: the board starts at the problem; moves played on it (both colours in turn) make a line, and 정답 수순으로 /
+// 오답 수순으로 put it in the tree (a wrong line's last move by the other side = how it answers the wrong move), 이 수 지우기
+// takes the last move out. The dots show the tree where the board is: green = my move with a way to the answer, red = a
+// wrong move listed with its answer, blue = the other side's answers. 저장 keeps it in bank_edits (the file stays as it
+// is; 원래대로 goes back to it). 새 문제 (#bank=<book>&add=1): first the stones and whose turn (배치), then the tree; it
+// is saved as the book's next number and the next new one opens at once.
+async function bankIsAdmin() {
+  if (bankAdmin === null) {
+    try { const {data} = await mineSb.from("profiles").select("is_admin").single(); bankAdmin = !!(data && data.is_admin); } catch { bankAdmin = false; }
+  }
+  return bankAdmin;
+}
+function bankNewItem(spec) {   // an empty problem with the book's next number
+  const book = bankBook(spec), ks = (book.ks || []).flat(), k = (ks.length ? Math.max(...ks) : 0) + 1;
+  return {p: {k, s: 19, b: "", w: "", p: "B", t: {}}, pack: spec, file: book.static, no: k, isNew: true};
+}
+async function bankEditOpen(setup = false) {
+  if (!quiz || !quiz.bank || quiz.busy || !bankAdmin) return;
+  if (quiz.free) bankFreeEnd();
+  const k = quiz.list[quiz.i], p = k.p;
+  let row = null;
+  if (!k.isNew) { const {data} = await mineSb.from("bank_edits").select("note,hidden,added").eq("pid", p.i).maybeSingle(); row = data; }
+  const added = !k.isNew && (!!(row && row.added) || bankBook(k.pack).edit?.add.includes(p));
+  quiz.edit = {t: JSON.parse(JSON.stringify(p.t || {})), setup, isNew: !!k.isNew, added, tool: "b", s: p.s, b: p.b || "", w: p.w || "", p: p.p, info: ""};
+  Object.assign(quiz, {done: false, answer: null, grade: null, reveal: false});
+  document.body.classList.add("bankedit"); $("bankEdit").hidden = false;
+  $("beGoal").value = p.g || ""; $("beNote").value = row ? row.note : ""; $("beHide").checked = !!(row && row.hidden);
+  $("beHide").parentElement.hidden = !!k.isNew; $("beReset").hidden = !!k.isNew || added;
+  for (const b of $("beTool").children) b.classList.toggle("on", b.dataset.v === "b");
+  bankEditSay("");
+  bankEditLoad();
+}
+function bankEditLoad() {   // the board from the stones being edited, back at the start
+  const e = quiz.edit, pts = s => (s.match(/../g) || []).map(m => `[${m}]`).join("");
+  loadSgf(`(;GM[1]FF[4]SZ[${e.s}]KM[0]PL[${e.p}]` + (e.b ? "AB" + pts(e.b) : "") + (e.w ? "AW" + pts(e.w) : "") + ")");
+  quiz.view = null; layout();   // the whole board: a move may go anywhere
+  quiz.node = quiz.at = root; goTo(root);
+  $("beSetup").hidden = !e.setup; $("beLines").hidden = e.setup; $("beSetupBtn").hidden = !e.isNew && !e.added;
+  $("beTurn").value = e.p; $("beSize").value = String(e.s);
+  const book = bankBook(quiz.list[quiz.i].pack);
+  $("quizSub").textContent = book.title + (book.sub ? " · " + book.sub : "");
+  e.info = ""; bankEditInfo();
+}
+function bankEditClose(msg = "") {
+  quiz.edit = null; document.body.classList.remove("bankedit"); $("bankEdit").hidden = true;
+  bankShow(); layout();
+  if (msg) $("quizSub").textContent = msg + " · " + $("quizSub").textContent;
+}
+function bankEditSay(text, bad = false) { $("beMsg").textContent = text; $("beMsg").className = "be-msg" + (bad ? " bad" : ""); }
+const bankMv = n => n.move && !n.move.pass ? String.fromCharCode(97 + n.move.x, 97 + n.move.y) : "pass";
+function bankEditPath() { const out = []; for (let n = cur; n && n !== quiz.node; n = n.parent) out.unshift(bankMv(n)); return out; }
+function bankEditAt(t, path) {   // where the tree is at the board's line: {mine} my moves · {replies} the other side's · {end} · null = off the tree
+  let level = t;
+  for (const [i, m] of path.entries()) {
+    const v = level[m];
+    if (v && typeof v === "object") { level = v; continue; }
+    if (typeof v === "string" && i === path.length - 2 && path[i + 1] === v) return {answered: v};   // a wrong move and its listed answer
+    return i < path.length - 1 ? null : {end: v};   // 1 = right, a move = wrong (that is the answer to it), undefined = not in it
+  }
+  return path.length % 2 ? {replies: level} : {mine: level};
+}
+function bankEditSet(t, path, end) {   // end 1 = right, a move = wrong and answered by it, undefined = the last move taken out
+  let level = t;
+  for (const m of path.slice(0, -1)) { if (!level[m] || typeof level[m] !== "object") level[m] = {}; level = level[m]; }
+  const m = path[path.length - 1];
+  if (end === undefined) delete level[m]; else level[m] = end;
+  bankPrune(t);
+}
+function bankPrune(t) {   // a branch with nothing in it says nothing (and would leave the other side without an answer)
+  for (const [m, v] of Object.entries(t)) if (v && typeof v === "object") {
+    for (const [o, n] of Object.entries(v)) if (n && typeof n === "object") { bankPrune(n); if (!Object.keys(n).length) delete v[o]; }
+    if (!Object.keys(v).length) delete t[m];
+  }
+  return t;
+}
+function bankEditInfo() {
+  const e = quiz.edit, k = quiz.list[quiz.i]; if (!e) return;
+  const title = (e.isNew ? "새 문제" : "답 고치기") + ` · ${k.no}번`;
+  let info;
+  if (e.setup) { info = "판을 눌러 돌을 놓거나 지우고, 차례를 고른 뒤 '답 만들기'를 누르세요"; $("beInfo").textContent = ""; }
+  else {
+    const path = bankEditPath(), at = bankEditAt(e.t, path), me = colorName(e.p), you = colorName(other(e.p));
+    if (!at) info = "정답 나무 밖의 수순입니다";
+    else if (at.mine) {
+      const all = Object.entries(at.mine), right = all.filter(([m, x]) => typeof x !== "string" && bankLine({[m]: x})).length;
+      info = `${me} 차례 · 정답 ${right} · 오답 ${all.length - right} (초록 정답 · 빨강 오답 · 나머지 자리는 모두 오답)`;
+    } else if (at.replies) info = `${you}의 응수 ${Object.keys(at.replies).length}가지 (파랑)`;
+    else if (at.end === 1) info = "정답 수순의 끝입니다";
+    else if (typeof at.end === "string") info = `오답 수 · 파랑 = ${you}의 응수`;
+    else if (at.answered) info = `오답 수와 ${you}의 응수 (오답 수순의 끝)`;
+    else info = path.length % 2 ? "나무에 없는 수 (오답)" : "나무에 없는 응수";
+    if (path.length) info += ` · ${path.length}수째`;
+  }
+  if (e.info !== title + info) {
+    e.info = title + info; $("quizTitle").className = ""; $("quizTitle").textContent = title;
+    (e.setup ? $("quizSub") : $("beInfo")).textContent = info;
+  }
+}
+function bankEditPlay(xy) {
+  const e = quiz.edit, m = String.fromCharCode(97 + xy[0], 97 + xy[1]);
+  if (e.setup) {   // 배치: a stone of the chosen colour on or off (the other colour's stone there is replaced)
+    const has = s => s.match(/../g) || [], inB = has(e.b).includes(m), inW = has(e.w).includes(m);
+    e.b = has(e.b).filter(x => x !== m).join(""); e.w = has(e.w).filter(x => x !== m).join("");
+    if (e.tool === "b" && !inB) e.b += m;
+    if (e.tool === "w" && !inW) e.w += m;
+    bankEditLoad(); return;
+  }
+  if (cur.grid[idx(xy[0], xy[1])]) return;
+  const c = play(cur, cur.toPlay, xy); if (!c) return;   // ko or suicide
+  goTo(c); bankEditInfo();
+}
+function bankEditBack() { const c = cur; if (c === quiz.node) return; goTo(c.parent); c.parent.children = c.parent.children.filter(x => x !== c); bankEditInfo(); }
+$("quizEdit").onclick = () => bankEditOpen(false);
+$("beTool").onclick = ev => { const b = ev.target.closest("[data-v]"); if (!b) return; quiz.edit.tool = b.dataset.v; for (const x of $("beTool").children) x.classList.toggle("on", x === b); };
+$("beTurn").onchange = () => { quiz.edit.p = $("beTurn").value; bankEditLoad(); };
+$("beSize").onchange = () => {
+  const e = quiz.edit, s = +$("beSize").value, fit = t => (t.match(/../g) || []).filter(m => m.charCodeAt(0) - 97 < s && m.charCodeAt(1) - 97 < s).join("");
+  Object.assign(e, {s, b: fit(e.b), w: fit(e.w)}); bankEditLoad();
+};
+$("beTree").onclick = () => { quiz.edit.setup = false; bankEditLoad(); };
+$("beSetupBtn").onclick = () => { quiz.edit.setup = true; bankEditLoad(); };
+$("beRight").onclick = () => {
+  const path = bankEditPath(); if (!path.length) return bankEditSay("판에 수를 두어 정답 수순을 만드세요", true);
+  bankEditSet(quiz.edit.t, path, 1); bankEditSay("정답 수순에 넣었습니다"); bankEditInfo(); schedule();
+};
+$("beWrong").onclick = () => {
+  const path = bankEditPath(); if (!path.length) return bankEditSay("판에 틀린 수(와 상대 응수)를 두세요", true);
+  if (path.length % 2) bankEditSet(quiz.edit.t, path);   // my move last: just not in the tree (wrong, no answer shown)
+  else bankEditSet(quiz.edit.t, path.slice(0, -1), path[path.length - 1]);   // the other side's move last: its answer
+  bankEditSay("오답으로 넣었습니다"); bankEditInfo(); schedule();
+};
+$("beDel").onclick = () => {
+  const path = bankEditPath(); if (!path.length) return;
+  bankEditSet(quiz.edit.t, path); bankEditBack(); bankEditSay("지웠습니다"); schedule();
+};
+$("beBack").onclick = bankEditBack;
+$("beClose").onclick = () => bankEditClose();
+$("beSave").onclick = async () => {
+  const e = quiz.edit, k = quiz.list[quiz.i], p = k.p;
+  if (e.setup) return bankEditSay("'답 만들기'로 정답 수순을 먼저 넣으세요", true);
+  bankPrune(e.t);
+  if (!bankLine(e.t)) return bankEditSay("정답 수순이 하나도 없습니다", true);
+  const g = $("beGoal").value, full = e.isNew || e.added;
+  const prob = full ? {k: k.no, s: e.s, b: e.b, w: e.w, p: e.p, t: e.t} : {k: k.no, t: e.t};
+  if (g) prob.g = g;
+  bankEditSay("저장하는 중…");
+  const {error} = await mineSb.rpc("admin_bank_save", {p_pid: e.isNew ? null : p.i, p_pack: k.pack, p_added: full, p_prob: prob,
+    p_hidden: !e.isNew && $("beHide").checked, p_note: $("beNote").value.trim()});
+  if (error) return bankEditSay("저장하지 못했습니다: " + error.message, true);
+  await bankLoad(true);
+  if (e.isNew) {   // the next new one right away (a book typed in one problem after another)
+    const next = bankNewItem(k.pack); Object.assign(next.p, {s: e.s, p: e.p});
+    quiz.list = [next]; quiz.i = 0; bankShow(); await bankEditOpen(true);
+    bankEditSay(`${k.no}번을 저장했습니다. 다음 문제를 놓으세요.`); return;
+  }
+  const f = await bankFind({pid: p.i, pack: k.pack, file: k.file}, true);   // the saved version (hidden ones too: still on screen)
+  if (f) quiz.list[quiz.i] = {...k, ...f};
+  bankEditClose($("beHide").checked ? "저장했습니다 (숨김 — 회원에게는 안 보임)" : "저장했습니다");
+};
+$("beReset").onclick = async () => {
+  const k = quiz.list[quiz.i];
+  if (!confirm("이 문제를 원래 답으로 되돌릴까요? (숨김도 풀립니다)")) return;
+  const {error} = await mineSb.rpc("admin_bank_reset", {p_pid: k.p.i});
+  if (error) return bankEditSay("되돌리지 못했습니다: " + error.message, true);
+  await bankLoad(true);
+  const f = await bankFind({pid: k.p.i, pack: k.pack, file: k.file}, true);
+  if (f) quiz.list[quiz.i] = {...k, ...f};
+  bankEditClose("원래 답으로 되돌렸습니다");
+};
+function drawBankEdit(ctx, G) {   // the tree at the board's line: green / red my moves, blue the other side's
+  const e = quiz.edit; bankEditInfo(); if (e.setup) return;
+  const at = bankEditAt(e.t, bankEditPath()); if (!at) return;
+  const {margin: m, sq, r} = G;
+  const dot = (mv, color) => {
+    if (mv === "pass") return;
+    ctx.fillStyle = color; ctx.globalAlpha = .82; ctx.beginPath();
+    ctx.arc(m + sq * (mv.charCodeAt(0) - 97) + .5, m + sq * (mv.charCodeAt(1) - 97) + .5, r * .5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+  };
+  if (at.mine) for (const [mv, v] of Object.entries(at.mine)) dot(mv, typeof v !== "string" && bankLine({[mv]: v}) ? "rgb(31,157,85)" : "rgb(224,72,77)");
+  else if (at.replies) for (const mv of Object.keys(at.replies)) dot(mv, "rgb(44,92,246)");
+  else if (typeof at.end === "string") dot(at.end, "rgb(44,92,246)");
 }
 function drawBankMarks(ctx, G) {   // a ring on the member's last move once the problem is over (the one that decided it)
   if (!quiz.done || !quiz.answer) return;
@@ -4391,9 +4664,9 @@ function drawMain() {
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   const sc = scoring && scoring.node === cur;
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
-    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
+    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free || quiz.edit) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free || quiz.edit)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
-  if (quiz && quiz.bank) drawBankMarks(boardCtx, boardG);
+  if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else drawBankMarks(boardCtx, boardG); }
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
   if (sc) drawScoreMarks(boardCtx, boardG);
   boardCtx.setTransform(1, 0, 0, 1, 0, 0);

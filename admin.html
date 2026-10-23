@@ -69,7 +69,11 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .card .btns button { min-height: 32px; padding: 4px 12px; font-size: 14px; }
   .card.model input.name { max-width: none; }
 }
-.atabs button[data-tab="gpu"], .atabs button[data-tab="charges"], .atabs button[data-tab="notice"] { white-space: nowrap; }
+.atabs button[data-tab="gpu"], .atabs button[data-tab="charges"], .atabs button[data-tab="notice"], .atabs button[data-tab="bank"] { white-space: nowrap; }
+.bank-form { grid-template-columns: 1.6fr 120px auto auto; }
+#bkBookForm { grid-template-columns: 160px 1.4fr 1fr auto; }
+.bank-form select { width: 100%; }
+@media (max-width: 720px) { .bank-form, #bkBookForm { grid-template-columns: 1fr; } }
 .notice-form { display: grid; gap: 14px; max-width: 640px; }
 .notice-form .seg, .notice-form button.primary { justify-self: start; }
 #topupForm { grid-template-columns: 1.4fr auto 180px 1.4fr auto; }
@@ -124,6 +128,7 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <button data-tab="engine" role="tab">엔진·모델<span class="n" id="updCount" hidden></span></button>
       <button data-tab="price" role="tab">요금 설정</button>
       <button data-tab="notice" role="tab">공지</button>
+      <button data-tab="bank" role="tab">문제 은행</button>
     </nav>
 
     <section class="tab" data-tab="gpu">
@@ -288,6 +293,42 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
     </div>
     </section>
 
+    <!-- 문제 은행 (user 2026-10-23 "답 수정" · "문제 새로 추가"): the problems stay in problems/; what is changed here is kept
+         in bank_edits / bank_books and laid over them. The editing itself is on the analysis screen (답 고치기 · 새 문제). -->
+    <section class="tab" data-tab="bank" hidden>
+    <div class="panel">
+      <h2>문제 고치기·추가</h2>
+      <form id="bkOpen" class="admin-form bank-form">
+        <label class="field">책<select id="bkBook" required></select></label>
+        <label class="field">번호<input id="bkNo" type="number" min="1" step="1" placeholder="예: 12"></label>
+        <button class="btn" type="submit">답 고치기</button>
+        <button class="primary" type="button" id="bkAdd">새 문제 추가</button>
+      </form>
+      <p class="muted small">분석 화면에서 고칩니다. 판에 수순을 두고 '정답 수순으로'·'오답 수순으로', 틀린 수를 빼려면 '이 수 지우기'. 새 문제는 책의 마지막 번호 다음으로 들어가고, 저장하면 다음 새 문제가 바로 열립니다. 문제 은행을 풀다가도 '답 고치기'로 고칠 수 있습니다(관리자만 보임).</p>
+    </div>
+    <div class="panel">
+      <h2>새 책</h2>
+      <form id="bkBookForm" class="admin-form bank-form">
+        <label class="field">책장<select id="bkShelf" required></select></label>
+        <label class="field">제목<input id="bkTitle" maxlength="60" required placeholder="예: 천룡도"></label>
+        <label class="field">부제<input id="bkSub" maxlength="60" placeholder="예: 1권"></label>
+        <button class="primary" type="submit">만들기</button>
+      </form>
+      <p class="muted small">문제가 하나라도 들어가야 회원에게 보입니다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>책장</th><th>책</th><th class="num">문제</th></tr></thead>
+        <tbody id="bkOwnRows"><tr><td colspan="3" class="muted">불러오는 중…</td></tr></tbody>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h2>고친 문제</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>고친 때</th><th>책</th><th class="num">번호</th><th>내용</th><th>메모</th><th></th></tr></thead>
+        <tbody id="bkRows"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
+      </table></div>
+    </div>
+    </section>
+
     <section class="tab" data-tab="price" hidden>
     <div class="panel">
       <h2>요금 설정</h2>
@@ -345,13 +386,14 @@ const STATE = { creating: ["준비 중", "warn"], booting: ["준비 중", "warn"
 
 // tabs (remembered in the address: admin.html#engine)
 let adminReady = false;   // signed in as an admin (the start below): tabs opened before it load nothing yet
-const TABS = ["gpu", "charges", "members", "engine", "price", "notice"];
+const TABS = ["gpu", "charges", "members", "engine", "price", "notice", "bank"];
 function showTab(name) {
   if (!TABS.includes(name)) name = "gpu";
   for (const sec of document.querySelectorAll("section.tab")) sec.hidden = sec.dataset.tab !== name;
   for (const b of $("tabs").children) { const on = b.dataset.tab === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); }
   if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
   if (name === "notice") loadNoticeList();
+  if (name === "bank" && adminReady) loadBankAdmin();
   if (name === "engine" && adminReady && !tuneLoaded) loadTune();   // once, on first view: it runs the member list's search
   if (name === "price" && adminReady) countKorea();   // the member list's search too, each time the tab opens
 }
@@ -844,6 +886,60 @@ $("nTarget").onclick = (ev) => {
   $("nWhoField").classList.toggle("hidden", noticeTo !== "one");
 };
 let noticeData = null;
+// 문제 은행 (user 2026-10-23): the books of problems/index.json and the admins' own (bank_books), what was changed (bank_edits)
+let bankIdx = null;
+async function bankAllRows(table, cols) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from(table).select(cols).order("updated_at", { ascending: false }).range(from, from + 999);
+    if (error) throw error;
+    out.push(...data); if (data.length < 1000) return out;
+  }
+}
+async function loadBankAdmin() {
+  try {
+    if (!bankIdx) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error(r.status); bankIdx = await r.json(); }
+    const [{ data: own, error: e1 }, edits] = await Promise.all([sb.from("bank_books").select("id,shelf,title,sub").order("created_at"),
+      bankAllRows("bank_edits", "pid,pack,added,hidden,prob,note,updated_at")]);
+    if (e1) throw e1;
+    const shelves = bankIdx.groups.map((g) => ({ id: g.id, name: g.name, books: g.books.map((b) => ({ ...b })) }));
+    for (const b of own) (shelves.find((g) => g.id === b.shelf) || shelves[0]).books.push({ ...b, own: true });
+    const added = {}; for (const e of edits) if (e.added && !e.hidden) added[e.pack] = (added[e.pack] || 0) + 1;
+    const name = (b) => b.title + (b.sub ? " · " + b.sub : "");
+    const keep = $("bkBook").value;
+    $("bkBook").innerHTML = shelves.map((g) => `<optgroup label="${esc(g.name)}">` +
+      g.books.map((b) => `<option value="${esc(b.id)}">${esc(name(b))}${b.own ? " (새 책)" : ""}</option>`).join("") + "</optgroup>").join("");
+    if (keep) $("bkBook").value = keep;
+    $("bkShelf").innerHTML = shelves.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("");
+    $("bkOwnRows").innerHTML = own.length ? own.map((b) => `<tr><td>${esc((shelves.find((g) => g.id === b.shelf) || shelves[0]).name)}</td><td>${esc(name(b))}</td><td class="num">${added[b.id] || 0}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="muted">아직 없습니다</td></tr>`;
+    const books = new Map(shelves.flatMap((g) => g.books.map((b) => [b.id, b])));
+    const what = (e) => e.added ? (e.hidden ? "새 문제 · 숨김" : "새 문제") : e.hidden ? "숨김" : e.prob ? "답 고침" + (e.prob.g ? ` · ${e.prob.g === "live" ? "살리세요" : "잡으세요"}` : "") : "원래대로";
+    $("bkRows").innerHTML = edits.length ? edits.map((e) => `<tr><td class="muted small">${when(e.updated_at)}</td><td>${esc(books.has(e.pack) ? name(books.get(e.pack)) : e.pack)}</td>` +
+      `<td class="num">${e.prob && e.prob.k ? e.prob.k : ""}</td><td>${what(e)}</td><td class="small">${esc(e.note || "")}</td>` +
+      `<td><a class="btn"${standalone ? "" : ' target="_blank" rel="noopener"'} href="analysis.html?v=${Date.now()}#bank=${encodeURIComponent(e.pack)}&q=${encodeURIComponent(e.pid)}&edit=1">열기</a></td></tr>`).join("")
+      : `<tr><td colspan="6" class="muted">아직 고친 문제가 없습니다</td></tr>`;
+  } catch (err) { $("bkRows").innerHTML = `<tr><td colspan="6" class="muted">불러오지 못했습니다: ${esc(err.message || String(err))}</td></tr>`; }
+}
+function openAnalysis(hash) {   // the analysis screen in a new tab (in the installed app: this window)
+  const url = `analysis.html?v=${Date.now()}#${hash}`;
+  if (standalone) location.href = url; else window.open(url, "_blank", "noopener");
+}
+$("bkOpen").onsubmit = (ev) => {
+  ev.preventDefault();
+  const no = Math.max(1, Math.floor(+$("bkNo").value || 1));
+  openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&k=${no}&edit=1`);
+};
+$("bkAdd").onclick = () => openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&add=1`);
+$("bkBookForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const { data: id, error } = await sb.rpc("admin_bank_book", { p_id: null, p_shelf: $("bkShelf").value, p_title: $("bkTitle").value, p_sub: $("bkSub").value });
+  if (error) { toast("만들지 못했습니다: " + error.message); return; }
+  $("bkTitle").value = $("bkSub").value = ""; toast("새 책을 만들었습니다. '새 문제 추가'로 문제를 넣으세요.");
+  await loadBankAdmin(); $("bkBook").value = id;
+};
+window.addEventListener("focus", () => { if (adminReady && !document.querySelector('section.tab[data-tab="bank"]').hidden) loadBankAdmin(); });   // back from the analysis screen
+
 async function loadNoticeList() {
   try { noticeData = (await api("/admin/notices")).notices || []; drawNoticeList(); }
   catch (e) { $("noticeRows").innerHTML = `<tr><td colspan="5" class="error">${esc(e.message)}</td></tr>`; }
@@ -1051,7 +1147,7 @@ else {
   poll(); setInterval(() => { if (front()) poll(); }, 15000);
   pollCharges(); setInterval(() => { if (front()) pollCharges(); }, 15000); showPush().catch(() => {});
   loadEngine(); setInterval(() => { if (front()) pollEngine(); }, 30000);
-  adminReady = true; if (location.hash === "#engine") loadTune(); if (location.hash === "#price") countKorea();
+  adminReady = true; if (location.hash === "#engine") loadTune(); if (location.hash === "#price") countKorea(); if (location.hash === "#bank") loadBankAdmin();
   document.addEventListener("visibilitychange", () => { if (front()) { poll(); pollCharges(); pollEngine(); } });
   sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") location.href = "index.html"; });   // signed out in another tab
 }
