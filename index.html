@@ -272,7 +272,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
     <!-- 기보 분석 (#analyze): attaching the games first, then the GPU 대여 parts (moved in while this page shows) -->
     <div class="wrap app narrow hidden" id="analyzeView">
-      <a class="back" href="#mine">‹ 내 기보</a>
+      <a class="back" href="#mine">‹ 기보</a>
       <h1 class="page-title">기보 분석</h1>
       <!-- SGF files analysed on the GPU without opening the analysis screen, saved to 내 기보 (2026-10-05: three steps) -->
       <div id="batchCard">
@@ -338,19 +338,25 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
     <!-- saved games (#mine, 내 기보) -->
     <div class="wrap app hidden" id="mineView">
-      <a class="back hidden" href="#mine" id="mineBack">‹ 내 기보</a>
-      <h1 class="page-title" id="mineHead">내 기보</h1>
-      <!-- 기보 분석 lives under the 기보 tab (2026-10-05): its door on the folder cards page -->
-      <a class="batch-entry" href="#analyze" id="mineBackHub">
-        <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 3 6-7"/><circle cx="20" cy="7" r="1.2"/></svg></span>
-        <span class="grow"><b>기보 분석</b><span>여러 판을 GPU로 한 번에 분석해 내 기보에 저장</span></span><span class="chev" aria-hidden="true">›</span>
-      </a>
-      <!-- 기보실 (2026-10-22): public pro and AI games the server collects (DB public_kifu), to open at any time -->
-      <a class="batch-entry lib-entry" href="#library" id="libEntry">
-        <span class="hub-icon kifu" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M10 4h4v16h-4z"/><path d="M14.5 4.8l3.9-.8a1 1 0 0 1 1.2.8l2.3 13.9a1 1 0 0 1-.8 1.1l-3.9.8"/></svg></span>
-        <span class="grow"><b>기보실</b><span>프로·KataGo 기보 모음집</span></span><span class="chev" aria-hidden="true">›</span>
-      </a>
-      <!-- the folders, as cards (#mine) -->
+      <a class="back hidden" href="#mine" id="mineBack">‹ 기보</a>
+      <h1 class="page-title" id="mineHead">기보</h1>
+      <!-- the 기보 tab (#mine, user 2026-10-23 "내기보를 다른거처럼 카테고리로 따로"): 기보 분석 · 기보실 · 내 기보, no lines under them -->
+      <nav class="cat-entries" id="kifuHub" aria-label="기보">
+        <a class="batch-entry" href="#analyze">
+          <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 3 6-7"/><circle cx="20" cy="7" r="1.2"/></svg></span>
+          <span class="grow"><b>기보 분석</b></span><span class="chev" aria-hidden="true">›</span>
+        </a>
+        <!-- 기보실 (2026-10-22): public pro and AI games the server collects (DB public_kifu), to open at any time -->
+        <a class="batch-entry" href="#library" id="libEntry">
+          <span class="hub-icon kifu" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M10 4h4v16h-4z"/><path d="M14.5 4.8l3.9-.8a1 1 0 0 1 1.2.8l2.3 13.9a1 1 0 0 1-.8 1.1l-3.9.8"/></svg></span>
+          <span class="grow"><b>기보실</b></span><span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="batch-entry" href="#mine/folders" id="mineEntry">
+          <span class="hub-icon folder" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span>
+          <span class="grow"><b>내 기보</b></span><span class="chev" aria-hidden="true">›</span>
+        </a>
+      </nav>
+      <!-- 내 기보: the folders, as cards (#mine/folders) -->
       <div id="folderHome">
         <div class="row mine-top">
           <span class="muted" id="mineCount"></span>
@@ -386,7 +392,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
     <!-- 기보실 (#library, 2026-10-22): 프로 기보 (타이젬) and AI 기보 (KataGo), collected every 10 minutes by the server -->
     <div class="wrap app narrow hidden" id="libraryView">
-      <a class="back" href="#mine">‹ 내 기보</a>
+      <a class="back" href="#mine">‹ 기보</a>
       <h1 class="page-title">기보실</h1>
       <div class="seg lib-kind" id="libKind" role="group" aria-label="기보 종류">
         <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
@@ -410,11 +416,22 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
     <!-- 학습방 (#study) -->
     <div class="wrap app narrow hidden" id="studyView">
-      <h1 class="page-title">학습방</h1>
-      <div class="panel" id="notesCard">
+      <a class="back hidden" href="#study" id="studyBack">‹ 학습방</a>
+      <h1 class="page-title" id="studyHead">학습방</h1>
+      <!-- 학습방 (#study, user 2026-10-23 "카테고리화 해"): 오답노트 (#study/notes) · 내 연구 (#study/research) -->
+      <nav class="cat-entries" id="studyHub" aria-label="학습방">
+        <a class="batch-entry" href="#study/notes">
+          <span class="hub-icon folder c4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span>
+          <span class="grow"><b>오답노트</b></span><span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="batch-entry" href="#study/research">
+          <span class="hub-icon study" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M8 8l2 2 4-4"/></svg></span>
+          <span class="grow"><b>내 연구</b></span><span class="chev" aria-hidden="true">›</span>
+        </a>
+      </nav>
+      <div class="panel hidden" id="notesCard">
         <div class="row">
           <div class="grow">
-            <h2 style="margin:0 0 4px">오답노트</h2>
             <div class="small muted" id="notesInfo"></div>
           </div>
           <button class="primary" id="notesOpen">복습하기</button>
@@ -422,10 +439,9 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <div class="row hidden" id="notesPhases" style="margin-top:12px;gap:8px;flex-wrap:wrap"></div>
       </div>
       <!-- 내 연구 (user request 2026-10-09): 정석·포석 research saved on the analysis screen with its analysis -->
-      <div class="panel" id="studyCard">
+      <div class="panel hidden" id="studyCard">
         <div class="row">
           <div class="grow">
-            <h2 style="margin:0 0 4px">내 연구</h2>
             <div class="small muted" id="studyInfo"></div>
           </div>
           <button class="primary" id="studyNew" title="빈 판에서 수를 두며 분석하고 학습방에 저장합니다">＋ 새 연구</button>
@@ -1032,7 +1048,7 @@ async function loadMine() {
   const sf = KIFU_COLS.includes("study_folder_id") ? await sb.from("study_folders").select("id,study,name").order("created_at") : { error: true };
   canBranch = !sf.error; studyFolders = canBranch ? sf.data || [] : [];
   showStudies();
-  if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine"; return; }   // deleted meanwhile
+  if (curFolder && curFolder !== "all" && curFolder !== "none" && !folders.some((f) => f.id === curFolder)) { location.hash = "#mine/folders"; return; }   // deleted meanwhile
   const auto = mine.filter((k) => k.source).length;
   $("mineCount").textContent = `${mine.length - auto} / 300판` + (auto ? ` · 타이젬 자동 ${auto} / 300판` : "");
   showMine();
@@ -1095,7 +1111,7 @@ function drawFolders() {
   $("folderCards").innerHTML = card("all", "전체 기보", "kifu", ALL_ICON) +
     folders.map((f, k) => card(f.id, f.name, "folder c" + (k % 5), FOLDER_ICON)).join("") +
     (folders.length ? card("none", "분류 없음", "folder none", FOLDER_ICON) : "") +
-    `<button type="button" class="folder-card add" data-folder-add><span class="hub-icon folder add" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><b>새 분류</b><span class="folder-last">예: 타이젬 기보, 오프라인 기보</span></button>`;
+    `<button type="button" class="folder-card add" data-folder-add><span class="hub-icon folder add" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><b>새 분류</b></button>`;
   // the open folder's head
   const picked = folders.find((f) => f.id === curFolder);
   $("folderTitle").textContent = curFolder === "all" ? "전체 기보" : curFolder === "none" ? "분류 없음" : picked ? picked.name : "";
@@ -1107,11 +1123,14 @@ function drawFolders() {
   $("batchFolder").value = folders.some((f) => f.id === keep) ? keep : "";
   $("batchFolderField").classList.toggle("hidden", !folders.length);
 }
-function showMineFolder() {   // from the hash: the cards, or one folder's list
-  const m = /^#mine\/(all|none|[0-9a-f-]{36})$/.exec(location.hash);
+function showMineFolder() {   // from the hash: 기보 (#mine: 기보 분석 · 기보실 · 내 기보), 내 기보's folder cards, or one folder's list
+  const m = /^#mine\/(all|none|[0-9a-f-]{36})$/.exec(location.hash), hub = !m && location.hash !== "#mine/folders";
   curFolder = m ? m[1] : null;
-  $("folderHome").classList.toggle("hidden", !!curFolder); $("mineCard").classList.toggle("hidden", !curFolder);
-  $("mineBack").classList.toggle("hidden", !curFolder); $("mineBackHub").classList.toggle("hidden", !!curFolder);
+  $("kifuHub").classList.toggle("hidden", !hub);
+  $("folderHome").classList.toggle("hidden", hub || !!curFolder); $("mineCard").classList.toggle("hidden", !curFolder);
+  $("mineHead").textContent = hub ? "기보" : "내 기보";
+  $("mineBack").classList.toggle("hidden", hub);
+  $("mineBack").href = curFolder ? "#mine/folders" : "#mine"; $("mineBack").textContent = curFolder ? "‹ 내 기보" : "‹ 기보";
   if (!curFolder) $("mineQuery").value = "";
   showMine();
 }
@@ -1141,7 +1160,7 @@ $("folderTools").onclick = async (ev) => {
     if (!confirm(`'${f.name}' 분류를 지울까요?` + (n ? `\n안에 있던 기보 ${n}판은 지워지지 않고 '분류 없음'으로 갑니다.` : ""))) return;
     const { error } = await sb.from("kifu_folders").delete().eq("id", f.id);
     if (error) { toast("지우지 못했습니다: " + error.message, true); return; }
-    toast("분류를 지웠습니다."); location.hash = "#mine";
+    toast("분류를 지웠습니다."); location.hash = "#mine/folders";
   }
 };
 $("mineQuery").oninput = showMine;
@@ -1482,9 +1501,7 @@ async function loadNotesCard() {   // 학습방: 오답노트 (and the start pag
   if (error) $("notesInfo").textContent = "오답노트를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
   else {
     const due = data.filter(isDue).length;
-    $("notesInfo").textContent = data.length
-      ? `오늘 복습할 문제 ${due}개 · 전체 ${data.length}문제`
-      : "분석 화면의 파일 메뉴 → '오답노트에 담기'로 분석한 기보의 실수를 문제로 모아 다시 풀 수 있습니다.";
+    $("notesInfo").textContent = `오늘 복습할 문제 ${due}개 · 전체 ${data.length}문제`;
     $("notesOpen").textContent = due ? `복습하기 (${due})` : "오답노트 열기";
     // 초반·중반·종반 by move number, as on the analysis screen (19x19: up to 50, up to 150, the rest; smaller boards
     // by their area — 13x13: 23 and 70, 9x9: 11 and 34)
@@ -1517,8 +1534,7 @@ $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]")
 function showStudies() {
   const n = (t) => studies.filter((k) => !t || k.study === t).length;
   const branchOf = (k) => studyFolders.find((f) => f.id === k.study_folder_id && f.study === k.study);
-  $("studyInfo").textContent = studies.length ? `${studies.length} / 300개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`
-    : "정석·포석을 직접 두어 보며 분석한 것을 저장해 두고 언제든 다시 열어 봅니다.";
+  $("studyInfo").textContent = `${studies.length} / 300개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`;
   $("studyTopics").innerHTML = [["", "전체"], ...Object.entries(STUDY)].map(([t, name]) =>
     `<button type="button" data-topic="${t}" class="${t === studyTopic ? "on" : ""}" aria-pressed="${t === studyTopic}">${name}<small>${n(t)}개</small></button>`).join("");
   // 갈래 of the topic shown: 전체 · each 갈래 · 갈래 없음 · ＋ 새 갈래 (and, for the one picked, 이름 바꾸기 · 지우기)
@@ -1940,8 +1956,15 @@ new IntersectionObserver((entries, io) => {
 
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
 const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#library": "libraryView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
+function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구, or one of them (#study/notes, #study/research)
+  const part = { "#study/notes": "notes", "#study/research": "research" }[location.hash] || "";
+  $("studyHub").classList.toggle("hidden", !!part);
+  $("notesCard").classList.toggle("hidden", part !== "notes"); $("studyCard").classList.toggle("hidden", part !== "research");
+  $("studyHead").textContent = part === "notes" ? "오답노트" : part === "research" ? "내 연구" : "학습방";
+  $("studyBack").classList.toggle("hidden", !part);
+}
 function showPage() {
-  const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : "hubView");
+  const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : location.hash.startsWith("#study/") ? "studyView" : "hubView");
   // one set of GPU parts (balance, my GPU, choosing one): on the 기보 분석 page while it shows, else on GPU 대여
   const slot = $(page === "analyzeView" ? "analyzeGpuSlot" : "homeGpuSlot");
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
@@ -1951,6 +1974,7 @@ function showPage() {
   document.querySelectorAll("#tabnav [data-tab]").forEach((a) => { a.classList.toggle("on", a.dataset.tab === tab); a.toggleAttribute("aria-current", a.dataset.tab === tab); });
   if (profile) dashShow();
   if (page === "mineView") showMineFolder();
+  if (page === "studyView") showStudyPart();
   if (profile && page === "libraryView" && !libLoaded) libShow();
   if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView" || page === "studyView")) loadMine();
