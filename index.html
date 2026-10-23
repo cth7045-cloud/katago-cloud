@@ -1554,7 +1554,7 @@ async function bankRows(table, cols) {
     out.push(...data); if (data.length < 1000) return out;
   }
 }
-function bankMerge(raw, edits, books) {
+function bankMerge(raw, edits, books, meta) {   // (+ bank_meta: shelves' and books' names, shelf, order; hidden ones left out)
   const idx = JSON.parse(JSON.stringify(raw)), by = new Map();
   const of = (id) => by.get(id) || by.set(id, { fix: new Map(), hide: new Set(), add: [], hidFile: 0 }).get(id);
   for (const e of edits) {
@@ -1563,22 +1563,44 @@ function bankMerge(raw, edits, books) {
     else if (e.added) o.add.push({ ...e.prob, i: e.pid });
     else if (e.prob) o.fix.set(e.pid, e.prob);
   }
+  idx.groups.forEach((g, i) => { g.ord = i; });
+  for (const m of meta) if (m.kind === "shelf") {
+    let g = idx.groups.find((x) => x.id === m.id);
+    if (!g) { if (!m.title) continue; g = { id: m.id, name: m.title, books: [], own: true, ord: idx.groups.length }; idx.groups.push(g); }
+    if (m.title) g.name = m.title;
+    g.hidden = !!m.hidden; if (m.ord != null) g.ord = m.ord;
+  }
   for (const b of books) (idx.groups.find((g) => g.id === b.shelf) || idx.groups[0]).books.push({ id: b.id, title: b.title, sub: b.sub || "", n: 0, files: 0, ks: [], own: true });
+  const bm = new Map(meta.filter((m) => m.kind === "book").map((m) => [m.id, m]));
+  for (const g of idx.groups) g.books.forEach((b, i) => { b.ord = i; });
+  for (const g of idx.groups.slice()) for (const b of g.books.slice()) {
+    const m = bm.get(b.id); if (!m) continue;
+    if (m.title) b.title = m.title;
+    if (m.sub != null) b.sub = m.sub;
+    b.hidden = !!m.hidden; if (m.ord != null) b.ord = m.ord;
+    const to = m.shelf && m.shelf !== g.id && idx.groups.find((x) => x.id === m.shelf);
+    if (to) { g.books.splice(g.books.indexOf(b), 1); to.books.push(b); }
+  }
+  idx.groups.sort((a, b) => a.ord - b.ord);
+  for (const g of idx.groups) g.books.sort((a, b) => a.ord - b.ord);
   for (const g of idx.groups) for (const b of g.books) {
     b.static = b.files; const o = by.get(b.id); if (!o) continue;
     o.add.sort((x, y) => x.k - y.k); b.edit = o;
     b.n += o.add.length - o.hidFile;
     if (o.add.length) { b.files = b.static + 1; (b.ks ||= []).push([o.add[0].k, o.add[o.add.length - 1].k]); }
   }
-  for (const g of idx.groups) g.books = g.books.filter((b) => b.n > 0);
+  idx.groups = idx.groups.filter((g) => !g.hidden);
+  for (const g of idx.groups) g.books = g.books.filter((b) => b.n > 0 && !b.hidden);
+  idx.groups = idx.groups.filter((g) => g.books.length);
   return idx;
 }
 async function loadBank() {
   try {
     if (!bankRaw) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error(r.status); bankRaw = await r.json(); }
-    const [edits, books] = await Promise.all([bankRows("bank_edits", "pid,pack,added,hidden,prob,updated_at"), bankRows("bank_books", "id,shelf,title,sub")]);
-    const key = JSON.stringify([edits.map((e) => e.pid + e.updated_at), books]);
-    if (!bankIdx || key !== bankEditKey) { bankIdx = bankMerge(bankRaw, edits, books); bankEditKey = key; bankFiles.clear(); }
+    const [edits, books, meta] = await Promise.all([bankRows("bank_edits", "pid,pack,added,hidden,prob,updated_at"), bankRows("bank_books", "id,shelf,title,sub"),
+      bankRows("bank_meta", "kind,id,title,sub,shelf,hidden,ord,updated_at")]);
+    const key = JSON.stringify([edits.map((e) => e.pid + e.updated_at), books, meta]);
+    if (!bankIdx || key !== bankEditKey) { bankIdx = bankMerge(bankRaw, edits, books, meta); bankEditKey = key; bankFiles.clear(); }
   } catch { $("bankMsg").textContent = "문제 목록을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요."; $("bankMsg").classList.remove("hidden"); return; }
   const { data } = await sb.rpc("bank_summary");
   bankStats = Object.fromEntries((data || []).map((r) => [r.pack, r]));

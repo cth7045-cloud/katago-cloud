@@ -939,7 +939,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div id="quizBar" hidden>
     <div class="qz-text"><b id="quizTitle"></b><span id="quizSub"></span></div>
     <input type="text" id="quizMemo" maxlength="300" placeholder="메모: 왜 틀렸는지 적어 두세요 (Enter로 저장)" autocomplete="off" hidden>
-    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizUndo" hidden>무르기</button><button id="quizFree" hidden>놓아보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEdit" hidden>답 고치기</button><button id="quizEnd">그만하기</button></div>
+    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizUndo" hidden>무르기</button><button id="quizFree" hidden>놓아보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
     <div id="bankEdit" hidden>
       <div class="be-set" id="beSetup" hidden>
         <div class="lvl" id="beTool" role="group" aria-label="놓을 돌"><button data-v="b" class="on">흑 돌</button><button data-v="w">백 돌</button><button data-v="x">지우기</button></div>
@@ -3800,7 +3800,7 @@ async function bankRows(sb, table, cols) {
     out.push(...data); if (data.length < 1000) return out;
   }
 }
-function bankMerge(raw, edits, books) {
+function bankMerge(raw, edits, books, meta = []) {   // (+ bank_meta: shelves' and books' names, shelf, order, hidden — b.off = not for members)
   const idx = JSON.parse(JSON.stringify(raw)), by = new Map();
   const of = id => by.get(id) || by.set(id, {fix: new Map(), hide: new Set(), add: [], hidAdd: [], hidFile: 0}).get(id);
   for (const e of edits) {
@@ -3809,7 +3809,26 @@ function bankMerge(raw, edits, books) {
     if (e.added) (e.hidden ? o.hidAdd : o.add).push({...e.prob, i: e.pid});
     else if (e.prob) o.fix.set(e.pid, e.prob);
   }
+  idx.groups.forEach((g, i) => { g.ord = i; });
+  for (const m of meta) if (m.kind === "shelf") {
+    let g = idx.groups.find(x => x.id === m.id);
+    if (!g) { if (!m.title) continue; g = {id: m.id, name: m.title, books: [], own: true, ord: idx.groups.length}; idx.groups.push(g); }
+    if (m.title) g.name = m.title;
+    g.hidden = !!m.hidden; if (m.ord != null) g.ord = m.ord;
+  }
   for (const b of books) (idx.groups.find(g => g.id === b.shelf) || idx.groups[0]).books.push({id: b.id, title: b.title, sub: b.sub || "", n: 0, files: 0, ks: [], own: true});
+  const bm = new Map(meta.filter(m => m.kind === "book").map(m => [m.id, m]));
+  for (const g of idx.groups) g.books.forEach((b, i) => { b.ord = i; });
+  for (const g of idx.groups.slice()) for (const b of g.books.slice()) {
+    const m = bm.get(b.id); if (!m) continue;
+    if (m.title) b.title = m.title;
+    if (m.sub != null) b.sub = m.sub;
+    b.hidden = !!m.hidden; if (m.ord != null) b.ord = m.ord;
+    const to = m.shelf && m.shelf !== g.id && idx.groups.find(x => x.id === m.shelf);
+    if (to) { g.books.splice(g.books.indexOf(b), 1); to.books.push(b); }
+  }
+  idx.groups.sort((a, b) => a.ord - b.ord);
+  for (const g of idx.groups) { g.books.sort((a, b) => a.ord - b.ord); for (const b of g.books) b.off = !!(b.hidden || g.hidden); }
   for (const g of idx.groups) for (const b of g.books) {
     b.static = b.files; const o = by.get(b.id); if (!o) continue;
     o.add.sort((x, y) => x.k - y.k); b.edit = o;
@@ -3821,8 +3840,9 @@ function bankMerge(raw, edits, books) {
 async function bankLoad(fresh = false) {   // problems/index.json once, what the admins changed each time it is asked fresh
   if (!bankRaw) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error("목록 " + r.status); bankRaw = await r.json(); }
   if (bankIndex && !fresh) return;
-  const [edits, books] = await Promise.all([bankRows(mineSb, "bank_edits", "pid,pack,added,hidden,prob"), bankRows(mineSb, "bank_books", "id,shelf,title,sub")]);
-  bankIndex = bankMerge(bankRaw, edits, books); bankFiles.clear();
+  const [edits, books, meta] = await Promise.all([bankRows(mineSb, "bank_edits", "pid,pack,added,hidden,prob"), bankRows(mineSb, "bank_books", "id,shelf,title,sub"),
+    bankRows(mineSb, "bank_meta", "kind,id,title,sub,shelf,hidden,ord")]);
+  bankIndex = bankMerge(bankRaw, edits, books, meta); bankFiles.clear();
 }
 async function bankFile(name, hidden = false) {   // problems/<pack>-<file>.json with the admins' changes, kept for this visit
   const key = name + (hidden ? "*" : "");   // hidden: the hidden ones too (an admin opening one to show it again)
@@ -3853,7 +3873,7 @@ async function bankPick(spec, start = "") {   // -> [{p, pack, file}]; start = a
   const sb = mineSb, out = [];
   if (spec === "review") {
     // records of books or problems taken off the site stay in the table: skip them, so they never fill the 10
-    const ids = bankIndex.groups.flatMap(g => g.books.map(b => b.id));
+    const ids = bankIndex.groups.flatMap(g => g.books.filter(b => !b.off).map(b => b.id));
     const {data, error} = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null).in("pack", ids)
       .lte("due_at", new Date().toISOString()).order("due_at").limit(200);
     if (error) throw error;
@@ -3894,6 +3914,7 @@ async function openBank(spec, from = 0, start = "") {   // from = a problem numb
   try {
     await bankLoad();
     if ((once.add || once.edit) && !await bankIsAdmin()) { say("관리자만 고칠 수 있습니다"); return; }
+    if (spec !== "review" && bankBook(spec)?.off && !await bankIsAdmin()) { say("없는 책입니다"); return; }   // a book an admin took off the site
     if (once.add) list = bankBook(spec) ? [bankNewItem(spec)] : [];
     else if (once.q) {   // by id (the admin page's list): that one first, even hidden, then the book's next ones
       const f = await bankFind({pid: once.q, pack: spec, file: 0}, await bankIsAdmin());
@@ -3925,7 +3946,6 @@ function bankShow() {
   $("quizTitle").className = ""; $("quizTitle").textContent = `${no}번 · ${colorName(p.p)} 차례` + (BANK_GOALS[p.g] ? " · " + BANK_GOALS[p.g] : "");
   $("quizSub").textContent = (quiz.bank === "review" ? "복습 · " : "") + book.title + (book.sub ? " · " + book.sub : "") + ` · ${quiz.i + 1}/${quiz.list.length}`;
   $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = $("quizFree").hidden = false;
-  $("quizEdit").hidden = !bankAdmin;
 }
 const bankMoves = (t, out = []) => {   // every move in a problem's tree (both sides)
   for (const [m, r] of Object.entries(t)) {
@@ -4025,7 +4045,7 @@ $("quizRetry").onclick = () => {
 };
 // 놓아보기 (user 2026-10-23): both colours in turn from where the board is, nothing graded and nothing recorded; 무르기 takes
 // a stone back, 놓아보기 끝 returns to that position (the stones tried are dropped, no next-move rings left behind)
-const BANK_FREE_KEEP = ["quizShow", "quizRetry", "quizNext", "quizEdit", "quizEnd"];
+const BANK_FREE_KEEP = ["quizShow", "quizRetry", "quizNext", "quizEnd"];
 function bankFreeTitle() { $("quizTitle").className = ""; $("quizTitle").textContent = `놓아보기 · ${colorName(cur.toPlay)} 차례`; }
 $("quizFree").onclick = () => {
   if (!quiz || !quiz.bank || quiz.busy) return;
@@ -4074,6 +4094,7 @@ function bankLeave() {
   }, 150);
 }
 // ------------------------------------------------------------------ 문제 은행 편집 (관리자, user 2026-10-23 "답 수정" · "문제 새로 추가")
+// Opened from the admin page only (user 2026-10-23 "관리자 페이지에서만"): #bank=<book>&k=<n>&edit=1, &q=<pid>&edit=1, &add=1.
 // 답 고치기: the board starts at the problem; moves played on it (both colours in turn) make a line, and 정답 수순으로 /
 // 오답 수순으로 put it in the tree (a wrong line's last move by the other side = how it answers the wrong move), 이 수 지우기
 // takes the last move out. The dots show the tree where the board is: green = my move with a way to the answer, red = a
@@ -4186,7 +4207,6 @@ function bankEditPlay(xy) {
   goTo(c); bankEditInfo();
 }
 function bankEditBack() { const c = cur; if (c === quiz.node) return; goTo(c.parent); c.parent.children = c.parent.children.filter(x => x !== c); bankEditInfo(); }
-$("quizEdit").onclick = () => bankEditOpen(false);
 $("beTool").onclick = ev => { const b = ev.target.closest("[data-v]"); if (!b) return; quiz.edit.tool = b.dataset.v; for (const x of $("beTool").children) x.classList.toggle("on", x === b); };
 $("beTurn").onchange = () => { quiz.edit.p = $("beTurn").value; bankEditLoad(); };
 $("beSize").onchange = () => {

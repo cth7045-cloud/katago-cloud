@@ -70,10 +70,31 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
   .card.model input.name { max-width: none; }
 }
 .atabs button[data-tab="gpu"], .atabs button[data-tab="charges"], .atabs button[data-tab="notice"], .atabs button[data-tab="bank"] { white-space: nowrap; }
-.bank-form { grid-template-columns: 1.6fr 120px auto auto; }
-#bkBookForm { grid-template-columns: 160px 1.4fr 1fr auto; }
-.bank-form select { width: 100%; }
-@media (max-width: 720px) { .bank-form, #bkBookForm { grid-template-columns: 1fr; } }
+#bkBookForm { grid-template-columns: 180px 1.4fr 1fr auto; }
+#bkBookForm select, .bk-pick select { width: 100%; }
+.bk-top { gap: 8px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+.bk-pick { flex: 1 1 260px; min-width: 0; }
+.bk-no { flex: 0 1 140px; }
+.bk-tree { display: grid; gap: 14px; }
+.bk-shelf { border-radius: 16px; background: var(--soft); padding: 12px; display: grid; gap: 8px; }
+.bk-shelf.off, .bk-book.off { opacity: .55; }
+.bk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.bk-row input[type=text] { flex: 1 1 160px; min-width: 0; }
+.bk-row input.sub { flex: 1 1 120px; }
+.bk-row select { flex: 0 1 170px; min-width: 0; }
+.bk-row .n { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+.bk-row .mv { min-width: 36px; padding: 0 8px; }
+.bk-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; white-space: nowrap; }
+.bk-shelf > .bk-row input[type=text] { font-weight: 650; }
+.bk-book { padding-left: 14px; border-left: 2px solid var(--line, rgba(127,127,127,.25)); }
+.bk-dirty { box-shadow: inset 3px 0 0 var(--blue); }
+#bkCards .bank-item .study-meta { display: flex; gap: 6px; justify-content: center; margin-top: 4px; }
+#bkCards .bank-item .study-meta button { min-height: 30px; padding: 0 10px; font-size: 12px; }
+#bkCards .bank-item.hid { opacity: .5; }
+#bkCards .bank-item.fix { box-shadow: inset 0 0 0 2px var(--blue); }
+#bkPages { flex-wrap: nowrap; overflow-x: auto; contain: inline-size; padding-bottom: 4px; }
+#bkPages button { flex: none; }
+@media (max-width: 720px) { #bkBookForm { grid-template-columns: 1fr; } .bk-book { padding-left: 8px; } }
 .notice-form { display: grid; gap: 14px; max-width: 640px; }
 .notice-form .seg, .notice-form button.primary { justify-self: start; }
 #topupForm { grid-template-columns: 1.4fr auto 180px 1.4fr auto; }
@@ -297,14 +318,11 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
          in bank_edits / bank_books and laid over them. The editing itself is on the analysis screen (답 고치기 · 새 문제). -->
     <section class="tab" data-tab="bank" hidden>
     <div class="panel">
-      <h2>문제 고치기·추가</h2>
-      <form id="bkOpen" class="admin-form bank-form">
-        <label class="field">책<select id="bkBook" required></select></label>
-        <label class="field">번호<input id="bkNo" type="number" min="1" step="1" placeholder="예: 12"></label>
-        <button class="btn" type="submit">답 고치기</button>
-        <button class="primary" type="button" id="bkAdd">새 문제 추가</button>
-      </form>
-      <p class="muted small">분석 화면에서 고칩니다. 판에 수순을 두고 '정답 수순으로'·'오답 수순으로', 틀린 수를 빼려면 '이 수 지우기'. 새 문제는 책의 마지막 번호 다음으로 들어가고, 저장하면 다음 새 문제가 바로 열립니다. 문제 은행을 풀다가도 '답 고치기'로 고칠 수 있습니다(관리자만 보임).</p>
+      <h2>책장·책</h2>
+      <p class="muted small">이름·부제를 고치거나, 책을 다른 책장으로 옮기거나, ↑↓로 순서를 바꾸거나, '숨기기'로 사이트에서 뺄 수 있습니다. 숨겨도 문제 파일과 회원 기록은 그대로라 다시 보이게 하면 돌아옵니다. 고친 뒤 '변경 저장'을 누르세요.</p>
+      <div class="row bk-top"><button class="btn" type="button" id="bkNewShelf">새 책장</button><span class="grow"></span>
+        <span class="muted small" id="bkDirty"></span><button class="btn" type="button" id="bkUndo" disabled>되돌리기</button><button class="primary" type="button" id="bkSave" disabled>변경 저장</button></div>
+      <div id="bkTree" class="bk-tree"><p class="muted">불러오는 중…</p></div>
     </div>
     <div class="panel">
       <h2>새 책</h2>
@@ -314,11 +332,19 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
         <label class="field">부제<input id="bkSub" maxlength="60" placeholder="예: 1권"></label>
         <button class="primary" type="submit">만들기</button>
       </form>
-      <p class="muted small">문제가 하나라도 들어가야 회원에게 보입니다.</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>책장</th><th>책</th><th class="num">문제</th></tr></thead>
-        <tbody id="bkOwnRows"><tr><td colspan="3" class="muted">불러오는 중…</td></tr></tbody>
-      </table></div>
+      <p class="muted small">문제가 하나라도 들어가야 회원에게 보입니다. 아래 '문제'에서 그 책을 골라 '새 문제 추가'로 넣으세요.</p>
+    </div>
+    <div class="panel">
+      <h2>문제</h2>
+      <div class="row bk-top">
+        <label class="field bk-pick">책<select id="bkBook"></select></label>
+        <label class="field bk-no">번호<input id="bkNo" type="number" min="1" step="1" placeholder="번호로 열기"></label>
+        <button class="btn" type="button" id="bkGo">답 고치기</button>
+        <button class="primary" type="button" id="bkAdd">새 문제 추가</button>
+      </div>
+      <p class="muted small">카드를 누르면 분석 화면에서 답을 고칩니다(판에 수순을 두고 '정답 수순으로'·'오답 수순으로', 틀린 수를 빼려면 '이 수 지우기'). 카드의 '숨기기'는 그 문제만 사이트에서 뺍니다. 새 문제는 책의 마지막 번호 다음으로 들어가고, 저장하면 다음 새 문제가 바로 열립니다.</p>
+      <div class="study-branches" id="bkPages" role="group" aria-label="쪽"></div>
+      <div class="study-grid bank-grid" id="bkCards"></div>
     </div>
     <div class="panel">
       <h2>고친 문제</h2>
@@ -886,59 +912,226 @@ $("nTarget").onclick = (ev) => {
   $("nWhoField").classList.toggle("hidden", noticeTo !== "one");
 };
 let noticeData = null;
-// 문제 은행 (user 2026-10-23): the books of problems/index.json and the admins' own (bank_books), what was changed (bank_edits)
-let bankIdx = null;
-async function bankAllRows(table, cols) {
+// 문제 은행 (user 2026-10-23 "답 수정" · "문제 새로 추가" · "이름을 바꾼다던지 없앤다던지"): the shelves and books of
+// problems/index.json and the admins' own (bank_books), their names / shelf / order / hidden (bank_meta), the problems
+// changed or added (bank_edits). Answers are edited on the analysis screen, opened from here only.
+let bankRaw = null, bkModel = null, bkSnap = "", bkEdits = [], bkOpen = { book: "", file: 0 };
+const bkFiles = new Map();
+async function bankAllRows(table, cols, order = "updated_at") {
   const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from(table).select(cols).order("updated_at", { ascending: false }).range(from, from + 999);
+    const { data, error } = await sb.from(table).select(cols).order(order, { ascending: false }).range(from, from + 999);
     if (error) throw error;
     out.push(...data); if (data.length < 1000) return out;
   }
 }
+// the shelves as the members see them, hidden ones kept (= index.html / webui bankMerge); each name keeps what the file says
+// (base) so an unchanged one is saved as null and a later rebuild of the files still shows through
+function bkBuild(raw, own, meta, edits) {
+  const shelves = raw.groups.map((g, i) => ({ id: g.id, name: g.name, base: g.name, ord: i, hidden: false, own: false, books: [] }));
+  for (const m of meta) if (m.kind === "shelf") {
+    let g = shelves.find((x) => x.id === m.id);
+    if (!g) { if (!m.title) continue; g = { id: m.id, name: m.title, base: "", ord: shelves.length, hidden: false, own: true, books: [] }; shelves.push(g); }
+    if (m.title) g.name = m.title;
+    g.hidden = !!m.hidden; if (m.ord != null) g.ord = m.ord;
+  }
+  const at = (id) => shelves.find((g) => g.id === id) || shelves[0];
+  const count = {}, hid = {};
+  for (const e of edits) if (e.added && !e.hidden) count[e.pack] = (count[e.pack] || 0) + 1; else if (!e.added && e.hidden) hid[e.pack] = (hid[e.pack] || 0) + 1;
+  raw.groups.forEach((g) => g.books.forEach((b, i) => at(g.id).books.push({ id: b.id, title: b.title, sub: b.sub || "", base: { title: b.title, sub: b.sub || "", shelf: g.id },
+    n: b.n + (count[b.id] || 0) - (hid[b.id] || 0), files: b.files, ks: b.ks || [], ord: i, hidden: false })));
+  for (const b of own) at(b.shelf).books.push({ id: b.id, title: b.title, sub: b.sub || "", base: { title: b.title, sub: b.sub || "", shelf: b.shelf }, n: count[b.id] || 0, files: 0, ks: [], ord: 1000, hidden: false, own: true });
+  const bm = new Map(meta.filter((m) => m.kind === "book").map((m) => [m.id, m]));
+  for (const g of shelves.slice()) for (const b of g.books.slice()) {
+    const m = bm.get(b.id); if (!m) continue;
+    if (m.title) b.title = m.title;
+    if (m.sub != null) b.sub = m.sub;
+    b.hidden = !!m.hidden; if (m.ord != null) b.ord = m.ord;
+    const to = m.shelf && m.shelf !== g.id && shelves.find((x) => x.id === m.shelf);
+    if (to) { g.books.splice(g.books.indexOf(b), 1); to.books.push(b); }
+  }
+  shelves.sort((a, b) => a.ord - b.ord);
+  for (const g of shelves) g.books.sort((a, b) => a.ord - b.ord);
+  return shelves;
+}
+const bkName = (b) => b.title + (b.sub ? " · " + b.sub : "");
+const bkBooks = () => bkModel.flatMap((g) => g.books);
+const bkState = () => JSON.stringify(bkModel.map((g) => [g.id, g.name, g.hidden, g.books.map((b) => [b.id, b.title, b.sub, b.hidden])]));
 async function loadBankAdmin() {
   try {
-    if (!bankIdx) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error(r.status); bankIdx = await r.json(); }
-    const [{ data: own, error: e1 }, edits] = await Promise.all([sb.from("bank_books").select("id,shelf,title,sub").order("created_at"),
+    if (!bankRaw) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error(r.status); bankRaw = await r.json(); }
+    const [own, meta, edits] = await Promise.all([bankAllRows("bank_books", "id,shelf,title,sub", "created_at"), bankAllRows("bank_meta", "kind,id,title,sub,shelf,hidden,ord"),
       bankAllRows("bank_edits", "pid,pack,added,hidden,prob,note,updated_at")]);
-    if (e1) throw e1;
-    const shelves = bankIdx.groups.map((g) => ({ id: g.id, name: g.name, books: g.books.map((b) => ({ ...b })) }));
-    for (const b of own) (shelves.find((g) => g.id === b.shelf) || shelves[0]).books.push({ ...b, own: true });
-    const added = {}; for (const e of edits) if (e.added && !e.hidden) added[e.pack] = (added[e.pack] || 0) + 1;
-    const name = (b) => b.title + (b.sub ? " · " + b.sub : "");
-    const keep = $("bkBook").value;
-    $("bkBook").innerHTML = shelves.map((g) => `<optgroup label="${esc(g.name)}">` +
-      g.books.map((b) => `<option value="${esc(b.id)}">${esc(name(b))}${b.own ? " (새 책)" : ""}</option>`).join("") + "</optgroup>").join("");
-    if (keep) $("bkBook").value = keep;
-    $("bkShelf").innerHTML = shelves.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("");
-    $("bkOwnRows").innerHTML = own.length ? own.map((b) => `<tr><td>${esc((shelves.find((g) => g.id === b.shelf) || shelves[0]).name)}</td><td>${esc(name(b))}</td><td class="num">${added[b.id] || 0}</td></tr>`).join("")
-      : `<tr><td colspan="3" class="muted">아직 없습니다</td></tr>`;
-    const books = new Map(shelves.flatMap((g) => g.books.map((b) => [b.id, b])));
-    const what = (e) => e.added ? (e.hidden ? "새 문제 · 숨김" : "새 문제") : e.hidden ? "숨김" : e.prob ? "답 고침" + (e.prob.g ? ` · ${e.prob.g === "live" ? "살리세요" : "잡으세요"}` : "") : "원래대로";
-    $("bkRows").innerHTML = edits.length ? edits.map((e) => `<tr><td class="muted small">${when(e.updated_at)}</td><td>${esc(books.has(e.pack) ? name(books.get(e.pack)) : e.pack)}</td>` +
-      `<td class="num">${e.prob && e.prob.k ? e.prob.k : ""}</td><td>${what(e)}</td><td class="small">${esc(e.note || "")}</td>` +
-      `<td><a class="btn"${standalone ? "" : ' target="_blank" rel="noopener"'} href="analysis.html?v=${Date.now()}#bank=${encodeURIComponent(e.pack)}&q=${encodeURIComponent(e.pid)}&edit=1">열기</a></td></tr>`).join("")
-      : `<tr><td colspan="6" class="muted">아직 고친 문제가 없습니다</td></tr>`;
-  } catch (err) { $("bkRows").innerHTML = `<tr><td colspan="6" class="muted">불러오지 못했습니다: ${esc(err.message || String(err))}</td></tr>`; }
+    bkModel = bkBuild(bankRaw, own.reverse(), meta, edits); bkSnap = bkState(); bkEdits = edits; bkFiles.clear();
+    showBankTree(); showBankBooks(); showBankEdits(); showBankCards();
+  } catch (err) { $("bkTree").innerHTML = `<p class="muted">불러오지 못했습니다: ${esc(err.message || String(err))}</p>`; }
 }
+function showBankTree() {
+  const shelfOpts = (sel) => bkModel.map((g) => `<option value="${esc(g.id)}"${g.id === sel ? " selected" : ""}>${esc(g.name)}</option>`).join("");
+  $("bkTree").innerHTML = bkModel.map((g, gi) => `<div class="bk-shelf${g.hidden ? " off" : ""}" data-shelf="${esc(g.id)}">
+    <div class="bk-row"><input type="text" maxlength="60" data-f="name" value="${esc(g.name)}" aria-label="책장 이름">
+      <button type="button" class="btn mv" data-mv="-1" aria-label="위로"${gi ? "" : " disabled"}>↑</button><button type="button" class="btn mv" data-mv="1" aria-label="아래로"${gi < bkModel.length - 1 ? "" : " disabled"}>↓</button>
+      <label><input type="checkbox" data-f="hidden"${g.hidden ? " checked" : ""}> 숨기기</label><span class="n">${g.books.length}권</span></div>
+    ${g.books.map((b, bi) => `<div class="bk-row bk-book${b.hidden ? " off" : ""}" data-book="${esc(b.id)}">
+      <input type="text" maxlength="60" data-f="title" value="${esc(b.title)}" aria-label="책 제목"><input type="text" class="sub" maxlength="60" data-f="sub" value="${esc(b.sub)}" placeholder="부제" aria-label="부제">
+      <select data-f="shelf" aria-label="책장">${shelfOpts(g.id)}</select>
+      <button type="button" class="btn mv" data-mv="-1" aria-label="위로"${bi ? "" : " disabled"}>↑</button><button type="button" class="btn mv" data-mv="1" aria-label="아래로"${bi < g.books.length - 1 ? "" : " disabled"}>↓</button>
+      <label><input type="checkbox" data-f="hidden"${b.hidden ? " checked" : ""}> 숨기기</label><span class="n">${b.n.toLocaleString()}문제</span>
+      <button type="button" class="btn" data-open="${esc(b.id)}">문제</button></div>`).join("")}
+  </div>`).join("");
+  bkDirtyShow();
+}
+function bkDirtyShow() { const d = bkState() !== bkSnap; $("bkSave").disabled = $("bkUndo").disabled = !d; $("bkDirty").textContent = d ? "저장하지 않은 변경이 있습니다" : ""; }
+$("bkTree").oninput = $("bkTree").onchange = (ev) => {
+  const el = ev.target, f = el.dataset.f; if (!f) return;
+  const row = el.closest("[data-book]"), shelfEl = el.closest("[data-shelf]");
+  if (row) {
+    const g = bkModel.find((x) => x.id === shelfEl.dataset.shelf), b = g.books.find((x) => x.id === row.dataset.book);
+    if (f === "shelf") { if (ev.type !== "change") return; g.books.splice(g.books.indexOf(b), 1); bkModel.find((x) => x.id === el.value).books.push(b); showBankTree(); return; }
+    b[f] = f === "hidden" ? el.checked : el.value; row.classList.toggle("off", b.hidden);
+  } else {
+    const g = bkModel.find((x) => x.id === shelfEl.dataset.shelf);
+    g[f] = f === "hidden" ? el.checked : el.value; shelfEl.classList.toggle("off", g.hidden);
+  }
+  bkDirtyShow();
+};
+$("bkTree").onclick = (ev) => {
+  const open = ev.target.closest("[data-open]");
+  if (open) { $("bkBook").value = open.dataset.open; bkOpen = { book: open.dataset.open, file: 0 }; showBankCards(); $("bkBook").scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+  const mv = ev.target.closest("[data-mv]"); if (!mv) return;
+  const d = +mv.dataset.mv, row = mv.closest("[data-book]"), g = bkModel.find((x) => x.id === mv.closest("[data-shelf]").dataset.shelf);
+  const list = row ? g.books : bkModel, item = row ? g.books.find((x) => x.id === row.dataset.book) : g, i = list.indexOf(item);
+  if (i + d < 0 || i + d >= list.length) return;
+  [list[i], list[i + d]] = [list[i + d], list[i]]; showBankTree();
+};
+$("bkUndo").onclick = loadBankAdmin;
+$("bkNewShelf").onclick = () => {
+  const name = (prompt("새 책장 이름") || "").trim().slice(0, 60); if (!name) return;
+  const id = "my" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => String.fromCharCode(97 + (x % 26))).join("");
+  bkModel.push({ id, name, base: "", ord: bkModel.length, hidden: false, own: true, books: [] }); showBankTree();
+  toast("책장을 만들었습니다. 책을 옮기고 '변경 저장'을 누르세요.");
+};
+$("bkSave").onclick = async () => {   // every shelf and book whose name, place or order differs from what was loaded (unchanged names = null)
+  const old = new Map(JSON.parse(bkSnap).flatMap(([gid, , gh, books], gi) => [["s:" + gid, { gi, gh }], ...books.map(([id, title, sub, hidden], bi) => ["b:" + id, { gid, bi, title, sub, hidden }])]));
+  const items = [];
+  bkModel.forEach((g, gi) => {
+    const o = old.get("s:" + g.id), name = g.name.trim() || g.base;
+    if (!o || o.gi !== gi || o.gh !== g.hidden || JSON.parse(bkSnap)[o.gi][1] !== g.name)
+      items.push({ kind: "shelf", id: g.id, title: g.own || name !== g.base ? name : null, hidden: g.hidden, ord: gi });
+    g.books.forEach((b, bi) => {
+      const ob = old.get("b:" + b.id);
+      if (ob && ob.gid === g.id && ob.bi === bi && ob.title === b.title && ob.sub === b.sub && ob.hidden === b.hidden) return;
+      const title = b.title.trim() || b.base.title;
+      items.push({ kind: "book", id: b.id, title: title !== b.base.title ? title : null, sub: b.sub.trim() !== b.base.sub ? b.sub.trim() : null,
+        shelf: g.id !== b.base.shelf ? g.id : null, hidden: b.hidden, ord: bi });
+    });
+  });
+  if (!items.length) return;
+  $("bkSave").disabled = true;
+  const { error } = await sb.rpc("admin_bank_meta", { p_items: items });
+  if (error) { toast("저장하지 못했습니다: " + error.message, true); bkDirtyShow(); return; }
+  toast(`저장했습니다 (${items.length}곳)`); await loadBankAdmin();
+};
+function showBankBooks() {
+  const keep = $("bkBook").value || bkOpen.book;
+  $("bkBook").innerHTML = bkModel.map((g) => `<optgroup label="${esc(g.name)}${g.hidden ? " (숨김)" : ""}">` +
+    g.books.map((b) => `<option value="${esc(b.id)}">${esc(bkName(b))}${b.hidden ? " (숨김)" : ""}${b.own ? " (새 책)" : ""}</option>`).join("") + "</optgroup>").join("");
+  if (keep && bkBooks().some((b) => b.id === keep)) $("bkBook").value = keep;
+  $("bkShelf").innerHTML = bkModel.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join("");
+}
+function showBankEdits() {
+  const books = new Map(bkBooks().map((b) => [b.id, b]));
+  const what = (e) => e.added ? (e.hidden ? "새 문제 · 숨김" : "새 문제") : e.hidden ? "숨김" : e.prob ? "답 고침" + (e.prob.g ? ` · ${e.prob.g === "live" ? "살리세요" : "잡으세요"}` : "") : "원래대로";
+  $("bkRows").innerHTML = bkEdits.length ? bkEdits.map((e) => `<tr><td class="muted small">${when(e.updated_at)}</td><td>${esc(books.has(e.pack) ? bkName(books.get(e.pack)) : e.pack)}</td>` +
+    `<td class="num">${e.prob && e.prob.k ? e.prob.k : ""}</td><td>${what(e)}</td><td class="small">${esc(e.note || "")}</td>` +
+    `<td><button type="button" class="btn" data-q="${esc(e.pid)}" data-pack="${esc(e.pack)}">열기</button></td></tr>`).join("")
+    : `<tr><td colspan="6" class="muted">아직 고친 문제가 없습니다</td></tr>`;
+}
+$("bkRows").onclick = (ev) => { const b = ev.target.closest("[data-q]"); if (b) openAnalysis(`bank=${encodeURIComponent(b.dataset.pack)}&q=${encodeURIComponent(b.dataset.q)}&edit=1`); };
+// a book's problems as cards (= the site's, hidden ones too): a card opens 답 고치기, its 숨기기 / 보이기 takes it off / puts it back
+async function bkFile(book, file) {   // the file's problems with the changes; the added ones are one more file after the book's own
+  const key = book.id + "-" + file;
+  if (!bkFiles.has(key)) {
+    const rows = book.own || file >= book.files ? [] : await (await fetch(`problems/${key}.json?v=${bankRaw.v}`)).json();
+    bkFiles.set(key, rows);
+  }
+  const by = new Map(bkEdits.filter((e) => e.pack === book.id).map((e) => [e.pid, e]));
+  const base = bkFiles.get(key).map((p) => { const e = by.get(p.i); return { ...p, ...(e && e.prob && !e.added ? { t: e.prob.t, g: e.prob.g } : {}), edit: e || null }; });
+  if (file === (book.own ? 0 : book.files)) return [...base, ...bkEdits.filter((e) => e.pack === book.id && e.added).map((e) => ({ ...e.prob, i: e.pid, edit: e }))].sort((a, b) => a.k - b.k);
+  return base;
+}
+async function showBankCards() {
+  const book = bkBooks().find((b) => b.id === $("bkBook").value); if (!book) { $("bkCards").innerHTML = ""; $("bkPages").innerHTML = ""; return; }
+  if (bkOpen.book !== book.id) bkOpen = { book: book.id, file: 0 };
+  const added = bkEdits.filter((e) => e.pack === book.id && e.added), files = (book.own ? 0 : book.files) + (added.length || book.own ? 1 : 0);
+  const pages = [...(book.own ? [] : book.ks.map(([a, b]) => `${a}–${b}`)), ...(added.length ? [`${Math.min(...added.map((e) => e.prob.k))}–${Math.max(...added.map((e) => e.prob.k))} (추가)`] : book.own ? ["추가한 문제"] : [])];
+  const file = Math.min(bkOpen.file, Math.max(0, files - 1)), open = bkOpen;
+  $("bkPages").innerHTML = pages.length > 1 ? pages.map((t, f) => `<button type="button" data-file="${f}" class="${f === file ? "on" : ""}">${esc(t)}</button>`).join("") : "";
+  let rows;
+  try { rows = files ? await bkFile(book, file) : []; } catch { $("bkCards").innerHTML = `<p class="muted small">문제를 불러오지 못했습니다.</p>`; return; }
+  if (bkOpen !== open) return;
+  $("bkCards").innerHTML = rows.length ? rows.map((p) => {
+    const e = p.edit, hid = !!(e && e.hidden), tag = e ? (e.added ? "새 문제" : hid ? "" : e.prob ? "고침" : "") : "";
+    return `<div class="study-item bank-item${hid ? " hid" : ""}${tag === "고침" ? " fix" : ""}" data-pid="${esc(p.i)}" data-k="${p.k}"><div class="study-thumb">${bkThumb(p)}</div>` +
+      `<div class="study-body"><div class="study-title">${p.k}번${tag ? ` <span class="muted small">${tag}</span>` : ""}</div>` +
+      `<div class="study-meta"><button type="button" class="btn" data-hide="${hid ? 0 : 1}">${hid ? "보이기" : "숨기기"}</button></div></div></div>`;
+  }).join("") : `<p class="muted small">문제가 없습니다. '새 문제 추가'로 넣으세요.</p>`;
+}
+$("bkBook").onchange = () => { bkOpen = { book: $("bkBook").value, file: 0 }; showBankCards(); };
+$("bkPages").onclick = (ev) => { const b = ev.target.closest("[data-file]"); if (b) { bkOpen = { ...bkOpen, file: +b.dataset.file }; showBankCards(); } };
+$("bkCards").onclick = async (ev) => {
+  const card = ev.target.closest("[data-pid]"); if (!card) return;
+  const book = $("bkBook").value, hide = ev.target.closest("[data-hide]");
+  if (!hide) { openAnalysis(`bank=${encodeURIComponent(book)}&q=${encodeURIComponent(card.dataset.pid)}&edit=1`); return; }
+  const e = bkEdits.find((x) => x.pid === card.dataset.pid), on = hide.dataset.hide === "1";
+  hide.disabled = true;
+  const { error } = await sb.rpc("admin_bank_save", { p_pid: card.dataset.pid, p_pack: book, p_added: !!(e && e.added), p_prob: e ? e.prob : null, p_hidden: on, p_note: e ? e.note : "" });
+  if (error) { toast("바꾸지 못했습니다: " + error.message, true); hide.disabled = false; return; }
+  toast(on ? `${card.dataset.k}번을 숨겼습니다` : `${card.dataset.k}번을 다시 보이게 했습니다`); await loadBankAdmin();
+};
 function openAnalysis(hash) {   // the analysis screen in a new tab (in the installed app: this window)
   const url = `analysis.html?v=${Date.now()}#${hash}`;
   if (standalone) location.href = url; else window.open(url, "_blank", "noopener");
 }
-$("bkOpen").onsubmit = (ev) => {
-  ev.preventDefault();
-  const no = Math.max(1, Math.floor(+$("bkNo").value || 1));
-  openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&k=${no}&edit=1`);
-};
+$("bkGo").onclick = () => openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&k=${Math.max(1, Math.floor(+$("bkNo").value || 1))}&edit=1`);
 $("bkAdd").onclick = () => openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&add=1`);
 $("bkBookForm").onsubmit = async (ev) => {
   ev.preventDefault();
   const { data: id, error } = await sb.rpc("admin_bank_book", { p_id: null, p_shelf: $("bkShelf").value, p_title: $("bkTitle").value, p_sub: $("bkSub").value });
-  if (error) { toast("만들지 못했습니다: " + error.message); return; }
+  if (error) { toast("만들지 못했습니다: " + error.message, true); return; }
   $("bkTitle").value = $("bkSub").value = ""; toast("새 책을 만들었습니다. '새 문제 추가'로 문제를 넣으세요.");
-  await loadBankAdmin(); $("bkBook").value = id;
+  bkOpen = { book: id, file: 0 }; $("bkBook").value = ""; await loadBankAdmin(); $("bkBook").value = id; showBankCards();
 };
-window.addEventListener("focus", () => { if (adminReady && !document.querySelector('section.tab[data-tab="bank"]').hidden) loadBankAdmin(); });   // back from the analysis screen
+window.addEventListener("focus", () => {   // back from the analysis screen (unsaved shelf / book changes are kept)
+  if (adminReady && !document.querySelector('section.tab[data-tab="bank"]').hidden && (!bkModel || bkState() === bkSnap)) loadBankAdmin();
+});
+function bkThumb(p) {   // = index.html bankThumb
+  const N = p.s, pts = (t) => (t.match(/../g) || []).map((m) => [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97]);
+  const stones = [...pts(p.b).map(([x, y]) => ({ x, y, b: true })), ...pts(p.w).map(([x, y]) => ({ x, y, b: false }))];
+  let x0 = 0, y0 = 0, x1 = N - 1, y1 = N - 1;
+  const moves = (t, out = []) => { for (const [m, r] of Object.entries(t)) { out.push(m); if (typeof r === "string") out.push(r); else if (r && typeof r === "object") for (const [o, n] of Object.entries(r)) { out.push(o); if (n && typeof n === "object") moves(n, out); } } return out; };
+  const all = [...stones, ...moves(p.t).filter((m) => m !== "pass").map((m) => ({ x: m.charCodeAt(0) - 97, y: m.charCodeAt(1) - 97 }))];
+  if (all.length) {   // = webui.html bankView (stones and every move of the answer): 2 lines around, near edges snapped, square
+    let a0 = Math.min(...all.map((s) => s.x)), b0 = Math.min(...all.map((s) => s.y)), a1 = Math.max(...all.map((s) => s.x)), b1 = Math.max(...all.map((s) => s.y));
+    a0 = a0 <= 3 ? 0 : a0 - 2; b0 = b0 <= 3 ? 0 : b0 - 2; a1 = a1 >= N - 4 ? N - 1 : a1 + 2; b1 = b1 >= N - 4 ? N - 1 : b1 + 2;
+    const L = Math.max(a1 - a0, b1 - b0, 8) + 1;
+    if (L <= N - 4) {
+      const grow = (c0, c1) => { for (let need = L - (c1 - c0 + 1), i = 0; need > 0; need--, i++) { if (c0 === 0 || (c1 < N - 1 && i % 2)) c1++; else c0--; } return c0; };
+      x0 = grow(a0, a1); y0 = grow(b0, b1); x1 = x0 + L - 1; y1 = y0 + L - 1;
+    }
+  }
+  const ext = (a, edge) => (a === edge ? 0 : .5), lx0 = x0 - ext(x0, 0), lx1 = x1 + ext(x1, N - 1), ly0 = y0 - ext(y0, 0), ly1 = y1 + ext(y1, N - 1);
+  let svg = "";
+  for (let x = x0; x <= x1; x++) svg += `M${x} ${ly0}V${ly1}`;
+  for (let y = y0; y <= y1; y++) svg += `M${lx0} ${y}H${lx1}`;
+  const star = N === 19 ? [3, 9, 15] : N === 13 ? [3, 6, 9] : N === 9 ? [2, 4, 6] : [];
+  let dots = "", st = "";
+  for (const sx of star) for (const sy of star) if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1 && (N === 19 || (sx === star[1]) === (sy === star[1]))) dots += `<circle cx="${sx}" cy="${sy}" r=".13"/>`;
+  for (const s of stones) if (s.x >= x0 && s.x <= x1 && s.y >= y0 && s.y <= y1) st += `<circle class="${s.b ? "sb" : "sw"}" cx="${s.x}" cy="${s.y}" r=".47"/>`;
+  const pad = .62;
+  return `<svg viewBox="${x0 - pad} ${y0 - pad} ${x1 - x0 + 2 * pad} ${y1 - y0 + 2 * pad}" role="img" aria-label="문제 그림">` +
+    `<rect x="${x0 - pad}" y="${y0 - pad}" width="${x1 - x0 + 2 * pad}" height="${y1 - y0 + 2 * pad}" class="wood"/><path d="${svg}" class="ln"/>${dots}${st}</svg>`;
+}
 
 async function loadNoticeList() {
   try { noticeData = (await api("/admin/notices")).notices || []; drawNoticeList(); }
