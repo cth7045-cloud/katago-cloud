@@ -560,7 +560,6 @@ button.primary:hover { background: var(--blue-deep); }
 #scoreResult { font-weight: 700; color: var(--blue); }
 #scoreLines { display: grid; gap: 3px; font-size: 14px; font-variant-numeric: tabular-nums; }
 #scoreHint { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
-#scoreHint:empty, .gd-note:empty, #saveDo small:empty, .dlg-msg:empty { display: none; }   /* emptied help lines take no room (user 2026-10-23) */
 .sb-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
 /* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
 @media (orientation: portrait) {
@@ -750,6 +749,7 @@ button.primary:hover { background: var(--blue-deep); }
   <form class="dlg-row" id="foxForm">
     <input type="text" id="foxName" placeholder="한큐바둑 닉네임" autocomplete="off" enterkeyhint="search">
     <button type="submit">검색</button>
+    <span class="muted">최근 대국 약 100판</span>
   </form>
   <div class="dlg-msg" id="kifuMsg"></div>
   <div class="dlg-list"><table><thead><tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr></thead><tbody id="kifuRows"></tbody></table></div>
@@ -866,6 +866,7 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="gd-row"><span>사석</span><div class="gd-pair">
       <label class="pk-cap">흑 <input type="number" id="photoCapB" min="0" max="999" step="1" value="0" inputmode="numeric" aria-label="흑 사석(흑이 따낸 백돌 수)"></label>
       <label class="pk-cap">백 <input type="number" id="photoCapW" min="0" max="999" step="1" value="0" inputmode="numeric" aria-label="백 사석(백이 따낸 흑돌 수)"></label></div></div>
+    <p class="gd-note">사석 = 그쪽이 지금까지 따낸 상대 돌 수(대국 화면에 나오는 사석 그대로). 형세와 계가에 들어갑니다.</p>
     <div class="gd-actions"><button id="photoRetake">다른 사진</button><button id="photoBack" hidden>모서리 다시</button><button id="photoCancel">취소</button><button id="photoGo" class="primary">인식</button></div>
   </div>
 </dialog>
@@ -901,8 +902,10 @@ button.primary:hover { background: var(--blue-deep); }
     <button id="strengthRedo" disabled title="지금 세기로 모든 수를 다시 분석합니다">다시 분석</button>
     <button id="strengthClose">닫기</button>
   </div>
+  <div class="sp-sub">본선의 수를 하나씩 AI의 판단과 비교합니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
+  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 이미 결판난 국면(두기 전 승률 5% 미만·95% 넘음)의 수는 승률을 10% 넘게 잃지 않았으면 실수·악수로 치지 않습니다(오답노트도 같음). 초반은 50수까지, 중반은 150수까지입니다(19줄 기준, 작은 판은 넓이만큼 줄임). 분석 세기(빠름 250 · 보통 500 · 정밀 1000 · 초정밀 5000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
 </dialog>
 
 <div class="main">
@@ -1120,7 +1123,7 @@ async function openWithoutGpu() {
     } else if (recordMode) {
       $("conn").textContent = "GPU 없음 · 기보 기록";
       if (!root.info.DT) root.info.DT = new Date().toLocaleDateString("sv-SE");   // today, YYYY-MM-DD
-      openInfo();   // (how to record a game is in the guide — no how-to on screen, user 2026-10-23)
+      openInfo("판을 눌러 흑·백 차례로 두세요. 잘못 둔 수는 '지우기'로 지웁니다. 다 두면 '내 기보 저장'을 누르세요. 대국자·결과는 파일 → 기보 정보나 판 옆 대국자 칸을 눌러 언제든 고칠 수 있습니다.");
     }
   } catch { location.replace("./"); }
 }
@@ -1804,7 +1807,9 @@ function updateScoreBox() {
   $("scoreResult").textContent = resultText(re);
   $("scoreLines").innerHTML = line("B", "흑") + line("W", "백") +
     (ai ? `<div style="color:var(--muted)">AI 예상(끝까지 둘 때): ${escHtml(resultText(countedRE(ai.blackLead)))}</div>` : "");
-  $("scoreHint").textContent = scoring.waiting ? "AI가 죽은 돌을 판정하는 중…" : scoring.own ? "" : "GPU 분석 없이 셉니다";   // (how to fix it: the guide)
+  $("scoreHint").textContent = scoring.waiting ? "AI가 죽은 돌을 판정하는 중…"
+    : (scoring.own ? "흐린 돌 = 죽은 돌. " : "GPU 분석 없이 셉니다. 죽은 돌은 직접 눌러 주세요. ") +
+      "돌을 누르면 그 돌 무리가 죽은 돌 ↔ 산 돌로 바뀝니다. 경계가 덜 끝난 곳은 AI 형세로 나눴습니다.";
   $("scoreEnd").hidden = !game; $("scoreRecord").hidden = !!game || viewOnly;
   box.dataset.re = re; box.hidden = false;
 }
@@ -1924,7 +1929,7 @@ function gameForm() {
   for (const el of $("gameDlg").querySelectorAll("[data-for]")) el.hidden = !(el.dataset.for === "human" ? vsHuman : fresh);
   $("gdAi2").hidden = vsHuman;
   $("gdAi1").querySelector("span").textContent = vsHuman ? "AI세팅" : "흑 AI세팅";
-  $("gdNote").textContent = fresh ? "지금 기보는 지워지고 새 판에서 시작합니다." : "";   // (a warning only: what goes is lost)
+  $("gdNote").textContent = fresh ? "지금 기보는 지워지고 새 판에서 시작합니다." : `지금 보고 있는 ${cur.depth}수부터 이어서 둡니다.`;
 }
 for (const id of ["gdKind", "gdFrom", "gdColor"]) $(id).addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
@@ -2721,10 +2726,10 @@ function photoCount() { let b = 0, w = 0; photo.grid.forEach(v => { if (v === 1)
 function photoStep(step) {
   photo.step = step; photo.drag = -1;
   const check = step === "check";
-  $("photoStep").textContent = check   // what was read, or that the board was not found (how to fix them: the guide)
-    ? (([b, w]) => `${photo.auto ? `${photoN()}줄 바둑판을 찾아 ` : ""}흑 ${b} · 백 ${w}개를 읽었습니다`)(photoCount())
-    : photo.auto === false ? "바둑판을 자동으로 찾지 못했습니다" : "";
-  $("photoStep").hidden = !$("photoStep").textContent;
+  $("photoStep").textContent = check
+    ? (([b, w]) => `${photo.auto ? `${photoN()}줄 바둑판을 찾아 ` : ""}흑 ${b} · 백 ${w}개를 읽었습니다. 네모 = 읽은 돌(테두리 파랑 흑, 빨강 백). ` +
+        `틀린 곳을 누르면 빈 곳 → 흑 → 백으로 바뀝니다. 격자가 어긋났으면 '모서리 다시'를 누르세요.`)(photoCount())
+    : (photo.auto === false ? "바둑판을 자동으로 찾지 못했습니다. " : "") + "네 개의 동그라미를 바둑판 맨 바깥 줄의 네 귀 교차점에 끌어다 놓으세요. 파란 격자가 판의 줄과 겹치면 됩니다.";
   $("photoGo").textContent = check ? "이 배치로 열기" : "인식";
   $("photoBack").hidden = !check; $("photoSize").disabled = check;
   photoLayout(); photoDraw();
@@ -2813,7 +2818,7 @@ async function kifuRun(label, work) {  // latest request wins; older answers are
 }
 $("kifuOpen").onclick = () => {
   try { $("foxName").value ||= localStorage.getItem("kgv.foxName") || ""; } catch { /* storage blocked */ }
-  if (!kifuList.length) kifuMsg("");
+  if (!kifuList.length) kifuMsg("닉네임을 입력하고 검색하세요.");
   $("kifuDlg").showModal();
 };
 $("kifuClose").onclick = () => $("kifuDlg").close();
@@ -2999,25 +3004,34 @@ function saveDoChanged() {
   const again = saveAgain(), kifu = $("saveDoKifu").checked, stop = $("saveDoStop").checked && !$("saveDoStopRow").hidden;
   const where = saveStudy() ? "학습방" : "내 기보";
   $("saveHead").textContent = `${where}에 저장`;
-  $("saveDoKifuHint").textContent = "";   // (what each box does is in the guide — status only here, user 2026-10-23)
+  $("saveDoKifuHint").textContent = saveStudy() ? `수순·변화도와 분석값을 학습방 '${studyLabel(saveStudy(), saveBranch())} 연구'에 저장합니다.` : "기보와 분석값을 내 기보에 저장합니다.";
   // 먼저 자동분석: the level buttons show while it is ticked; nothing left at this level = nothing to wait for
   const todo = autoTodo(), box0 = $("saveDoAuto"), autoOn = !$("saveDoAutoRow").hidden && box0.checked && canAutoFirst();
   const running = autoId ? "자동분석" : strengthId ? "대국 리포트" : "", rq = queries.get(autoId || strengthId);
   box0.parentElement.classList.toggle("off", box0.disabled);
   $("saveLevel").hidden = !autoOn;
-  $("saveDoAutoHint").textContent = box0.disabled ? "GPU에 연결돼 있지 않습니다"
-    : running ? `지금 ${running} 중${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}`
-    : !autoOn ? "" : todo ? `${todo}수 남음` : "이 세기로 모두 분석됨";
+  $("saveDoAutoHint").textContent = box0.disabled ? "GPU에 연결돼 있지 않아 지금은 자동분석을 할 수 없습니다. 연결된 뒤 다시 누르세요."
+    : running ? (box0.checked ? `지금 ${running} 중입니다${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}. 끝난 뒤 저장합니다. 끄면 지금까지 분석된 그대로 바로 저장합니다.`
+                              : `지금 ${running} 중입니다. 켜면 끝난 뒤 저장합니다.`)
+    : !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
+    : todo ? `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`
+    : "이 세기로 이미 모두 분석돼 있어 바로 저장합니다.";
   const auto = autoFirst(), wait = auto || ((stop || waitRunning()) && analysisRunning());
   // 오답노트: possible once something is analysed, or will be. With 다 끝나면 GPU 끄기 nobody may be there to pick, so a
   // ticked box takes every candidate; unticked, none (user request 2026-10-03: not wanting a 오답노트 is a choice too)
   const notesOk = saveNotesBase || auto, box = $("saveDoNotes");
   box.disabled = !notesOk; box.checked = notesOk && savePick.notes;
   box.parentElement.classList.toggle("off", !notesOk);
-  $("saveDoNotesHint").textContent = !notesOk ? "분석된 수가 없습니다" : "";
+  $("saveDoNotesHint").textContent = !notesOk ? "분석된 수가 없어 만들 수 없습니다. 위의 '먼저 자동분석'을 켜거나 자동분석을 한 뒤 다시 누르세요."
+    : stop ? "GPU를 끄므로 고르는 창 없이 오답노트 후보를 모두 담습니다(누구의 실수·실수 기준은 오답노트에 담기 창에서 마지막으로 고른 것)."
+    : wait ? "분석이 끝나면 이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요."
+    : "이 기보의 실수 목록이 열립니다. 담을 실수를 골라 오답노트에 넣으세요.";
   $("saveTitle").hidden = !kifu; $("saveAsNew").hidden = !(kifu && again);
   $("saveGo").textContent = (auto ? "분석 후 " : wait ? "끝나면 " : "") + (kifu ? (again ? "덮어쓰기" : "저장") : "만들기");
-  $("saveDoStopHint").textContent = "";   // (then: the guide)
+  const then = ($("saveDoKifu").checked ? "저장하고 " : "") + ($("saveDoNotes").checked ? "오답노트 후보를 모두 담은 뒤 " : "");
+  $("saveDoStopHint").textContent = wait
+    ? `${auto || autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${then}GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
+    : `${then}GPU를 끄고 삭제해 요금을 멈춥니다.`;
   $("saveGo").disabled = !["Kifu", "Notes"].some(k => $("saveDo" + k).checked);
 }
 $("saveDo").addEventListener("change", () => {
@@ -3366,7 +3380,7 @@ async function loadMineList() {
     `<tr data-i="${i}" data-folder="${STUDY[k.study] ? `study:${k.study}:${(studyFolders || []).some(f => f.id === k.study_folder_id && f.study === k.study) ? k.study_folder_id : ""}` : mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name, STUDY[k.study] ? studyLabel(k.study, k.study_folder_id) : "", k.board_size && k.board_size !== 19 ? k.board_size + "줄" : ""].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${sizeTag(k)}${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
     `<td class="w">${escHtml(resultText(k.result || ""))}</td><td>${k.moves}</td><td>${k.analyzed}</td><td class="w">${day(k.updated_at)}</td>` +
     `<td class="del"><button data-del="${i}">삭제</button></td></tr>`).join("");
-  mineMsg(mineList.length ? "" : "저장한 기보가 없습니다");
+  mineMsg(mineList.length ? "기보를 누르면 저장된 분석과 함께 열립니다." : "저장한 기보가 없습니다. 분석한 기보를 파일 메뉴의 '내 기보에 저장'으로 저장하세요.");
   $("mineFindRow").hidden = mineList.length < 2 && !studies;
   const pick = $("mineFolderPick"), keep = pick.value || (mineStudy ? `study:${mineStudy}${mineBranch ? ":" + mineBranch : ""}` : "all");   // first time: the side of the game on screen
   pick.innerHTML = `<optgroup label="내 기보"><option value="all">전체</option>` + mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="none">분류 없음</option></optgroup>` +
@@ -3492,7 +3506,7 @@ function showNoteMistakes() {
   $("noteAll").checked = true;
   const analysed = lineThrough(cur).filter(n => n.move && moveLoss(n)).length;
   $("noteAddMsg").textContent = !analysed ? "분석된 수가 없습니다. 자동분석으로 기보를 분석한 뒤 담을 수 있습니다."
-    : noteRows.length ? "" : `분석된 ${analysed}수 중 이 기준에 맞는 실수가 없습니다.`;
+    : noteRows.length ? "줄을 누르면 그 수로 이동합니다. 담을 실수를 고르세요." : `분석된 ${analysed}수 중 이 기준에 맞는 실수가 없습니다.`;
   noteCount();
 }
 function noteCount() {
@@ -3678,7 +3692,7 @@ async function showProblem() {
   quiz.node.analysis = null;   // shown only after the answer
   goTo(quiz.node);
   $("err").textContent = "";
-  $("quizSub").textContent = `${k.title} · ${phaseOf(k.move_no, k.board_size)[1]} ${k.move_no}수째 · AI라면 어디에 둘까요?`;
+  $("quizSub").textContent = `${k.title} · ${phaseOf(k.move_no, k.board_size)[1]} ${k.move_no}수째 · AI라면 어디에 둘까요? 바둑판을 눌러 답하세요`;
 }
 function gradeAnswer(k, an, move) {
   const cands = an.moveInfos.filter(m => m.visits > 0).sort((p, q) => p.order - q.order), best = cands[0];
