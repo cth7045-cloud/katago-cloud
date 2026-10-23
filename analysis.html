@@ -4054,8 +4054,9 @@ $("quizFree").onclick = () => {
   if (!quiz || !quiz.bank || quiz.busy) return;
   if (quiz.free) { bankFreeEnd(); return; }
   if (cur !== quiz.at) goTo(quiz.at);
-  quiz.free = {start: cur, kids: cur.children.slice(), title: [$("quizTitle").className, $("quizTitle").textContent],
-               shown: BANK_FREE_KEEP.filter(id => !$(id).hidden)};
+  const kids = new Map();   // every position back to the problem's start: ◀ goes there too (the moves of the answer — user report 2026-10-23)
+  for (let n = cur; n; n = n === quiz.node ? null : n.parent) kids.set(n, n.children.slice());
+  quiz.free = {start: cur, kids, title: [$("quizTitle").className, $("quizTitle").textContent], shown: BANK_FREE_KEEP.filter(id => !$(id).hidden)};
   for (const id of BANK_FREE_KEEP) $(id).hidden = true;
   $("quizBack").hidden = $("quizFwd").hidden = false; $("quizFree").textContent = "놓아보기 끝"; $("quizFree").classList.add("on");
   bankFreeTitle(); schedule();   // the stones already there get their numbers
@@ -4066,7 +4067,7 @@ function bankFreePlay(p) {
   goTo(c); bankFreeTitle();
 }
 // ◀ ▶ in 놓아보기 and 답 고치기: back to the move before (it stays, so ▶ comes back to it), forward along the line last walked
-function bankNavStart() { return quiz && (quiz.free ? quiz.free.start : quiz.edit && !quiz.edit.setup ? quiz.node : null); }
+function bankNavStart() { return quiz && (quiz.free || (quiz.edit && !quiz.edit.setup)) ? quiz.node : null; }   // back as far as the problem itself
 function bankNavNext() { return cur.children.includes(cur.lastKid) ? cur.lastKid : cur.children[cur.children.length - 1] || null; }
 function bankNav(d) {
   const start = bankNavStart(); if (!start) return;
@@ -4082,7 +4083,7 @@ $("quizBack").onclick = $("beBack").onclick = () => bankNav(-1);
 $("quizFwd").onclick = $("beFwd").onclick = () => bankNav(1);
 function bankFreeEnd() {
   const f = quiz.free; quiz.free = null;
-  f.start.children = f.kids;   // what the problem's own line had there, without the stones tried
+  for (const [n, kids] of f.kids) n.children = kids;   // what the problem's own line had, without the stones tried
   goTo(f.start);
   for (const id of f.shown) $(id).hidden = false;
   $("quizBack").hidden = $("quizFwd").hidden = true; $("quizFree").textContent = "놓아보기"; $("quizFree").classList.remove("on");
