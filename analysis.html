@@ -582,8 +582,10 @@ button.primary:hover { background: var(--blue-deep); }
   #autoAnalyze .count { display: block; font-variant-numeric: tabular-nums; }
   #menuOpen { display: block; grid-column: span 4; order: 10; }
   .toolbar .error { order: 11; grid-column: 1 / -1; }
-  #quizBar { grid-column: 1 / -1; }
-  #quizBar button { width: auto; padding: 2px 16px; }
+  #quizBar { grid-column: 1 / -1; min-width: 0; }
+  /* the buttons share the width (4 of them after a 문제 은행 answer ran past a phone's edge and the page slid sideways — user report 2026-10-23) */
+  .qz-actions { flex: 1 1 100%; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  #quizBar button { width: 100%; min-width: 0; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
 }
 /* 다크모드: 기기 설정을 따름(2026-09-30). 색은 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판·돌 그림은 그대로. */
