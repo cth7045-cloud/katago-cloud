@@ -1143,9 +1143,7 @@ async function openShared(t) {
   try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return; }
   document.title = `${k.title} · KataGo Cloud`;
-  const member = await mineClient();
-  $("err").textContent = `공유된 기보 '${k.title}'` + (k.analyzed ? " · 저장된 분석 포함" : "") +
-    (member ? " — '내 기보 저장'으로 내 기보에 복사할 수 있습니다" : " — 로그인하면 내 기보에 복사할 수 있습니다");
+  $("err").textContent = "";   // no hint line under the board (user 2026-10-23: how to save it is in the guide)
 }
 let onMirror = null;   // set by mirrorScreen(): copies of the member's screen arriving through the bridge
 // 내 기기로 분석 (#local=1, user request 2026-10-05): no rented GPU. KataGo's net runs on this device (localengine.js,
