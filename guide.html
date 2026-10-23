@@ -167,7 +167,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
       <li><a href="#game">AI대국</a></li>
       <li><a href="#kifu">내 기보</a></li>
       <li><a href="#batch">기보 분석</a></li>
-      <li><a href="#notes">학습방·오답노트·내 연구</a></li>
+      <li><a href="#notes">학습방·오답노트·내 연구·문제 은행</a></li>
       <li><a href="#app">앱 설치·알림</a></li>
       <li><a href="#devices">여러 기기</a></li>
       <li><a href="#account">내 정보</a></li>
@@ -207,7 +207,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
           <tr><td>홈</td><td>새 공지, GPU 상태(켜져 있으면 쓴 시간·요금과 <span class="chip blue">분석 화면 열기</span>·종료), 잔액, 이번 달 사용 요금, 오늘 복습할 문제, 최근 사용 내역</td></tr>
           <tr><td>GPU</td><td>GPU를 빌려 분석합니다. → <a href="#gpu">GPU 빌리기</a></td></tr>
           <tr><td>기보</td><td>저장한 기보를 GPU 없이 다시 보고(→ <a href="#kifu">내 기보</a>), 여러 판을 한꺼번에 분석합니다(→ <a href="#batch">기보 분석</a>).</td></tr>
-          <tr><td>학습</td><td>내 실수로 만든 오답노트를 풀고, 정석·포석 연구를 모아 둡니다. → <a href="#notes">학습방</a></td></tr>
+          <tr><td>학습</td><td>내 실수로 만든 오답노트를 풀고, 정석·포석 연구를 모아 두고, 문제 은행에서 사활·맥·끝내기 책을 풉니다. → <a href="#notes">학습방</a></td></tr>
           <tr><td>내 정보</td><td>공지, 충전·사용 내역, 알림, GPU 자동 종료 등. → <a href="#account">내 정보</a></td></tr>
         </tbody>
       </table></div>
@@ -606,7 +606,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
 
     <!-- ================================================================ -->
     <section id="notes">
-      <h2>학습방 · 오답노트 · 내 연구</h2>
+      <h2>학습방 · 오답노트 · 내 연구 · 문제 은행</h2>
       <p class="sum">분석한 기보의 실수를 문제로 모아 다시 풀고(GPU 없이), 직접 연구한 정석·포석을 분석과 함께 모아 둡니다.</p>
       <div class="duo">
         <figure class="fig"><img src="guide/study.webp" width="700" height="626" alt="학습방: 오늘 복습할 문제 수, 복습하기, 초반·중반·종반 버튼" loading="lazy"><figcaption>학습방 › 오답노트 — 오늘 복습할 문제, 단계별로 풀기</figcaption></figure>
@@ -650,6 +650,13 @@ details.more .table-wrap { margin: 4px 0 8px; }
           <li><b>시작 국면</b>: 그 수로 가서 <b>편집 ▾</b>(휴대폰은 메뉴 → 편집)의 <b>여기서 열리게 하기</b>를 누르면 다음부터 그 수에서 열립니다. 다시 누르면(<b>시작 수 해제</b>) 처음부터 열립니다.</li>
         </ul>
       </div></details>
+      <h3>문제 은행</h3>
+      <ul>
+        <li>메뉴 <b>학습</b> → <b>문제 은행</b>. 사활·맥·끝내기·고전 책장에서 책(조치훈 사활 대사전, 이창호 맥, 관자보 등)을 누르면 그 책에서 아직 안 푼 문제 10개가 책 순서대로 열립니다. GPU 없이 풉니다.</li>
+        <li>바둑판을 눌러 두면 상대가 정해진 수로 받습니다. 정답 수순 끝까지 두면 <b>정답</b>, 수순에 없는 수는 <b>오답</b>입니다. <span class="chip">정답 보기</span>로 정답 수순을, <span class="chip">다시 풀기</span>로 처음부터 다시 둘 수 있습니다.</li>
+        <li>틀린 문제는 문제 은행 맨 위 <b>복습</b>에 모입니다. 1일·3일 뒤에 다시 나오고, 세 번 연이어 맞히면 빠집니다.</li>
+        <li>문제는 공개된 문제 모음(OGS 퍼즐, Ten Thousand Tsumego)에서 가져왔습니다.</li>
+      </ul>
     </section>
 
     <!-- ================================================================ -->

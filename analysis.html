@@ -424,6 +424,8 @@ dialog[open] { animation: arrive .35s var(--ease); }
 #quizMemo { flex: 1 1 240px; min-width: 0; }
 .qz-actions { display: flex; gap: 6px; }
 body.quiz .toolbar > :not(#quizBar):not(#err) { display: none !important; }
+body.bankq .main { grid-template-columns: minmax(0, 1fr); }   /* 문제 은행: the board alone, no analysis panels */
+body.bankq .left, body.bankq .right { display: none !important; }
 body.quiz .menubar > :not(.brand):not(.spacer):not(#vps):not(#connStatus):not(#gpuMeter) { display: none; }
 #saveDlg { width: min(460px, calc(100vw - 24px)); }
 #infoDlg { width: min(460px, calc(100vw - 24px)); }
@@ -905,7 +907,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div id="quizBar" hidden>
     <div class="qz-text"><b id="quizTitle"></b><span id="quizSub"></span></div>
     <input type="text" id="quizMemo" maxlength="300" placeholder="메모: 왜 틀렸는지 적어 두세요 (Enter로 저장)" autocomplete="off" hidden>
-    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
+    <div class="qz-actions"><button id="quizShow">정답 보기</button><button id="quizRetry" hidden>다시 풀기</button><button id="quizNext" class="primary" hidden>다음 문제</button><button id="quizEnd">그만하기</button></div>
   </div>
   <div id="clocks" hidden><span id="clockB"></span><span id="clockW"></span></div>
   <button id="analyze">▶ 분석 시작</button>
@@ -1797,7 +1799,7 @@ const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPla
 // 승률 가리기 (user request 2026-10-03): the member looks back over a game without the evaluation, the same way; the
 // analysis stays in the record (and is still saved), only the screen leaves it out until the box is unticked.
 const analysisHidden = () => $("hideEval").checked || (!!game && game.root === root && !game.show.B && !game.show.W) || (!!quiz && !quiz.shown);
-const hiddenWhy = () => $("hideEval").checked ? "승률 가리기 중 · 체크를 풀면 보입니다" : quiz ? "오답노트 · 답을 고르면 분석이 보입니다" : "AI 대국 중 · 분석 숨김";
+const hiddenWhy = () => $("hideEval").checked ? "승률 가리기 중 · 체크를 풀면 보입니다" : quiz ? (quiz.bank ? "문제 풀기 중" : "오답노트 · 답을 고르면 분석이 보입니다") : "AI 대국 중 · 분석 숨김";
 setInterval(() => {
   if (!game || scoring) return;   // 계가 on screen: the AI waits (and the clocks stop)
   if (game.root !== root) return stopGame();                                   // another record was opened
@@ -2799,6 +2801,7 @@ async function mineClient() {
 mineClient().then(c => {
   $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
+  if (hashParams.has("bank")) openBank(hashParams.get("bank"));   // the website's 문제 은행 link
 });
 async function gzip64(text) {
   const buf = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
@@ -3634,8 +3637,9 @@ async function answerQuiz(p) {
   const {error} = await mineSb.from("mistake_notes").update(change).eq("id", k.id);
   if (error) $("err").textContent = "기록을 저장하지 못했습니다: " + error.message;
 }
-$("quizShow").onclick = () => answerQuiz(null);
+$("quizShow").onclick = () => quiz.bank ? bankReveal() : answerQuiz(null);
 $("quizNext").onclick = () => {
+  if (quiz.bank) { bankNext(); return; }
   if (quiz.i + 1 < quiz.list.length) { quiz.i++; showProblem(); return; }
   const n = quiz.list.length, right = quiz.right;
   endQuiz();
@@ -3655,10 +3659,12 @@ function endQuiz() {
   if (!quiz) return;
   saveQuizMemo();
   const {prev, pending} = quiz;
-  quiz = null; document.body.classList.remove("quiz"); $("quizBar").hidden = true;
+  const bank = !!quiz.bank;
+  quiz = null; document.body.classList.remove("quiz", "bankq"); $("quizBar").hidden = $("quizRetry").hidden = true;
   setSize(prev.size); root = prev.root; setKomi(prev.komi); $("handicap").value = handicapShown = prev.handicap;
   if (pending) applyState(pending);   // another device changed the shared board meanwhile: follow it
   else goTo(prev.cur);
+  if (bank) layout();   // the whole board and the panels again
   $("err").textContent = "";
 }
 function drawQuizMarks(ctx, G) {   // after answering: ✕ on the original mistake, a ring on the answer
@@ -3674,6 +3680,176 @@ function drawQuizMarks(ctx, G) {   // after answering: ✕ on the original mista
     ctx.strokeStyle = quiz.grade.ok ? "rgb(31,157,85)" : "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 6);
     ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.stroke();
   }
+}
+
+// ------------------------------------------------------------------ 문제 은행 (학습방, user 2026-10-23)
+// Public problem collections built into the site's problems/ (katagovast tools/problem_bank/build.py): solved here
+// without a GPU. The member plays; the other side answers from the problem's tree (t = {move: result}; result 1 = right,
+// a move = wrong and that is the other side's answer, {reply: next t | 1} = go on); a move not in the tree is wrong.
+// Problems come by book (user 2026-10-23 "책별로"): #bank=cho1 = the next 10 of that book not tried yet, in the book's
+// order (p.k = the book's own number), #bank=review = the ones due again. The record is bank_progress (pack = the book;
+// bank_record works out the review date).
+const BANK_SET = 10;
+const BANK_GOALS = {live: "살리세요", kill: "잡으세요"};
+let bankIndex = null;
+const bankFiles = new Map();
+const bankBook = id => bankIndex.groups.flatMap(g => g.books).find(b => b.id === id);
+async function bankFile(name) {   // problems/<pack>-<file>.json, kept for this visit
+  if (!bankFiles.has(name)) {
+    const r = await fetch(`problems/${name}.json?v=${bankIndex.v || ""}`);
+    if (!r.ok) throw new Error("문제 파일 " + r.status);
+    bankFiles.set(name, await r.json());
+  }
+  return bankFiles.get(name);
+}
+async function bankPick(spec) {   // -> [{p, pack, file}]
+  const sb = mineSb, out = [];
+  if (spec === "review") {
+    const {data, error} = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null)
+      .lte("due_at", new Date().toISOString()).order("due_at").limit(BANK_SET);
+    if (error) throw error;
+    for (const r of data) {
+      if (!bankBook(r.pack)) continue;   // a book taken off the site
+      const p = (await bankFile(`${r.pack}-${r.file}`)).find(q => q.i === r.pid);
+      if (p) out.push({p, pack: r.pack, file: r.file, no: p.k});
+    }
+    return out;
+  }
+  const book = bankBook(spec); if (!book) return out;
+  for (let file = 0; file < book.files && out.length < BANK_SET; file++) {   // the book's order: the first ones not tried yet
+    const {data, error} = await sb.from("bank_progress").select("pid").eq("pack", spec).eq("file", file);
+    if (error) throw error;
+    const tried = new Set(data.map(r => r.pid)), rows = await bankFile(`${spec}-${file}`);
+    rows.forEach(p => { if (!tried.has(p.i) && out.length < BANK_SET) out.push({p, pack: spec, file, no: p.k}); });
+  }
+  return out;
+}
+async function openBank(spec) {
+  const say = text => { $("err").textContent = text; };
+  if (!await mineClient()) { say("로그인한 사이트에서만 쓸 수 있습니다"); return; }
+  if (game) { say("AI 대국 중에는 문제를 풀 수 없습니다. 대국을 멈춘 뒤 다시 여세요."); return; }
+  if (strengthId) { say("대국 리포트 분석이 끝난 뒤에 풀 수 있습니다"); return; }
+  say("문제를 불러오는 중…");
+  let list;
+  try {
+    if (!bankIndex) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error("목록 " + r.status); bankIndex = await r.json(); }
+    list = await bankPick(spec);
+  } catch (err) { say("문제를 불러오지 못했습니다: " + (err.message || err)); return; }
+  if (!list.length) { say(spec === "review" ? "오늘 복습할 문제가 없습니다" : bankBook(spec) ? "이 책의 문제를 모두 풀었습니다" : "없는 책입니다"); return; }
+  if (!quiz) {   // the board being studied comes back when the problems end
+    if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
+    quiz = {prev: {root, cur, komi: komi(), handicap: $("handicap").value, size: N}, pending: null};
+    document.body.classList.add("quiz"); $("quizBar").hidden = false;
+  }
+  Object.assign(quiz, {bank: spec, list, i: 0, right: 0});
+  document.body.classList.add("bankq");
+  say(""); bankShow();
+}
+const bankXY = m => m === "pass" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
+function bankShow() {
+  const {p, pack, no} = quiz.list[quiz.i], book = bankBook(pack);
+  Object.assign(quiz, {prob: p, t: p.t, done: false, busy: false, recorded: false, answer: null, grade: null, shown: true});
+  const pts = s => (s.match(/../g) || []).map(m => `[${m}]`).join("");
+  loadSgf(`(;GM[1]FF[4]SZ[${p.s}]KM[0]PL[${p.p}]` + (p.b ? "AB" + pts(p.b) : "") + (p.w ? "AW" + pts(p.w) : "") + ")");
+  quiz.view = bankView(p); layout();
+  quiz.node = quiz.at = root; goTo(root);
+  $("quizTitle").className = ""; $("quizTitle").textContent = `${no}번 · ${colorName(p.p)} 차례` + (BANK_GOALS[p.g] ? " · " + BANK_GOALS[p.g] : "");
+  $("quizSub").textContent = (quiz.bank === "review" ? "복습 · " : "") + book.title + (book.sub ? " · " + book.sub : "") + ` · ${quiz.i + 1}/${quiz.list.length}`;
+  $("quizMemo").hidden = $("quizNext").hidden = $("quizRetry").hidden = true; $("quizShow").hidden = false;
+}
+function bankView(p) {   // the stones and first moves, 2 lines around, snapped to near edges, made square; null = most of the board
+  let x0 = N, y0 = N, x1 = -1, y1 = -1;
+  for (const m of [...(p.b.match(/../g) || []), ...(p.w.match(/../g) || []), ...Object.keys(p.t).filter(m => m !== "pass")]) {
+    const x = m.charCodeAt(0) - 97, y = m.charCodeAt(1) - 97;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  if (x1 < 0) return null;
+  x0 = x0 <= 3 ? 0 : x0 - 2; y0 = y0 <= 3 ? 0 : y0 - 2; x1 = x1 >= N - 4 ? N - 1 : x1 + 2; y1 = y1 >= N - 4 ? N - 1 : y1 + 2;
+  const L = Math.max(x1 - x0, y1 - y0, 8) + 1;
+  if (L > N - 4) return null;
+  const grow = (a0, a1) => { for (let need = L - (a1 - a0 + 1), i = 0; need > 0; need--, i++) { if (a0 === 0 || (a1 < N - 1 && i % 2)) a1++; else a0--; } return a0; };
+  return [grow(x0, x1), grow(y0, y1), L];
+}
+const bankWait = () => new Promise(r => setTimeout(r, 400));
+async function bankPlayLine(moves, color) {   // plays moves one by one from quiz.at, alternating colours
+  const q = quiz; q.busy = true;
+  for (const mv of moves) {
+    await bankWait();
+    if (quiz !== q) return;
+    const c = play(q.at, color, bankXY(mv)); if (!c) break;
+    q.at = c; goTo(c); color = other(color);
+  }
+  q.busy = false;
+}
+async function answerBank(p) {
+  if (!quiz.node || quiz.busy || quiz.done) return;
+  if (cur !== quiz.at) { goTo(quiz.at); return; }   // looked back through the moves: back to the latest first
+  if (quiz.at.grid[idx(p[0], p[1])]) return;
+  const me = quiz.prob.p, move = String.fromCharCode(97 + p[0], 97 + p[1]), res = quiz.t[move];
+  const child = play(quiz.at, me, p); if (!child) return;   // ko or suicide
+  if (quiz.at === quiz.node) quiz.answer = p;
+  quiz.at = child; goTo(child);
+  if (res === 1) return bankFinish(true);
+  if (res && typeof res === "object") {
+    const replies = Object.keys(res), r = replies[Math.floor(Math.random() * replies.length)], q = quiz;
+    await bankPlayLine([r], other(me));
+    if (quiz !== q) return;
+    if (res[r] === 1) return bankFinish(true);
+    quiz.t = res[r];
+    $("quizTitle").className = "ok"; $("quizTitle").textContent = "좋습니다 · 계속 두세요";
+    return;
+  }
+  bankFinish(false);
+  if (typeof res === "string") await bankPlayLine([res], other(me));   // how the other side answers the wrong move
+}
+async function bankFinish(ok, text) {
+  const q = quiz, k = q.list[q.i];
+  q.done = true; q.grade = {ok};
+  $("quizTitle").className = ok ? "ok" : "bad"; $("quizTitle").textContent = text || (ok ? "정답!" : "오답");
+  $("quizShow").hidden = ok; $("quizRetry").hidden = $("quizNext").hidden = false;
+  $("quizNext").textContent = q.i + 1 < q.list.length ? "다음 문제" : q.bank === "review" ? "끝내기" : `다음 ${BANK_SET}문제`;
+  schedule();
+  if (q.recorded) return;
+  q.recorded = true;
+  if (ok) q.right++;
+  const {error} = await mineSb.rpc("bank_record", {p_pid: k.p.i, p_pack: k.pack, p_file: k.file, p_ok: ok});
+  if (error) $("err").textContent = "기록을 저장하지 못했습니다: " + error.message;
+}
+function bankLine(t) {   // a way to the answer: [my move, reply, my move, …]
+  for (const [m, r] of Object.entries(t)) {
+    if (r === 1) return [m];
+    if (r && typeof r === "object") for (const [o, n] of Object.entries(r)) {
+      if (n === 1) return [m, o];
+      const rest = n && typeof n === "object" && bankLine(n);
+      if (rest) return [m, o, ...rest];
+    }
+  }
+  return null;
+}
+async function bankReveal() {   // 정답 보기: the answer from the start (before answering = giving up)
+  if (quiz.busy) return;
+  if (!quiz.done) await bankFinish(false, "정답을 보았습니다");
+  quiz.at = quiz.node; goTo(quiz.node); $("quizShow").hidden = true;
+  await bankPlayLine(bankLine(quiz.prob.t) || [], quiz.prob.p);
+}
+$("quizRetry").onclick = () => {
+  if (!quiz || !quiz.bank || quiz.busy) return;
+  Object.assign(quiz, {at: quiz.node, t: quiz.prob.t, done: false, answer: null, grade: null});
+  goTo(quiz.node);
+  $("quizTitle").className = ""; $("quizTitle").textContent = `다시 풀기 · ${quiz.list[quiz.i].no}번 · ${colorName(quiz.prob.p)} 차례`;
+  $("quizRetry").hidden = true; $("quizNext").hidden = true; $("quizShow").hidden = false;
+};
+function bankNext() {
+  if (quiz.i + 1 < quiz.list.length) { quiz.i++; bankShow(); return; }
+  const n = quiz.list.length, right = quiz.right, spec = quiz.bank;
+  if (spec === "review") { endQuiz(); $("err").textContent = `복습 ${n}문제 중 ${right}문제를 맞혔습니다`; return; }
+  openBank(spec);
+}
+function drawBankMarks(ctx, G) {   // a ring on the first move once the problem is over
+  if (!quiz.done || !quiz.answer) return;
+  const {margin: m, sq, r} = G, x = m + sq * quiz.answer[0] + .5, y = m + sq * quiz.answer[1] + .5;
+  ctx.strokeStyle = quiz.grade.ok ? "rgb(31,157,85)" : "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 6);
+  ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.stroke();
 }
 
 // ------------------------------------------------------------------ 대국 리포트
@@ -3864,6 +4040,13 @@ function geometry(avail0, bigMargin, k = 1) {  // calculatePixelMargins + setupS
   do { bw--; margin = T(ratio * bw); avail = bw - 2 * margin; } while (bw > 40 && (avail - 1) % (N - 1) !== 0);
   const sq = T((avail - 1) / (N - 1));
   return {size: bw, margin, avail, sq, r: sq < 4 ? 1 : T(sq / 2) - 1, k, n: N};
+}
+// 문제 은행: only the problem's corner or side, as big as the board box (view = [x0, y0, lines]); the board is laid out as
+// if all of it were that big and drawn shifted by (ox, oy), so drawing and clicks need no other change
+function cropGeometry(px, view, bigMargin, k) {
+  const [x0, y0, L] = view, c = bigMargin ? 1.112 : 0.62;
+  const G = geometry(px * (N - 1 + 2 * c) / (L - 1 + 2 * c), bigMargin, k);
+  return Object.assign(G, {ox: G.sq * x0, oy: G.sq * y0, px: Math.round(G.sq * (L - 1) + 2 * G.margin)});
 }
 function fillCircle(ctx, cx, cy, r) { ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r + .5, 0, Math.PI * 2); ctx.fill(); }
 function strokeCircle(ctx, cx, cy, r, width) { ctx.lineWidth = width; ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r, 0, Math.PI * 2); ctx.stroke(); }
@@ -4066,13 +4249,16 @@ let touchCursor = null;   // [x, y] board point
 
 function drawMain() {
   if (!boardCtx) return;
+  boardCtx.setTransform(1, 0, 0, 1, -(boardG.ox || 0), -(boardG.oy || 0));
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
   const sc = scoring && scoring.node === cur;
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
     branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: $("nums").dataset.mode || "",
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
-  if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
+  if (quiz && quiz.bank) drawBankMarks(boardCtx, boardG);
+  else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
   if (sc) drawScoreMarks(boardCtx, boardG);
+  boardCtx.setTransform(1, 0, 0, 1, 0, 0);
   updateScoreBox();
 }
 function drawMini() {  // SubBoardRenderer: variation of the selected / best move with numbers
@@ -4081,14 +4267,14 @@ function drawMini() {  // SubBoardRenderer: variation of the selected / best mov
   renderBoard(miniCtx, miniG, cur, {coords: false, candidates: false, branch: pv, hover: null, numbers: false, ownership: false});
 }
 function boardPoint(ev) {
-  const rect = boardCv.getBoundingClientRect(), {margin: m, sq} = boardG, s = boardCv.width / rect.width;  // CSS -> device px
-  const x = Math.round(((ev.clientX - rect.left) * s - m - .5) / sq), y = Math.round(((ev.clientY - rect.top) * s - m - .5) / sq);
+  const rect = boardCv.getBoundingClientRect(), {margin: m, sq, ox = 0, oy = 0} = boardG, s = boardCv.width / rect.width;  // CSS -> device px
+  const x = Math.round(((ev.clientX - rect.left) * s + ox - m - .5) / sq), y = Math.round(((ev.clientY - rect.top) * s + oy - m - .5) / sq);
   return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
 }
 function placeAt(pt) {
   const p = boardPoint(pt); if (!p) return; hover = null;
   if (scoring) { toggleDead(p); return; }   // 계가: a stone pressed = its group dead / alive
-  if (quiz) { answerQuiz(p); return; }   // a 오답노트 problem: the click is the answer
+  if (quiz) { quiz.bank ? answerBank(p) : answerQuiz(p); return; }   // a problem: the click is the answer
   if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c); }
 let placeColor = "";   // "" = alternate, "B" / "W" = only that colour (life-and-death, set positions)
 $("placeSeg").addEventListener("click", ev => {
@@ -4626,8 +4812,9 @@ function layout() {
         - document.querySelector(".left").offsetHeight - document.querySelector(".right").offsetHeight - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
-  boardG = geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
-  boardCtx = sizeCanvasDevice(boardCv, boardG.size);
+  const view = quiz && quiz.view;
+  boardG = view ? cropGeometry(Math.floor(side * k), view, $("coords").classList.contains("on"), k) : geometry(Math.floor(side * k), $("coords").classList.contains("on"), k);
+  boardCtx = sizeCanvasDevice(boardCv, boardG.px || boardG.size);
   [capW, capH] = fitBox($("capBox")); capCtx = sizeCanvas(capCv, capW, capH);
   [statW, statH] = fitBox($("statBox")); statCtx = sizeCanvas(statCv, statW, statH);
   [graphW, graphH] = fitBox($("graphBox")); graphCtx = sizeCanvas(graphCv, graphW, graphH);
@@ -4698,7 +4885,7 @@ async function watchGpu() {
   // Opened plainly (the top bar's 분석 화면, 앱 아이콘) while the member's GPU is ready: go straight to it, so the board
   // left there (kept by the GPU's bridge) comes back as it was (user request 2026-09-29; the "이 GPU로 연결" button is gone).
   // Only when the page opens: never pulls away a board the member started here, nor 기보 기록 / a 내 기보 / a shared game.
-  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !batchMode;
+  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !hashParams.has("bank") && !batchMode;
   async function tick() {
     const cols = "status,charged_krw,ready_at,instance_created_at,created_at,web_url,web_token,gpu_name";
     const {data: s} = await (mine ? site.sb.from("gpu_sessions").select(cols).in("status", LIVE).order("created_at", {ascending: false})
