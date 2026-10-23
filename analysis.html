@@ -3647,7 +3647,7 @@ $("quizNext").onclick = () => {
   endQuiz();
   $("err").textContent = `오답노트 ${n}문제 중 ${right}문제를 맞혔습니다`;
 };
-$("quizEnd").onclick = () => endQuiz();
+$("quizEnd").onclick = () => quiz && quiz.bank ? bankLeave() : endQuiz();
 async function saveQuizMemo() {
   const k = quiz && quiz.note, memo = $("quizMemo").value.trim().slice(0, 300);
   if (!k || memo === (k.memo || "")) return;
@@ -3846,8 +3846,20 @@ $("quizRetry").onclick = () => {
 function bankNext() {
   if (quiz.i + 1 < quiz.list.length) { quiz.i++; bankShow(); return; }
   const n = quiz.list.length, right = quiz.right, spec = quiz.bank;
-  if (spec === "review") { endQuiz(); $("err").textContent = `복습 ${n}문제 중 ${right}문제를 맞혔습니다`; return; }
+  if (spec === "review") { bankLeave(); return; }
   openBank(spec);
+}
+// 끝내기 · 그만하기 (user 2026-10-23 "그냥 나가버리게"): back to the website's 문제 은행 (the book's shelf), not this
+// analysis screen. A tab the website opened closes; the installed app (same window) goes back; otherwise the page is opened.
+function bankLeave() {
+  const shelf = bankIndex && bankIndex.groups.find(g => g.books.some(b => b.id === quiz.bank));
+  const back = "index.html#study/bank" + (shelf ? "/" + shelf.id : "");
+  if (window.opener || history.length === 1) { try { window.close(); } catch { /* not ours to close */ } }   // the site's tab (noopener: a fresh tab)
+  setTimeout(() => {   // still here: the tab could not be closed
+    let fromSite = false;
+    try { fromSite = new URL(document.referrer).origin === location.origin && history.length > 1; } catch { /* no referrer */ }
+    if (fromSite) history.back(); else location.href = back;
+  }, 150);
 }
 function drawBankMarks(ctx, G) {   // a ring on the first move once the problem is over
   if (!quiz.done || !quiz.answer) return;

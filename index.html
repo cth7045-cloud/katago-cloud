@@ -1737,6 +1737,7 @@ $("studyRows").onclick = async (ev) => {
   openPage(`analysis.html?v=${Date.now()}#${engineHash()}kifu=${k.id}`);
 };
 addEventListener("focus", () => { if (profile) { loadMine(); loadNotesCard(); if (location.hash.startsWith("#study/bank")) loadBank(); } });   // saved in the analysis tab: shows up on return
+addEventListener("pageshow", (ev) => { if (ev.persisted && profile && location.hash.startsWith("#study/bank")) loadBank(); });   // back from 문제 은행 in the same window
 document.querySelectorAll("[data-mine-add]").forEach((b) => { b.onclick = () => {   // record a game by hand: the analysis screen without a GPU, on an empty board
   if (mine.filter((k) => !k.source).length >= 300) { toast("기보는 300판까지 저장할 수 있습니다. 필요 없는 기보를 지운 뒤 추가하세요.", true); return; }
   const folder = folders.some((f) => f.id === curFolder) ? `&folder=${curFolder}` : "";   // saved into the folder on screen
