@@ -148,6 +148,19 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
    (user report 2026-10-07). Same-width digits and room for a 3-digit ping keep the bar the same. */
 #conn, #gpuUse { font-variant-numeric: tabular-nums; }
 #conn { min-width: 9.4em; }   /* = "GPU 연결됨 · 999 ms" */
+#conn.slow { color: #f08a24; }   /* 연결이 느립니다 (slowNet) */
+/* 연결이 느립니다 (user 2026-10-23): a small card above the bottom buttons, only its own area takes clicks */
+#slowNote { position: fixed; left: 50%; bottom: 12px; z-index: 60; width: min(420px, calc(100vw - 24px)); box-sizing: border-box;
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 10px 12px 16px; border-radius: 16px;
+  background: rgba(20, 24, 34, .86); color: #fff; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .22); font-size: 13px; line-height: 1.5; word-break: keep-all;
+  opacity: 0; transform: translate(-50%, 8px); transition: opacity .25s, transform .25s; pointer-events: none; }
+#slowNote.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#slowNote b { display: block; font-size: 14px; margin-bottom: 2px; }
+#slowNote span { flex: 1; min-width: 0; }
+#slowNote button { flex: none; width: 32px; height: 32px; margin: -6px 0 0; padding: 0; border: 0; border-radius: 50%; background: transparent;
+  color: rgba(255, 255, 255, .72); font-size: 17px; line-height: 1; cursor: pointer; min-height: 0; box-shadow: none; }
+#slowNote button:hover { background: rgba(255, 255, 255, .12); color: #fff; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
 .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(31, 157, 85, .16); }
 details.menu { position: relative; }
@@ -1293,6 +1306,44 @@ function checkNow() {   // back on screen / back online: find out at once instea
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkNow(); });
 addEventListener("online", checkNow);
+// 연결이 느립니다 (user 2026-10-23 "500ms 넘어가면 … 안내 메세지"): three pings in a row over 500 ms (about 15 s) show a card
+// above the bottom buttons, three under 300 ms take it away, ✕ keeps it away on this screen. A ping sent while the tab was
+// hidden is left out: the browser slows a hidden tab down, so its time says nothing about the network.
+const SLOW_MS = 500, FAST_MS = 300, SLOW_RUN = 3;
+let slowRun = 0, fastRun = 0, slowClosed = false, shownAt = 0;
+document.addEventListener("visibilitychange", () => { shownAt = performance.now(); slowRun = fastRun = 0; });
+function slowNet(ms, sentAt) {
+  if (viewOnly || batchMode || document.hidden || sentAt < shownAt) return;
+  if (ms > SLOW_MS) { slowRun++; fastRun = 0; } else if (ms < FAST_MS) { fastRun++; slowRun = 0; } else { slowRun = fastRun = 0; }
+  if (slowRun >= SLOW_RUN && !slowClosed) slowShow(true);
+  else if (fastRun >= SLOW_RUN) slowShow(false);
+  $("conn").classList.toggle("slow", slowRun >= SLOW_RUN || (!!$("slowNote") && $("slowNote").classList.contains("on")));
+}
+function slowShow(on) {
+  let el = $("slowNote");
+  if (!el) {
+    if (!on) return;
+    el = document.createElement("div"); el.id = "slowNote"; el.setAttribute("role", "status");
+    el.innerHTML = '<span><b>연결이 느립니다</b>분석 결과가 늦게 표시될 수 있습니다. 와이파이 신호를 확인하거나 다른 네트워크로 바꿔 주세요.</span>' +
+      '<button type="button" aria-label="닫기">✕</button>';
+    el.querySelector("button").onclick = () => { slowClosed = true; slowShow(false); $("conn").classList.remove("slow"); };
+    document.body.appendChild(el);
+  }
+  if (on) slowPlace();
+  el.classList.toggle("on", on);
+}
+function slowPlace() {   // the bottom of the screen, above a bar of buttons that sits there (the PC toolbar, 문제 은행's buttons on a
+  // phone); a phone's toolbar right under the board is not at the bottom, so the card goes in the room below it, not on the board
+  const el = $("slowNote"); if (!el) return;
+  let top = innerHeight;
+  for (const bar of [document.querySelector("footer.toolbar"), document.querySelector("body.bankq .qz-actions")]) {
+    if (!bar) continue;
+    const r = bar.getBoundingClientRect();
+    if (r.height && r.bottom >= innerHeight - 24 && r.top < top) top = r.top;
+  }
+  el.style.bottom = (top < innerHeight ? innerHeight - top + 10 : 12) + "px";
+}
+addEventListener("resize", () => { if ($("slowNote") && $("slowNote").classList.contains("on")) slowPlace(); });
 
 function baseQuery() {
   return {rules: "korean", komi: queryKomi(), boardXSize: N, boardYSize: N, initialPlayer: root.toPlay,
@@ -1340,6 +1391,7 @@ function onMessage(msg) {
     else {   // "GPU 연결됨 · " gives way on a small tablet held sideways; the green dot already says it (2026-10-16)
       const ms = Math.round(performance.now() - msg.pong), n = Number(msg.clients) > 1 ? ` · 기기 ${Number(msg.clients)}대` : "";
       $("conn").innerHTML = `<span class="conn-word">GPU 연결됨 · </span>${ms} ms${n}`;
+      slowNet(ms, msg.pong);
     }
     updateEngineName(); return;
   }
