@@ -453,6 +453,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       <!-- 문제 은행 (user 2026-10-23): public problems (problems/index.json), solved on the analysis screen without a GPU -->
       <div class="hidden" id="bankCard">
         <nav class="cat-entries bank-books" id="bankBooks" aria-label="책"></nav>
+        <div class="hidden" id="bankBook">
+          <div class="row bank-book-top"><span class="muted small grow" id="bankBookInfo"></span><button class="primary" type="button" id="bankGo">이어 풀기</button></div>
+          <div class="study-branches hidden" id="bankPages" role="group" aria-label="쪽"></div>
+          <div class="study-grid bank-grid" id="bankCards"></div>
+        </div>
         <p class="muted small hidden" id="bankMsg"></p>
       </div>
     </div>
@@ -1536,7 +1541,7 @@ $("dashReview").onclick = () => { if ($("dashNotes").textContent === "0") locati
 $("notesPhases").onclick = (ev) => { const b = ev.target.closest("[data-phase]"); if (b) openNotes(b.dataset.phase); };
 // 문제 은행 (#study/bank, by book — user 2026-10-23 "책별로"): the shelves and books of problems/index.json (tools/problem_bank
 // in katagovast), what the member tried from bank_summary(); a book opens its next 10 problems not tried yet on the analysis
-// screen (#bank=<book>), 복습 the due ones
+// screen from its cards (#study/bank/<shelf>/<book>), 복습 the due ones
 let bankIdx = null, bankStats = {};
 async function loadBank() {
   try {
@@ -1547,17 +1552,24 @@ async function loadBank() {
   showBank();
 }
 const BOOK_ICON = '<svg viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/></svg>';
-function showBank() {   // #study/bank = 복습 and the shelves (사활 · 끝내기 …), #study/bank/<shelf> = that shelf's books
-  const shelf = bankIdx.groups.find((g) => location.hash === "#study/bank/" + g.id);
+function showBank() {   // #study/bank = 복습 and the shelves, #study/bank/<shelf> = its books, #study/bank/<shelf>/<book> = the book's problems as cards
+  const [, shelfId, bookId] = location.hash.slice(1).split("/").slice(1);
+  const shelf = bankIdx.groups.find((g) => g.id === shelfId), book = shelf && shelf.books.find((b) => b.id === bookId);
   const due = Object.values(bankStats).reduce((t, r) => t + r.due, 0);
   const row = (href, cls, name, sub) => `<a class="batch-entry" href="${href}"><span class="hub-icon folder ${cls}" aria-hidden="true">${BOOK_ICON}</span>` +
     `<span class="grow"><b>${esc(name)}</b><span>${sub}</span></span><span class="chev" aria-hidden="true">›</span></a>`;
-  if (shelf) {
+  $("bankBooks").classList.toggle("hidden", !!book); $("bankBook").classList.toggle("hidden", !book);
+  if (book) {
+    $("studyHead").textContent = book.title + (book.sub ? " · " + book.sub : "");
+    $("studyBack").setAttribute("href", "#study/bank/" + shelf.id); $("studyBack").textContent = "‹ " + shelf.name;
+    if (bankOpen.book !== book.id) bankOpen = { book: book.id, file: 0 };
+    showBankBook(book);
+  } else if (shelf) {
     $("studyHead").textContent = shelf.name;
     $("studyBack").setAttribute("href", "#study/bank"); $("studyBack").textContent = "‹ 문제 은행";
     $("bankBooks").innerHTML = shelf.books.map((b) => {
       const st = bankStats[b.id];
-      return row(`#bank=${b.id}`, "c" + (bankIdx.groups.indexOf(shelf) % 3 + 1), b.title, [b.sub && esc(b.sub), `${b.n.toLocaleString()}문제`, st && `푼 문제 ${st.solved.toLocaleString()}`].filter(Boolean).join(" · "));
+      return row(`#study/bank/${shelf.id}/${b.id}`, "c" + (bankIdx.groups.indexOf(shelf) % 3 + 1), b.title, [b.sub && esc(b.sub), `${b.n.toLocaleString()}문제`, st && `푼 문제 ${st.solved.toLocaleString()}`].filter(Boolean).join(" · "));
     }).join("");
   } else {
     $("bankBooks").innerHTML = (due ? row("#bank=review", "c4", "복습", `틀린 문제 ${due}개`) : "") + bankIdx.groups.map((g, gi) => {
@@ -1567,8 +1579,68 @@ function showBank() {   // #study/bank = 복습 and the shelves (사활 · 끝�
   }
   $("bankMsg").classList.add("hidden");
 }
+// a book's problems as cards (user 2026-10-23 "카드형식으로 문제 볼 수 있게"): one file (200 problems) a page, a small board of the
+// problem's corner (the same view as the analysis screen's bankView), the book's number and how the member did; a card opens
+// the analysis screen at that problem (#bank=<book>&k=<number>), 이어 풀기 at the next one not tried
+let bankOpen = { book: "", file: 0 };
+const bankFiles = new Map();
+async function bankFile(name) {
+  if (!bankFiles.has(name)) { const r = await fetch(`problems/${name}.json?v=${bankIdx.v}`); if (!r.ok) throw new Error(r.status); bankFiles.set(name, await r.json()); }
+  return bankFiles.get(name);
+}
+function bankThumb(p) {
+  const N = p.s, pts = (t) => (t.match(/../g) || []).map((m) => [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97]);
+  const stones = [...pts(p.b).map(([x, y]) => ({ x, y, b: true })), ...pts(p.w).map(([x, y]) => ({ x, y, b: false }))];
+  let x0 = 0, y0 = 0, x1 = N - 1, y1 = N - 1;
+  const all = [...stones, ...Object.keys(p.t).filter((m) => m !== "pass").map((m) => ({ x: m.charCodeAt(0) - 97, y: m.charCodeAt(1) - 97 }))];
+  if (all.length) {   // = webui.html bankView: 2 lines around, near edges snapped, square
+    let a0 = Math.min(...all.map((s) => s.x)), b0 = Math.min(...all.map((s) => s.y)), a1 = Math.max(...all.map((s) => s.x)), b1 = Math.max(...all.map((s) => s.y));
+    a0 = a0 <= 3 ? 0 : a0 - 2; b0 = b0 <= 3 ? 0 : b0 - 2; a1 = a1 >= N - 4 ? N - 1 : a1 + 2; b1 = b1 >= N - 4 ? N - 1 : b1 + 2;
+    const L = Math.max(a1 - a0, b1 - b0, 8) + 1;
+    if (L <= N - 4) {
+      const grow = (c0, c1) => { for (let need = L - (c1 - c0 + 1), i = 0; need > 0; need--, i++) { if (c0 === 0 || (c1 < N - 1 && i % 2)) c1++; else c0--; } return c0; };
+      x0 = grow(a0, a1); y0 = grow(b0, b1); x1 = x0 + L - 1; y1 = y0 + L - 1;
+    }
+  }
+  const ext = (a, edge) => (a === edge ? 0 : .5), lx0 = x0 - ext(x0, 0), lx1 = x1 + ext(x1, N - 1), ly0 = y0 - ext(y0, 0), ly1 = y1 + ext(y1, N - 1);
+  let svg = "";
+  for (let x = x0; x <= x1; x++) svg += `M${x} ${ly0}V${ly1}`;
+  for (let y = y0; y <= y1; y++) svg += `M${lx0} ${y}H${lx1}`;
+  const star = N === 19 ? [3, 9, 15] : N === 13 ? [3, 6, 9] : N === 9 ? [2, 4, 6] : [];
+  let dots = "", st = "";
+  for (const sx of star) for (const sy of star) if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1 && (N === 19 || (sx === star[1]) === (sy === star[1]))) dots += `<circle cx="${sx}" cy="${sy}" r=".13"/>`;
+  for (const s of stones) if (s.x >= x0 && s.x <= x1 && s.y >= y0 && s.y <= y1) st += `<circle class="${s.b ? "sb" : "sw"}" cx="${s.x}" cy="${s.y}" r=".47"/>`;
+  const pad = .62;
+  return `<svg viewBox="${x0 - pad} ${y0 - pad} ${x1 - x0 + 2 * pad} ${y1 - y0 + 2 * pad}" role="img" aria-label="문제 그림">` +
+    `<rect x="${x0 - pad}" y="${y0 - pad}" width="${x1 - x0 + 2 * pad}" height="${y1 - y0 + 2 * pad}" class="wood"/><path d="${svg}" class="ln"/>${dots}${st}</svg>`;
+}
+async function showBankBook(book) {
+  const st = bankStats[book.id], open = bankOpen, file = Math.min(open.file, book.files - 1);
+  $("bankBookInfo").textContent = `${book.n.toLocaleString()}문제` + (st ? ` · 푼 문제 ${st.solved.toLocaleString()}` : "");
+  $("bankPages").classList.toggle("hidden", book.files < 2);
+  let rows, done;
+  try {
+    [rows, done] = await Promise.all([bankFile(`${book.id}-${file}`), sb.from("bank_progress").select("pid,correct,due_at").eq("pack", book.id).eq("file", file)]);
+  } catch { $("bankCards").innerHTML = `<p class="muted small">문제를 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>`; return; }
+  if (bankOpen !== open || !location.hash.endsWith("/" + book.id)) return;   // moved on meanwhile
+  if (book.files > 1)   // 쪽: the numbers each file holds (index.json ks = its first and last problem)
+    $("bankPages").innerHTML = (book.ks || []).map(([a, b], f) => `<button type="button" data-file="${f}" class="${f === file ? "on" : ""}" aria-pressed="${f === file}">${a}–${b}</button>`).join("");
+  $("bankPages").querySelector(".on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const by = new Map((done.data || []).map((r) => [r.pid, r])), now = new Date().toISOString();
+  $("bankCards").innerHTML = rows.map((p) => {
+    const r = by.get(p.i), mark = !r ? "" : r.due_at && r.due_at <= now ? "bad" : r.correct ? "ok" : "bad";
+    return `<div class="study-item bank-item ${mark}" data-k="${p.k}"><div class="study-thumb">${bankThumb(p)}</div>` +
+      `<div class="study-body"><div class="study-title">${p.k}번</div></div></div>`;
+  }).join("");
+}
+$("bankPages").onclick = (ev) => { const b = ev.target.closest("[data-file]"); if (!b) return; bankOpen = { ...bankOpen, file: +b.dataset.file }; showBank(); };
+$("bankCards").onclick = (ev) => {
+  const c = ev.target.closest("[data-k]"); if (!c) return;
+  openPage(`analysis.html?v=${Date.now()}#bank=${bankOpen.book}&k=${c.dataset.k}`);
+};
+$("bankGo").onclick = () => openPage(`analysis.html?v=${Date.now()}#bank=${bankOpen.book}`);
 $("bankBooks").onclick = (ev) => {
-  const a = ev.target.closest("a[href^='#bank=']"); if (!a) return;   // a shelf (#study/bank/…) is an ordinary link
+  const a = ev.target.closest("a[href^='#bank=']"); if (!a) return;   // 복습; a shelf or a book (#study/bank/…) is an ordinary link
   ev.preventDefault();
   openPage(`analysis.html?v=${Date.now()}#${a.getAttribute("href").slice(1)}`);
 };

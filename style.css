@@ -853,6 +853,18 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
 .bank-books .grow { min-width: 0; }
 .bank-books .grow b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-icon .bs { fill: currentColor; stroke: none; }
+/* a book's problems as cards: number under a small board; a green / red edge = right / to review */
+.bank-book-top { margin-bottom: 4px; }
+#bankPages { flex-wrap: nowrap; overflow-x: auto; contain: inline-size; padding-bottom: 4px; scrollbar-width: thin; }   /* 쪽: one row that scrolls */
+#bankPages button { flex: none; }
+.bank-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.bank-item .study-body { padding: 6px 10px 8px; }
+.bank-item .study-title { font-size: 14px; text-align: center; font-variant-numeric: tabular-nums; }
+.bank-item.ok { box-shadow: inset 0 0 0 2px var(--good); }
+.bank-item.ok .study-title { color: var(--good); }
+.bank-item.bad { box-shadow: inset 0 0 0 2px var(--bad); }
+.bank-item.bad .study-title { color: var(--bad); }
+@media (max-width: 640px) { .bank-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .bank-item .study-thumb { padding: 6px 6px 0; } }
 .lib-top { gap: 10px; margin-bottom: 10px; }
 .lib-top input[type=search] { flex: 1 1 220px; min-width: 0; }
 .lib-top select { flex: 0 0 auto; min-height: 44px; }

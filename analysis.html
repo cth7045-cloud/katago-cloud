@@ -2808,7 +2808,7 @@ async function mineClient() {
 mineClient().then(c => {
   $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
-  if (hashParams.has("bank")) openBank(hashParams.get("bank"));   // the website's 문제 은행 link
+  if (hashParams.has("bank")) openBank(hashParams.get("bank"), +hashParams.get("k") || 0);   // the website's 문제 은행 link (k = a card)
 });
 async function gzip64(text) {
   const buf = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
@@ -3731,7 +3731,15 @@ async function bankPick(spec) {   // -> [{p, pack, file}]
   }
   return out;
 }
-async function openBank(spec) {
+async function bankPickFrom(spec, from) {   // -> problem number `from` on, in the book's order, tried or not
+  const book = bankBook(spec), out = []; if (!book) return out;
+  let file = Math.min(book.files - 1, Math.floor((from - 1) / bankIndex.chunk));   // a file holds 200 in order; numbers can skip, so it is here or earlier
+  while (file > 0 && (await bankFile(`${spec}-${file}`))[0].k > from) file--;
+  for (; file < book.files && out.length < BANK_SET; file++)
+    for (const p of await bankFile(`${spec}-${file}`)) if (p.k >= from && out.length < BANK_SET) out.push({p, pack: spec, file, no: p.k});
+  return out;
+}
+async function openBank(spec, from = 0) {   // from = a problem number: that one and the next ones in order (a card on the site)
   const say = text => { $("err").textContent = text; };
   if (!await mineClient()) { say("로그인한 사이트에서만 쓸 수 있습니다"); return; }
   if (game) { say("AI 대국 중에는 문제를 풀 수 없습니다. 대국을 멈춘 뒤 다시 여세요."); return; }
@@ -3740,7 +3748,7 @@ async function openBank(spec) {
   let list;
   try {
     if (!bankIndex) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error("목록 " + r.status); bankIndex = await r.json(); }
-    list = await bankPick(spec);
+    list = from ? await bankPickFrom(spec, from) : await bankPick(spec);
   } catch (err) { say("문제를 불러오지 못했습니다: " + (err.message || err)); return; }
   if (!list.length) { say(spec === "review" ? "오늘 복습할 문제가 없습니다" : bankBook(spec) ? "이 책의 문제를 모두 풀었습니다" : "없는 책입니다"); return; }
   if (!quiz) {   // the board being studied comes back when the problems end
@@ -3748,7 +3756,7 @@ async function openBank(spec) {
     quiz = {prev: {root, cur, komi: komi(), handicap: $("handicap").value, size: N}, pending: null};
     document.body.classList.add("quiz"); $("quizBar").hidden = false;
   }
-  Object.assign(quiz, {bank: spec, list, i: 0, right: 0});
+  Object.assign(quiz, {bank: spec, list, i: 0, right: 0, from: !!from});
   document.body.classList.add("bankq");
   say(""); bankShow();
 }
@@ -3796,7 +3804,7 @@ async function answerBank(p) {
   if (quiz.at.grid[idx(p[0], p[1])]) return;
   const me = quiz.prob.p, move = String.fromCharCode(97 + p[0], 97 + p[1]), res = quiz.t[move];
   const child = play(quiz.at, me, p); if (!child) return;   // ko or suicide
-  if (quiz.at === quiz.node) quiz.answer = p;
+  quiz.answer = p;   // the ring goes on the move that decided it (a right first move then a wrong second one: on the second — user report 2026-10-23)
   quiz.at = child; goTo(child);
   if (res === 1) return bankFinish(true);
   if (res && typeof res === "object") {
@@ -3886,13 +3894,13 @@ function bankNext() {
   if (quiz.i + 1 < quiz.list.length) { quiz.i++; bankShow(); return; }
   const n = quiz.list.length, right = quiz.right, spec = quiz.bank;
   if (spec === "review") { bankLeave(); return; }
-  openBank(spec);
+  openBank(spec, quiz.from ? quiz.list[quiz.list.length - 1].no + 1 : 0);   // from a card: the next ones in order; else the next not tried
 }
-// 끝내기 · 그만하기 (user 2026-10-23 "그냥 나가버리게"): back to the website's 문제 은행 (the book's shelf), not this
+// 끝내기 · 그만하기 (user 2026-10-23 "그냥 나가버리게"): back to the website's 문제 은행 (the book's cards), not this
 // analysis screen. A tab the website opened closes; the installed app (same window) goes back; otherwise the page is opened.
 function bankLeave() {
   const shelf = bankIndex && bankIndex.groups.find(g => g.books.some(b => b.id === quiz.bank));
-  const back = "index.html#study/bank" + (shelf ? "/" + shelf.id : "");
+  const back = "index.html#study/bank" + (shelf ? `/${shelf.id}/${quiz.bank}` : "");
   if (window.opener || history.length === 1) { try { window.close(); } catch { /* not ours to close */ } }   // the site's tab (noopener: a fresh tab)
   setTimeout(() => {   // still here: the tab could not be closed
     let fromSite = false;
@@ -3900,7 +3908,7 @@ function bankLeave() {
     if (fromSite) history.back(); else location.href = back;
   }, 150);
 }
-function drawBankMarks(ctx, G) {   // a ring on the first move once the problem is over
+function drawBankMarks(ctx, G) {   // a ring on the member's last move once the problem is over (the one that decided it)
   if (!quiz.done || !quiz.answer) return;
   const {margin: m, sq, r} = G, x = m + sq * quiz.answer[0] + .5, y = m + sq * quiz.answer[1] + .5;
   ctx.strokeStyle = quiz.grade.ok ? "rgb(31,157,85)" : "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 6);
