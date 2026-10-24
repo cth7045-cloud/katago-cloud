@@ -553,7 +553,8 @@ button.primary:hover { background: var(--blue-deep); }
 .xp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; }
 #xpNow { flex: 1 1 140px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 #xpNow b { color: var(--ink); }
-.xp-body { flex: 1; min-height: 0; overflow: auto; }
+.xp-body { flex: 1; min-height: 0; overflow: auto; transition: opacity .15s; }
+#xpBox.loading .xp-body { opacity: .45; pointer-events: none; }
 #xpNext td { line-height: 28px; }
 #xpNext td:first-child { font-weight: 700; }
 #xpNext td.ai1 { color: var(--blue); font-weight: 700; }
@@ -4462,25 +4463,38 @@ function xpUpper(m, stab) {   // of a move's mirror images on this position, the
   return xpStr(stab.map(k => xpXY(...xy, k)).sort((p, q) => (q[0] - q[1]) - (p[0] - p[1]) || q[0] - p[0])[0]);
 }
 function xpUpdate() { if (!xp) return; clearTimeout(xp.timer); xp.timer = setTimeout(xpLoad, 120); }
-async function xpLoad() {
-  const node = cur, seq = xpSeq(node), src = xp.src, key = src + ":" + seq;
-  xp.node = node; xp.seq = seq;
-  if (seq === null) { xp.data = null; xpDraw(); return; }
-  if (xp.cache.has(key)) { xp.data = xp.cache.get(key); xpDraw(); schedule(); return; }
-  xp.data = "loading"; xpDraw();
-  const c = await mineClient();
-  if (!c) { xp.data = {error: "로그인한 사이트에서만 쓸 수 있습니다"}; xpDraw(); return; }
-  const {data, error} = await c.rpc("kifu_tree", {p_seq: seq, p_src: src || null});
-  if (xp.node !== node || xp.src !== src) return;   // moved on meanwhile
-  if (error) xp.data = {error: "기보를 찾지 못했습니다: " + error.message};
-  else {
-    const stab = xpStab(seq);
-    data.next = (data.next || []).map(r => ({...r, m: xpUpper(r.m, stab)}));
-    data.stab = stab;
-    if (xp.cache.size > 300) xp.cache.clear();
-    xp.cache.set(key, data); xp.data = data;
+async function xpFetch(seq, src) {   // one position's answer, kept on this page (a promise while it is on its way)
+  const key = src + ":" + seq;
+  if (!xp.cache.has(key)) {
+    if (xp.cache.size > 400) xp.cache.clear();
+    xp.cache.set(key, (async () => {
+      const c = await mineClient();
+      if (!c) return {error: "로그인한 사이트에서만 쓸 수 있습니다"};
+      const {data, error} = await c.rpc("kifu_tree", {p_seq: seq, p_src: src || null});
+      if (error) { xp.cache.delete(key); return {error: "기보를 찾지 못했습니다: " + error.message}; }
+      const stab = xpStab(seq);
+      data.next = (data.next || []).map(r => ({...r, m: xpUpper(r.m, stab)}));
+      data.stab = stab;
+      return data;
+    })());
   }
-  xpDraw(); schedule();
+  return xp.cache.get(key);
+}
+async function xpLoad() {
+  const node = cur, seq = xpSeq(node), src = xp.src;
+  xp.node = node; xp.seq = seq;
+  if (seq === null) { xp.data = null; xp.dataNode = node; $("xpBox").classList.remove("loading"); xpDraw(); return; }
+  const p = xpFetch(seq, src);
+  $("xpBox").classList.add("loading");   // the last answer stays on screen, dimmed, until this one comes
+  const data = await p;
+  if (xp.node !== node || xp.src !== src) return;   // moved on meanwhile
+  $("xpBox").classList.remove("loading");
+  xp.data = data; xp.dataNode = node; xpDraw(); schedule();
+  // the likely next positions, one after another, so the next move shows at once (user 2026-10-24 "바로바로 나오게")
+  if (!data.error) for (const r of (data.next || []).slice(0, 3)) {
+    if (xp.node !== node) break;
+    await xpFetch(seq + r.m, src).catch(() => {});
+  }
 }
 const xpPct = (a, b) => b ? Math.round(a / b * 100) : 0;
 function xpDraw() {
@@ -4488,7 +4502,7 @@ function xpDraw() {
   const d = xp.data, seq = xp.seq;
   let now = "", rows = "", head = "", list = "";
   if (seq === null) now = N !== 19 ? "19줄 기보만 찾습니다" : quiz ? "" : "흑부터 번갈아 둔 맞바둑 수순만 찾습니다";
-  else if (!d || d === "loading") now = "찾는 중…";
+  else if (!d) now = "찾는 중…";
   else if (d.error) now = d.error;
   else if (!d.total) now = "이 수순으로 둔 기보가 없습니다";
   else {
@@ -4512,7 +4526,7 @@ function xpDraw() {
   xpAi();
 }
 function xpAi() {   // the AI column from the analysis on screen: 1위, or how much worse than the AI's first choice (집); drawn with the side table
-  if (!xp || xp.node !== cur) return;
+  if (!xp || xp.dataNode !== cur) return;
   const cands = candsShown() ? candidates(cur, true) : [], best = cands[0] ? moverLead(cur, cands[0].scoreLead) : 0;
   for (const tr of $("xpNext").rows) {
     const xy = xpPair(tr.dataset.m), c = cands.find(c => c.move === (xy ? gtp(...xy) : "pass")), td = tr.cells[4];
@@ -4538,7 +4552,7 @@ function xpFollow(g) {   // a game's moves from here on, as the line ▶ follows
   $("err").textContent = `${g.black || "흑"} · ${g.white || "백"}${g.day ? " (" + g.day.slice(0, 4) + ")" : ""}의 수순을 이었습니다`;
 }
 function drawXpMarks(ctx, G) {   // the share of each next move on its point (where the AI shows no candidate of its own)
-  const d = xp.data; if (!d || !d.next || xp.node !== cur || hover) return;
+  const d = xp.data; if (!d || !d.next || xp.dataNode !== cur || hover) return;
   const cands = new Set(candsShown() ? candidates(cur, true).map(c => c.move) : []), {margin: m, sq, r} = G;
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `800 ${Math.round(r * .95)}px ${UI_FONT}`;
   for (const n of d.next.slice(0, 12)) {
