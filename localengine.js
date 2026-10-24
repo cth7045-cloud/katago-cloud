@@ -477,10 +477,20 @@ async function step(root) {   // one batch of playouts; returns how many new eva
   }
   return fresh.length;
 }
+// allowMoves (the side to move's list) and rootPolicyTemperature > 1 at the root, as KataGo's analysis engine does them:
+// 수순 탐색 searches only the moves in its table, spread wide so each gets its share (2026-10-24)
+function rootShape(root, q) {
+  const n = root.p.n, a = (q.allowMoves || []).find(x => (/^w/i.test(x.player || "") ? 2 : 1) === root.p.pla);
+  const ok = a && Array.isArray(a.moves) ? new Set(a.moves.map(s => parseMove(s, n))) : null;
+  const T = q.rootPolicyTemperature > 1 ? q.rootPolicyTemperature : 1;
+  let z = 0;
+  for (const k of root.kids) { k.P = ok && !ok.has(k.m) ? 0 : Math.pow(k.P, 1 / T); z += k.P; }
+  if (z > 0) for (const k of root.kids) k.P /= z;
+}
 function report(task, root, during, turn) {   // the GPU engine's response, values for BLACK
   const p = root.p, n = p.n, black = p.pla === 1, bw = w => black ? w : 1 - w, bs = s => black ? s : -s;
   const kids = (root.kids || []).filter(k => k.node && k.node.N > 0).sort((a, b) => b.node.N - a.node.N);
-  const moveInfos = kids.slice(0, 30).map((k, order) => {
+  const moveInfos = kids.slice(0, 60).map((k, order) => {
     const pv = [moveName(k.m, n)];
     for (let c = k.node; c && c.kids && pv.length < 12;) {
       const nx = c.kids.filter(x => x.node && x.node.N > 0).sort((a, b) => b.node.N - a.node.N)[0];
@@ -543,6 +553,7 @@ async function pump() {
       if (!t.root) {   // the next analyzed turn
         const p = t.all[t.turns[t.i]], [ev] = await evalCached([p]);
         t.root = makeNode(p); expand(t.root, ev); t.t0 = performance.now(); t.said = 0;
+        if (t.q.allowMoves || t.q.rootPolicyTemperature > 1) rootShape(t.root, t.q);
       }
       const s0 = performance.now(), made = await step(t.root), took = performance.now() - s0;
       if (made === batch) {   // a full batch of new evaluations: fit the next one to STEP_MS (cached ones cost nothing)

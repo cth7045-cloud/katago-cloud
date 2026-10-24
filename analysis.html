@@ -560,6 +560,7 @@ button.primary:hover { background: var(--blue-deep); }
 #xpNext td { line-height: 28px; }
 #xpNext td:first-child { font-weight: 700; }
 #xpNext td.ai1 { color: var(--blue); font-weight: 700; }
+#xpNext td small { margin-left: 3px; font-size: 10px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
 .xp-bar { display: inline-block; vertical-align: middle; width: 34px; height: 6px; margin-right: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .xp-bar i { display: block; height: 100%; background: var(--ink); }
 .xp-sub { margin: 10px 2px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -1173,6 +1174,7 @@ const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : nul
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
 const xp = freshTree ? {src: "", cache: new Map(), node: null, seq: null, data: null, timer: 0} : null;
+let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
 const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // the list on screen (메뉴 › 보기 › 수순 탐색 목록)
 const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
@@ -1588,7 +1590,7 @@ function onMessage(msg) {
   if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
   if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
-    if (/:b\d+$/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board
+    if (/:b\d+$/.test(msg.peerQuery || "") || /^x\d/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board; 수순 탐색's table: not the board's analysis
     const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
     if (node) { store(node, msg, msg.peerQuery); schedule(); }
     return;
@@ -1599,6 +1601,14 @@ function onMessage(msg) {
   const q = queries.get(msg.id);
   if (!q || !msg.rootInfo) return;
   if (q.score) { queries.delete(msg.id); scoreAnswer(msg); return; }   // 계가: the ownership for the dead stones
+  if (q.xp) {   // 수순 탐색's table: each move's value so far (a move keeps its deepest one)
+    const an = q.node.xpAn ||= {};
+    for (const mi of msg.moveInfos || []) {
+      const xy = parseGtp(mi.move), m = xy ? xpStr(xy) : "tt";
+      if (!an[m] || mi.visits >= an[m].visits || q.node === cur) an[m] = {lead: mi.scoreLead, wr: mi.winrate, visits: mi.visits};
+    }
+    schedule(); return;
+  }
   if (q.line) {  // auto analysis / strength estimate: one response per turn
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
@@ -1630,6 +1640,7 @@ function onMessage(msg) {
 const AUTO_ON = " · 자동분석을 이어서 합니다", LIVE_ON = " · 분석을 다시 요청했습니다";
 function queryFailed(id) {
   if (!id) return;
+  if (xpEval && id === xpEval.id) { queries.delete(id); xpEval = null; return; }   // 수순 탐색's table search: tried again on the next move
   if (id === autoId) {
     queries.delete(autoId); autoId = null;
     if (!autoRetried) {
@@ -1755,7 +1766,7 @@ function goTo(node) {
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
   if (!applyingRemote) { requestLive(); publish(); }   // following another device: it runs the analysis
-  if (xp) xpUpdate();
+  if (xp) { xpEvalSync(); xpUpdate(); }
   schedule();
 }
 function step(k) {
@@ -1769,9 +1780,10 @@ function setAnalyzing(on) {
   analyzing = on;
   $("analyze").classList.toggle("on", on); $("analyze").textContent = on ? "■ 분석 정지" : "▶ 분석 시작";
   $("hint").textContent = on ? "생각 중 · 단축키=Space" : "생각 멈춤 · 단축키=Space";
+  if (xp) xpEvalSync();   // 수순 탐색's table search runs with 분석 시작 only
   if (!on && $("vps").textContent) $("vps").textContent = "0 visits/s";   // stopped: not the last speed (user request 2026-09-29)
 }
-$("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(); publish(); schedule(); };
+$("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(); if (xp) xpEvalSync(); publish(); schedule(); };
 const runAuto = () => startAuto(mainLine().every(analysed));   // everything analysed at this level = 재분석
 $("autoAnalyze").onclick = () => {
   if (autoId) return stopAuto();
@@ -4524,7 +4536,7 @@ async function xpLoad() {
   const data = await p;
   if (xp.node !== node || xp.src !== src) return;   // moved on meanwhile
   $("xpBox").classList.remove("loading");
-  xp.data = data; xp.dataNode = node; xpDraw(); schedule();
+  xp.data = data; xp.dataNode = node; xpDraw(); xpEvalSync(); schedule();
   // the likely next positions, one after another, so the next move shows at once (user 2026-10-24 "바로바로 나오게")
   if (!data.error) for (const r of (data.next || []).slice(0, 3)) {
     if (xp.node !== node) break;
@@ -4559,13 +4571,38 @@ function xpDraw() {
   $("xpNext").closest("table").hidden = !rows;
   xpAi();
 }
-function xpAi() {   // the AI column from the analysis on screen: 1위, or how much worse than the AI's first choice (집); drawn with the side table
+// The AI column (user 2026-10-24 "모든 순위의 수에 일부분씩 할당해서 동시에 … 기본 분석도 빠지지 말고", "1visit이라도 계산되면
+// 표시 … 실시간으로"): while 분석 시작 is on, one more search of this position on the analysis engine, beside the live one
+// (GTP), allowed only the table's moves (allowMoves) and spread wide over them (rootPolicyTemperature), with no visit
+// limit and a report every 0.5 s, until the board moves or the analysis stops. Each move shows its value as soon as it
+// has one visit: 1위 = the live analysis's first choice, else how much worse than the best known (집), and its visits.
+function xpEvalSync() {
+  const rows = xp && xp.dataNode === cur && xp.data && xp.data.next ? xp.data.next.slice(0, 60) : [];
+  const want = !!xp && analyzing && !quiz && !game && !viewOnly && rows.length > 0;
+  const moves = want ? rows.map(r => { const xy = xpPair(r.m); return xy ? gtp(...xy) : "pass"; }) : [];
+  if (xpEval && (!want || xpEval.node !== cur || xpEval.key !== moves.join())) {
+    send({id: "t" + (++qn), action: "terminate", terminateId: xpEval.id}); queries.delete(xpEval.id); xpEval = null;
+  }
+  if (!want || xpEval) return;
+  const id = "x" + (++qn);
+  queries.set(id, {xp: true, node: cur});
+  if (!send({...baseQuery(), includeOwnership: false, id, moves: movesOf(cur), maxVisits: 50000000,   // under 10^8: the analysis engine, not the live GTP one
+             reportDuringSearchEvery: 0.5, firstReportDuringSearchAfter: 0.1,
+             allowMoves: [{player: cur.toPlay, moves, untilDepth: 1}], rootPolicyTemperature: 3})) { queries.delete(id); return; }
+  xpEval = {node: cur, id, key: moves.join()};
+}
+function xpAi() {   // drawn with the side table
   if (!xp || xp.dataNode !== cur) return;
-  const cands = candsShown() ? candidates(cur, true) : [], best = cands[0] ? moverLead(cur, cands[0].scoreLead) : 0;
+  const cands = candsShown() ? candidates(cur, true) : [], an = cur.xpAn || {}, on = candsShown() && analyzing;
+  const value = m => an[m] ? moverLead(cur, an[m].lead) : null;
+  let best = cands[0] ? moverLead(cur, cands[0].scoreLead) : -Infinity;
+  for (const tr of $("xpNext").rows) { const v = value(tr.dataset.m); if (v !== null && v > best) best = v; }
   for (const tr of $("xpNext").rows) {
-    const xy = xpPair(tr.dataset.m), c = cands.find(c => c.move === (xy ? gtp(...xy) : "pass")), td = tr.cells[4];
-    const text = !c ? "" : c.order === 0 ? "1위" : "−" + Math.max(0, best - moverLead(cur, c.scoreLead)).toFixed(1);
-    if (td.textContent !== text) { td.textContent = text; td.classList.toggle("ai1", !!c && c.order === 0); }
+    const m = tr.dataset.m, xy = xpPair(m), c = cands.find(c => c.move === (xy ? gtp(...xy) : "pass")), e = candsShown() ? an[m] : null, td = tr.cells[4];
+    const top = !!c && c.order === 0, v = e ? value(m) : c ? moverLead(cur, c.scoreLead) : null, visits = Math.max(e ? e.visits : 0, c ? c.visits : 0);
+    const text = top ? "1위" : v !== null && best > -Infinity ? "−" + Math.max(0, best - v).toFixed(1) : on ? "…" : "";
+    const html = text + (visits ? `<small>${playoutsString(visits)}</small>` : "");
+    if (td.dataset.h !== html) { td.dataset.h = html; td.innerHTML = html; td.classList.toggle("ai1", top); }
   }
 }
 function xpFollow(g) {   // a game's moves from here on, as the line ▶ follows; the board goes to its next move
