@@ -175,6 +175,14 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
       <nav class="pager" id="speedPager" aria-label="속도 목록 페이지"></nav>
     </div>
 
+    <div class="panel">
+      <h2>나라별 연결 지연</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>GPU 나라</th><th class="num" title="모든 핑의 평균 — 회원 와이파이·기기 상태 포함">평균</th><th class="num" title="대여별 평균의 중앙값">중앙값</th><th class="num" title="대여별 가장 빠른 핑의 중앙값 — 그 나라까지의 거리">가장 빠름</th><th class="num">500ms 넘음</th><th class="num" title="측정한 대여 수 · 핑 수">대여·핑</th><th>마지막 측정</th></tr></thead>
+        <tbody id="pingRows"></tbody>
+      </table></div>
+    </div>
+
     </section>
 
     <!-- 충전 요청 (2026-09-30): members ask on the site; approving adds the money once (admin_charge_decide) -->
@@ -456,12 +464,14 @@ async function load() {
   try {
     // admins spend Vast credit, not their site balance: show the same figure as the home page (Vast − members)
     // 최근 입출금 comes from the database function admin_ledger (only what an admin did by hand, 2026-09-29)
-    const [d, funds, ledger, speed, sessModels] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null),
+    const [d, funds, ledger, speed, sessModels, ping] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null),
       sb.rpc("admin_ledger").then(({ data, error }) => { if (error) throw error; return data ?? []; }),
       // GPU·모델별 속도 (admin_speed, 2026-09-29); an error here only empties that table
       sb.rpc("admin_speed").then(({ data, error }) => (error ? null : data ?? [])),
       // each rental's model (admin_session_models, 2026-09-29): the overview does not send it; an error only hides it
-      sb.rpc("admin_session_models").then(({ data, error }) => (error ? [] : data ?? []))]);
+      sb.rpc("admin_session_models").then(({ data, error }) => (error ? [] : data ?? [])),
+      // 나라별 연결 지연 (admin_ping, 2026-10-24); an error here only empties that table
+      sb.rpc("admin_ping").then(({ data, error }) => (error ? null : data ?? []))]);
     const models = Object.fromEntries(sessModels.map((r) => [r.id, r]));
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
     formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
@@ -560,6 +570,7 @@ async function load() {
     showPage("ledger");
     speedRows = speed;
     showSpeed();
+    showPing(ping);
     drawNoticeList();   // names of the members the notices went to
   } catch (e) {
     $("err").textContent = e.message;
@@ -587,6 +598,19 @@ render.speed = (list) => { $("speedRows").innerHTML = list.map((r) => `<tr><td>$
   `<td class="small muted">${r.source === "use" ? "실사용" : "벤치마크"}</td></tr>`).join("")
   || `<tr><td colspan="7" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석하면 쌓입니다.</td></tr>`; };
 $("speedModel").onchange = () => { pages.speed = 1; showSpeed(); };
+
+// 나라별 연결 지연: Korea first, then the rest by their fastest ping
+const COUNTRY = { KR: "한국", JP: "일본", TW: "대만", HK: "홍콩", VN: "베트남", TH: "태국", MY: "말레이시아", SG: "싱가포르",
+  ID: "인도네시아", PH: "필리핀", CN: "중국", IN: "인도", AU: "호주", US: "미국" };
+const countryName = (geo) => COUNTRY[/, ([A-Z]{2})$/.exec(geo || "")?.[1]] || geo || "?";
+function showPing(rows) {
+  if (rows == null) { $("pingRows").innerHTML = `<tr><td colspan="7" class="muted">지연 기록을 불러오지 못했습니다.</td></tr>`; return; }
+  const list = [...rows].sort((a, b) => (/, KR$/.test(b.geolocation) - /, KR$/.test(a.geolocation)) || Number(a.best_ms) - Number(b.best_ms));
+  $("pingRows").innerHTML = list.map((r) => `<tr><td>${esc(countryName(r.geolocation))}</td><td class="num"><b>${Number(r.avg_ms).toLocaleString()} ms</b></td>` +
+    `<td class="num">${Number(r.median_ms).toLocaleString()} ms</td><td class="num">${Number(r.best_ms).toLocaleString()} ms</td>` +
+    `<td class="num">${Number(r.slow_pct)}%</td><td class="num">${r.sessions} · ${Number(r.samples).toLocaleString()}</td><td>${when(r.last_at)}</td></tr>`).join("")
+    || `<tr><td colspan="7" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석 화면을 열면 1분마다 쌓입니다.</td></tr>`;
+}
 
 // ------------------------------------------------------------------ GPU별 탐색 스레드 (user request 2026-10-17)
 // Saved thread counts (admin_tune = tune_cache for the engine in use) per GPU kind × model members can pick, set against

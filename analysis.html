@@ -1498,7 +1498,7 @@ function onMessage(msg) {
     else {   // "GPU 연결됨 · " gives way on a small tablet held sideways; the green dot already says it (2026-10-16)
       const ms = Math.round(performance.now() - msg.pong), n = Number(msg.clients) > 1 ? ` · 기기 ${Number(msg.clients)}대` : "";
       $("conn").innerHTML = `<span class="conn-word">GPU 연결됨 · </span>${ms} ms${n}`;
-      slowNet(ms, msg.pong);
+      slowNet(ms, msg.pong); reportPing(ms, msg.pong);
     }
     updateEngineName(); return;
   }
@@ -1608,6 +1608,19 @@ function reportSpeed(vps, ms, visits) {
   if (ms < 5000 || visits < 500 || autoId || strengthId || batchQ || performance.now() - speedAt < 10000) return;
   speedAt = performance.now();
   import("./app.js").then(({ sb }) => sb.rpc("report_speed", { p_token: token, p_vps: vps })).catch(() => {});
+}
+// 나라별 연결 지연 (admin page, 2026-10-24): a minute of pings (the ms shown above) goes to the database with this GPU's token —
+// count, sum, fastest and how many over 500 ms (report_ping: one report per 50 s per rental). Left out like 연결이 느립니다:
+// a hidden tab's pings (the browser slows it down), an admin watching, 기보 분석; website only.
+const PING_EVERY = 60000;
+let pingSum = {n: 0, total: 0, min: Infinity, slow: 0}, pingSince = performance.now();
+function reportPing(ms, sentAt) {
+  if (!token || viewOnly || batchMode || GPU_HOST.test(location.hostname) || document.hidden || sentAt < shownAt) return;
+  pingSum.n++; pingSum.total += ms; pingSum.min = Math.min(pingSum.min, ms); if (ms > SLOW_MS) pingSum.slow++;
+  if (performance.now() - pingSince < PING_EVERY) return;
+  const p = pingSum; pingSum = {n: 0, total: 0, min: Infinity, slow: 0}; pingSince = performance.now();
+  if (p.n < 3 || p.n > 30) return;
+  import("./app.js").then(({ sb }) => sb.rpc("report_ping", { p_token: token, p_n: p.n, p_total_ms: p.total, p_min_ms: p.min, p_slow: p.slow })).catch(() => {});
 }
 // 빠름 / 보통 / 정밀 / 초정밀: one setting for 자동분석 and 대국 리포트.
 // Each skips the moves already analysed at least that deep, so what one of them did, the other does not redo.
