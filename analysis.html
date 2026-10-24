@@ -3273,11 +3273,11 @@ async function stopGpuNow(before = "") {
   } catch (err) { $("err").textContent = (before ? before + " " : "") + "GPU를 끄지 못했습니다. 'GPU 종료'를 눌러 주세요: " + err.message; }
   if (recheckGpu) recheckGpu();
 }
-async function mineRow(title, study = false) {   // the saved_kifu row for the game on screen, or null if it is over 2MB
+async function mineRow(title, study = false) {   // the saved_kifu row for the game on screen, or null if it is over 2MB (an admin has no cap, DB 20261024i)
   const cut = (v, n) => v ? String(v).slice(0, n) : null;
   const sgf = toSgf(true), zip = typeof CompressionStream === "function";
   const data = zip ? await gzip64(sgf) : sgf;
-  if (data.length > 2e6) return null;
+  if (data.length > 2e6 && !(await bankIsAdmin())) return null;
   return {title, black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60), game_date: cut(root.info.DT, 40),
           ...mineStats(), ...(await sizeColumn() ? {board_size: N} : {}), encoding: zip ? "gzip-b64" : "plain", data,
           ...(study ? {preview: studyPreview()} : {})};
@@ -3477,7 +3477,8 @@ async function loadMineList() {
   if (error) { mineMsg("목록을 불러오지 못했습니다: " + error.message, true); return; }
   mineList = data || [];
   const studies = mineList.filter(k => STUDY[k.study]).length;   // 학습방 연구: in the list under their topic, not in 전체
-  $("mineCount").textContent = `${mineList.length - studies} / 300판` + (studies ? ` · 학습방 ${studies} / 300개` : "");
+  const cap = await bankIsAdmin() ? "" : " / 300";   // an admin saves without limits (DB 20261024i)
+  $("mineCount").textContent = `${mineList.length - studies}${cap}판` + (studies ? ` · 학습방 ${studies}${cap}개` : "");
   const day = iso => new Date(iso).toLocaleDateString("ko-KR", {month: "numeric", day: "numeric"});
   $("mineRows").innerHTML = mineList.map((k, i) =>
     `<tr data-i="${i}" data-folder="${STUDY[k.study] ? `study:${k.study}:${(studyFolders || []).some(f => f.id === k.study_folder_id && f.study === k.study) ? k.study_folder_id : ""}` : mineFolders.some(f => f.id === k.folder_id) ? k.folder_id : ""}" data-find="${escHtml([k.title, k.black, k.white, k.game_date, k.result, resultText(k.result || ""), resultText(k.result || "").replace(/ /g, ""), (mineFolders.find(f => f.id === k.folder_id) || {}).name, STUDY[k.study] ? studyLabel(k.study, k.study_folder_id) : "", k.board_size && k.board_size !== 19 ? k.board_size + "줄" : ""].join(" ").toLowerCase())}"><td class="t" title="${escHtml(k.title)}">${sizeTag(k)}${escHtml(k.title)}</td><td class="w">${escHtml(k.black)}</td><td class="w">${escHtml(k.white)}</td>` +
