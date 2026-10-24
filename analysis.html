@@ -5218,7 +5218,7 @@ document.addEventListener("mousedown", () => { if (touchCursor) clearCursor(); }
 // Mouse wheel = previous / next move, like YZY (panels that scroll keep their own wheel).
 let wheelAcc = 0, wheelAt = 0;
 document.querySelector(".main").addEventListener("wheel", ev => {
-  if (ev.ctrlKey || ev.target.closest("#treeBox, .table-box, #comment")) return;
+  if (ev.ctrlKey || ev.target.closest("#treeBox, #xpBox, .table-box, #comment")) return;
   ev.preventDefault();
   const dy = ev.deltaMode === 1 ? ev.deltaY * 40 : ev.deltaY, now = performance.now();
   // a mouse notch (big, and not in the middle of a touchpad swipe, whose fast part can be big too) = one move
