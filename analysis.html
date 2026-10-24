@@ -558,7 +558,7 @@ button.primary:hover { background: var(--blue-deep); }
 #xpNext td:first-child { font-weight: 700; }
 #xpNext td.ai1 { color: var(--blue); font-weight: 700; }
 .xp-bar { display: inline-block; vertical-align: middle; width: 34px; height: 6px; margin-right: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
-.xp-bar i { display: block; height: 100%; background: #15171c; }
+.xp-bar i { display: block; height: 100%; background: var(--ink); }
 .xp-sub { margin: 10px 2px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .xp-game { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 7px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .xp-game:hover { background: var(--soft); }
@@ -642,11 +642,13 @@ button.primary:hover { background: var(--blue-deep); }
   .bar-off:not(.graph-open) .left { display: none; }
   /* 변화도 under the board, switched in the menu like the graph (user request 2026-10-09); scrolls inside its box */
   .tree-open .right { display: flex; order: 3; padding: 8px 8px 0; }
-  .tree-open .right > :not(#treeBox):not(#reportBox), .report-open .right > :not(#treeBox):not(#reportBox) { display: none; }
+  .tree-open .right > :not(#treeBox):not(#reportBox):not(#xpBox), .report-open .right > :not(#treeBox):not(#reportBox):not(#xpBox) { display: none; }
   .report-open .right { display: flex; order: 3; padding: 8px 8px 0; }
-  /* the board keeps its full size (user 2026-10-24 "판 크기를 줄이면서까지 목록을 넓히지 마"): the list takes the room left under it and scrolls */
+  /* the board keeps its full size (user 2026-10-24 "판 크기를 줄이면서까지 목록을 넓히지 마"): the list takes the room left under it and
+     scrolls; only when less than XP_MIN_LIST is left (승률 그래프 on, a short phone) does the board give up that much, else the
+     page ran past the screen and cut the board's top off (user report 2026-10-24) */
   body.xp-open { grid-template-rows: auto minmax(0, 1fr) auto; }   /* the list's room is the screen's, the buttons stay at the bottom */
-  .xp-open .right { display: flex; order: 3; padding: 8px 8px 0; flex: 1 1 0; min-height: 96px; }
+  .xp-open .right { display: flex; order: 3; padding: 8px 8px 0; flex: 1 1 0; min-height: 140px; }
   .xp-open .right > :not(#xpBox) { display: none; }
   .xp-open #xpBox { flex: 1 1 auto; min-height: 0; }
   /* contain: a wide tree (many 갈래) scrolls sideways inside its box; without it the canvas widened the whole page and
@@ -993,7 +995,7 @@ button.primary:hover { background: var(--blue-deep); }
   <section class="center" id="boardBox"><canvas id="board" aria-label="바둑판"></canvas></section>
 
   <aside class="right">
-    <div id="xpBox" aria-label="수순 탐색">
+    <div id="xpBox" aria-label="역대 기보 수순 탐색">
       <div class="xp-head"><span id="xpNow"></span><div class="lvl" id="xpSrc" role="group" aria-label="기보"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
       <div class="xp-body" id="xpBody">
         <table><thead><tr><th>다음 수</th><th>판</th><th>비율</th><th>흑 승률</th><th>AI</th></tr></thead><tbody id="xpNext"></tbody></table>
@@ -1167,6 +1169,7 @@ const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : nul
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
 const xp = freshTree ? {src: "", cache: new Map(), node: null, seq: null, data: null, timer: 0} : null;
+const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
 if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub");   // …or a 기보실 game (2026-10-22)
@@ -1198,7 +1201,7 @@ async function openWithoutGpu() {
     if (!p) throw new Error("not logged in");
     site = sb; $("conn").textContent = "GPU 없음 · 저장된 분석만 보기";
     if (pendingKifu) openMineKifu(pendingKifu);
-    else if (freshTree) { freshTree = false; $("conn").textContent = "GPU 없음 · 수순 탐색"; }
+    else if (freshTree) { freshTree = false; $("conn").textContent = "GPU 없음 · 역대 기보 수순 탐색"; }
     else if (recordMode && hashStudy) {   // 새 연구 without a GPU: the moves and variations only
       $("conn").textContent = "GPU 없음 · 연구 기록"; studyRoot = root;   // (no how-to line under the board: it is in the guide — user 2026-10-23)
       if (hashBranch) loadStudyFolders(await mineClient());
@@ -5576,7 +5579,7 @@ function layout() {
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
   const side = matchMedia("(orientation: portrait)").matches
     ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - document.querySelector(".menubar").offsetHeight
-        - document.querySelector(".left").offsetHeight - (xp ? 0 : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
+        - document.querySelector(".left").offsetHeight - (xp ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
   const view = quiz && quiz.view;
