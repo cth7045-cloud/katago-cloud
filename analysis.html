@@ -560,7 +560,6 @@ button.primary:hover { background: var(--blue-deep); }
 #xpNext td { line-height: 28px; }
 #xpNext td:first-child { font-weight: 700; }
 #xpNext td.ai1 { color: var(--blue); font-weight: 700; }
-#xpNext td small { margin-left: 3px; font-size: 10px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
 .xp-bar { display: inline-block; vertical-align: middle; width: 34px; height: 6px; margin-right: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .xp-bar i { display: block; height: 100%; background: var(--ink); }
 .xp-sub { margin: 10px 2px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -4599,9 +4598,8 @@ function xpAi() {   // drawn with the side table
   for (const tr of $("xpNext").rows) { const v = value(tr.dataset.m); if (v !== null && v > best) best = v; }
   for (const tr of $("xpNext").rows) {
     const m = tr.dataset.m, xy = xpPair(m), c = cands.find(c => c.move === (xy ? gtp(...xy) : "pass")), e = candsShown() ? an[m] : null, td = tr.cells[4];
-    const top = !!c && c.order === 0, v = e ? value(m) : c ? moverLead(cur, c.scoreLead) : null, visits = Math.max(e ? e.visits : 0, c ? c.visits : 0);
-    const text = top ? "1위" : v !== null && best > -Infinity ? "−" + Math.max(0, best - v).toFixed(1) : on ? "…" : "";
-    const html = text + (visits ? `<small>${playoutsString(visits)}</small>` : "");
+    const top = !!c && c.order === 0, v = e ? value(m) : c ? moverLead(cur, c.scoreLead) : null;
+    const html = top ? "1위" : v !== null && best > -Infinity ? "−" + Math.max(0, best - v).toFixed(1) : on ? "…" : "";   // no visits (user 2026-10-24)
     if (td.dataset.h !== html) { td.dataset.h = html; td.innerHTML = html; td.classList.toggle("ai1", top); }
   }
 }
@@ -4629,19 +4627,25 @@ async function xpStepTop() {   // ▶ / → at the end of the line in 수순 탐
   if (cur !== node || !top) return;
   const c = play(node, node.toPlay, xpPair(top.m)); if (c) goTo(c);
 }
-function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 … from the most played (user 2026-10-24); on an AI candidate a small badge at its corner
+function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 … from the most played (user 2026-10-24); on an AI candidate the rank takes the order box's place at its corner, clear of the winrate
   const d = xp.data; if (!d || !d.next || xp.dataNode !== cur || hover) return;
-  const cands = new Set(candsShown() ? candidates(cur, true).map(c => c.move) : []), {margin: m, sq, r} = G;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const cands = new Set(candsShown() ? candidates(cur, true).filter(c => c.order + 1 <= 10).map(c => c.move) : []), {margin: m, sq, r} = G;
   d.next.forEach((n, i) => {
     const xy = xpPair(n.m); if (!xy || cur.grid[idx(...xy)]) return;
-    const ai = cands.has(gtp(...xy)), rr = ai ? r * .48 : r * .95;
-    const x = m + sq * xy[0] + .5 + (ai ? r * .62 : 0), y = m + sq * xy[1] + .5 - (ai ? r * .62 : 0);
+    const label = String(i + 1), x = m + sq * xy[0], y = m + sq * xy[1];
+    if (cands.has(gtp(...xy))) {   // drawStringForOrder's box and size, in the explorer's blue
+      const f = fitFont(ctx, WR_FONT, WR_WEIGHT, label, sq * .36, sq * .39);
+      const x1 = Math.round(x + sq * .43) + .5 - f.w / 2, y1 = Math.round(y - sq * .358) + .5, pad = Math.max(1, T(f.h / 12));
+      ctx.fillStyle = "rgb(44, 92, 246)"; ctx.fillRect(x1 - pad, y1 - f.h - pad, f.w + pad * 2, f.h + pad * 2);
+      ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillText(label, x1, y1);
+      return;
+    }
+    const rr = r * .95;
     ctx.fillStyle = "rgba(255, 255, 255, .92)"; ctx.strokeStyle = "rgb(44, 92, 246)"; ctx.lineWidth = Math.max(1.5, r / 8);
-    ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    const label = String(i + 1);
+    ctx.beginPath(); ctx.arc(x + .5, y + .5, rr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.font = `800 ${Math.round(rr * (label.length > 2 ? .8 : label.length > 1 ? 1 : 1.1))}px ${UI_FONT}`;
-    ctx.fillStyle = "rgb(31, 63, 184)"; ctx.fillText(label, x, y + rr * .05);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgb(31, 63, 184)"; ctx.fillText(label, x + .5, y + .5 + rr * .05);
   });
 }
 // 열기 (user 2026-10-24 "새 탭에서 여는데 위에 링크가 안보이게 평소 기보 열 때 처럼"): like the website's own game links — the
@@ -5049,10 +5053,10 @@ function renderBoard(ctx, G, node, o) {
     const [cx, cy] = P(idx(node.move.x, node.move.y)), rad = Math.round(sq * .22);
     ctx.strokeStyle = node.move.c === "W" ? "#000" : "#fff"; strokeCircle(ctx, cx, cy, rad, rad / 5);
   }
-  if (o.candidates) drawSuggestions(ctx, G, node, branch ? hoverI : -1, branch);
+  if (o.candidates) drawSuggestions(ctx, G, node, branch ? hoverI : -1, branch, o.noOrder);
 }
 // BoardRenderer.drawLeelazSuggestions (limit 10, colour by visit ratio, cyan best + blue ring, 3 text rows)
-function drawSuggestions(ctx, G, node, hoverI, branch) {
+function drawSuggestions(ctx, G, node, hoverI, branch, noOrder) {   // noOrder: 수순 탐색 puts its own rank in the order box
   const {margin: m, sq, r, avail} = G;
   const list = candidates(node, true); if (!list.length) { drawNextMoves(ctx, G, node, branch); return; }
   const maxP = Math.max(...list.map(c => c.visits));
@@ -5068,6 +5072,7 @@ function drawSuggestions(ctx, G, node, hoverI, branch) {
     const hue = isBest ? 0.5 : (1 / 3) * Math.pow(pct, 1 / 2);
     const col = hsb(hue, 1, .85);
     const orderLabel = (text, dx, dy) => {  // drawStringForOrder: orange box, black digit
+      if (noOrder) return;
       const f = fitFont(ctx, WR_FONT, WR_WEIGHT, text, sq * .36, sq * .39);
       const x1 = Math.round(cx + sq * .43) + dx + .5 - f.w / 2, y1 = Math.round(cy - sq * .358) + dy + .5;
       ctx.fillStyle = "rgb(255,200,0)"; ctx.fillRect(x1, y1 - f.h, f.w, f.h + Math.max(1, T(f.h / 12)));
@@ -5139,6 +5144,7 @@ function drawMain() {
   const sc = scoring && scoring.node === cur;
   renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
     branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free || quiz.edit) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free || quiz.edit)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
+    noOrder: !!(xp && !quiz && !sc && xp.data && xp.data.next && xp.dataNode === cur),
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
   if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else if (!quiz.free) drawBankMarks(boardCtx, boardG); }
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
