@@ -628,7 +628,9 @@ button.primary:hover { background: var(--blue-deep); }
      the board and buttons were pushed off a phone (user report 2026-10-09) */
   .tree-open #treeBox { flex: none; height: 120px; contain: inline-size; }
   #board { box-shadow: none; }
-  .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start; align-self: start;   /* its own height: layout() measures it */
+  /* its own height (layout() measures it), at the bottom of the screen under the thumb with the room left above it (user 2026-10-24
+     "승률 막대 아래에 있는 기능버튼들 화면 하단에 붙여줘"); 문제 은행 keeps it under the board: its own buttons are fixed at the bottom */
+  .toolbar { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-content: start; align-self: end;
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .toolbar button, .toolbar input { min-height: 42px; padding: 2px; width: 100%; }
   .toolbar button:not(.on):not(.pink):not(#analyze) { background: var(--panel); box-shadow: 0 1px 2px rgba(23, 26, 34, .06); }
@@ -657,6 +659,7 @@ button.primary:hover { background: var(--blue-deep); }
      whatever shows, so the board does not change size between answering and the next problem (layout() takes it off) */
   body.bankq .qz-actions { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5;
     display: flex; flex-wrap: wrap; align-content: flex-end; gap: 8px; height: 108px; }
+  body.bankq .toolbar { align-self: start; }
   body.bankq #quizBar .qz-actions button { flex: 1 1 30%; min-height: 50px; font-size: 15px; }
   #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
   #quizBar #bankEdit button { width: auto; flex: 1 1 auto; min-height: 40px; padding: 2px 10px; }
@@ -1415,8 +1418,8 @@ function slowShow(on) {
   el.classList.toggle("on", on);
   if (errEl.classList.contains("on")) errPlace();   // the message card sits above it
 }
-function cardBottom() {   // the bottom of the screen, above a bar of buttons that sits there (the PC toolbar, 문제 은행's buttons on a
-  // phone); a phone's toolbar right under the board is not at the bottom, so the card goes in the room below it, not on the board
+function cardBottom() {   // the bottom of the screen, above a bar of buttons that sits there (the toolbar — at the bottom on a phone
+  // too since 2026-10-24 —, 문제 은행's buttons on a phone); 문제 은행's toolbar right under the board is not at the bottom, so it is not counted
   let top = innerHeight;
   for (const bar of [document.querySelector("footer.toolbar"), document.querySelector("body.bankq .qz-actions")]) {
     if (!bar) continue;
@@ -2080,7 +2083,13 @@ $("gdGo").onclick = () => {
   reachedAt = performance.now(); requestLive(); publish(); gameButton(); schedule();
   $("err").textContent = vsHuman ? `AI 대국 시작 · 나는 ${colorName(mine)}` : "AI끼리 대국을 시작했습니다";
 };
-$("promote").onclick = () => { for (let n = cur; n.parent; n = n.parent) { const s = n.parent.children; s.splice(s.indexOf(n), 1); s.unshift(n); } publish(); schedule(); };
+// 편집: each says what it did on the message card (user 2026-10-24 "편집에 있는 버튼 누르면 안내문 뜨게")
+$("promote").onclick = () => {
+  let main = true;
+  for (let n = cur; n.parent; n = n.parent) { const s = n.parent.children; if (s[0] !== n) main = false; s.splice(s.indexOf(n), 1); s.unshift(n); }
+  publish(); schedule();
+  $("err").textContent = main ? "이미 주 변화입니다" : "이 변화를 주 변화로 지정했습니다";
+};
 // 수순: off -> every move number -> the last move's number only -> off
 const NUM_MODES = {"": ["all", "전체 수순"], all: ["last", "마지막 수"], last: ["", "수순"]};
 $("nums").onclick = () => {
@@ -2089,7 +2098,7 @@ $("nums").onclick = () => {
 };
 $("coords").onclick = () => { $("coords").classList.toggle("on"); layout(); };
 function emptyBoard() { if (+$("handicap").value) setKomi(6.5); $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); }
-$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) emptyBoard(); };
+$("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { emptyBoard(); $("err").textContent = "바둑판을 초기화했습니다"; } };
 async function newStudyBoard() {   // 학습방 → 새 연구 on the GPU: the shared board's game is kept first if it is in 내 기보 / 학습방
   freshStudy = false;
   if (mineDirtyAt) await mineAutoSave(false);
@@ -2141,7 +2150,11 @@ $("boardSize").onchange = () => {
   if (root.children.length && !confirm(`${n}줄 바둑판으로 새로 시작할까요? (현재 기보는 사라집니다)`)) { $("boardSize").value = String(N); return; }
   newSize(n);
 };
-$("deleteNode").onclick = () => { if (!cur.parent) return; const p = cur.parent; p.children.splice(p.children.indexOf(cur), 1); goTo(p); };
+$("deleteNode").onclick = () => {
+  if (!cur.parent) { $("err").textContent = "첫 수 전이라 지울 수가 없습니다"; return; }
+  const p = cur.parent, n = cur.depth; p.children.splice(p.children.indexOf(cur), 1); goTo(p);
+  $("err").textContent = `${n}수째부터 지웠습니다`;
+};
 function komiChanged() {   // old results used the old komi; a negative number typed in flips 덤 <-> 역덤
   if (parseFloat($("komi").value) < 0) setKomi(komi());
   clearAnalysis(root); requestLive(); publish(); schedule();
