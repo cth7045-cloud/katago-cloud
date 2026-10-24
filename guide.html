@@ -167,7 +167,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
       <li><a href="#game">AI대국</a></li>
       <li><a href="#kifu">내 기보</a></li>
       <li><a href="#batch">기보 분석</a></li>
-      <li><a href="#notes">학습방·오답노트·내 연구·문제 은행</a></li>
+      <li><a href="#notes">학습방·오답노트·내 연구·문제 은행·수순 탐색</a></li>
       <li><a href="#app">앱 설치·알림</a></li>
       <li><a href="#devices">여러 기기</a></li>
       <li><a href="#account">내 정보</a></li>
@@ -207,7 +207,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
           <tr><td>홈</td><td>새 공지, GPU 상태(켜져 있으면 쓴 시간·요금과 <span class="chip blue">분석 화면 열기</span>·종료), 잔액, 이번 달 사용 요금, 오늘 복습할 문제, 최근 사용 내역</td></tr>
           <tr><td>GPU</td><td>GPU를 빌려 분석합니다. → <a href="#gpu">GPU 빌리기</a></td></tr>
           <tr><td>기보</td><td>저장한 기보를 GPU 없이 다시 보고(→ <a href="#kifu">내 기보</a>), 여러 판을 한꺼번에 분석합니다(→ <a href="#batch">기보 분석</a>).</td></tr>
-          <tr><td>학습</td><td>내 실수로 만든 오답노트를 풀고, 정석·포석 연구를 모아 두고, 문제 은행에서 사활·맥·끝내기 책을 풉니다. → <a href="#notes">학습방</a></td></tr>
+          <tr><td>학습</td><td>내 실수로 만든 오답노트를 풀고, 정석·포석 연구를 모아 두고, 문제 은행에서 사활·맥·끝내기 책을 풀고, 수순 탐색으로 기보실 기보의 수순을 찾아봅니다. → <a href="#notes">학습방</a></td></tr>
           <tr><td>내 정보</td><td>공지, 충전·사용 내역, 알림, GPU 자동 종료 등. → <a href="#account">내 정보</a></td></tr>
         </tbody>
       </table></div>
@@ -610,7 +610,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
 
     <!-- ================================================================ -->
     <section id="notes">
-      <h2>학습방 · 오답노트 · 내 연구 · 문제 은행</h2>
+      <h2>학습방 · 오답노트 · 내 연구 · 문제 은행 · 수순 탐색</h2>
       <p class="sum">분석한 기보의 실수를 문제로 모아 다시 풀고(GPU 없이), 직접 연구한 정석·포석을 분석과 함께 모아 둡니다.</p>
       <div class="duo">
         <figure class="fig"><img src="guide/study.webp" width="700" height="626" alt="학습방: 오늘 복습할 문제 수, 복습하기, 초반·중반·종반 버튼" loading="lazy"><figcaption>학습방 › 오답노트 — 오늘 복습할 문제, 단계별로 풀기</figcaption></figure>
@@ -660,6 +660,14 @@ details.more .table-wrap { margin: 4px 0 8px; }
         <li>바둑판을 눌러 두면 상대가 정해진 수로 받습니다. 정답 수순 끝까지 두면 <b>정답</b>, 수순에 없는 수는 <b>오답</b>입니다. <span class="chip">정답 보기</span>로 정답 수순을, <span class="chip">다시 풀기</span>로 처음부터 다시 둘 수 있습니다. <span class="chip">놓아보기</span>를 누르면 채점 없이 흑백을 번갈아 두어 볼 수 있고(<span class="chip">◀ 뒤로</span>·<span class="chip">앞으로 ▶</span> 또는 키보드 ← →로 둔 수를 오가며 볼 수 있음), <span class="chip">놓아보기 끝</span>을 누르면 원래 국면으로 돌아옵니다. <span class="chip">그만하기</span>는 문제 은행으로 돌아갑니다.</li>
         <li>틀린 문제는 문제 은행 맨 위 <b>복습</b>에 카드로 모입니다(카드 아래 책 이름). <span class="chip blue">복습 시작</span>은 처음부터, 카드를 누르면 그 문제부터 풉니다. 1일·3일 뒤에 다시 나오고, 세 번 연이어 맞히면 빠집니다.</li>
         <li>문제는 공개된 문제 모음(OGS 퍼즐, Ten Thousand Tsumego)에서 가져왔습니다.</li>
+      </ul>
+      <h3>수순 탐색</h3>
+      <ul>
+        <li>메뉴 <b>학습</b> → <b>수순 탐색</b>. 빈 바둑판 옆에 <b>기보실</b>의 프로·AI 기보 가운데 지금 판의 수순으로 시작하는 기보가 나옵니다. 돌을 둘 때마다 다시 찾습니다.</li>
+        <li>표: <b>다음 수</b>·그 수로 이어 간 <b>판</b> 수·<b>비율</b>·그 뒤 <b>흑 승률</b>. 줄을 누르면 그 수를 둡니다. 바둑판의 파란 원 숫자는 그 수의 비율(%)입니다. 판을 돌리거나 뒤집은 같은 수순(예: 우상귀 대신 좌하귀)도 함께 셉니다. 둔 순서가 다르면 같은 모양이라도 따로 셉니다.</li>
+        <li><b>AI</b> 칸: GPU나 내 기기로 <span class="chip">▶ 분석 시작</span>을 하면 AI가 가장 좋게 본 수에 <b>1위</b>, 다른 수에는 그보다 몇 집 손해인지(−1.2 등)가 나옵니다. GPU 없이도 표와 기보는 볼 수 있습니다.</li>
+        <li>아래 <b>최근 기보</b>: 그 수순으로 둔 기보 가운데 최근 30판(대국자·대회·날짜·결과). 누르면 그 기보의 나머지 수순이 판에 이어지고 다음 수(<kbd>→</kbd> 또는 <span class="chip">›</span> 버튼)로 따라갑니다. <b>열기</b>는 그 기보를 새 창에서 처음부터 엽니다.</li>
+        <li><span class="chip">전체</span>·<span class="chip">프로</span>·<span class="chip">AI</span>로 프로 기보와 KataGo 기보를 나눠 볼 수 있습니다. 수순은 끝까지, 한 판뿐인 수순도 찾고, 기보실에 새로 들어오는 기보도 바로 포함됩니다. 접바둑·9줄·13줄과 흑부터 번갈아 두지 않은 수순은 찾지 않습니다.</li>
       </ul>
     </section>
 

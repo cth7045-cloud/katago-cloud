@@ -546,6 +546,26 @@ button.primary:hover { background: var(--blue-deep); }
 #reportBox { display: none; flex: none; padding: 8px 10px 10px; border-radius: 18px; }
 .report-open #reportBox { display: block; }
 .report-open #treeBox { display: none; }
+/* 수순 탐색 (학습방, user 2026-10-24): the 기보실 games that begin with the moves on the board, in the 변화도 place */
+#xpBox { display: none; flex: 0 0 50%; min-height: 0; flex-direction: column; gap: 6px; padding: 8px 10px 10px; background: var(--panel); border-radius: 18px; box-shadow: var(--shadow); }
+.xp-open #xpBox { display: flex; }
+.xp-open #treeBox, .xp-open #reportBox { display: none; }
+.xp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; }
+#xpNow { flex: 1 1 140px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+#xpNow b { color: var(--ink); }
+.xp-body { flex: 1; min-height: 0; overflow: auto; }
+#xpNext td { line-height: 28px; }
+#xpNext td:first-child { font-weight: 700; }
+#xpNext td.ai1 { color: var(--blue); font-weight: 700; }
+.xp-bar { display: inline-block; vertical-align: middle; width: 34px; height: 6px; margin-right: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.xp-bar i { display: block; height: 100%; background: #15171c; }
+.xp-sub { margin: 10px 2px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.xp-game { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 7px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.xp-game:hover { background: var(--soft); }
+.xp-game b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xp-game span { grid-column: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xp-game a { grid-row: 1 / span 2; grid-column: 2; font-size: 12px; font-weight: 600; color: var(--blue); text-decoration: none; padding: 4px 6px; }
+.xp-msg { padding: 14px 4px; font-size: 13px; color: var(--muted); }
 .rb-head { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rb-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rb-head b { color: var(--ink); }
@@ -624,6 +644,9 @@ button.primary:hover { background: var(--blue-deep); }
   .tree-open .right { display: flex; order: 3; padding: 8px 8px 0; }
   .tree-open .right > :not(#treeBox):not(#reportBox), .report-open .right > :not(#treeBox):not(#reportBox) { display: none; }
   .report-open .right { display: flex; order: 3; padding: 8px 8px 0; }
+  .xp-open .right { display: flex; order: 3; padding: 8px 8px 0; }
+  .xp-open .right > :not(#xpBox) { display: none; }
+  .xp-open #xpBox { flex: none; height: 26vh; min-height: 160px; }
   /* contain: a wide tree (many 갈래) scrolls sideways inside its box; without it the canvas widened the whole page and
      the board and buttons were pushed off a phone (user report 2026-10-09) */
   .tree-open #treeBox { flex: none; height: 120px; contain: inline-size; }
@@ -968,6 +991,14 @@ button.primary:hover { background: var(--blue-deep); }
   <section class="center" id="boardBox"><canvas id="board" aria-label="바둑판"></canvas></section>
 
   <aside class="right">
+    <div id="xpBox" aria-label="수순 탐색">
+      <div class="xp-head"><span id="xpNow"></span><div class="lvl" id="xpSrc" role="group" aria-label="기보"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
+      <div class="xp-body" id="xpBody">
+        <table><thead><tr><th>다음 수</th><th>판</th><th>비율</th><th>흑 승률</th><th>AI</th></tr></thead><tbody id="xpNext"></tbody></table>
+        <div class="xp-sub" id="xpGamesHead"></div>
+        <div id="xpGames"></div>
+      </div>
+    </div>
     <div id="treeBox"><canvas id="tree" aria-label="변화도"></canvas></div>
     <div id="reportBox" aria-label="대국 리포트"><div class="rb-head"><span id="rbNow"></span><button type="button" id="rbClose" aria-label="리포트 닫기">×</button></div><div class="rb-chart" id="rbChart"></div></div>
     <div class="table-box">
@@ -1132,6 +1163,8 @@ const recordMode = hashParams.get("record") === "1";   // 내 기보 → 기보 
 const STUDY = {joseki: "정석", fuseki: "포석", other: "기타"};
 const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : null;   // 학습방 → 새 연구: the topic it is saved under
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
+let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
+const xp = freshTree ? {src: "", cache: new Map(), node: null, seq: null, data: null, timer: 0} : null;
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
 if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub");   // …or a 기보실 game (2026-10-22)
@@ -1163,6 +1196,7 @@ async function openWithoutGpu() {
     if (!p) throw new Error("not logged in");
     site = sb; $("conn").textContent = "GPU 없음 · 저장된 분석만 보기";
     if (pendingKifu) openMineKifu(pendingKifu);
+    else if (freshTree) { freshTree = false; $("conn").textContent = "GPU 없음 · 수순 탐색"; }
     else if (recordMode && hashStudy) {   // 새 연구 without a GPU: the moves and variations only
       $("conn").textContent = "GPU 없음 · 연구 기록"; studyRoot = root;   // (no how-to line under the board: it is in the guide — user 2026-10-23)
       if (hashBranch) loadStudyFolders(await mineClient());
@@ -1254,6 +1288,7 @@ function connectLocal() {   // #m=balanced: KataGo(균형), else KataGo(빠름);
   $("conn").textContent = "내 기기 · 엔진 준비 중";
   if (pendingKifu) openMineKifu(pendingKifu);   // a 내 기보 opened this way: the board needs no engine
   else if (freshStudy) newStudyBoard();         // 학습방 → 새 연구 on this device
+  else if (freshTree) newTreeBoard();           // 학습방 → 수순 탐색
   worker.onmessage = ev => {
     const m = ev.data; heardAt = performance.now();
     if (m && m.local) {
@@ -1525,6 +1560,7 @@ function onMessage(msg) {
     if (!shared || keepMine) { lastSgf = null; publish(); }        // first device: its board becomes the shared one
     if (pendingKifu) openMineKifu(pendingKifu);                     // #kifu=: after the shared board, so it replaces it
     else if (freshStudy) newStudyBoard();                           // 학습방 → 새 연구: likewise, an empty board
+    else if (freshTree) newTreeBoard();                             // 학습방 → 수순 탐색: likewise
     else if (analyzing && !msg.live) requestLive();                 // the device that ran the analysis has left
     if (resumeAuto) {   // 자동분석 was cut off with the connection: it goes on from the moves not analysed yet (2026-10-10)
       const was = resumeAuto; resumeAuto = null;
@@ -1708,6 +1744,7 @@ function goTo(node) {
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
   if (!applyingRemote) { requestLive(); publish(); }   // following another device: it runs the analysis
+  if (xp) xpUpdate();
   schedule();
 }
 function step(k) { let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n); }
@@ -4398,6 +4435,132 @@ function drawBankMarks(ctx, G) {   // a ring on the member's last move once the 
   ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.stroke();
 }
 
+// ------------------------------------------------------------------ 수순 탐색 (학습방, user 2026-10-24, DB 20261024m)
+// "ai기보 포함시켜서 수순 자르지 말고 끝까지 표시되게 하고 … 앞으로 업데이트 되는 기보들도": the 기보실 games (pro and AI) that begin
+// with the moves on the board, from the empty board, to the end of any game: their next moves (games, share, 흑 승률) and the
+// newest of them. kifu_tree looks the moves up in all 8 turns of the board and answers in this board's own turn; a position
+// that is its own mirror (빈 판, 천원) folds alike next moves into one, shown on the upper right. The AI column is the
+// analysis on screen (GPU or 내 기기), when there is one. Opened from the website's 학습방 (#tree=1).
+const xpXY = (x, y, k) => { const a = k & 1 ? 18 - x : x, b = k & 2 ? 18 - y : y; return k & 4 ? [b, a] : [a, b]; };
+const xpPair = m => m === "tt" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
+const xpStr = xy => xy ? String.fromCharCode(97 + xy[0], 97 + xy[1]) : "tt";
+const xpTurn = (seq, k) => (seq.match(/../g) || []).map(m => xpStr(xpPair(m) && xpXY(...xpPair(m), k))).join("");
+function xpSeq(node) {   // the moves from the empty board, 2 letters each; null when they cannot be looked up
+  if (N !== 19 || root.setup.B.length || root.setup.W.length || quiz) return null;
+  let s = "", c = "B";
+  for (const n of pathTo(node).slice(1)) { if (n.move.c !== c) return null; s += n.move.pass ? "tt" : xpStr([n.move.x, n.move.y]); c = other(c); }
+  return s;
+}
+function xpStab(seq) { return [0, 1, 2, 3, 4, 5, 6, 7].filter(k => xpTurn(seq, k) === seq); }   // turns that leave the position as it is
+function xpUpper(m, stab) {   // of a move's mirror images on this position, the one nearest the upper right
+  const xy = xpPair(m); if (!xy || stab.length < 2) return m;
+  return xpStr(stab.map(k => xpXY(...xy, k)).sort((p, q) => (q[0] - q[1]) - (p[0] - p[1]) || q[0] - p[0])[0]);
+}
+function xpUpdate() { if (!xp) return; clearTimeout(xp.timer); xp.timer = setTimeout(xpLoad, 120); }
+async function xpLoad() {
+  const node = cur, seq = xpSeq(node), src = xp.src, key = src + ":" + seq;
+  xp.node = node; xp.seq = seq;
+  if (seq === null) { xp.data = null; xpDraw(); return; }
+  if (xp.cache.has(key)) { xp.data = xp.cache.get(key); xpDraw(); schedule(); return; }
+  xp.data = "loading"; xpDraw();
+  const c = await mineClient();
+  if (!c) { xp.data = {error: "로그인한 사이트에서만 쓸 수 있습니다"}; xpDraw(); return; }
+  const {data, error} = await c.rpc("kifu_tree", {p_seq: seq, p_src: src || null});
+  if (xp.node !== node || xp.src !== src) return;   // moved on meanwhile
+  if (error) xp.data = {error: "기보를 찾지 못했습니다: " + error.message};
+  else {
+    const stab = xpStab(seq);
+    data.next = (data.next || []).map(r => ({...r, m: xpUpper(r.m, stab)}));
+    data.stab = stab;
+    if (xp.cache.size > 300) xp.cache.clear();
+    xp.cache.set(key, data); xp.data = data;
+  }
+  xpDraw(); schedule();
+}
+const xpPct = (a, b) => b ? Math.round(a / b * 100) : 0;
+function xpDraw() {
+  if (!xp) return;
+  const d = xp.data, seq = xp.seq;
+  let now = "", rows = "", head = "", list = "";
+  if (seq === null) now = N !== 19 ? "19줄 기보만 찾습니다" : quiz ? "" : "흑부터 번갈아 둔 맞바둑 수순만 찾습니다";
+  else if (!d || d === "loading") now = "찾는 중…";
+  else if (d.error) now = d.error;
+  else if (!d.total) now = "이 수순으로 둔 기보가 없습니다";
+  else {
+    const decided = d.bw + d.ww;
+    now = `기보 <b>${d.total.toLocaleString()}</b>판` + (decided ? ` · 흑 승률 ${xpPct(d.bw, decided)}%` : "") + (d.ended ? ` · 여기서 끝 ${d.ended.toLocaleString()}` : "");
+    rows = d.next.slice(0, 60).map(r => {
+      const xy = xpPair(r.m), share = xpPct(r.n, d.total);
+      return `<tr data-m="${r.m}"><td>${xy ? gtp(...xy) : "패스"}</td><td>${r.n.toLocaleString()}</td><td><span class="xp-bar"><i style="width:${share}%"></i></span>${share || "<1"}%</td>` +
+        `<td>${r.bw + r.ww ? xpPct(r.bw, r.bw + r.ww) + "%" : "-"}</td><td></td></tr>`;
+    }).join("");
+    head = d.total > d.games.length ? `최근 기보 ${d.games.length}판` : `기보 ${d.games.length}판`;
+    const keep = new URLSearchParams(location.hash.slice(1)), link = ["u", "t", "local"].filter(k => keep.has(k)).map(k => `${k}=${encodeURIComponent(keep.get(k))}&`).join("");
+    list = d.games.map((g, i) => {
+      const who = `${escHtml(g.black || "흑")}${g.br ? " " + escHtml(g.br) : ""} · ${escHtml(g.white || "백")}${g.wr ? " " + escHtml(g.wr) : ""}`;
+      const meta = [g.src === "ai" ? "AI" : "", g.event, g.day, g.result].filter(Boolean).map(escHtml).join(" · ");
+      return `<div class="xp-game" data-i="${i}"><b>${who}</b><span>${meta}</span><a href="analysis.html?v=${Date.now()}#${link}pub=${g.id}" target="_blank" rel="noopener">열기</a></div>`;
+    }).join("");
+  }
+  $("xpNow").innerHTML = now; $("xpNext").innerHTML = rows; $("xpGamesHead").textContent = head; $("xpGames").innerHTML = list;
+  $("xpNext").closest("table").hidden = !rows;
+  xpAi();
+}
+function xpAi() {   // the AI column from the analysis on screen: 1위, or how much worse than the AI's first choice (집); drawn with the side table
+  if (!xp || xp.node !== cur) return;
+  const cands = candsShown() ? candidates(cur, true) : [], best = cands[0] ? moverLead(cur, cands[0].scoreLead) : 0;
+  for (const tr of $("xpNext").rows) {
+    const xy = xpPair(tr.dataset.m), c = cands.find(c => c.move === (xy ? gtp(...xy) : "pass")), td = tr.cells[4];
+    const text = !c ? "" : c.order === 0 ? "1위" : "−" + Math.max(0, best - moverLead(cur, c.scoreLead)).toFixed(1);
+    if (td.textContent !== text) { td.textContent = text; td.classList.toggle("ai1", !!c && c.order === 0); }
+  }
+}
+function xpFollow(g) {   // a game's moves from here on, as the line ▶ follows; the board goes to its next move
+  let rest = g.rest || "";
+  const stab = xp.data.stab || [];
+  if (stab.length > 1 && rest) {   // a mirrored position: the game turned so its next move is where the table shows it
+    const m0 = rest.slice(0, 2), want = xpUpper(m0, stab), k = stab.find(k => xpStr(xpPair(m0) && xpXY(...xpPair(m0), k)) === want);
+    if (k) rest = xpTurn(rest, k);
+  }
+  let node = cur, color = cur.toPlay, first = null;
+  for (const m of rest.match(/../g) || []) {
+    const next = play(node, color, xpPair(m)); if (!next) break;
+    node.children.splice(node.children.indexOf(next), 1); node.children.unshift(next);   // ▶ goes along this game
+    first ||= next; node = next; color = other(color);
+  }
+  if (!first) return;
+  goTo(first);
+  $("err").textContent = `${g.black || "흑"} · ${g.white || "백"}${g.day ? " (" + g.day.slice(0, 4) + ")" : ""}의 수순을 이었습니다`;
+}
+function drawXpMarks(ctx, G) {   // the share of each next move on its point (where the AI shows no candidate of its own)
+  const d = xp.data; if (!d || !d.next || xp.node !== cur || hover) return;
+  const cands = new Set(candsShown() ? candidates(cur, true).map(c => c.move) : []), {margin: m, sq, r} = G;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `800 ${Math.round(r * .95)}px ${UI_FONT}`;
+  for (const n of d.next.slice(0, 12)) {
+    const xy = xpPair(n.m), share = xpPct(n.n, d.total); if (!xy || cur.grid[idx(...xy)] || cands.has(gtp(...xy))) continue;
+    if (share < 1 && d.total > 20) continue;
+    const x = m + sq * xy[0] + .5, y = m + sq * xy[1] + .5;
+    ctx.fillStyle = "rgba(255, 255, 255, .88)"; ctx.strokeStyle = "rgb(44, 92, 246)"; ctx.lineWidth = Math.max(1.5, r / 8);
+    ctx.beginPath(); ctx.arc(x, y, r * .95, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgb(31, 63, 184)"; ctx.fillText(share ? String(share) : "<1", x, y + r * .04);
+  }
+}
+async function newTreeBoard() {   // 학습방 → 수순 탐색 on the GPU: an empty board in place of the shared one (its game kept first if it is in 내 기보)
+  freshTree = false;
+  if (mineDirtyAt) await mineAutoSave(false);
+  emptyBoard();
+}
+if (xp) {
+  document.body.classList.add("xp-open");
+  $("xpSrc").onclick = ev => {
+    const b = ev.target.closest("button[data-s]"); if (!b) return;
+    xp.src = b.dataset.s; $("xpSrc").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); xpUpdate();
+  };
+  $("xpNext").onclick = ev => { const tr = ev.target.closest("tr[data-m]"); if (!tr || game) return; const c = play(cur, cur.toPlay, xpPair(tr.dataset.m)); if (c) goTo(c); };
+  $("xpGames").onclick = ev => { if (ev.target.closest("a")) return; const row = ev.target.closest(".xp-game"); if (row && xp.data && xp.data.games) xpFollow(xp.data.games[+row.dataset.i]); };
+  xpUpdate();
+}
+
 // ------------------------------------------------------------------ 대국 리포트
 // Each analysed move of the main line gets a grade from the same loss as 오답노트 (moveLoss: the mover's lead before and
 // after the move): AI의 수 = the AI's first choice; 좋은 수 = within GOOD_POINTS/GOOD_WR (what counts as right when
@@ -4851,6 +5014,7 @@ function drawMain() {
     ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
   if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else if (!quiz.free) drawBankMarks(boardCtx, boardG); }
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
+  else if (xp && !quiz && !sc) drawXpMarks(boardCtx, boardG);
   if (sc) drawScoreMarks(boardCtx, boardG);
   boardCtx.setTransform(1, 0, 0, 1, 0, 0);
   updateScoreBox();
@@ -5258,6 +5422,7 @@ treeCv.addEventListener("contextmenu", ev => ev.preventDefault());
 // ------------------------------------------------------------------ table, comment
 function drawSide() {
   $("moveNo").value = cur.depth;
+  if (xp) xpAi();
   if (!autoId) autoButton();
   const cands = candsShown() ? candidates(cur, true) : [], total = cands.reduce((s, c) => s + c.visits, 0) || 1;
   const selMove = selectedPv && selectedPv[0];
@@ -5485,7 +5650,7 @@ async function watchGpu() {
   // Opened plainly (the top bar's 분석 화면, 앱 아이콘) while the member's GPU is ready: go straight to it, so the board
   // left there (kept by the GPU's bridge) comes back as it was (user request 2026-09-29; the "이 GPU로 연결" button is gone).
   // Only when the page opens: never pulls away a board the member started here, nor 기보 기록 / a 내 기보 / a shared game.
-  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !hashParams.has("bank") && !batchMode;
+  let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !hashParams.has("bank") && !hashParams.has("tree") && !batchMode;
   async function tick() {
     const cols = "status,charged_krw,ready_at,instance_created_at,created_at,web_url,web_token,gpu_name";
     const {data: s} = await (mine ? site.sb.from("gpu_sessions").select(cols).in("status", LIVE).order("created_at", {ascending: false})

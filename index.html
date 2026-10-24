@@ -414,7 +414,8 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     <div class="wrap app narrow hidden" id="studyView">
       <a class="back hidden" href="#study" id="studyBack">‹ 학습방</a>
       <h1 class="page-title" id="studyHead">학습방</h1>
-      <!-- 학습방 (#study, user 2026-10-23 "카테고리화 해"): 오답노트 (#study/notes) · 내 연구 (#study/research) · 문제 은행 (#study/bank) -->
+      <!-- 학습방 (#study, user 2026-10-23 "카테고리화 해"): 오답노트 (#study/notes) · 내 연구 (#study/research) · 문제 은행 (#study/bank)
+           · 수순 탐색 (2026-10-24: the analysis screen beside the 기보실 games that begin with the moves on the board) -->
       <nav class="cat-entries" id="studyHub" aria-label="학습방">
         <a class="batch-entry" href="#study/notes">
           <span class="hub-icon folder c4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span>
@@ -427,6 +428,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <a class="batch-entry" href="#study/bank">
           <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16M15 4v16"/><circle class="bs" cx="10" cy="10" r="1.6"/></svg></span>
           <span class="grow"><b>문제 은행</b></span><span class="chev" aria-hidden="true">›</span>
+        </a>
+        <a class="batch-entry" href="analysis.html#tree=1" id="treeEntry">
+          <span class="hub-icon folder c1" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 7v10M6 9c0 3 4 3 10 3"/></svg></span>
+          <span class="grow"><b>수순 탐색</b></span><span class="chev" aria-hidden="true">›</span>
         </a>
       </nav>
       <div class="panel hidden" id="notesCard">
@@ -1887,6 +1892,7 @@ $("studyBranches").onclick = async (ev) => {   // 갈래: show one, make one, re
     studyBranch = ""; toast("갈래를 지웠습니다."); loadMine();
   }
 };
+$("treeEntry").onclick = (ev) => { ev.preventDefault(); openPage(`analysis.html?v=${Date.now()}#${engineHash()}tree=1`); };   // on the GPU or 내 기기 when one is on (the AI column)
 $("studyNew").onclick = () => {   // an empty board: on the ready GPU to analyse as it goes, else to record the moves only
   if (studies.length >= 300 && !profile?.is_admin) { toast("학습방 연구는 300개까지 저장할 수 있습니다. 필요 없는 연구를 지운 뒤 시작하세요.", true); return; }
   const topic = studyTopic || "joseki", gpu = engineHash();
