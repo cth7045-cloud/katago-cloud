@@ -161,6 +161,14 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
 #slowNote button { flex: none; width: 32px; height: 32px; margin: -6px 0 0; padding: 0; border: 0; border-radius: 50%; background: transparent;
   color: rgba(255, 255, 255, .72); font-size: 17px; line-height: 1; cursor: pointer; min-height: 0; box-shadow: none; }
 #slowNote button:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+/* the message line (#err) is a card like 연결이 느립니다 that shows for a few seconds and goes (user 2026-10-24 "빨간 안내문 전부
+   … 박스형태로 잠깐 떴다 사라지는"); it no longer takes a row under the buttons. Tapping it closes it. */
+#err { position: fixed; left: 50%; bottom: 12px; z-index: 61; width: max-content; max-width: min(460px, calc(100vw - 24px)); box-sizing: border-box;
+  padding: 11px 16px; border-radius: 16px; background: rgba(20, 24, 34, .86); color: #fff; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .22); font-size: 13.5px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; text-align: center;
+  opacity: 0; transform: translate(-50%, 8px); transition: opacity .25s, transform .25s; pointer-events: none; cursor: pointer; }
+#err.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#err:empty { display: block; visibility: hidden; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
 .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(31, 157, 85, .16); }
 details.menu { position: relative; }
@@ -1402,19 +1410,44 @@ function slowShow(on) {
   }
   if (on) slowPlace();
   el.classList.toggle("on", on);
+  if (errEl.classList.contains("on")) errPlace();   // the message card sits above it
 }
-function slowPlace() {   // the bottom of the screen, above a bar of buttons that sits there (the PC toolbar, 문제 은행's buttons on a
+function cardBottom() {   // the bottom of the screen, above a bar of buttons that sits there (the PC toolbar, 문제 은행's buttons on a
   // phone); a phone's toolbar right under the board is not at the bottom, so the card goes in the room below it, not on the board
-  const el = $("slowNote"); if (!el) return;
   let top = innerHeight;
   for (const bar of [document.querySelector("footer.toolbar"), document.querySelector("body.bankq .qz-actions")]) {
     if (!bar) continue;
     const r = bar.getBoundingClientRect();
     if (r.height && r.bottom >= innerHeight - 24 && r.top < top) top = r.top;
   }
-  el.style.bottom = (top < innerHeight ? innerHeight - top + 10 : 12) + "px";
+  return top < innerHeight ? innerHeight - top + 10 : 12;
 }
-addEventListener("resize", () => { if ($("slowNote") && $("slowNote").classList.contains("on")) slowPlace(); });
+function slowPlace() { const el = $("slowNote"); if (el) el.style.bottom = cardBottom() + "px"; if ($("err").classList.contains("on")) errPlace(); }
+addEventListener("resize", () => { if ($("slowNote") && $("slowNote").classList.contains("on")) slowPlace(); if ($("err").classList.contains("on")) errPlace(); });
+// The message line (#err, set in many places): each new text shows as a card for a few seconds (longer for a longer one),
+// then goes and is cleared; one still in progress ("…" at the end) stays until it is replaced. Above 연결이 느립니다 when
+// that shows. Out of the toolbar: its blur would hold a fixed card inside the bar.
+const errEl = $("err");
+document.body.appendChild(errEl);
+errEl.setAttribute("role", "status"); errEl.setAttribute("aria-live", "polite");
+let errTimer = 0;
+function errPlace() {
+  const slow = $("slowNote"), up = slow && slow.classList.contains("on") ? slow.offsetHeight + 8 : 0;
+  errEl.style.bottom = cardBottom() + up + "px";
+}
+function errHide() {
+  clearTimeout(errTimer); errEl.classList.remove("on");
+  const was = errEl.textContent;
+  errTimer = setTimeout(() => { if (errEl.textContent === was && !errEl.classList.contains("on")) errEl.textContent = ""; }, 300);
+}
+new MutationObserver(() => {
+  const text = errEl.textContent.trim();
+  clearTimeout(errTimer);
+  if (!text) { errEl.classList.remove("on"); return; }
+  errPlace(); errEl.classList.add("on");
+  if (!text.endsWith("…")) errTimer = setTimeout(errHide, Math.min(9000, 3000 + text.length * 60));
+}).observe(errEl, {childList: true, characterData: true, subtree: true});
+errEl.addEventListener("click", errHide);
 
 function baseQuery() {
   return {rules: "korean", komi: queryKomi(), boardXSize: N, boardYSize: N, initialPlayer: root.toPlay,
