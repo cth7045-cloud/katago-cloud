@@ -1177,7 +1177,8 @@ const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // 
 const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
-if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub");   // …or a 기보실 game (2026-10-22)
+if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub")   // …or a 기보실 game (2026-10-22)
+  + (/^([a-s]{2}|tt)*$/.test(hashParams.get("p") ?? "x") ? ":" + hashParams.get("p") : "");   // from 수순 탐색: at its moves, turned its way
 const shareToken = /^[A-Za-z0-9_-]{24}$/.test(hashParams.get("share") || "") ? hashParams.get("share") : null;   // 기보 공유 link
 const token = hashParams.get("t") || "";
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
@@ -1206,7 +1207,7 @@ async function openWithoutGpu() {
     if (!p) throw new Error("not logged in");
     site = sb; $("conn").textContent = "GPU 없음 · 저장된 분석만 보기";
     if (pendingKifu) openMineKifu(pendingKifu);
-    else if (freshTree) { freshTree = false; $("conn").textContent = "GPU 없음 · 역대 기보 수순 탐색"; }
+    else if (freshTree) { freshTree = false; $("conn").textContent = "GPU 없음 · 역대 기보 수순 탐색"; xpRestore(); }
     else if (recordMode && hashStudy) {   // 새 연구 without a GPU: the moves and variations only
       $("conn").textContent = "GPU 없음 · 연구 기록"; studyRoot = root;   // (no how-to line under the board: it is in the guide — user 2026-10-23)
       if (hashBranch) loadStudyFolders(await mineClient());
@@ -4606,10 +4607,29 @@ function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 �
     ctx.fillStyle = "rgb(31, 63, 184)"; ctx.fillText(label, x, y + rr * .05);
   });
 }
+// 열기 (user 2026-10-24 "새 탭에서 여는데 위에 링크가 안보이게 평소 기보 열 때 처럼"): like the website's own game links — the
+// installed app opens it in this window (a new tab there shows the browser's address bar), a browser in a new tab. Back
+// in the app comes to a fresh 수순 탐색 page: the moves on the board are kept for it (sessionStorage) and played again.
+const xpStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function xpOpen(id) {
+  const keep = new URLSearchParams(location.hash.slice(1)), link = ["u", "t", "local"].filter(k => keep.has(k)).map(k => `${k}=${encodeURIComponent(keep.get(k))}&`).join("");
+  const url = `analysis.html?v=${Date.now()}#${link}pub=${id}&p=${xp.seq || ""}`;
+  if (!xpStandalone()) { window.open(url, "_blank", "noopener"); return; }
+  try { sessionStorage.setItem("kgv.xpBack", JSON.stringify({seq: xpSeq(cur) || "", src: xp.src})); } catch { /* storage blocked */ }
+  location.href = url;
+}
+function xpRestore() {   // back from 열기 in the app: the moves that were on the board
+  let back = null; try { back = JSON.parse(sessionStorage.getItem("kgv.xpBack") || "null"); sessionStorage.removeItem("kgv.xpBack"); } catch { /* storage blocked */ }
+  if (!back || !/^([a-s]{2}|tt)*$/.test(back.seq || "")) return;
+  if (["", "pro", "ai"].includes(back.src)) { xp.src = back.src; $("xpSrc").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.s === xp.src)); }
+  let node = root;
+  for (const m of back.seq.match(/../g) || []) { const c = play(node, node.toPlay, xpPair(m)); if (!c) break; node = c; }
+  goTo(node);
+}
 async function newTreeBoard() {   // 학습방 → 수순 탐색 on the GPU: an empty board in place of the shared one (its game kept first if it is in 내 기보)
   freshTree = false;
   if (mineDirtyAt) await mineAutoSave(false);
-  emptyBoard();
+  emptyBoard(); xpRestore();
 }
 if (xp) {
   let on = true; try { on = localStorage.getItem("kgv.xpList") !== "0"; } catch { /* storage blocked */ }
@@ -4627,7 +4647,7 @@ if (xp) {
   $("xpNext").onclick = ev => { const tr = ev.target.closest("tr[data-m]"); if (!tr || game) return; const c = play(cur, cur.toPlay, xpPair(tr.dataset.m)); if (c) goTo(c); };
   $("xpGames").onclick = ev => {
     const a = ev.target.closest("a[data-open]");
-    if (a) { ev.preventDefault(); if (!game) openMineKifu("pub:" + a.dataset.open + ":" + (xp.seq || "")); return; }   // here, not a new tab
+    if (a) { ev.preventDefault(); xpOpen(a.dataset.open); return; }
     const row = ev.target.closest(".xp-game"); if (row && xp.data && xp.data.games) xpFollow(xp.data.games[+row.dataset.i]); };
   xpUpdate();
 }
