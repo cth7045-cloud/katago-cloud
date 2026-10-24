@@ -1985,7 +1985,24 @@ async function libTourList(year) {
   }
   return libTours[year];
 }
-function libGo(year, tour = null) { libYear = year; libTour = tour; libYears = {}; libTours = {}; libShow(); window.scrollTo(0, 0); }   // counts read again: the collector keeps adding
+// Each place is its own address (사용자 2026-10-24 "뒤로가기 누르면 바로 … 나가버리는데 하나씩만 뒤로가게"): #library (프로 기보),
+// #library/ai, #library/pro/2025, #library/pro/2025/<대회> ('*' = the whole year), #library/pro/latest, #library/ai/2025 —
+// a card, a tab or the path above pushes one, so the phone's back button goes up one level at a time.
+const libHash = (kind, year, tour) => "#library" + (kind === "ai" || year ? "/" + kind : "") + (year ? "/" + year : "") +
+  (year && tour !== null && !(kind === "ai" && tour === "*") ? "/" + encodeURIComponent(tour) : "");
+function libFromHash() {   // the place in the address -> libKind / libYear / libTour (and the tab buttons)
+  const [, kind = "pro", year = null, tour = null] = location.hash.split("/");
+  libKind = kind === "ai" ? "ai" : "pro";
+  libYear = year || null;
+  libTour = !libYear ? null : libKind === "ai" ? "*" : libYear === "latest" ? null : tour !== null ? decodeURIComponent(tour) : null;
+  for (const x of $("libKind").children) x.setAttribute("aria-pressed", x.dataset.kind === libKind);
+}
+function libGo(year, tour = null, kind = libKind) {
+  libYears = {}; libTours = {};   // counts read again: the collector keeps adding
+  const h = libHash(kind, year, tour);
+  if (location.hash !== h) location.hash = h;   // -> hashchange -> showPage -> libFromHash + libShow
+  else { libFromHash(); libShow(); window.scrollTo(0, 0); }
+}
 async function libShow() {
   const seq = ++libSeq, kind = libSource(), finding = !!libFindQ(), listing = finding || libListing();
   $("libKind").classList.toggle("hidden", finding);
@@ -2054,9 +2071,7 @@ async function loadLibrary(reset) {
 }
 $("libKind").onclick = (ev) => {
   const b = ev.target.closest("[data-kind]"); if (!b || b.dataset.kind === libKind) return;
-  libKind = b.dataset.kind;
-  for (const x of $("libKind").children) x.setAttribute("aria-pressed", x === b);
-  libGo(null);
+  libGo(null, null, b.dataset.kind);
 };
 $("libCards").onclick = (ev) => {
   const c = ev.target.closest(".lib-cat"); if (!c) return;
@@ -2067,7 +2082,17 @@ $("libCrumb").onclick = (ev) => {
   const b = ev.target.closest("[data-crumb]"); if (!b) return;
   if (b.dataset.crumb === "root") libGo(null); else libGo(libYear, null);
 };
-$("libFind").oninput = () => { clearTimeout(libTimer); libTimer = setTimeout(libShow, 300); };
+// 찾기 is one step too: the first word typed adds a history entry, back clears the box and shows the place again
+$("libFind").oninput = () => {
+  const on = !!libFindQ(), marked = !!(history.state && history.state.libFind);
+  if (on && !marked) history.pushState({ libFind: 1 }, "", location.href);
+  else if (!on && marked) history.back();   // emptied by hand: drop the step (popstate finds the box empty)
+  clearTimeout(libTimer); libTimer = setTimeout(libShow, 300);
+};
+addEventListener("popstate", () => {
+  if (curPage !== "libraryView" || (history.state && history.state.libFind) || !$("libFind").value) return;
+  $("libFind").value = ""; clearTimeout(libTimer); libShow();
+});
 $("libMore").onclick = () => loadLibrary(false);
 $("libRows").onclick = (ev) => {
   const tr = ev.target.closest("[data-lib]"); const k = tr && libRows[+tr.dataset.lib]; if (!k) return;
@@ -2196,7 +2221,10 @@ function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 �
   $("studyBack").classList.toggle("hidden", !part);
 }
 function showPage() {
-  const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : location.hash.startsWith("#study/") ? "studyView" : "hubView");
+  const page = PAGES[location.hash] || (location.hash.startsWith("#mine/") ? "mineView" : location.hash.startsWith("#study/") ? "studyView"
+    : location.hash.startsWith("#library/") ? "libraryView" : "hubView");
+  // left 기보실: its search is not kept for the next time (사용자 2026-10-24 "나갔다 들어오면 검색했던게 그대로 남아 있던데")
+  if (curPage === "libraryView" && page !== "libraryView" && $("libFind").value) { $("libFind").value = ""; libLoaded = false; }
   // one set of GPU parts (balance, my GPU, choosing one): on the 기보 분석 page while it shows, else on GPU 대여
   const slot = $(page === "analyzeView" ? "analyzeGpuSlot" : "homeGpuSlot");
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
@@ -2207,7 +2235,10 @@ function showPage() {
   if (profile) dashShow();
   if (page === "mineView") showMineFolder();
   if (page === "studyView") showStudyPart();
-  if (profile && page === "libraryView" && !libLoaded) libShow();
+  if (page === "libraryView") {
+    const was = [libKind, libYear, libTour].join("|"); libFromHash();
+    if (profile && (!libLoaded || was !== [libKind, libYear, libTour].join("|"))) libShow();
+  }
   if (profile && page === "chargeView") { if (!$("chargeDepositor").value) $("chargeDepositor").value = profile.name || ""; loadCharge(); }
   if (profile && (page === "hubView" || page === "mineView" || page === "analyzeView" || page === "studyView")) loadMine();
   if (profile && (page === "hubView" || page === "studyView")) loadNotesCard();
