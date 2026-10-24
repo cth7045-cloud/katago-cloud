@@ -555,7 +555,11 @@ button.primary:hover { background: var(--blue-deep); }
 @media (max-width: 760px) {
   .sp-cards { grid-template-columns: 1fr; }
   .rp-grades { gap: 4px; }
-  .rp-grades div { padding: 8px 2px; }
+  .rp-grades button { padding: 8px 1px; }
+  /* a phone with larger text cut "AI의 수" to "AI의…" (user report 2026-10-24): the card gives more width, the label is a
+     little tighter and, when it still does not fit, goes onto two lines at its space instead of being cut */
+  .sp-card { padding: 16px 12px; }
+  .rp-grades span { font-size: 11.5px; letter-spacing: -.03em; white-space: normal; word-break: keep-all; overflow: visible; line-height: 1.25; }
   .rp-grades b { font-size: 18px; }
   .rp-phase th, .rp-phase td { padding: 7px 4px; }
   .sp-rank { font-size: 24px; }
