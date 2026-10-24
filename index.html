@@ -768,6 +768,7 @@ async function enter() {
   loadOffers(); loadMine(); loadNotesCard(); resumeBatch();
   if (curPage === "libraryView" && !libLoaded) libShow();   // opened at #library: showPage ran before the profile
   if (location.hash.startsWith("#study/bank")) loadBank();
+  else if (location.hash === "#study") bankData().catch(() => {});
   // every 4 s while the page is in front; in the background only while a GPU is on or a 기보 분석 waits for one (its
   // 준비 완료 alert and the reserved start need it) — a tab or the PC app left open all day asks nothing (2026-10-10)
   clearInterval(pollTimer);
@@ -1594,27 +1595,39 @@ function bankMerge(raw, edits, books, meta) {   // (+ bank_meta: shelves' and bo
   idx.groups = idx.groups.filter((g) => g.books.length);
   return idx;
 }
-async function loadBank() {
-  try {
-    if (!bankRaw) { const r = await fetch(`problems/index.json?v=${Date.now()}`); if (!r.ok) throw new Error(r.status); bankRaw = await r.json(); }
-    const [edits, books, meta] = await Promise.all([bankRows("bank_edits", "pid,pack,added,hidden,prob,updated_at"), bankRows("bank_books", "id,shelf,title,sub"),
-      bankRows("bank_meta", "kind,id,title,sub,shelf,hidden,ord,updated_at")]);
+// index.json, the admins' changes and the member's counts asked at once (they waited on each other before: 5 round trips and
+// the 복습 problems' files one by one before anything showed — user 2026-10-24 "문제 은행 누르면 화면이 늦게 떠"); also
+// fetched ahead on the 학습방 page, so 문제 은행 opens from what is already here and only refreshes
+let bankLoading = null;
+function bankData() {
+  return bankLoading ||= (async () => {
+    const [raw, edits, books, meta, sum] = await Promise.all([
+      bankRaw || fetch(`problems/index.json?v=${Date.now()}`).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      bankRows("bank_edits", "pid,pack,added,hidden,prob,updated_at"), bankRows("bank_books", "id,shelf,title,sub"),
+      bankRows("bank_meta", "kind,id,title,sub,shelf,hidden,ord,updated_at"), sb.rpc("bank_summary")]);
+    bankRaw = raw;
     const key = JSON.stringify([edits.map((e) => e.pid + e.updated_at), books, meta]);
-    if (!bankIdx || key !== bankEditKey) { bankIdx = bankMerge(bankRaw, edits, books, meta); bankEditKey = key; bankFiles.clear(); }
-  } catch { $("bankMsg").textContent = "문제 목록을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요."; $("bankMsg").classList.remove("hidden"); return; }
-  const { data } = await sb.rpc("bank_summary");
-  bankStats = Object.fromEntries((data || []).map((r) => [r.pack, r]));
-  bankDue = await bankDueNow();
-  showBank();
+    if (!bankIdx || key !== bankEditKey) { bankIdx = bankMerge(bankRaw, edits, books, meta); bankEditKey = key; bankFiles.clear(); bankDue = null; }
+    bankStats = Object.fromEntries((sum.data || []).map((r) => [r.pack, r]));
+  })().finally(() => { bankLoading = null; });
+}
+async function loadBank() {
+  try { await bankData(); } catch { $("bankMsg").textContent = "문제 목록을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요."; $("bankMsg").classList.remove("hidden"); return; }
+  if (!location.hash.startsWith("#study/bank")) return;
+  showBank();   // the shelves now; 복습 (its problems are read from the books' files) right after
+  const due = await bankDueNow(), view = location.hash.split("/")[2];
+  bankDue = due;
+  if (location.hash.startsWith("#study/bank") && (!view || view === "review")) showBank();
 }
 // 복습 = the due records whose problem is still on the site (= the analysis screen's #bank=review): records of books or problems
 // taken off the site stay in the table and in bank_summary's counts
-let bankDue = [];   // [{p, book}] in the analysis screen's 복습 order (due_at): the 복습 cards (#study/bank/review)
+let bankDue = null;   // [{p, book}] in the analysis screen's 복습 order (due_at): the 복습 cards (#study/bank/review); null = not read yet
 async function bankDueNow() {
   const books = new Map(bankIdx.groups.flatMap((g) => g.books.map((b) => [b.id, b])));
   if (![...books.keys()].some((id) => bankStats[id]?.due)) return [];
   const { data } = await sb.from("bank_progress").select("pid,pack,file").not("due_at", "is", null).in("pack", [...books.keys()])
     .lte("due_at", new Date().toISOString()).order("due_at").limit(200);
+  await Promise.all([...new Set((data || []).map((r) => `${r.pack}-${r.file}`))].map((n) => bankFile(n).catch(() => {})));   // their files at once
   const out = [];
   for (const r of data || []) {
     const book = books.get(r.pack), files = [r.file, ...Array.from({ length: book.files }, (_, i) => i).filter((i) => i !== r.file)].filter((i) => i < book.files);
@@ -1626,7 +1639,8 @@ const BOOK_ICON = '<svg viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H
 function showBank() {   // #study/bank = 복습 and the shelves, #study/bank/<shelf> = its books, #study/bank/<shelf>/<book> = the book's problems as cards
   const [, shelfId, bookId] = location.hash.slice(1).split("/").slice(1);
   const shelf = bankIdx.groups.find((g) => g.id === shelfId), book = shelf && shelf.books.find((b) => b.id === bookId);
-  const due = bankDue.length, review = shelfId === "review";
+  const due = bankDue ? bankDue.length : bankIdx.groups.reduce((t, g) => t + g.books.reduce((n, b) => n + (bankStats[b.id]?.due || 0), 0), 0);   // (not read yet: the counts)
+  const review = shelfId === "review";
   const row = (href, cls, name, sub) => `<a class="batch-entry" href="${href}"><span class="hub-icon folder ${cls}" aria-hidden="true">${BOOK_ICON}</span>` +
     `<span class="grow"><b>${esc(name)}</b><span>${sub}</span></span><span class="chev" aria-hidden="true">›</span></a>`;
   $("bankBooks").classList.toggle("hidden", !!book || review); $("bankBook").classList.toggle("hidden", !book && !review);
@@ -1637,7 +1651,7 @@ function showBank() {   // #study/bank = 복습 and the shelves, #study/bank/<sh
     bankOpen = { book: "review", file: 0 };
     $("bankBookInfo").textContent = due ? `틀린 문제 ${due}개` : "오늘 복습할 문제가 없습니다";
     $("bankGo").classList.toggle("hidden", !due); $("bankPages").classList.add("hidden");
-    $("bankCards").innerHTML = bankDue.map(({ p, book: b }) => `<div class="study-item bank-item" data-p="${esc(p.i)}"><div class="study-thumb">${bankThumb(p)}</div>` +
+    $("bankCards").innerHTML = (bankDue || []).map(({ p, book: b }) => `<div class="study-item bank-item" data-p="${esc(p.i)}"><div class="study-thumb">${bankThumb(p)}</div>` +
       `<div class="study-body"><div class="study-title">${p.k}번</div><div class="study-meta">${esc(b.title + (b.sub ? " · " + b.sub : ""))}</div></div></div>`).join("");
   } else if (book) {
     $("bankGo").classList.remove("hidden");
@@ -2178,6 +2192,7 @@ function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 �
   $("studyHead").textContent = { notes: "오답노트", research: "내 연구", bank: "문제 은행" }[part] || "학습방";
   $("studyBack").setAttribute("href", "#study"); $("studyBack").textContent = "‹ 학습방";
   if (part === "bank") { if (bankIdx) showBank(); if (profile) loadBank(); }
+  else if (!part && profile && !bankIdx) bankData().catch(() => {});   // 학습방: 문제 은행 read ahead
   $("studyBack").classList.toggle("hidden", !part);
 }
 function showPage() {
