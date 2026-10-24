@@ -323,6 +323,7 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #barLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='9' width='18' height='6' rx='1'/><path d='M12 9v6'/></svg>"); }
 #menuBody #graphLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 3v18h18'/><path d='M7 14l4-4 3 3 5-6'/></svg>"); }
 #menuBody #treeLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='6' cy='5' r='2'/><circle cx='6' cy='19' r='2'/><circle cx='17' cy='13' r='2'/><path d='M6 7v10M6 8c0 4 4 5 9 5'/></svg>"); }
+#menuBody #xpLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 6h11M9 12h11M9 18h11'/><path d='M4 6h1M4 12h1M4 18h1'/></svg>"); }
 #menuBody #resetBoard { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5'/></svg>"); }
 .error { color: var(--bad); padding-left: 6px; }
 .error:empty { display: none; }
@@ -549,6 +550,7 @@ button.primary:hover { background: var(--blue-deep); }
 /* 수순 탐색 (학습방, user 2026-10-24): the 기보실 games that begin with the moves on the board, in the 변화도 place */
 #xpBox { display: none; flex: 0 0 50%; min-height: 0; flex-direction: column; gap: 6px; padding: 8px 10px 10px; background: var(--panel); border-radius: 18px; box-shadow: var(--shadow); }
 .xp-open #xpBox { display: flex; }
+#xpLabel[hidden] { display: none; }
 .xp-open #treeBox, .xp-open #reportBox { display: none; }
 .xp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 30px; }
 #xpNow { flex: 1 1 140px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -798,6 +800,7 @@ button.primary:hover { background: var(--blue-deep); }
       <label class="check" id="barLabel"><input type="checkbox" id="showBar" checked> 승률 막대</label>
       <label class="check" id="graphLabel"><input type="checkbox" id="showGraph"> 승률 그래프</label>
       <label class="check" id="treeLabel"><input type="checkbox" id="showTree"> 변화도</label>
+      <label class="check" id="xpLabel" hidden><input type="checkbox" id="showXp" checked> 수순 탐색 목록</label>
       <hr>
       <button id="nums">수순</button>
       <button id="coords">좌표</button>
@@ -1170,6 +1173,7 @@ const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : nul
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
 const xp = freshTree ? {src: "", cache: new Map(), node: null, seq: null, data: null, timer: 0} : null;
+const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // the list on screen (메뉴 › 보기 › 수순 탐색 목록)
 const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
@@ -4551,18 +4555,20 @@ function xpFollow(g) {   // a game's moves from here on, as the line ▶ follows
   goTo(first);
   $("err").textContent = `${g.black || "흑"} · ${g.white || "백"}${g.day ? " (" + g.day.slice(0, 4) + ")" : ""}의 수순을 이었습니다`;
 }
-function drawXpMarks(ctx, G) {   // the share of each next move on its point (where the AI shows no candidate of its own)
+function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 … from the most played (user 2026-10-24); on an AI candidate a small badge at its corner
   const d = xp.data; if (!d || !d.next || xp.dataNode !== cur || hover) return;
   const cands = new Set(candsShown() ? candidates(cur, true).map(c => c.move) : []), {margin: m, sq, r} = G;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `800 ${Math.round(r * .95)}px ${UI_FONT}`;
-  for (const n of d.next.slice(0, 12)) {
-    const xy = xpPair(n.m), share = xpPct(n.n, d.total); if (!xy || cur.grid[idx(...xy)] || cands.has(gtp(...xy))) continue;
-    if (share < 1 && d.total > 20) continue;
-    const x = m + sq * xy[0] + .5, y = m + sq * xy[1] + .5;
-    ctx.fillStyle = "rgba(255, 255, 255, .88)"; ctx.strokeStyle = "rgb(44, 92, 246)"; ctx.lineWidth = Math.max(1.5, r / 8);
-    ctx.beginPath(); ctx.arc(x, y, r * .95, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "rgb(31, 63, 184)"; ctx.fillText(share ? String(share) : "<1", x, y + r * .04);
-  }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  d.next.forEach((n, i) => {
+    const xy = xpPair(n.m); if (!xy || cur.grid[idx(...xy)]) return;
+    const ai = cands.has(gtp(...xy)), rr = ai ? r * .48 : r * .95;
+    const x = m + sq * xy[0] + .5 + (ai ? r * .62 : 0), y = m + sq * xy[1] + .5 - (ai ? r * .62 : 0);
+    ctx.fillStyle = "rgba(255, 255, 255, .92)"; ctx.strokeStyle = "rgb(44, 92, 246)"; ctx.lineWidth = Math.max(1.5, r / 8);
+    ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const label = String(i + 1);
+    ctx.font = `800 ${Math.round(rr * (label.length > 2 ? .8 : label.length > 1 ? 1 : 1.1))}px ${UI_FONT}`;
+    ctx.fillStyle = "rgb(31, 63, 184)"; ctx.fillText(label, x, y + rr * .05);
+  });
 }
 async function newTreeBoard() {   // 학습방 → 수순 탐색 on the GPU: an empty board in place of the shared one (its game kept first if it is in 내 기보)
   freshTree = false;
@@ -4570,7 +4576,14 @@ async function newTreeBoard() {   // 학습방 → 수순 탐색 on the GPU: an 
   emptyBoard();
 }
 if (xp) {
-  document.body.classList.add("xp-open");
+  let on = true; try { on = localStorage.getItem("kgv.xpList") !== "0"; } catch { /* storage blocked */ }
+  $("xpLabel").hidden = false; $("showXp").checked = on;
+  document.body.classList.toggle("xp-open", on);
+  $("showXp").onchange = () => {   // 메뉴 › 보기 › 수순 탐색 목록: only here, opened from 학습방 (user 2026-10-24)
+    document.body.classList.toggle("xp-open", $("showXp").checked);
+    try { localStorage.setItem("kgv.xpList", $("showXp").checked ? "1" : "0"); } catch { /* storage blocked */ }
+    layout();
+  };
   $("xpSrc").onclick = ev => {
     const b = ev.target.closest("button[data-s]"); if (!b) return;
     xp.src = b.dataset.s; $("xpSrc").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); xpUpdate();
@@ -5525,7 +5538,7 @@ const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["복기", ["strengthOpen", "strengthLevel", "addNote", "openNotes"]],
               ["대국", ["newGame", "pass", "gameScore", "gameResign"]],
               ["바둑판", ["sizeLabel", "handicapLabel", "komiLabel", "placeRow"]],
-              ["보기", ["candsLabel", "ownerLabel", "hideLabel", "barLabel", "graphLabel", "treeLabel", "nums", "coords"]],
+              ["보기", ["candsLabel", "ownerLabel", "hideLabel", "barLabel", "graphLabel", "treeLabel", "xpLabel", "nums", "coords"]],
               ["편집", ["promote", "studyStart", "deleteNode", "resetBoard"]],
               ["정보", ["aboutOss"]]];
 const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
@@ -5593,7 +5606,7 @@ function layout() {
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
   const side = matchMedia("(orientation: portrait)").matches
     ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - document.querySelector(".menubar").offsetHeight
-        - document.querySelector(".left").offsetHeight - (xp ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
+        - document.querySelector(".left").offsetHeight - (xpShown() ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
   const view = quiz && quiz.view;
