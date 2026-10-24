@@ -319,7 +319,7 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 /* main area: left cards | board | right cards */
 .main { display: grid; grid-template-columns: 24% minmax(0, 1fr) 24%; min-height: 0; gap: 12px; padding: 12px; }
 .left, .right { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
-.cv-box, .comment, #treeBox, .table-box, .mini-box { background: var(--panel); border-radius: 18px; box-shadow: var(--shadow); }
+.cv-box, .comment, #treeBox, #reportBox, .table-box, .mini-box { background: var(--panel); border-radius: 18px; box-shadow: var(--shadow); }
 .cv-box { position: relative; min-height: 0; overflow: hidden; }
 .cv-box > canvas { position: absolute; inset: 0; display: block; }
 #capBox { flex: 0 0 11%; min-height: 80px; }
@@ -516,9 +516,12 @@ button.primary:hover { background: var(--blue-deep); }
 .rp-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--soft); }
 .rp-bar i { display: block; height: 100%; }
 .rp-grades { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.rp-grades div { background: var(--soft); border-radius: 14px; padding: 10px 8px; text-align: center; }
-.rp-grades span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; }
-.rp-grades span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: var(--c); vertical-align: 1px; }
+/* a grade is a button (user 2026-10-24): it opens the report in the 변화도 place at that grade's first move; the dot sits
+   above the label so "AI의 수" stays inside its box on a phone (it ran into the next one) */
+.rp-grades button { min-width: 0; min-height: 0; background: var(--soft); border-radius: 14px; padding: 10px 4px; text-align: center; color: var(--ink); font: inherit; }
+.rp-grades button:disabled { opacity: 1; cursor: default; }
+.rp-grades span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-grades span::before { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; margin: 0 auto 4px; background: var(--c); }
 .rp-grades b { display: block; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
 .rp-grades em { display: block; font-style: normal; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rp-phase { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -526,7 +529,29 @@ button.primary:hover { background: var(--blue-deep); }
 .rp-phase td { text-align: right; padding: 8px; border-bottom: 1px solid var(--line); }
 .rp-phase th:first-child, .rp-phase td:first-child { text-align: left; }
 .rp-phase tr:last-child td { border-bottom: 0; }
-.sp-note { margin: 16px 24px 20px; color: var(--muted); font-size: 13px; }
+.sp-cards { padding-bottom: 20px; }
+/* 대국 리포트 under the board / in the 변화도 place (user 2026-10-24, like Tygem's): per grade a black and a white bar (share
+   of that side's moves, count); a grade's label goes to its next move of either side, a bar to that side's next one */
+#reportBox { display: none; flex: none; padding: 8px 10px 10px; border-radius: 18px; }
+.report-open #reportBox { display: block; }
+.report-open #treeBox { display: none; }
+.rb-head { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rb-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-head b { color: var(--ink); }
+#rbClose { flex: none; min-height: 28px; width: 32px; padding: 0; font-size: 18px; line-height: 1; }
+.rb-chart { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 4px; }
+.rb-col { display: grid; grid-template-rows: auto 30px; gap: 6px; min-width: 0; }
+.rb-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; align-items: end; height: 96px; border-bottom: 1px solid var(--line); }
+.rb-bars button { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-height: 0; min-width: 0;
+  padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--muted); font-size: 10.5px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.rb-bars button:hover { background: var(--soft); }
+.rb-bars i { display: block; width: 100%; min-height: 2px; margin-top: 2px; border-radius: 3px 3px 0 0; }
+.rb-bars .b i { background: #15171c; }
+.rb-bars .w i { background: #d9dde5; }
+.rb-bars button.sel { color: var(--ink); font-weight: 700; }
+.rb-bars button.sel i { box-shadow: 0 0 0 2px var(--c); }
+.rb-col > button { min-height: 30px; padding: 0 2px; border-radius: 6px; background: var(--c); color: #fff; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb-col > button:hover { background: var(--c); filter: brightness(1.08); }
 @media (max-width: 760px) {
   .sp-cards { grid-template-columns: 1fr; }
   .rp-grades { gap: 4px; }
@@ -582,7 +607,8 @@ button.primary:hover { background: var(--blue-deep); }
   .bar-off:not(.graph-open) .left { display: none; }
   /* 변화도 under the board, switched in the menu like the graph (user request 2026-10-09); scrolls inside its box */
   .tree-open .right { display: flex; order: 3; padding: 8px 8px 0; }
-  .tree-open .right > :not(#treeBox) { display: none; }
+  .tree-open .right > :not(#treeBox):not(#reportBox), .report-open .right > :not(#treeBox):not(#reportBox) { display: none; }
+  .report-open .right { display: flex; order: 3; padding: 8px 8px 0; }
   /* contain: a wide tree (many 갈래) scrolls sideways inside its box; without it the canvas widened the whole page and
      the board and buttons were pushed off a phone (user report 2026-10-09) */
   .tree-open #treeBox { flex: none; height: 120px; contain: inline-size; }
@@ -637,6 +663,7 @@ button.primary:hover { background: var(--blue-deep); }
   .menubar, .toolbar { background: rgba(21, 28, 46, .82); border-color: rgba(255, 255, 255, .06); }
   #saveMine:not([hidden]) { background: #1b2748; color: var(--blue-deep); }
   #saveMine:hover { background: #22305a; }
+  .rb-bars .b i { background: #000; box-shadow: inset 0 0 0 1px #3a4560; }
   div.lvl button:hover, .stone-seg button:hover, .seg button:hover { background: rgba(255, 255, 255, .08); }
   .lvl:has(button.on[data-l="ultra"])::after, .level-pop button em { color: #ff9a5c; }
   body.dropping::after { background: rgba(22, 34, 74, .88); color: var(--blue-deep); }
@@ -906,7 +933,6 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="sp-sub">본선의 수를 하나씩 AI의 판단과 비교합니다.</div>
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
-  <div class="sp-note">손해 = 수를 두기 전과 둔 뒤의 형세 차이(집, 둔 사람 기준). AI의 수 = AI 1순위와 같은 수 · 좋은 수 = 손해 1.5집·승률 3% 이내(오답노트 정답과 같은 기준) · 실수 = 4집 또는 승률 10% 이상 · 악수 = 8집 또는 승률 20% 이상(오답노트 '실수'·'큰 실수만'과 같은 기준) · 평범 = 그 사이. 이미 결판난 국면(두기 전 승률 5% 미만·95% 넘음)의 수는 승률을 10% 넘게 잃지 않았으면 실수·악수로 치지 않습니다(오답노트도 같음). 초반은 50수까지, 중반은 150수까지입니다(19줄 기준, 작은 판은 넓이만큼 줄임). 분석 세기(빠름 250 · 보통 500 · 정밀 1000 · 초정밀 5000 visits)가 높을수록 손해 값이 덜 흔들립니다.</div>
 </dialog>
 
 <div class="main">
@@ -925,6 +951,7 @@ button.primary:hover { background: var(--blue-deep); }
 
   <aside class="right">
     <div id="treeBox"><canvas id="tree" aria-label="변화도"></canvas></div>
+    <div id="reportBox" aria-label="대국 리포트"><div class="rb-head"><span id="rbNow"></span><button type="button" id="rbClose" aria-label="리포트 닫기">×</button></div><div class="rb-chart" id="rbChart"></div></div>
     <div class="table-box">
       <table>
         <thead><tr><th>순서</th><th>승률</th><th>비짓</th><th>비중</th><th>리드</th></tr></thead>
@@ -4377,7 +4404,7 @@ function renderStrength() {
   const card = (xs, side, name, cls, img) => {
     const n = xs.length, count = g => xs.filter(x => x.grade === g).length;
     const bar = GRADES.map(([g, , c]) => `<i style="width:${count(g) / n * 100}%;background:${c}" title="${escHtml(GRADES.find(x => x[0] === g)[1])} ${count(g)}"></i>`).join("");
-    const grades = GRADES.map(([g, label, c]) => `<div style="--c:${c}"><span>${label}</span><b>${count(g)}</b><em>${pct(count(g), n)}%</em></div>`).join("");
+    const grades = GRADES.map(([g, label, c]) => `<button type="button" style="--c:${c}" data-g="${g}" data-side="${cls === "black" ? "B" : "W"}"${count(g) ? "" : " disabled"}><span>${label}</span><b>${count(g)}</b><em>${pct(count(g), n)}%</em></button>`).join("");
     const phases = PHASES.map(([, label, upTo], i) => {
       const ps = xs.filter(x => x.no <= phaseCut(upTo, N) && (!i || x.no > phaseCut(PHASES[i - 1][2], N)));
       const bad = ps.filter(x => x.grade === "mistake" || x.grade === "blunder").length;
@@ -4393,7 +4420,55 @@ function renderStrength() {
   };
   $("strengthCards").innerHTML = (bySide.B.length ? card(bySide.B, "흑", root.info.PB, "black", "black0.png") : "") +
                                  (bySide.W.length ? card(bySide.W, "백", root.info.PW, "white", "white0.png") : "");
+  if (report) renderReport();
 }
+// The report in the 변화도 place (user 2026-10-24 "탐색트리 자리에 … 대국리포트 들어가게 해서 클릭하면 그거에 해당하는수로 차례대로"):
+// opened from a grade in the window; a grade's label goes to its next move of either side, a side's bar to that side's
+// next one (after the move shown, then from the start again). Closed with ×, or when another record is opened.
+let report = null;   // {root, sel: {g, side}} while it shows
+function reportMoves() {   // the graded moves of the main line, in order: [{n, no, side, grade}]
+  const out = [];
+  for (const n of lineThrough(root)) { const g = n.move && !n.move.pass && moveGrade(n); if (g) out.push({n, no: n.depth, side: n.move.c, grade: g.grade}); }
+  return out;
+}
+function renderReport() {
+  const ms = reportMoves(), sel = report.sel || {};
+  const side = c => ms.filter(m => m.side === c), all = {B: side("B"), W: side("W")};
+  const share = (c, g) => all[c].length ? all[c].filter(m => m.grade === g).length / all[c].length : 0;
+  const top = Math.max(.01, ...GRADES.flatMap(([g]) => [share("B", g), share("W", g)]));
+  const bar = (c, g) => { const k = all[c].filter(m => m.grade === g).length, on = sel.g === g && sel.side === c;
+    return `<button type="button" class="${c === "B" ? "b" : "w"}${on ? " sel" : ""}" data-g="${g}" data-side="${c}" aria-label="${c === "B" ? "흑" : "백"} ${k}수"${k ? "" : " disabled"}>` +
+      `${Math.round(share(c, g) * 100)}%<br>(${k})<i style="height:${Math.round(share(c, g) / top * 56)}px"></i></button>`; };
+  $("rbChart").innerHTML = GRADES.map(([g, label, c]) =>
+    `<div class="rb-col" style="--c:${c}"><div class="rb-bars">${bar("B", g)}${bar("W", g)}</div><button type="button" data-g="${g}">${label}</button></div>`).join("");
+  const ai = c => all[c].length ? Math.round(all[c].filter(m => m.grade === "ai").length / all[c].length * 100) + "%" : "—";
+  if (!sel.g) $("rbNow").innerHTML = `AI 일치율 흑 <b>${ai("B")}</b> · 백 <b>${ai("W")}</b>`;
+}
+function openReport() {
+  report = {root, sel: null};
+  document.body.classList.add("report-open"); renderReport(); layout();
+}
+function closeReport() {
+  if (!report) return;
+  report = null; document.body.classList.remove("report-open"); layout();
+}
+function reportGo(g, side, fromStart = false) {   // the next move of grade g (side "B"/"W", or either when none)
+  const ms = reportMoves().filter(m => m.grade === g && (!side || m.side === side));
+  report.sel = {g, side};
+  renderReport();
+  const label = GRADES.find(x => x[0] === g)[1], who = side === "B" ? "흑 " : side === "W" ? "백 " : "";
+  if (!ms.length) { $("rbNow").textContent = `${who}${label} 없음`; return; }
+  const at = lineThrough(root).includes(cur) ? cur.depth : 0;
+  const k = fromStart ? 0 : Math.max(0, ms.findIndex(m => m.no > at)), m = ms[k];
+  $("rbNow").innerHTML = `${who}${escHtml(label)} <b>${k + 1}/${ms.length}</b> · ${m.no}수`;
+  goTo(m.n);
+}
+$("strengthCards").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-g]"); if (!b) return;
+  $("strengthDlg").close(); openReport(); reportGo(b.dataset.g, b.dataset.side, true);
+});
+$("rbChart").onclick = ev => { const b = ev.target.closest("button[data-g]"); if (b) reportGo(b.dataset.g, b.dataset.side || null); };
+$("rbClose").onclick = closeReport;
 $("strengthOpen").onclick = () => {
   const line = lineThrough(root);   // every move already analysed (any strength): the report right away, '다시 분석' redoes it
   if (!strengthId && line.length > 1 && line.every(n => n.analysis && n.analysis.rootInfo)) {
@@ -5014,6 +5089,7 @@ function blunderColor(node) {
 }
 let treeHits = [];
 function drawTree() {
+  if (report && report.root !== root) closeReport();
   const box = $("treeBox"); if (getComputedStyle(box).display === "none") return;
   // Layout (user request 2026-10-09): the main line goes down one column; a 갈래 starts on the row right under the move
   // it leaves and runs to the right, and a 갈래 inside it the same way, one row further down. No line passes behind

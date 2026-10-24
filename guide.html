@@ -479,7 +479,7 @@ details.more .table-wrap { margin: 4px 0 8px; }
     <section id="report">
       <h2>대국 리포트</h2>
       <p class="sum">한 판을 수마다 AI와 비교해, 흑·백이 얼마나 AI처럼 뒀는지와 어디서 손해 봤는지 보여 줍니다.</p>
-      <figure class="fig"><img src="guide/report.webp" width="1300" height="829" alt="대국 리포트: 흑·백 AI 일치율, 평균 손해, 다섯 등급 개수, 초반·중반·종반 표" loading="lazy"><figcaption>실제 대국을 보통 세기로 분석한 리포트(대국자 이름은 가림)</figcaption></figure>
+      <figure class="fig"><img src="guide/report.webp" width="1300" height="731" alt="대국 리포트: 흑·백 AI 일치율, 평균 손해, 다섯 등급 개수, 초반·중반·종반 표" loading="lazy"><figcaption>실제 대국을 보통 세기로 분석한 리포트(대국자 이름은 가림)</figcaption></figure>
       <div class="table-wrap"><table>
         <thead><tr><th>등급</th><th>기준(한 수에 잃은 것)</th></tr></thead>
         <tbody>
@@ -492,7 +492,9 @@ details.more .table-wrap { margin: 4px 0 8px; }
       </table></div>
       <ul>
         <li>이미 결판난 국면(두기 전 승률 5% 미만·95% 넘음)의 수는 승률을 10% 넘게 잃지 않았으면 실수로 치지 않습니다.</li>
+        <li><b>손해</b>는 수를 두기 전과 둔 뒤의 형세 차이(둔 사람 기준)입니다. 초반은 50수까지, 중반은 150수까지(19줄 기준, 작은 판은 넓이만큼 줄임)입니다.</li>
         <li>아래 표에서 <b>초반·중반·종반</b> 중 어디가 약한지 보고, 그 단계의 오답노트를 풀어 보세요.</li>
+        <li>등급(AI의 수·좋은 수·평범·실수·악수)을 누르면 창이 닫히고 <b>변화도 자리에 리포트 막대</b>가 나오며, 그 등급의 첫 수로 갑니다. 막대 아래 등급 이름을 누를 때마다 흑·백 모두에서 그 등급의 다음 수로, 흑·백 막대를 누르면 그쪽의 다음 수로 차례대로 넘어갑니다. <span class="chip">×</span>를 누르면 변화도로 돌아갑니다.</li>
       </ul>
       <details class="more"><summary>자세히: 걸리는 시간, 취소, 다시 분석</summary><div>
         <ul>
