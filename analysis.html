@@ -1002,7 +1002,7 @@ button.primary:hover { background: var(--blue-deep); }
     <div id="xpBox" aria-label="역대 기보 수순 탐색">
       <div class="xp-head"><span id="xpNow"></span><div class="lvl" id="xpSrc" role="group" aria-label="기보"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
       <div class="xp-body" id="xpBody">
-        <table><thead><tr><th>다음 수</th><th>판</th><th>비율</th><th>흑 승률</th><th>AI</th></tr></thead><tbody id="xpNext"></tbody></table>
+        <table><thead><tr><th>다음 수</th><th>판</th><th>비율</th><th>승리 비율</th><th>AI</th></tr></thead><tbody id="xpNext"></tbody></table>
         <div class="xp-sub" id="xpGamesHead"></div>
         <div id="xpGames"></div>
       </div>
@@ -4489,7 +4489,7 @@ function drawBankMarks(ctx, G) {   // a ring on the member's last move once the 
 
 // ------------------------------------------------------------------ 수순 탐색 (학습방, user 2026-10-24, DB 20261024m)
 // "ai기보 포함시켜서 수순 자르지 말고 끝까지 표시되게 하고 … 앞으로 업데이트 되는 기보들도": the 기보실 games (pro and AI) that begin
-// with the moves on the board, from the empty board, to the end of any game: their next moves (games, share, 흑 승률) and the
+// with the moves on the board, from the empty board, to the end of any game: their next moves (games, share, 승리 비율) and the
 // newest of them. kifu_tree looks the moves up in all 8 turns of the board and answers in this board's own turn; a position
 // that is its own mirror (빈 판, 천원) folds alike next moves into one, shown on the upper right. The AI column is the
 // analysis on screen (GPU or 내 기기), when there is one. Opened from the website's 학습방 (#tree=1).
@@ -4553,11 +4553,14 @@ function xpDraw() {
   else if (!d.total) now = "이 수순으로 둔 기보가 없습니다";
   else {
     const decided = d.bw + d.ww;
-    now = `기보 <b>${d.total.toLocaleString()}</b>판` + (decided ? ` · 흑 승률 ${xpPct(d.bw, decided)}%` : "") + (d.ended ? ` · 여기서 끝 ${d.ended.toLocaleString()}` : "");
+    // 승리 비율 = for whoever played the move (user 2026-10-24): the line above for the last move's player (흑 on the empty
+    // board), each row for the side to move
+    const wins = (bw, ww, black) => black ? bw : ww, last = cur.move ? cur.move.c === "B" : true, mover = cur.toPlay === "B";
+    now = `기보 <b>${d.total.toLocaleString()}</b>판` + (decided ? ` · ${cur.move ? "" : "흑 "}승리 비율 ${xpPct(wins(d.bw, d.ww, last), decided)}%` : "") + (d.ended ? ` · 여기서 끝 ${d.ended.toLocaleString()}` : "");
     rows = d.next.slice(0, 60).map(r => {
       const xy = xpPair(r.m), share = xpPct(r.n, d.total);
       return `<tr data-m="${r.m}"><td>${xy ? gtp(...xy) : "패스"}</td><td>${r.n.toLocaleString()}</td><td><span class="xp-bar"><i style="width:${share}%"></i></span>${share || "<1"}%</td>` +
-        `<td>${r.bw + r.ww ? xpPct(r.bw, r.bw + r.ww) + "%" : "-"}</td><td></td></tr>`;
+        `<td>${r.bw + r.ww ? xpPct(wins(r.bw, r.ww, mover), r.bw + r.ww) + "%" : "-"}</td><td></td></tr>`;
     }).join("");
     head = d.total > d.games.length ? `최근 기보 ${d.games.length}판` : `기보 ${d.games.length}판`;
     list = d.games.map((g, i) => {
@@ -4574,7 +4577,7 @@ function xpDraw() {
 // 표시 … 실시간으로"): while 분석 시작 is on, one more search of this position on the analysis engine, beside the live one
 // (GTP), allowed only the table's moves (allowMoves) and spread wide over them (rootPolicyTemperature), with no visit
 // limit and a report every 0.5 s, until the board moves or the analysis stops. Each move shows its value as soon as it
-// has one visit: 1위 = the live analysis's first choice, else how much worse than the best known (집), and its visits.
+// has one visit: its winrate for the side to move (user 2026-10-24 "집 수 말고 승률"), the live analysis's first choice in blue.
 function xpEvalSync() {
   const rows = xp && xp.dataNode === cur && xp.data && xp.data.next ? xp.data.next.slice(0, 60) : [];
   const want = !!xp && analyzing && !quiz && !game && !viewOnly && rows.length > 0;
@@ -4593,13 +4596,10 @@ function xpEvalSync() {
 function xpAi() {   // drawn with the side table
   if (!xp || xp.dataNode !== cur) return;
   const cands = candsShown() ? candidates(cur, true) : [], an = cur.xpAn || {}, on = candsShown() && analyzing;
-  const value = m => an[m] ? moverLead(cur, an[m].lead) : null;
-  let best = cands[0] ? moverLead(cur, cands[0].scoreLead) : -Infinity;
-  for (const tr of $("xpNext").rows) { const v = value(tr.dataset.m); if (v !== null && v > best) best = v; }
   for (const tr of $("xpNext").rows) {
     const m = tr.dataset.m, xy = xpPair(m), c = cands.find(c => c.move === (xy ? gtp(...xy) : "pass")), e = candsShown() ? an[m] : null, td = tr.cells[4];
-    const top = !!c && c.order === 0, v = e ? value(m) : c ? moverLead(cur, c.scoreLead) : null;
-    const html = top ? "1위" : v !== null && best > -Infinity ? "−" + Math.max(0, best - v).toFixed(1) : on ? "…" : "";   // no visits (user 2026-10-24)
+    const top = !!c && c.order === 0, wr = e ? e.wr : c ? c.winrate : null;
+    const html = wr !== null && wr !== undefined ? moverWr(cur, wr).toFixed(1) + "%" : on ? "…" : "";
     if (td.dataset.h !== html) { td.dataset.h = html; td.innerHTML = html; td.classList.toggle("ai1", top); }
   }
 }
