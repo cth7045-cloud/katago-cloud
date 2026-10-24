@@ -1757,7 +1757,10 @@ function goTo(node) {
   if (xp) xpUpdate();
   schedule();
 }
-function step(k) { let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n); }
+function step(k) {
+  if (k === 1 && xp && !cur.children.length && !quiz && !game) { xpStepTop(); return; }   // 수순 탐색: past the moves on the board, the most played one
+  let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n);
+}
 function toEnd() { const l = lineThrough(cur); goTo(l[l.length - 1]); }
 function clearAnalysis(n) { n.analysis = n.pdaAn = null; n.children.forEach(clearAnalysis); }
 
@@ -4554,6 +4557,13 @@ function xpFollow(g) {   // a game's moves from here on, as the line ▶ follows
   if (!first) return;
   goTo(first);
   $("err").textContent = `${g.black || "흑"} · ${g.white || "백"}${g.day ? " (" + g.day.slice(0, 4) + ")" : ""}의 수순을 이었습니다`;
+}
+async function xpStepTop() {   // ▶ / → at the end of the line in 수순 탐색: the 1st (most played) next move of the 기보실 (user 2026-10-24)
+  const node = cur, seq = xpSeq(node); if (seq === null) return;
+  const d = await xpFetch(seq, xp.src);
+  const top = d && !d.error && (d.next || [])[0];
+  if (cur !== node || !top) return;
+  const c = play(node, node.toPlay, xpPair(top.m)); if (c) goTo(c);
 }
 function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 … from the most played (user 2026-10-24); on an AI candidate a small badge at its corner
   const d = xp.data; if (!d || !d.next || xp.dataNode !== cur || hover) return;
