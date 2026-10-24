@@ -3654,7 +3654,7 @@ $("noteAddGo").onclick = async () => {
 async function insertNotes(c, picked, title) {   // [added, tried]: problems already in the notebook are skipped
   const {count, error: countError} = await c.from("mistake_notes").select("id", {count: "exact", head: true});
   if (countError) throw countError;
-  if (count + picked.length > NOTE_MAX) throw new Error(`오답노트는 ${NOTE_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, NOTE_MAX - count)}문제만 더 담을 수 있습니다.`);
+  if (count + picked.length > NOTE_MAX && !(await bankIsAdmin())) throw new Error(`오답노트는 ${NOTE_MAX}문제까지 담을 수 있습니다. 지금 ${count}문제라 ${Math.max(0, NOTE_MAX - count)}문제만 더 담을 수 있습니다.`);
   const sized = await sizeColumn();
   const rows = await Promise.all(picked.map(async ({n, loss}) => {
     const sgf = toSgf(false, n.parent), played = noteMove(n);
@@ -3685,6 +3685,7 @@ async function loadNotes() {
   noteAll = data || [];
   const ids = new Set(noteAll.map(k => k.id));
   for (const id of noteSel) if (!ids.has(id)) noteSel.delete(id);
+  await bankIsAdmin();   // (the count shows no cap for an admin)
   showNotes();
 }
 function showNotes() {
@@ -3695,7 +3696,7 @@ function showNotes() {
   });
   noteList = noteAll.filter(k => !phase || phaseOf(k.move_no, k.board_size)[0] === phase);
   const due = noteList.filter(isDue).length;
-  $("notesCount").textContent = `${noteAll.length} / ${NOTE_MAX}문제`;
+  $("notesCount").textContent = `${noteAll.length}${bankAdmin ? "" : " / " + NOTE_MAX}문제`;   // an admin: no cap (DB 20261024j)
   $("notesReview").textContent = `오늘 복습 ${due}`; $("notesReview").disabled = !due; $("notesAll").disabled = !noteList.length;
   $("notesRows").innerHTML = noteList.map((k, i) =>
     `<tr data-i="${i}" class="${isDue(k) ? "due" : ""}${noteSel.has(k.id) ? " sel" : ""}"><td class="ck"><input type="checkbox" data-s="${i}"${noteSel.has(k.id) ? " checked" : ""} aria-label="${k.move_no}수 문제 고르기"></td><td class="t" title="${escHtml(k.title + (k.memo ? " · " + k.memo : ""))}">${sizeTag(k)}${escHtml(k.title)}</td>` +
