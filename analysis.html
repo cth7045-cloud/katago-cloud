@@ -265,6 +265,9 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
   border-radius: 14px; background: var(--soft); font-size: 14px; color: var(--ink); }
 #menuBody section > .status::before { display: none; }
 #menuBody #gpuStop, #menuBody #localStop { margin-left: auto; }
+/* 대국 정보 on a phone (user 2026-10-24 "컴퓨터 화면에만 있는 대국정보를 폰에도 메뉴에 gpu아래 칸에"): the PC's card, moved in */
+#menuBody #gameInfo { margin: 2px 0; padding: 10px 12px; border: 0; border-radius: 14px; background: var(--soft); cursor: pointer; }
+#menuBody #gameInfo::before { display: none; }
 .menubar .sheet-only { display: none; }   /* 내 기기: the top bar has the button alone, the sheet names its row */
 #menuBody section > ::before { content: ""; flex: none; width: 22px; height: 22px; background: var(--muted);
   -webkit-mask: var(--i) center / 22px no-repeat; mask: var(--i) center / 22px no-repeat; }
@@ -5304,6 +5307,7 @@ $("candRows").addEventListener("dblclick", ev => { const tr = ev.target.closest(
 // the other tools move into the sheet. The same elements are moved (not copied), so their handlers stay as they are,
 // and they go back to the bars in landscape.
 const MENU = [["GPU", ["connStatus", "gpuMeter"]],
+              ["대국 정보", ["gameInfo"]],
               ["기보", ["openSgf", "openMine", "kifuOpen", "photoKifu", "editInfo"]],
               ["SGF 파일", ["saveSgf", "copySgf", "pasteSgf"]],
               ["복기", ["strengthOpen", "strengthLevel", "addNote", "openNotes"]],
