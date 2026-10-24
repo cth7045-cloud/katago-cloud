@@ -3575,7 +3575,7 @@ $("mineRows").addEventListener("click", async ev => {
 async function openMineKifu(id) {
   pendingKifu = null;
   if (mineDirtyAt) await mineAutoSave(false);   // 자동 저장: the game on screen before this one replaces it
-  if (String(id).startsWith("pub:")) return openPublicKifu(String(id).slice(4));
+  if (String(id).startsWith("pub:")) { const [, pid, at] = String(id).split(":"); return openPublicKifu(pid, at === undefined ? null : at); }
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 내 기보를 열 수 있습니다"; return false; }
   let {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study,study_folder_id").eq("id", id).maybeSingle();
@@ -3594,18 +3594,45 @@ async function openMineKifu(id) {
 
 // 기보실 (#pub=<id>, 2026-10-22, DB 20261022c_public_kifu): a pro or AI game the server collected. It opens like an SGF
 // file (no 내 기보 row behind it, so nothing is saved over); '내 기보 저장' keeps a copy with the analysis made here.
-async function openPublicKifu(id) {
+async function openPublicKifu(id, at = null) {   // at: 수순 탐색's moves on its board (the game opens there, turned that way)
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 기보실 기보를 열 수 있습니다"; return false; }
   const {data: k, error} = await c.from("public_kifu").select("id,event,black,white,played_on,sgf").eq("id", Number(id)).maybeSingle();
   if (error || !k) { $("err").textContent = "기보실 기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
   try { loadSgf(k.sgf); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
+  if (at !== null) pubAt(at);
   const title = `${k.black || "?"} vs ${k.white || "?"}`;
   document.title = `${title} · KataGo Cloud`;
-  // which game opened, as for 내 기보 (user 2026-10-23); the old hint about '내 기보 저장' stays out (it made the board smaller)
-  $("err").textContent = `기보실 '${title}${k.played_on ? " · " + k.played_on : ""}'을(를) 열었습니다`;
+  // which game opened, as for 내 기보 (user 2026-10-23); the old hint about '내 기보 저장' stays out (it made the board smaller).
+  // Not from 수순 탐색: the game is the one tapped there (user 2026-10-24 "그거 … 없애")
+  if (at === null) $("err").textContent = `기보실 '${title}${k.played_on ? " · " + k.played_on : ""}'을(를) 열었습니다`;
   return true;
+}
+
+// 수순 탐색's 열기 (user 2026-10-24: it opened on the empty board, in a new tab with the browser's address bar): the
+// game here on this board, turned the way the explorer's board was (it may have been played in another corner) and
+// shown at the moves that were on it; the explorer goes on beside it.
+function pubAt(p) {
+  if (!/^([a-s]{2}|tt)+$/.test(p)) return;
+  const line = lineThrough(root), n = p.length / 2;
+  if (line.length <= n || root.setup.B.length || root.setup.W.length) return;
+  const orig = line.slice(1, n + 1).map(x => x.move.pass ? "tt" : xpStr([x.move.x, x.move.y])).join("");
+  const k = [0, 1, 2, 3, 4, 5, 6, 7].find(k => xpTurn(orig, k) === p);
+  if (k === undefined) return;
+  if (k) {   // every point of the record turned (moves, set-up, marks, labels); the game is the same
+    const pt = v => xpStr(xpXY(v.charCodeAt(0) - 97, v.charCodeAt(1) - 97, k));
+    const turned = toSgf(true)
+      .replace(/(^|[;\]\s(])(B|W|AB|AW|AE|TR|CR|SQ|MA|SL|TB|TW)((?:\s*\[(?:[a-s]{2}(?::[a-s]{2})?)?\])+)/g, (all, pre, id, vals) =>
+        pre + id + vals.replace(/\[([a-s]{2})(?::([a-s]{2}))?\]/g, (v, a, b) => {
+          if (!b) return `[${pt(a)}]`;
+          const [x1, y1] = xpPair(pt(a)), [x2, y2] = xpPair(pt(b));
+          return `[${xpStr([Math.min(x1, x2), Math.min(y1, y2)])}:${xpStr([Math.max(x1, x2), Math.max(y1, y2)])}]`;
+        }))
+      .replace(/(^|[;\]\s(])LB((?:\s*\[[a-s]{2}:(?:\\.|[^\]\\])*\])+)/g, (all, pre, vals) => pre + "LB" + vals.replace(/\[([a-s]{2}):/g, (v, a) => `[${pt(a)}:`));
+    try { loadSgf(turned); } catch { return; }
+  }
+  goTo(lineThrough(root)[n]);
 }
 
 // ------------------------------------------------------------------ 오답노트: the member's mistakes, to solve again (website only)
@@ -4521,11 +4548,10 @@ function xpDraw() {
         `<td>${r.bw + r.ww ? xpPct(r.bw, r.bw + r.ww) + "%" : "-"}</td><td></td></tr>`;
     }).join("");
     head = d.total > d.games.length ? `최근 기보 ${d.games.length}판` : `기보 ${d.games.length}판`;
-    const keep = new URLSearchParams(location.hash.slice(1)), link = ["u", "t", "local"].filter(k => keep.has(k)).map(k => `${k}=${encodeURIComponent(keep.get(k))}&`).join("");
     list = d.games.map((g, i) => {
       const who = `${escHtml(g.black || "흑")}${g.br ? " " + escHtml(g.br) : ""} · ${escHtml(g.white || "백")}${g.wr ? " " + escHtml(g.wr) : ""}`;
       const meta = [g.src === "ai" ? "AI" : "", g.event, g.day, g.result].filter(Boolean).map(escHtml).join(" · ");
-      return `<div class="xp-game" data-i="${i}"><b>${who}</b><span>${meta}</span><a href="analysis.html?v=${Date.now()}#${link}pub=${g.id}" target="_blank" rel="noopener">열기</a></div>`;
+      return `<div class="xp-game" data-i="${i}"><b>${who}</b><span>${meta}</span><a href="#" data-open="${g.id}">열기</a></div>`;
     }).join("");
   }
   $("xpNow").innerHTML = now; $("xpNext").innerHTML = rows; $("xpGamesHead").textContent = head; $("xpGames").innerHTML = list;
@@ -4599,7 +4625,10 @@ if (xp) {
     xp.src = b.dataset.s; $("xpSrc").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); xpUpdate();
   };
   $("xpNext").onclick = ev => { const tr = ev.target.closest("tr[data-m]"); if (!tr || game) return; const c = play(cur, cur.toPlay, xpPair(tr.dataset.m)); if (c) goTo(c); };
-  $("xpGames").onclick = ev => { if (ev.target.closest("a")) return; const row = ev.target.closest(".xp-game"); if (row && xp.data && xp.data.games) xpFollow(xp.data.games[+row.dataset.i]); };
+  $("xpGames").onclick = ev => {
+    const a = ev.target.closest("a[data-open]");
+    if (a) { ev.preventDefault(); if (!game) openMineKifu("pub:" + a.dataset.open + ":" + (xp.seq || "")); return; }   // here, not a new tab
+    const row = ev.target.closest(".xp-game"); if (row && xp.data && xp.data.games) xpFollow(xp.data.games[+row.dataset.i]); };
   xpUpdate();
 }
 
