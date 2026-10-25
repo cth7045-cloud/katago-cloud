@@ -386,7 +386,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       </div>
     </div>
 
-    <!-- 기보실 (#library, 2026-10-22): 프로 기보 (타이젬) and AI 기보 (KataGo), collected every 10 minutes by the server -->
+    <!-- 기보실 (#library, 2026-10-22; 2026-10-25 3분류 확장): 프로 기보 · AI 기보 · 프로 vs AI -->
     <div class="wrap app narrow hidden" id="libraryView">
       <a class="back" href="#mine">‹ 기보</a>
       <h1 class="page-title">기보실</h1>
@@ -394,8 +394,9 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       <div class="seg lib-kind" id="libKind" role="group" aria-label="기보 종류">
         <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
         <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
+        <button type="button" data-kind="vs" aria-pressed="false">프로 vs AI</button>
       </div>
-      <!-- 분류: 프로 기보 = 최신 대국 · 연도 → 그해 대회 → 기보, AI 기보 = 연도 → 기보 (a list: name, games, ›) -->
+      <!-- 분류: 프로 기보 · AI 기보 · 프로 vs AI 모두 최신 대국 · 연도 → 그해 대회 → 기보 (a list: name, games, ›) -->
       <nav class="lib-crumb" id="libCrumb" aria-label="위치"></nav>
       <nav class="panel lib-cats" id="libCards" aria-label="분류"></nav>
       <div class="panel hidden" id="libListCard">
@@ -1963,16 +1964,18 @@ $("mineRows").onclick = async (ev) => {
 // (the 50 newest, inside 프로 기보 since "최신기보를 프로기보 안쪽으로"), else by year and in a year by 대회
 // (DB 20261022g tournament); AI 기보 by year.
 const LIB_PAGE = 50;   // (설명 문구는 사용자 2026-10-23 "설명 문구 지워줘"로 뺌)
-// where the member is: kind, then year ('latest' = 최신 대국 50판, '2026'), then tour (null = the year's 대회 cards,
-// '*' = the whole year, else one 대회). AI 기보 has no 대회 level.
+const LIB_KINDS = { pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI" };
+const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 AI 대국", vs: "가장 최근 프로 vs AI 대국" };
+// where the member is: kind ('pro' | 'ai' | 'vs'), then year ('latest' = 최신 대국 50판, '2026'), then tour
+// (null = the year's 대회 cards, '*' = the whole year, else one 대회). All three kinds use the same hierarchy (2026-10-25).
 let libKind = "pro", libYear = null, libTour = null;
 let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {}, libTours = {};
-const libSource = () => (libKind === "ai" ? "ai" : "pro");
-const libLatest = () => libKind === "pro" && libYear === "latest";
+const libSource = () => (LIB_KINDS[libKind] ? libKind : "pro");
+const libLatest = () => libYear === "latest";
 // 찾기 (사용자 2026-10-23 "검색 기능은 프로기보, ai기보 위에 별도로"): the box above the tabs searches the whole 기보실
-// (both kinds, every year: DB 20261023g public_kifu_search); while it has words the tabs and cards give way to the results.
+// (all three kinds, every year: DB 20261023g public_kifu_search); while it has words the tabs and cards give way to the results.
 const libFindQ = () => $("libFind").value.replace(/\s+/g, " ").trim();
-const libListing = () => libYear === "latest" || (libYear && (libKind === "ai" || libTour !== null));
+const libListing = () => libYear === "latest" || (libYear && libTour !== null);
 const libCard = (data, name, n, sub = "") => `<button type="button" class="lib-cat" ${data}><span class="grow"><b>${esc(name)}</b>` +
   `${sub ? `<span class="muted small">${esc(sub)}</span>` : ""}</span><span class="muted">${n}</span><span class="chev" aria-hidden="true">›</span></button>`;
 // 연도 (DB 20261022e public_kifu_years) and one year's 대회 (20261022g public_kifu_tournaments), with their numbers of games
@@ -1984,24 +1987,25 @@ async function libYearList(kind) {
   }
   return libYears[kind];
 }
-async function libTourList(year) {
-  if (!libTours[year]) {
-    const { data, error } = await sb.rpc("public_kifu_tournaments", { p_source: "pro", p_year: Number(year) });
+async function libTourList(kind, year) {
+  const k = `${kind}:${year}`;
+  if (!libTours[k]) {
+    const { data, error } = await sb.rpc("public_kifu_tournaments", { p_source: kind, p_year: Number(year) });
     if (error) throw error;
-    libTours[year] = (data || []).filter((t) => t.tournament);
+    libTours[k] = data || [];
   }
-  return libTours[year];
+  return libTours[k];
 }
 // Each place is its own address (사용자 2026-10-24 "뒤로가기 누르면 바로 … 나가버리는데 하나씩만 뒤로가게"): #library (프로 기보),
-// #library/ai, #library/pro/2025, #library/pro/2025/<대회> ('*' = the whole year), #library/pro/latest, #library/ai/2025 —
+// #library/ai, #library/vs, #library/<kind>/latest, #library/<kind>/2025, #library/<kind>/2025/<대회> ('*' = the whole year) —
 // a card, a tab or the path above pushes one, so the phone's back button goes up one level at a time.
-const libHash = (kind, year, tour) => "#library" + (kind === "ai" || year ? "/" + kind : "") + (year ? "/" + year : "") +
-  (year && tour !== null && !(kind === "ai" && tour === "*") ? "/" + encodeURIComponent(tour) : "");
+const libHash = (kind, year, tour) => "#library" + (kind !== "pro" || year ? "/" + kind : "") + (year ? "/" + year : "") +
+  (year && tour !== null ? "/" + encodeURIComponent(tour) : "");
 function libFromHash() {   // the place in the address -> libKind / libYear / libTour (and the tab buttons)
   const [, kind = "pro", year = null, tour = null] = location.hash.split("/");
-  libKind = kind === "ai" ? "ai" : "pro";
+  libKind = LIB_KINDS[kind] ? kind : "pro";
   libYear = year || null;
-  libTour = !libYear ? null : libKind === "ai" ? "*" : libYear === "latest" ? null : tour !== null ? decodeURIComponent(tour) : null;
+  libTour = !libYear || libYear === "latest" ? null : tour !== null ? decodeURIComponent(tour) : null;
   for (const x of $("libKind").children) x.setAttribute("aria-pressed", x.dataset.kind === libKind);
 }
 function libGo(year, tour = null, kind = libKind) {
@@ -2013,14 +2017,14 @@ function libGo(year, tour = null, kind = libKind) {
 async function libShow() {
   const seq = ++libSeq, kind = libSource(), finding = !!libFindQ(), listing = finding || libListing();
   $("libKind").classList.toggle("hidden", finding);
-  const kindName = libKind === "ai" ? "AI 기보" : "프로 기보";
+  const kindName = LIB_KINDS[kind];
   // 위치: 프로 기보 › 2026년 › 몽백합배 세계바둑오픈전 (each part goes back there)
   const parts = [`<button type="button" class="quiet" data-crumb="root">${kindName}</button>`];
   if (libYear === "latest") parts.push(`<span>최신 대국</span>`);
   else if (libYear) {
-    parts.push(libKind === "pro" && libTour !== null ? `<button type="button" class="quiet" data-crumb="year">${libYear}년</button>` : `<span>${libYear}년</span>`);
+    parts.push(libTour !== null ? `<button type="button" class="quiet" data-crumb="year">${libYear}년</button>` : `<span>${libYear}년</span>`);
     if (libTour && libTour !== "*") parts.push(`<span>${esc(libTour)}</span>`);
-    else if (libTour === "*" && libKind === "pro") parts.push(`<span>전체</span>`);
+    else if (libTour === "*") parts.push(`<span>전체</span>`);
   }
   $("libCrumb").innerHTML = libYear && !finding ? parts.join(`<span class="sep" aria-hidden="true">›</span>`) : "";
   $("libListCard").classList.toggle("hidden", !listing);
@@ -2029,12 +2033,12 @@ async function libShow() {
   $("libCards").innerHTML = `<p class="muted lib-cat-msg">불러오는 중…</p>`;
   try {
     let html;
-    if (!libYear) {   // 연도 cards (프로 기보: 최신 대국 first)
+    if (!libYear) {   // 연도 cards (최신 대국 first)
       const years = await libYearList(kind);
-      html = (libKind === "pro" ? libCard(`data-year="latest"`, "최신 대국", "50판", "가장 최근 프로 대국") : "") +
+      html = libCard(`data-year="latest"`, "최신 대국", "50판", LIB_LATEST_SUB[kind]) +
         years.map((y) => libCard(`data-year="${y.year}"`, `${y.year}년`, `${Number(y.n).toLocaleString()}판`)).join("");
-    } else {           // that year's 대회 cards (프로 기보)
-      const tours = await libTourList(libYear), total = tours.reduce((a, t) => a + Number(t.n), 0);
+    } else {           // that year's 대회 cards
+      const all = await libTourList(kind, libYear), tours = all.filter((t) => t.tournament), total = all.reduce((a, t) => a + Number(t.n), 0);
       html = libCard(`data-tour="*"`, `${libYear}년 전체`, `${total.toLocaleString()}판`) +
         tours.map((t) => libCard(`data-tour="${esc(t.tournament)}"`, t.tournament, `${Number(t.n).toLocaleString()}판`)).join("");
     }
@@ -2049,8 +2053,8 @@ const libName = (name, rank) => `${esc(name || "?")}${rank ? ` <span class="mute
 async function loadLibrary(reset) {
   const q = libFindQ(), seq = ++libSeq, latest = !q && libLatest();
   if (reset) { libRows = []; $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오는 중…</td></tr>`; }
-  const year = latest ? "" : libYear, tour = libKind === "pro" && libTour && libTour !== "*" ? libTour : "";
-  $("libTitle").textContent = q ? "찾은 기보" : latest ? "최신 대국" : tour || `${year}년${libKind === "pro" ? " 전체" : ""}`;
+  const year = latest ? "" : libYear, tour = libTour && libTour !== "*" ? libTour : "";
+  $("libTitle").textContent = q ? "찾은 기보" : latest ? "최신 대국" : tour || `${year}년 전체`;
   let data, error, count;
   if (q) {   // the whole 기보실; each row carries the number found
     ({ data, error } = await sb.rpc("public_kifu_search", { p_q: q, p_offset: libRows.length, p_limit: LIB_PAGE }));
@@ -2082,7 +2086,7 @@ $("libKind").onclick = (ev) => {
 };
 $("libCards").onclick = (ev) => {
   const c = ev.target.closest(".lib-cat"); if (!c) return;
-  if (c.dataset.year) libGo(c.dataset.year, libKind === "pro" ? null : "*");
+  if (c.dataset.year) libGo(c.dataset.year, null);
   else if (c.dataset.tour) libGo(libYear, c.dataset.tour);
 };
 $("libCrumb").onclick = (ev) => {
