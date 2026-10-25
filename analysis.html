@@ -4565,7 +4565,7 @@ function xpDraw() {
     head = d.total > d.games.length ? `최근 기보 ${d.games.length}판` : `기보 ${d.games.length}판`;
     list = d.games.map((g, i) => {
       const who = `${escHtml(g.black || "흑")}${g.br ? " " + escHtml(g.br) : ""} · ${escHtml(g.white || "백")}${g.wr ? " " + escHtml(g.wr) : ""}`;
-      const meta = [g.src === "ai" ? "AI" : "", g.event, g.day, g.result].filter(Boolean).map(escHtml).join(" · ");
+      const meta = [g.src === "vs" ? "프로 vs AI" : g.src === "ai" ? "AI" : "", g.event, g.day, g.result].filter(Boolean).map(escHtml).join(" · ");
       return `<div class="xp-game" data-i="${i}"><b>${who}</b><span>${meta}</span><a href="#" data-open="${g.id}">열기</a></div>`;
     }).join("");
   }
