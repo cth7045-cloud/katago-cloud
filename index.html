@@ -1969,7 +1969,7 @@ const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 
 // where the member is: kind ('pro' | 'ai' | 'vs'), then year ('latest' = 최신 대국 50판, '2026'), then tour
 // (null = the year's 대회 cards, '*' = the whole year, else one 대회). All three kinds use the same hierarchy (2026-10-25).
 let libKind = "pro", libYear = null, libTour = null;
-let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {}, libTours = {};
+let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {}, libTours = {}, libFindCache = new Map();
 const libSource = () => (LIB_KINDS[libKind] ? libKind : "pro");
 const libLatest = () => libYear === "latest";
 // 찾기 (사용자 2026-10-23 "검색 기능은 프로기보, ai기보 위에 별도로"): the box above the tabs searches the whole 기보실
@@ -2009,7 +2009,7 @@ function libFromHash() {   // the place in the address -> libKind / libYear / li
   for (const x of $("libKind").children) x.setAttribute("aria-pressed", x.dataset.kind === libKind);
 }
 function libGo(year, tour = null, kind = libKind) {
-  libYears = {}; libTours = {};   // counts read again: the collector keeps adding
+  libYears = {}; libTours = {}; libFindCache.clear();   // counts read again: the collector keeps adding
   const h = libHash(kind, year, tour);
   if (location.hash !== h) location.hash = h;   // -> hashchange -> showPage -> libFromHash + libShow
   else { libFromHash(); libShow(); window.scrollTo(0, 0); }
@@ -2052,19 +2052,33 @@ async function libShow() {
 const libName = (name, rank) => `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
 async function loadLibrary(reset) {
   const q = libFindQ(), seq = ++libSeq, latest = !q && libLatest();
-  if (reset) { libRows = []; $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오는 중…</td></tr>`; }
+  const hit = q && reset ? libFindCache.get(q) : null, fresh = hit && Date.now() - hit.at < 300000 ? hit : null;
+  if (reset) { libRows = []; if (!fresh) $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오는 중…</td></tr>`; }
   const year = latest ? "" : libYear, tour = libTour && libTour !== "*" ? libTour : "";
   $("libTitle").textContent = q ? "찾은 기보" : latest ? "최신 대국" : tour || `${year}년 전체`;
   let data, error, count;
   if (q) {   // the whole 기보실; each row carries the number found
-    ({ data, error } = await sb.rpc("public_kifu_search", { p_q: q, p_offset: libRows.length, p_limit: LIB_PAGE }));
-    if (data && reset) count = data.length ? Number(data[0].total) : 0;
+    if (fresh) {
+      data = fresh.rows; count = fresh.count;
+    } else {
+      ({ data, error } = await sb.rpc("public_kifu_search", { p_q: q, p_offset: libRows.length, p_limit: LIB_PAGE }));
+      if (data && reset) {
+        count = data.length ? Number(data[0].total) : 0;
+        if (libFindCache.size > 80) libFindCache.clear();
+        libFindCache.set(q, { rows: data, count, at: Date.now() });
+      }
+    }
   } else {
-    let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset && !latest ? "exact" : undefined })
-      .eq("source", libSource()).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
+    const src = libSource(), tList = year ? libTours[`${src}:${year}`] : null;
+    const known = reset && !latest ? (tour ? tList?.find((t) => t.tournament === tour)?.n
+      : tList ? tList.reduce((a, t) => a + Number(t.n), 0)
+      : libYears[src]?.find((y) => String(y.year) === String(year))?.n) : undefined;
+    let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset && !latest && known == null ? "exact" : undefined })
+      .eq("source", src).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
     if (year) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
     if (tour) req = req.eq("tournament", tour);
     ({ data, error, count } = await req);
+    if (known != null) count = Number(known);
   }
   if (seq !== libSeq) return;   // a newer search or place replaced this one
   if (error) { $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오지 못했습니다: ${esc(error.message)}</td></tr>`; return; }
@@ -2094,11 +2108,17 @@ $("libCrumb").onclick = (ev) => {
   if (b.dataset.crumb === "root") libGo(null); else libGo(libYear, null);
 };
 // 찾기 is one step too: the first word typed adds a history entry, back clears the box and shows the place again
-$("libFind").oninput = () => {
-  const on = !!libFindQ(), marked = !!(history.state && history.state.libFind);
+$("libFind").oninput = (ev) => {
+  const q = libFindQ(), on = !!q, marked = !!(history.state && history.state.libFind);
   if (on && !marked) history.pushState({ libFind: 1 }, "", location.href);
   else if (!on && marked) history.back();   // emptied by hand: drop the step (popstate finds the box empty)
-  clearTimeout(libTimer); libTimer = setTimeout(libShow, 300);
+  clearTimeout(libTimer);
+  const hit = on ? libFindCache.get(q) : null;
+  if (!on || (hit && Date.now() - hit.at < 300000)) { libShow(); return; }
+  libTimer = setTimeout(libShow, ev && ev.isComposing && /^[ㄱ-ㅎㅏ-ㅣ]$/.test(q) ? 220 : 120);
+};
+$("libFind").onkeydown = (ev) => {
+  if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); clearTimeout(libTimer); libShow(); }
 };
 addEventListener("popstate", () => {
   if (curPage !== "libraryView" || (history.state && history.state.libFind) || !$("libFind").value) return;

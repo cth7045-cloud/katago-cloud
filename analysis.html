@@ -1172,7 +1172,7 @@ const STUDY = {joseki: "정석", fuseki: "포석", other: "기타"};
 const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : null;   // 학습방 → 새 연구: the topic it is saved under
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
-const xp = freshTree ? {src: "", cache: new Map(), node: null, seq: null, data: null, timer: 0} : null;
+const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, seq: null, data: null, timer: 0, lastAt: 0} : null;
 let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
 const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // the list on screen (메뉴 › 보기 › 수순 탐색 목록)
 const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
@@ -4494,9 +4494,25 @@ function drawBankMarks(ctx, G) {   // a ring on the member's last move once the 
 // that is its own mirror (빈 판, 천원) folds alike next moves into one, shown on the upper right. The AI column is the
 // analysis on screen (GPU or 내 기기), when there is one. Opened from the website's 학습방 (#tree=1).
 const xpXY = (x, y, k) => { const a = k & 1 ? 18 - x : x, b = k & 2 ? 18 - y : y; return k & 4 ? [b, a] : [a, b]; };
+const xpInv = k => k & 4 ? 4 | ((k & 1) << 1) | ((k & 2) >> 1) : k;
 const xpPair = m => m === "tt" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
 const xpStr = xy => xy ? String.fromCharCode(97 + xy[0], 97 + xy[1]) : "tt";
-const xpTurn = (seq, k) => (seq.match(/../g) || []).map(m => xpStr(xpPair(m) && xpXY(...xpPair(m), k))).join("");
+function xpTurn(seq, k) {
+  if (!k || !seq) return seq;
+  let out = "";
+  for (let i = 0; i < seq.length; i += 2) {
+    const x = seq.charCodeAt(i) - 97, y = seq.charCodeAt(i + 1) - 97;
+    if (x === 19 && y === 19) { out += "tt"; continue; }
+    const a = k & 1 ? 18 - x : x, b = k & 2 ? 18 - y : y;
+    out += String.fromCharCode(97 + (k & 4 ? b : a), 97 + (k & 4 ? a : b));
+  }
+  return out;
+}
+function xpCanon(seq) {
+  let canon = seq, kc = 0;
+  for (let k = 1; k < 8; k++) { const s = xpTurn(seq, k); if (s < canon) { canon = s; kc = k; } }
+  return {canon, kc};
+}
 function xpSeq(node) {   // the moves from the empty board, 2 letters each; null when they cannot be looked up
   if (N !== 19 || root.setup.B.length || root.setup.W.length || quiz) return null;
   let s = "", c = "B";
@@ -4508,39 +4524,81 @@ function xpUpper(m, stab) {   // of a move's mirror images on this position, the
   const xy = xpPair(m); if (!xy || stab.length < 2) return m;
   return xpStr(stab.map(k => xpXY(...xy, k)).sort((p, q) => (q[0] - q[1]) - (p[0] - p[1]) || q[0] - p[0])[0]);
 }
-function xpUpdate() { if (!xp) return; clearTimeout(xp.timer); xp.timer = setTimeout(xpLoad, 120); }
-async function xpFetch(seq, src) {   // one position's answer, kept on this page (a promise while it is on its way)
-  const key = src + ":" + seq;
+function xpFromCanon(cData, seq, kc) {
+  if (!cData || cData.error) return cData;
+  const inv = xpInv(kc), stab = xpStab(seq);
+  return {
+    ...cData,
+    next: cData.next.map(r => ({...r, m: xpUpper(inv ? xpTurn(r.m, inv) : r.m, stab)})),
+    games: inv ? cData.games.map(g => ({...g, rest: xpTurn(g.rest || "", inv)})) : cData.games,
+    stab,
+  };
+}
+function xpSync(seq, src) {
+  const {canon, kc} = xpCanon(seq), cData = xp.raw.get(src + ":" + canon);
+  return cData ? xpFromCanon(cData, seq, kc) : null;
+}
+async function xpFetch(seq, src) {   // shared across all 8 board symmetries via canonical key
+  const {canon, kc} = xpCanon(seq), key = src + ":" + canon;
+  const ready = xp.raw.get(key);
+  if (ready) return xpFromCanon(ready, seq, kc);
   if (!xp.cache.has(key)) {
-    if (xp.cache.size > 400) xp.cache.clear();
+    if (xp.cache.size > 600) {
+      for (const k of xp.cache.keys()) { xp.cache.delete(k); xp.raw.delete(k); if (xp.cache.size <= 400) break; }
+    }
     xp.cache.set(key, (async () => {
       const c = await mineClient();
       if (!c) return {error: "로그인한 사이트에서만 쓸 수 있습니다"};
       const {data, error} = await c.rpc("kifu_tree", {p_seq: seq, p_src: src || null});
       if (error) { xp.cache.delete(key); return {error: "기보를 찾지 못했습니다: " + error.message}; }
-      const stab = xpStab(seq);
-      data.next = (data.next || []).map(r => ({...r, m: xpUpper(r.m, stab)}));
-      data.stab = stab;
-      return data;
+      const cData = {
+        ...data,
+        next: (data.next || []).map(r => ({...r, m: kc ? xpTurn(r.m, kc) : r.m})),
+        games: (data.games || []).map(g => kc ? {...g, rest: xpTurn(g.rest || "", kc)} : g),
+      };
+      xp.raw.set(key, cData);
+      return cData;
     })());
   }
-  return xp.cache.get(key);
+  return xpFromCanon(await xp.cache.get(key), seq, kc);
+}
+function xpPrefetch(node, seq, src, data) {   // parallel top-6 + 2-ply lookahead on the 1st choice
+  if (!data || data.error || !data.next || !data.next.length) return;
+  data.next.slice(0, 6).forEach((r, i) => {
+    xpFetch(seq + r.m, src).then(d1 => {
+      if (i === 0 && xp.node === node && xp.src === src && d1 && !d1.error && d1.next) {
+        for (const r2 of d1.next.slice(0, 2)) xpFetch(seq + r.m + r2.m, src).catch(() => {});
+      }
+    }).catch(() => {});
+  });
+}
+function xpApply(node, seq, src, data) {
+  $("xpBox").classList.remove("loading");
+  xp.data = data; xp.dataNode = node; xpDraw(); xpEvalSync(); schedule();
+  xpPrefetch(node, seq, src, data);
+}
+function xpUpdate() {
+  if (!xp) return;
+  clearTimeout(xp.timer);
+  const node = cur, seq = xpSeq(node), src = xp.src;
+  if (seq === null) { xp.node = node; xp.seq = null; xp.data = null; xp.dataNode = node; $("xpBox").classList.remove("loading"); xpDraw(); return; }
+  const sync = xpSync(seq, src);
+  if (sync) { xp.node = node; xp.seq = seq; xpApply(node, seq, src, sync); return; }
+  const now = performance.now();
+  if (now - xp.lastAt >= 50) { xp.lastAt = now; xpLoad(); }
+  else xp.timer = setTimeout(() => { xp.lastAt = performance.now(); xpLoad(); }, 40);
 }
 async function xpLoad() {
   const node = cur, seq = xpSeq(node), src = xp.src;
   xp.node = node; xp.seq = seq;
   if (seq === null) { xp.data = null; xp.dataNode = node; $("xpBox").classList.remove("loading"); xpDraw(); return; }
+  const sync = xpSync(seq, src);
+  if (sync) { xpApply(node, seq, src, sync); return; }
   const p = xpFetch(seq, src);
   $("xpBox").classList.add("loading");   // the last answer stays on screen, dimmed, until this one comes
   const data = await p;
   if (xp.node !== node || xp.src !== src) return;   // moved on meanwhile
-  $("xpBox").classList.remove("loading");
-  xp.data = data; xp.dataNode = node; xpDraw(); xpEvalSync(); schedule();
-  // the likely next positions, one after another, so the next move shows at once (user 2026-10-24 "바로바로 나오게")
-  if (!data.error) for (const r of (data.next || []).slice(0, 3)) {
-    if (xp.node !== node) break;
-    await xpFetch(seq + r.m, src).catch(() => {});
-  }
+  xpApply(node, seq, src, data);
 }
 const xpPct = (a, b) => b ? Math.round(a / b * 100) : 0;
 function xpDraw() {
@@ -4622,7 +4680,7 @@ function xpFollow(g) {   // a game's moves from here on, as the line ▶ follows
 }
 async function xpStepTop() {   // ▶ / → at the end of the line in 수순 탐색: the 1st (most played) next move of the 기보실 (user 2026-10-24)
   const node = cur, seq = xpSeq(node); if (seq === null) return;
-  const d = await xpFetch(seq, xp.src);
+  const d = xpSync(seq, xp.src) || await xpFetch(seq, xp.src);
   const top = d && !d.error && (d.next || [])[0];
   if (cur !== node || !top) return;
   const c = play(node, node.toPlay, xpPair(top.m)); if (c) goTo(c);
