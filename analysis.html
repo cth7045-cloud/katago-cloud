@@ -4634,9 +4634,12 @@ function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 �
     const xy = xpPair(n.m); if (!xy || cur.grid[idx(...xy)]) return;
     const label = String(i + 1), x = m + sq * xy[0], y = m + sq * xy[1];
     if (cands.has(gtp(...xy))) {   // drawStringForOrder's box and size, in the explorer's blue
-      const f = fitFont(ctx, WR_FONT, WR_WEIGHT, label, sq * .36, sq * .39);
-      const x1 = Math.round(x + sq * .43) + .5 - f.w / 2, y1 = Math.round(y - sq * .358) + .5, pad = Math.max(1, T(f.h / 12));
-      ctx.fillStyle = "rgb(44, 92, 246)"; ctx.fillRect(x1 - pad, y1 - f.h - pad, f.w + pad * 2, f.h + pad * 2);
+      // the box from the drawn digits' own extent: the font-wide box (f.h) sometimes came out a third of the digit's
+      // height and left most of it uncovered (user report 2026-10-25, "9번만 파란색이 다 안 칠해져")
+      const f = fitFont(ctx, WR_FONT, WR_WEIGHT, label, sq * .36, sq * .39), mt = ctx.measureText(label);
+      const up = Math.max(mt.actualBoundingBoxAscent || 0, f.size * .72), down = Math.max(0, mt.actualBoundingBoxDescent || 0);
+      const x1 = Math.round(x + sq * .43) + .5 - f.w / 2, y1 = Math.round(y - sq * .358) + .5, pad = Math.max(1, Math.round(f.size / 10));
+      ctx.fillStyle = "rgb(44, 92, 246)"; ctx.fillRect(x1 - pad, y1 - up - pad, f.w + pad * 2, up + down + pad * 2);
       ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillText(label, x1, y1);
       return;
     }
