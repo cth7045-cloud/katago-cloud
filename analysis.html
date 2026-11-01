@@ -4770,7 +4770,6 @@ function moveGrade(n) {   // {grade, points} for an analysed move, or null
   const best = candidates(n.parent)[0], points = Math.max(0, loss.points), wr = Math.max(0, loss.wr);
   const [mp, mw] = NOTE_LEVELS.normal, [bp, bw] = NOTE_LEVELS.big;
   const grade = best && best.move === noteMove(n) ? "ai" : points <= GOOD_POINTS && wr <= GOOD_WR ? "good"
-    : decidedMove(n, loss) ? "inacc"   // the game was already decided: no 실수/악수, as 오답노트 leaves it out
     : points >= bp || wr >= bw ? "blunder" : points >= mp || wr >= mw ? "mistake" : "inacc";
   return {grade, points};
 }
