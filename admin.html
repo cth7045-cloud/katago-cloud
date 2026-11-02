@@ -206,26 +206,15 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
     </div>
     <div class="panel" id="stPaidPanel">
       <div class="st-head"><h2>유료·서비스 충전 설정 <span class="muted small">금액 직접 설정</span></h2></div>
-      <p class="muted small lead">회원에게 새로 유료/서비스 충전을 넣거나, 이미 충전된 금액 중 얼마가 <b>유료 충전(돈 받은 금액)</b>이고 얼마가 <b>서비스 충전(무료 제공)</b>인지 직접 금액을 입력해 설정할 수 있습니다. 바꾸면 위 매출·현금 잔여·월별/일별·회원별 통계에 즉시 반영됩니다.</p>
-      <form id="stTopupForm" class="admin-form" style="margin-bottom:14px">
-        <label class="field">회원(이름 또는 이메일)<input id="stTEmail" list="memberNames" autocomplete="off" required></label>
-        <div class="seg" id="stTKind" role="group" aria-label="충전 또는 차감">
-          <button type="button" data-kind="1" aria-pressed="true">유료 충전</button>
-          <button type="button" data-kind="2" aria-pressed="false">서비스 충전</button>
-          <button type="button" data-kind="-1" aria-pressed="false">차감</button>
-        </div>
-        <label class="field">금액(원)<input id="stTAmount" inputmode="numeric" autocomplete="off" placeholder="예: 10000" required></label>
-        <label class="field">메모<input id="stTNote" maxlength="100" placeholder="예: 계좌이체 1만원"></label>
-        <button class="primary" type="submit">적용</button>
-      </form>
+      <p class="muted small lead">회원별로 <b>유료 충전(돈 받은 금액)</b>과 <b>서비스 충전(무료 제공)</b> 금액을 서로 독립적으로 직접 입력해 설정할 수 있습니다(회수한 잔액 등을 반영할 때 유료·서비스 금액을 각각 원하는 값으로 저장 가능). 바꾸면 위 매출·현금 잔여·월별/일별·회원별 통계에 즉시 반영됩니다.</p>
       <div class="table-wrap"><table class="st-table" id="stPaidMemberTable">
-        <thead><tr><th>회원</th><th class="num">총 충전액</th><th class="num">유료 충전 (돈 받은 금액)</th><th class="num">서비스 충전 (무료 제공)</th><th>설정</th></tr></thead>
+        <thead><tr><th>회원</th><th class="num">원장 충전 (회수 반영)</th><th class="num">유료 충전 (돈 받은 금액)</th><th class="num">서비스 충전 (무료 제공)</th><th>설정</th></tr></thead>
         <tbody id="stPaidMembers"></tbody>
       </table></div>
       <details class="st-details" id="stPaidDetails">
         <summary>개별 충전 내역 건별 설정 (<span id="stPaidRowCount">0건</span>)</summary>
         <div class="table-wrap" style="margin-top:8px"><table class="st-table">
-          <thead><tr><th>시각</th><th>회원</th><th>메모</th><th class="num">충전액</th><th class="num">유료 금액(원)</th><th>전환·저장</th></tr></thead>
+          <thead><tr><th>시각</th><th>회원</th><th>메모</th><th class="num">충전액</th><th class="num">유료 금액(원)</th><th class="num">서비스 금액(원)</th><th>전환·저장</th></tr></thead>
           <tbody id="stPaidRows"></tbody>
         </table></div>
       </details>
@@ -700,9 +689,10 @@ async function load() {
     const KIND = { topup: "충전", adjust: "회수" };
     lists.ledger = ledger;
     render.ledger = (list) => { $("ledgerRows").innerHTML = list.map((r) => {
-      const pk = Number(r.paid_krw ?? (r.paid !== false ? r.amount_krw : 0)), lbl = pk === r.amount_krw ? "유료 충전" : pk <= 0 ? "서비스 충전" : `유료 ${won(pk)} · 서비스 ${won(r.amount_krw - pk)}`;
+      const pk = Number(r.paid_krw ?? (r.paid !== false ? r.amount_krw : 0)), fk = Number(r.free_krw ?? Math.max(0, Number(r.amount_krw) - pk));
+      const lbl = pk > 0 && fk === 0 ? (pk === r.amount_krw ? "유료 충전" : `유료 ${won(pk)}`) : pk === 0 && fk > 0 ? (fk === r.amount_krw ? "서비스 충전" : `서비스 ${won(fk)}`) : pk === 0 && fk === 0 ? "0원 (회수됨)" : `유료 ${won(pk)} · 서비스 ${won(fk)}`;
       return `<tr><td>${when(r.created_at)}</td><td title="${esc(who(r.user_id, r.former_member))}">${esc(whoName(r.user_id, r.former_member))}</td>` +
-        `<td>${r.kind === "topup" ? `<button type="button" class="pill ledger-paid ${pk > 0 ? "good" : ""}" data-ledger-paid="${r.id}" data-paid="${pk >= r.amount_krw}" title="누르면 유료 충전 ↔ 서비스 충전으로 바꿉니다">${esc(lbl)}</button>` : esc(KIND[r.kind] || r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`;
+        `<td>${r.kind === "topup" ? `<button type="button" class="pill ledger-paid ${pk > 0 ? "good" : ""}" data-ledger-paid="${r.id}" data-paid="${pk >= r.amount_krw && fk === 0}" title="누르면 유료 충전 ↔ 서비스 충전으로 바꿉니다">${esc(lbl)}</button>` : esc(KIND[r.kind] || r.kind)}</td><td>${esc(r.note || "")}</td><td class="num">${r.amount_krw > 0 ? "+" : ""}${won(r.amount_krw)}</td></tr>`;
     }).join("") || `<tr><td colspan="5" class="muted">없음</td></tr>`; };
     showPage("ledger");
     speedRows = speed;
@@ -1517,7 +1507,7 @@ const FEATURES = {
   tree: ["역대 기보 수순 탐색", "학습 · 수순별 프로·AI 기보 탐색"],
 };
 const CHARGE_STATE = { pending: "대기", approved: "승인", rejected: "거절", canceled: "취소" };
-let stData = null, stSort = { key: "topup", asc: false }, stMode = "money", stBusy = false, stTKind = 1;
+let stData = null, stSort = { key: "topup", asc: false }, stMode = "money", stBusy = false;
 const pct = (a, b) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : "–");
 const hrs = (h) => { const m = Math.round(Number(h || 0) * 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
 const signed = (n) => `<span class="${n < 0 ? "bad" : n > 0 ? "good" : ""}">${won(n)}</span>`;
@@ -1607,81 +1597,58 @@ function drawStatPaid() {
   const d = stData, topups = d.topups || [];
   const byWho = new Map();
   for (const m of d.members) {
-    const paid = Number(m.topup || 0), free = Number(m.free_topup || 0);
-    if (paid + free > 0) byWho.set(m.id, { key: m.id, name: m.name || "(이름 없음)", email: m.email || "", former: m.former, paid, free, n: Number(m.topup_rows || 0) });
+    const raw = Number(m.raw_topup ?? (Number(m.topup || 0) + Number(m.free_topup || 0))), adj = Number(m.adjust || 0);
+    const paid = Number(m.topup || 0), free = Number(m.free_topup || 0), n = Number(m.topup_rows || 0);
+    if (n > 0 || raw > 0 || paid + free > 0) {
+      byWho.set(m.id, { key: m.id, name: m.name || "(이름 없음)", email: m.email || "", former: m.former, raw, adj, paid, free, n });
+    }
   }
   for (const r of topups) if (!r.who) {
-    const cur = byWho.get("__null__") || { key: "__null__", name: "(시험 충전)", email: r.note || "", former: false, paid: 0, free: 0, n: 0 };
-    const pk = Number(r.paid_krw ?? (r.paid !== false ? r.amount_krw : 0));
-    cur.paid += pk; cur.free += Number(r.amount_krw) - pk; cur.n += 1;
+    const cur = byWho.get("__null__") || { key: "__null__", name: "(시험 충전)", email: r.note || "", former: false, raw: 0, adj: 0, paid: 0, free: 0, n: 0 };
+    const tot = Number(r.amount_krw), pk = Number(r.paid_krw ?? (r.paid !== false ? tot : 0)), fk = Number(r.free_krw ?? Math.max(0, tot - pk));
+    cur.raw += tot; cur.paid += pk; cur.free += fk; cur.n += 1;
     byWho.set("__null__", cur);
   }
-  const mList = [...byWho.values()].sort((a, b) => (b.paid + b.free) - (a.paid + a.free) || b.paid - a.paid);
+  const mList = [...byWho.values()].sort((a, b) => (b.paid + b.free) - (a.paid + a.free) || b.raw - a.raw || b.paid - a.paid);
   $("stPaidMembers").innerHTML = mList.map((m) => {
-    const tot = m.paid + m.free;
-    return `<tr data-who-row="${esc(m.key)}" data-total="${tot}">` +
+    const net = Math.max(0, m.raw + m.adj);
+    const subParts = [`${m.n}건`];
+    if (m.adj < 0) subParts.push(`회수 ${won(m.adj)} → 순 ${won(net)}`);
+    else if (m.adj > 0) subParts.push(`조정 +${won(m.adj)}`);
+    if (m.paid + m.free !== m.raw) subParts.push(`설정 합 ${won(m.paid + m.free)}`);
+    return `<tr data-who-row="${esc(m.key)}" data-raw="${m.raw}" data-net="${net}">` +
       `<td><b>${esc(m.name)}</b>${m.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(m.email)}</span></td>` +
-      `<td class="num"><b>${won(tot)}</b><span class="sub">${m.n}건</span></td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-role="paid" min="0" max="${tot}" step="100" value="${m.paid}" aria-label="${esc(m.name)} 유료 충전 금액"> 원</td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-role="free" min="0" max="${tot}" step="100" value="${m.free}" aria-label="${esc(m.name)} 서비스 충전 금액"> 원</td>` +
+      `<td class="num"><b>${won(m.raw)}</b><span class="sub">${subParts.join(" · ")}</span></td>` +
+      `<td class="num"><input type="number" class="st-paid-in" data-role="paid" min="0" step="100" value="${m.paid}" aria-label="${esc(m.name)} 유료 충전 금액"> 원</td>` +
+      `<td class="num"><input type="number" class="st-paid-in" data-role="free" min="0" step="100" value="${m.free}" aria-label="${esc(m.name)} 서비스 충전 금액"> 원</td>` +
       `<td><div class="st-paid-btns"><button type="button" class="primary" data-save-who="${esc(m.key)}">금액 저장</button>` +
-      `<button type="button" class="quiet" data-set-who="${esc(m.key)}" data-val="${tot}">전액 유료</button>` +
-      `<button type="button" class="quiet" data-set-who="${esc(m.key)}" data-val="0">전액 서비스</button></div></td></tr>`;
+      `<button type="button" class="quiet" data-set-who="${esc(m.key)}" data-paid="${net}" data-free="0" title="유료=${won(net)}, 서비스=0원">전액 유료</button>` +
+      `<button type="button" class="quiet" data-set-who="${esc(m.key)}" data-paid="0" data-free="${net}" title="유료=0원, 서비스=${won(net)}">전액 서비스</button></div></td></tr>`;
   }).join("") || `<tr><td colspan="5" class="empty">충전 기록이 없습니다</td></tr>`;
 
   $("stPaidRowCount").textContent = `${topups.length}건`;
   $("stPaidRows").innerHTML = topups.map((r) => {
-    const tot = Number(r.amount_krw), pk = Number(r.paid_krw ?? (r.paid !== false ? tot : 0)), fk = tot - pk;
-    const badge = pk === tot ? "유료 충전" : pk === 0 ? "서비스 충전" : `유료 ${won(pk)} · 서비스 ${won(fk)}`;
+    const tot = Number(r.amount_krw), pk = Number(r.paid_krw ?? (r.paid !== false ? tot : 0)), fk = Number(r.free_krw ?? Math.max(0, tot - pk));
+    const badge = pk > 0 && fk === 0 ? (pk === tot ? "유료 충전" : `유료 ${won(pk)}`) : pk === 0 && fk > 0 ? (fk === tot ? "서비스 충전" : `서비스 ${won(fk)}`) : pk === 0 && fk === 0 ? "0원 (회수됨)" : `유료 ${won(pk)} · 서비스 ${won(fk)}`;
+    const nextPaid = pk < tot || fk > 0;
     return `<tr data-ledger-row="${r.id}" data-total="${tot}"><td>${when(r.created_at)}</td>` +
       `<td><b>${esc(r.name || "(이름 없음)")}</b>${r.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(r.email || "")}</span></td>` +
       `<td>${esc(r.note || "")}</td><td class="num">${won(tot)}</td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-row-paid="${r.id}" min="0" max="${tot}" step="100" value="${pk}" aria-label="유료 금액"> 원</td>` +
+      `<td class="num"><input type="number" class="st-paid-in" data-row-paid="${r.id}" min="0" step="100" value="${pk}" aria-label="유료 금액"> 원</td>` +
+      `<td class="num"><input type="number" class="st-paid-in" data-row-free="${r.id}" min="0" step="100" value="${fk}" aria-label="서비스 금액"> 원</td>` +
       `<td><div class="st-paid-btns"><button type="button" class="primary" data-row-save="${r.id}">저장</button>` +
-      `<button type="button" class="pill ledger-paid ${pk > 0 ? "good" : ""}" data-row-toggle="${r.id}" data-next="${pk < tot ? tot : 0}" title="누르면 전액 유료 ↔ 전액 서비스로 바꿉니다">${esc(badge)}</button></div></td></tr>`;
-  }).join("") || `<tr><td colspan="6" class="empty">충전 기록 없음</td></tr>`;
+      `<button type="button" class="pill ledger-paid ${pk > 0 ? "good" : ""}" data-row-toggle="${r.id}" data-next-paid="${nextPaid ? tot : 0}" data-next-free="${nextPaid ? 0 : tot}" title="누르면 전액 유료 ↔ 전액 서비스로 바꿉니다">${esc(badge)}</button></div></td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">충전 기록 없음</td></tr>`;
 }
 
 $("stKpis").onclick = (ev) => {
   if (ev.target.closest("[data-scroll-paid]")) $("stPaidPanel").scrollIntoView({ block: "start", behavior: "smooth" });
 };
-$("stTKind").onclick = (ev) => {
-  const b = ev.target.closest("button"); if (!b) return;
-  stTKind = Number(b.dataset.kind);
-  for (const x of $("stTKind").children) x.setAttribute("aria-pressed", x === b);
-  $("stTNote").placeholder = stTKind < 0 ? "예: 잔액 회수" : stTKind === 2 ? "예: 체험·보상 충전" : "예: 계좌이체 1만원";
-};
-$("stTopupForm").onsubmit = async (ev) => {
-  ev.preventDefault();
-  const typed = $("stTEmail").value.trim(), raw = $("stTAmount").value.trim(), digits = raw.replace(/[^0-9]/g, "");
-  if (!digits || Number(digits) === 0) return toast("금액을 숫자로 입력해 주세요.", true);
-  const paid = stTKind !== 2, amount = Number(digits) * (raw.startsWith("-") || stTKind < 0 ? -1 : 1), kindLabel = amount < 0 ? "차감" : paid ? "유료 충전" : "서비스 충전";
-  const found = typed.includes("@") ? members.filter((m) => m.email === typed.toLowerCase()) : members.filter((m) => (m.name || "").trim() === typed);
-  if (found.length > 1) return toast(`'${typed}' 이름의 회원이 ${found.length}명입니다. 이메일로 입력해 주세요.`, true);
-  const email = found[0]?.email ?? typed.toLowerCase(), label = found[0]?.name ? `${found[0].name}(${email})` : email;
-  if (!typed.includes("@") && !found.length) return toast(`'${typed}' 이름의 회원이 없습니다.`, true);
-  if (!confirm(`${label} 회원에게 ${kindLabel} ${amount > 0 ? "+" : ""}${won(amount)} 적용할까요?`)) return;
-  try {
-    const note = $("stTNote").value.trim() || undefined;
-    const { data, error } = await sb.rpc("admin_topup", { p_email: email, p_amount: amount, p_note: note ?? null, p_paid: paid });
-    if (error) throw error;
-    toast(`적용했습니다. 새 잔액 ${won(data.balance_krw)}`);
-    $("stTAmount").value = ""; $("stTNote").value = "";
-    load(); loadStats();
-  } catch (e) { toast(e.message || String(e), true); }
-};
-$("stPaidMembers").oninput = (ev) => {
-  const inp = ev.target.closest("input[data-role]"); if (!inp) return;
-  const tr = inp.closest("tr"), tot = Number(tr.dataset.total || 0);
-  const v = Math.max(0, Math.min(tot, Math.round(Number(inp.value) || 0)));
-  if (inp.dataset.role === "paid") tr.querySelector('input[data-role="free"]').value = tot - v;
-  else tr.querySelector('input[data-role="paid"]').value = tot - v;
-};
-async function saveMemberPaid(whoKey, paidVal, btn) {
+async function saveMemberPaid(whoKey, paidVal, freeVal, btn) {
   if (btn) btn.disabled = true;
   try {
     const p_who = whoKey === "__null__" ? null : whoKey;
-    const { data, error } = await sb.rpc("admin_member_paid", { p_who, p_paid_krw: paidVal });
+    const { data, error } = await sb.rpc("admin_member_paid", { p_who, p_paid_krw: paidVal, p_free_krw: freeVal });
     if (error) throw error;
     toast(`유료 ${won(data.paid_krw)} · 서비스 ${won(data.free_krw)}으로 저장했습니다.`);
     load(); await loadStats();
@@ -1690,34 +1657,36 @@ async function saveMemberPaid(whoKey, paidVal, btn) {
 $("stPaidMembers").onclick = (ev) => {
   const saveBtn = ev.target.closest("[data-save-who]");
   if (saveBtn) {
-    const tr = saveBtn.closest("tr"), tot = Number(tr.dataset.total || 0);
-    const paidVal = Math.max(0, Math.min(tot, Math.round(Number(tr.querySelector('input[data-role="paid"]').value) || 0)));
-    saveMemberPaid(saveBtn.dataset.saveWho, paidVal, saveBtn);
+    const tr = saveBtn.closest("tr");
+    const paidVal = Math.max(0, Math.round(Number(tr.querySelector('input[data-role="paid"]').value) || 0));
+    const freeVal = Math.max(0, Math.round(Number(tr.querySelector('input[data-role="free"]').value) || 0));
+    saveMemberPaid(saveBtn.dataset.saveWho, paidVal, freeVal, saveBtn);
     return;
   }
   const setBtn = ev.target.closest("[data-set-who]");
-  if (setBtn) saveMemberPaid(setBtn.dataset.setWho, Number(setBtn.dataset.val), setBtn);
+  if (setBtn) saveMemberPaid(setBtn.dataset.setWho, Number(setBtn.dataset.paid), Number(setBtn.dataset.free), setBtn);
 };
 $("stPaidRows").onclick = async (ev) => {
   const saveBtn = ev.target.closest("[data-row-save]");
   if (saveBtn) {
-    const id = Number(saveBtn.dataset.rowSave), tr = saveBtn.closest("tr"), tot = Number(tr.dataset.total || 0);
-    const pk = Math.max(0, Math.min(tot, Math.round(Number(tr.querySelector("input[data-row-paid]").value) || 0)));
+    const id = Number(saveBtn.dataset.rowSave), tr = saveBtn.closest("tr");
+    const pk = Math.max(0, Math.round(Number(tr.querySelector("input[data-row-paid]").value) || 0));
+    const fk = Math.max(0, Math.round(Number(tr.querySelector("input[data-row-free]").value) || 0));
     saveBtn.disabled = true;
     try {
-      const { error } = await sb.rpc("admin_ledger_paid", { p_id: id, p_paid: pk > 0, p_paid_krw: pk });
+      const { error } = await sb.rpc("admin_ledger_paid", { p_id: id, p_paid: pk > 0, p_paid_krw: pk, p_free_krw: fk });
       if (error) throw error;
-      toast(`충전 내역을 유료 ${won(pk)} · 서비스 ${won(tot - pk)}으로 저장했습니다.`);
+      toast(`충전 내역을 유료 ${won(pk)} · 서비스 ${won(fk)}으로 저장했습니다.`);
       load(); await loadStats();
     } catch (e) { toast(e.message || String(e), true); saveBtn.disabled = false; }
     return;
   }
   const togBtn = ev.target.closest("[data-row-toggle]");
   if (togBtn) {
-    const id = Number(togBtn.dataset.rowToggle), pk = Number(togBtn.dataset.next);
+    const id = Number(togBtn.dataset.rowToggle), pk = Number(togBtn.dataset.nextPaid), fk = Number(togBtn.dataset.nextFree);
     togBtn.disabled = true;
     try {
-      const { error } = await sb.rpc("admin_ledger_paid", { p_id: id, p_paid: pk > 0, p_paid_krw: pk });
+      const { error } = await sb.rpc("admin_ledger_paid", { p_id: id, p_paid: pk > 0, p_paid_krw: pk, p_free_krw: fk });
       if (error) throw error;
       toast(pk > 0 ? "유료 충전으로 바꿨습니다." : "서비스 충전으로 바꿨습니다.");
       load(); await loadStats();
