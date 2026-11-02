@@ -151,13 +151,13 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
 .st-tools input[type=search] { flex: 0 1 240px; min-width: 0; }
 .st-tools label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); cursor: pointer; }
 .st-tools label input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: var(--blue); }
-.st-paid-in { width: 110px; min-height: 32px; padding: 4px 8px; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
-.st-paid-btns { display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-.st-paid-btns button { min-height: 30px; padding: 3px 9px; font-size: 12px; }
+.st-paid-in { width: 92px; min-height: 28px; padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); }
+.st-paid-box { display: grid; gap: 5px; padding: 6px; margin-top: 4px; border-radius: 10px; background: var(--soft); border: 1px solid var(--line); text-align: right; min-width: 175px; }
+.st-paid-row { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.st-paid-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.st-paid-btns button { min-height: 26px; padding: 2px 8px; font-size: 11px; }
 .st-edit-link { display: inline-block; margin-top: 2px; padding: 1px 6px; font-size: 11px; border-radius: 6px; background: var(--soft); color: var(--blue); border: 1px solid var(--line); cursor: pointer; }
 .st-edit-link:hover { filter: brightness(.96); }
-.st-details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
-.st-details summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); user-select: none; }
 @media (max-width: 860px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .st-grid { grid-template-columns: minmax(0, 1fr); } .st-chart { height: 140px; } }
 @media (prefers-color-scheme: dark) { .st-kpis .kpi.hl { background: #1c2a4d; } .st-chart .col i.b, .st-legend i.b { background: #4a5570; } }
 @media (prefers-color-scheme: dark) {
@@ -200,24 +200,9 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
     <!-- 통계 (2026-11-02): DB 함수 admin_stats 한 번으로 다 읽는다. 회원 = 관리자 제외(탈퇴 회원 기록 포함), GPU 대여 = 실패 뺀 횟수 -->
     <section class="tab" data-tab="stats" hidden>
     <div class="panel">
-      <div class="st-head"><h2>수익·원가</h2><span class="muted small" id="stAt"></span><button class="quiet" type="button" id="stOpenPaid">유료·서비스 금액 설정</button><button class="quiet" type="button" id="stReload">다시 계산</button></div>
+      <div class="st-head"><h2>수익·원가</h2><span class="muted small" id="stAt"></span><button class="quiet" type="button" id="stReload">다시 계산</button></div>
       <div class="kpis st-kpis" id="stKpis"><div class="empty">불러오는 중…</div></div>
       <p class="muted small" id="stNote" style="margin:8px 0 0"></p>
-    </div>
-    <div class="panel" id="stPaidPanel">
-      <div class="st-head"><h2>유료·서비스 충전 설정 <span class="muted small">금액 직접 설정</span></h2></div>
-      <p class="muted small lead">회원별로 <b>유료 충전(돈 받은 금액)</b>과 <b>서비스 충전(무료 제공)</b> 금액을 서로 독립적으로 직접 입력해 설정할 수 있습니다(회수한 잔액 등을 반영할 때 유료·서비스 금액을 각각 원하는 값으로 저장 가능). 바꾸면 위 매출·현금 잔여·월별/일별·회원별 통계에 즉시 반영됩니다.</p>
-      <div class="table-wrap"><table class="st-table" id="stPaidMemberTable">
-        <thead><tr><th>회원</th><th class="num">원장 충전 (회수 반영)</th><th class="num">유료 충전 (돈 받은 금액)</th><th class="num">서비스 충전 (무료 제공)</th><th>설정</th></tr></thead>
-        <tbody id="stPaidMembers"></tbody>
-      </table></div>
-      <details class="st-details" id="stPaidDetails">
-        <summary>개별 충전 내역 건별 설정 (<span id="stPaidRowCount">0건</span>)</summary>
-        <div class="table-wrap" style="margin-top:8px"><table class="st-table">
-          <thead><tr><th>시각</th><th>회원</th><th>메모</th><th class="num">충전액</th><th class="num">유료 금액(원)</th><th class="num">서비스 금액(원)</th><th>전환·저장</th></tr></thead>
-          <tbody id="stPaidRows"></tbody>
-        </table></div>
-      </details>
     </div>
     <div class="panel">
       <h2>월별 추이</h2>
@@ -1507,7 +1492,7 @@ const FEATURES = {
   tree: ["역대 기보 수순 탐색", "학습 · 수순별 프로·AI 기보 탐색"],
 };
 const CHARGE_STATE = { pending: "대기", approved: "승인", rejected: "거절", canceled: "취소" };
-let stData = null, stSort = { key: "topup", asc: false }, stMode = "money", stBusy = false;
+let stData = null, stSort = { key: "topup", asc: false }, stMode = "money", stBusy = false, stEditWho = null;
 const pct = (a, b) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : "–");
 const hrs = (h) => { const m = Math.round(Number(h || 0) * 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
 const signed = (n) => `<span class="${n < 0 ? "bad" : n > 0 ? "good" : ""}">${won(n)}</span>`;
@@ -1526,16 +1511,15 @@ async function loadStats() {
   } finally { stBusy = false; }
 }
 $("stReload").onclick = () => loadStats();
-$("stOpenPaid").onclick = () => $("stPaidPanel").scrollIntoView({ block: "start", behavior: "smooth" });
 
 function drawStats() {
   const d = stData, s = d.summary, rate = Number(d.rate) || 1500, krw = (usd) => Math.round(Number(usd || 0) * rate);
   const cost = krw(s.cost_usd), adminCost = krw(s.admin_cost_usd), margin = s.charged - cost, net = margin - adminCost;
   const cashLeft = s.topup - cost, freeSub = s.free_topup ? ` · 서비스 ${won(s.free_topup)} 별도` : "";
   $("stAt").textContent = `${when(d.at)} 기준 · 환율 ${rate.toLocaleString()}원/$`;
-  const card = (label, value, sub, cls = "", hl = false, extra = "") => `<div class="kpi${hl ? " hl" : ""}"${extra}><span>${label}</span><b class="${cls}">${value}</b><small>${sub}</small></div>`;
+  const card = (label, value, sub, cls = "", hl = false) => `<div class="kpi${hl ? " hl" : ""}"><span>${label}</span><b class="${cls}">${value}</b><small>${sub}</small></div>`;
   $("stKpis").innerHTML = [
-    card("유료 충전 (매출)", won(s.topup), `${s.topups}건 · 유료 회원 ${s.paying}명${freeSub}`, "", false, ' data-scroll-paid="1" style="cursor:pointer" title="누르면 아래 유료·서비스 충전 금액 설정으로 이동합니다"'),
+    card("유료 충전 (매출)", won(s.topup), `${s.topups}건 · 유료 회원 ${s.paying}명${freeSub}`),
     card("회원 사용 요금", won(s.charged), `준비 실패 환불 ${won(s.refund)} 뺀 값`),
     card("회원 GPU 원가", won(cost), `Vast $${Number(s.cost_usd).toFixed(2)}`),
     card("차익 (사용 기준)", won(margin), `마진율 ${pct(margin, s.charged)} · 원가의 ${cost > 0 ? (s.charged / cost).toFixed(2) : "–"}배`, margin < 0 ? "bad" : "good", true),
@@ -1549,9 +1533,7 @@ function drawStats() {
     card("1회 평균", won(s.rentals ? s.charged / s.rentals : 0), `${hrs(s.rentals ? s.hours / s.rentals : 0)} · 원가 ${won(s.rentals ? cost / s.rentals : 0)}`),
   ].join("");
   $("stNote").textContent = `회원 = 관리자를 뺀 계정(탈퇴 회원 기록 포함). GPU 대여 횟수는 실패한 ${s.failed}회를 뺀 값입니다(실패 대여 원가 ${won(krw(s.fail_cost_usd))}는 원가에 포함). ` +
-    `유료 충전(${won(s.topup)}, ${s.paying}명)만 매출·현금 잔여에 넣으며, 서비스 충전(${won(s.free_topup || 0)}, ${s.free_users || 0}명)은 매출에서 제외되어 따로 표시됩니다(아래 '유료·서비스 충전 설정'에서 금액을 직접 조정 가능).`;
-
-  drawStatPaid();
+    `유료 충전(${won(s.topup)}, ${s.paying}명)만 매출·현금 잔여에 넣으며, 서비스 충전(${won(s.free_topup || 0)}, ${s.free_users || 0}명)은 매출에서 제외되어 따로 표시됩니다(아래 '회원별 이용 현황'의 '금액 설정' 버튼으로 그 자리에서 직접 조정 가능).`;
 
   $("stMonthly").innerHTML = d.monthly.map((m) => {
     const c = krw(m.cost_usd), g = m.charged - c;
@@ -1593,106 +1575,17 @@ function drawStats() {
   bars("stWeekday", "stWeekdayAxis", d.weekday, ["월", "화", "수", "목", "금", "토", "일"], (n, i) => `${"월화수목금토일"[i]}요일 ${n}회`);
 }
 
-function drawStatPaid() {
-  const d = stData, topups = d.topups || [];
-  const byWho = new Map();
-  for (const m of d.members) {
-    const raw = Number(m.raw_topup ?? (Number(m.topup || 0) + Number(m.free_topup || 0))), adj = Number(m.adjust || 0);
-    const paid = Number(m.topup || 0), free = Number(m.free_topup || 0), n = Number(m.topup_rows || 0);
-    if (n > 0 || raw > 0 || paid + free > 0) {
-      byWho.set(m.id, { key: m.id, name: m.name || "(이름 없음)", email: m.email || "", former: m.former, raw, adj, paid, free, n });
-    }
-  }
-  for (const r of topups) if (!r.who) {
-    const cur = byWho.get("__null__") || { key: "__null__", name: "(시험 충전)", email: r.note || "", former: false, raw: 0, adj: 0, paid: 0, free: 0, n: 0 };
-    const tot = Number(r.amount_krw), pk = Number(r.paid_krw ?? (r.paid !== false ? tot : 0)), fk = Number(r.free_krw ?? Math.max(0, tot - pk));
-    cur.raw += tot; cur.paid += pk; cur.free += fk; cur.n += 1;
-    byWho.set("__null__", cur);
-  }
-  const mList = [...byWho.values()].sort((a, b) => (b.paid + b.free) - (a.paid + a.free) || b.raw - a.raw || b.paid - a.paid);
-  $("stPaidMembers").innerHTML = mList.map((m) => {
-    const net = Math.max(0, m.raw + m.adj);
-    const subParts = [`${m.n}건`];
-    if (m.adj < 0) subParts.push(`회수 ${won(m.adj)} → 순 ${won(net)}`);
-    else if (m.adj > 0) subParts.push(`조정 +${won(m.adj)}`);
-    if (m.paid + m.free !== m.raw) subParts.push(`설정 합 ${won(m.paid + m.free)}`);
-    return `<tr data-who-row="${esc(m.key)}" data-raw="${m.raw}" data-net="${net}">` +
-      `<td><b>${esc(m.name)}</b>${m.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(m.email)}</span></td>` +
-      `<td class="num"><b>${won(m.raw)}</b><span class="sub">${subParts.join(" · ")}</span></td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-role="paid" min="0" step="100" value="${m.paid}" aria-label="${esc(m.name)} 유료 충전 금액"> 원</td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-role="free" min="0" step="100" value="${m.free}" aria-label="${esc(m.name)} 서비스 충전 금액"> 원</td>` +
-      `<td><div class="st-paid-btns"><button type="button" class="primary" data-save-who="${esc(m.key)}">금액 저장</button>` +
-      `<button type="button" class="quiet" data-set-who="${esc(m.key)}" data-paid="${net}" data-free="0" title="유료=${won(net)}, 서비스=0원">전액 유료</button>` +
-      `<button type="button" class="quiet" data-set-who="${esc(m.key)}" data-paid="0" data-free="${net}" title="유료=0원, 서비스=${won(net)}">전액 서비스</button></div></td></tr>`;
-  }).join("") || `<tr><td colspan="5" class="empty">충전 기록이 없습니다</td></tr>`;
-
-  $("stPaidRowCount").textContent = `${topups.length}건`;
-  $("stPaidRows").innerHTML = topups.map((r) => {
-    const tot = Number(r.amount_krw), pk = Number(r.paid_krw ?? (r.paid !== false ? tot : 0)), fk = Number(r.free_krw ?? Math.max(0, tot - pk));
-    const badge = pk > 0 && fk === 0 ? (pk === tot ? "유료 충전" : `유료 ${won(pk)}`) : pk === 0 && fk > 0 ? (fk === tot ? "서비스 충전" : `서비스 ${won(fk)}`) : pk === 0 && fk === 0 ? "0원 (회수됨)" : `유료 ${won(pk)} · 서비스 ${won(fk)}`;
-    const nextPaid = pk < tot || fk > 0;
-    return `<tr data-ledger-row="${r.id}" data-total="${tot}"><td>${when(r.created_at)}</td>` +
-      `<td><b>${esc(r.name || "(이름 없음)")}</b>${r.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(r.email || "")}</span></td>` +
-      `<td>${esc(r.note || "")}</td><td class="num">${won(tot)}</td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-row-paid="${r.id}" min="0" step="100" value="${pk}" aria-label="유료 금액"> 원</td>` +
-      `<td class="num"><input type="number" class="st-paid-in" data-row-free="${r.id}" min="0" step="100" value="${fk}" aria-label="서비스 금액"> 원</td>` +
-      `<td><div class="st-paid-btns"><button type="button" class="primary" data-row-save="${r.id}">저장</button>` +
-      `<button type="button" class="pill ledger-paid ${pk > 0 ? "good" : ""}" data-row-toggle="${r.id}" data-next-paid="${nextPaid ? tot : 0}" data-next-free="${nextPaid ? 0 : tot}" title="누르면 전액 유료 ↔ 전액 서비스로 바꿉니다">${esc(badge)}</button></div></td></tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">충전 기록 없음</td></tr>`;
-}
-
-$("stKpis").onclick = (ev) => {
-  if (ev.target.closest("[data-scroll-paid]")) $("stPaidPanel").scrollIntoView({ block: "start", behavior: "smooth" });
-};
 async function saveMemberPaid(whoKey, paidVal, freeVal, btn) {
   if (btn) btn.disabled = true;
   try {
     const p_who = whoKey === "__null__" ? null : whoKey;
     const { data, error } = await sb.rpc("admin_member_paid", { p_who, p_paid_krw: paidVal, p_free_krw: freeVal });
     if (error) throw error;
+    stEditWho = null;
     toast(`유료 ${won(data.paid_krw)} · 서비스 ${won(data.free_krw)}으로 저장했습니다.`);
     load(); await loadStats();
   } catch (e) { toast(e.message || String(e), true); if (btn) btn.disabled = false; }
 }
-$("stPaidMembers").onclick = (ev) => {
-  const saveBtn = ev.target.closest("[data-save-who]");
-  if (saveBtn) {
-    const tr = saveBtn.closest("tr");
-    const paidVal = Math.max(0, Math.round(Number(tr.querySelector('input[data-role="paid"]').value) || 0));
-    const freeVal = Math.max(0, Math.round(Number(tr.querySelector('input[data-role="free"]').value) || 0));
-    saveMemberPaid(saveBtn.dataset.saveWho, paidVal, freeVal, saveBtn);
-    return;
-  }
-  const setBtn = ev.target.closest("[data-set-who]");
-  if (setBtn) saveMemberPaid(setBtn.dataset.setWho, Number(setBtn.dataset.paid), Number(setBtn.dataset.free), setBtn);
-};
-$("stPaidRows").onclick = async (ev) => {
-  const saveBtn = ev.target.closest("[data-row-save]");
-  if (saveBtn) {
-    const id = Number(saveBtn.dataset.rowSave), tr = saveBtn.closest("tr");
-    const pk = Math.max(0, Math.round(Number(tr.querySelector("input[data-row-paid]").value) || 0));
-    const fk = Math.max(0, Math.round(Number(tr.querySelector("input[data-row-free]").value) || 0));
-    saveBtn.disabled = true;
-    try {
-      const { error } = await sb.rpc("admin_ledger_paid", { p_id: id, p_paid: pk > 0, p_paid_krw: pk, p_free_krw: fk });
-      if (error) throw error;
-      toast(`충전 내역을 유료 ${won(pk)} · 서비스 ${won(fk)}으로 저장했습니다.`);
-      load(); await loadStats();
-    } catch (e) { toast(e.message || String(e), true); saveBtn.disabled = false; }
-    return;
-  }
-  const togBtn = ev.target.closest("[data-row-toggle]");
-  if (togBtn) {
-    const id = Number(togBtn.dataset.rowToggle), pk = Number(togBtn.dataset.nextPaid), fk = Number(togBtn.dataset.nextFree);
-    togBtn.disabled = true;
-    try {
-      const { error } = await sb.rpc("admin_ledger_paid", { p_id: id, p_paid: pk > 0, p_paid_krw: pk, p_free_krw: fk });
-      if (error) throw error;
-      toast(pk > 0 ? "유료 충전으로 바꿨습니다." : "서비스 충전으로 바꿨습니다.");
-      load(); await loadStats();
-    } catch (e) { toast(e.message || String(e), true); togBtn.disabled = false; }
-  }
-};
 
 function bars(id, axisId, values, labels, tip) {   // a simple one-series bar chart
   const max = Math.max(1, ...values);
@@ -1731,7 +1624,7 @@ function drawStatMembers() {
   const rate = Number(stData.rate) || 1500, q = $("stSearch").value.trim().toLowerCase(), activeOnly = $("stActiveOnly").checked;
   const rows = stData.members.map((m) => { const cost = Math.round(Number(m.cost_usd || 0) * rate); return { ...m, cost, margin: m.charged - cost }; })
     .filter((m) => !q || `${m.name || ""} ${m.email || ""}`.toLowerCase().includes(q))
-    .filter((m) => !activeOnly || m.topup || m.free_topup || m.rentals || m.failed || m.last_seen);
+    .filter((m) => !activeOnly || m.topup || m.free_topup || m.raw_topup || m.rentals || m.failed || m.last_seen);
   const k = stSort.key, dir = stSort.asc ? 1 : -1;
   rows.sort((a, b) => {
     const x = a[k], y = b[k];
@@ -1741,8 +1634,29 @@ function drawStatMembers() {
   });
   for (const th of $("stMemberTable").querySelectorAll("th[data-sort]")) { th.classList.toggle("sorted", th.dataset.sort === k); th.classList.toggle("asc", th.dataset.sort === k && stSort.asc); }
   $("stMemberCount").textContent = `${rows.length}명`;
+  const topupCell = (m) => {
+    const paid = Number(m.topup || 0), free = Number(m.free_topup || 0), raw = Number(m.raw_topup ?? paid + free), adj = Number(m.adjust || 0);
+    const hasTopup = Number(m.topup_rows || 0) > 0 || raw > 0 || paid + free > 0;
+    if (stEditWho === m.id) {
+      const net = Math.max(0, raw + adj);
+      const hint = adj < 0 ? `원장 ${won(raw)} · 회수 ${won(adj)} (순 ${won(net)})` : `원장 충전 ${won(raw)}`;
+      return `<div class="st-paid-box" data-edit-box="${esc(m.id)}">` +
+        `<div class="muted small">${esc(hint)}</div>` +
+        `<label class="st-paid-row"><span>유료</span><input type="number" class="st-paid-in" data-role="paid" min="0" step="100" value="${paid}"><span>원</span></label>` +
+        `<label class="st-paid-row"><span>서비스</span><input type="number" class="st-paid-in" data-role="free" min="0" step="100" value="${free}"><span>원</span></label>` +
+        `<div class="st-paid-btns">` +
+        `<button type="button" class="primary" data-save-who="${esc(m.id)}">저장</button>` +
+        `<button type="button" class="quiet" data-set-who="${esc(m.id)}" data-paid="${net}" data-free="0" title="유료=${won(net)}, 서비스=0원">전액 유료</button>` +
+        `<button type="button" class="quiet" data-set-who="${esc(m.id)}" data-paid="0" data-free="${net}" title="유료=0원, 서비스=${won(net)}">전액 서비스</button>` +
+        `<button type="button" class="quiet" data-cancel-who="${esc(m.id)}">닫기</button>` +
+        `</div></div>`;
+    }
+    return `${paid ? won(paid) : free || hasTopup ? '<span class="muted">0원</span>' : '<span class="muted">–</span>'}` +
+      `${free ? `<span class="sub">서비스 ${won(free)}</span>` : ""}` +
+      `${hasTopup ? `<div><button type="button" class="st-edit-link" data-edit-paid="${esc(m.id)}">금액 설정</button></div>` : ""}`;
+  };
   $("stMembers").innerHTML = rows.map((m) => `<tr><td><b>${esc(m.name || "(이름 없음)")}</b>${m.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(m.email || "")}</span></td>` +
-    `<td>${when(m.joined)}</td><td class="num">${m.topup ? won(m.topup) : m.free_topup ? '<span class="muted">0원</span>' : '<span class="muted">–</span>'}${m.free_topup ? `<span class="sub">서비스 ${won(m.free_topup)}</span>` : ""}${m.topup || m.free_topup ? `<div><button type="button" class="st-edit-link" data-jump-paid="${esc(m.id)}">금액 설정</button></div>` : ""}</td><td class="num">${won(m.balance)}</td>` +
+    `<td>${when(m.joined)}</td><td class="num">${topupCell(m)}</td><td class="num">${won(m.balance)}</td>` +
     `<td class="num">${m.rentals}${m.failed ? `<span class="sub">실패 ${m.failed}</span>` : ""}</td><td class="num">${m.hours > 0 ? hrs(m.hours) : "–"}</td>` +
     `<td class="num">${won(m.charged)}</td><td class="num">${won(m.cost)}</td><td class="num">${m.charged || m.cost ? `${signed(m.margin)}<span class="sub">${pct(m.margin, m.charged)}</span>` : "–"}</td>` +
     `<td class="num">${m.device || "–"}</td><td class="num">${m.kifu || "–"}</td><td class="num">${m.notes || "–"}</td><td class="num">${m.bank || "–"}</td>` +
@@ -1754,13 +1668,35 @@ function drawStatMembers() {
     `<td class="num">${signed(mg)}<span class="sub">${pct(mg, ch)}</span></td><td class="num">${sum("device")}</td><td class="num">${sum("kifu")}</td><td class="num">${sum("notes")}</td><td class="num">${sum("bank")}</td><td></td></tr>` : "";
 }
 $("stMembers").onclick = (ev) => {
-  const b = ev.target.closest("[data-jump-paid]"); if (!b) return;
-  const row = $("stPaidMembers").querySelector(`tr[data-who-row="${CSS.escape(b.dataset.jumpPaid)}"]`);
-  if (row) {
-    row.scrollIntoView({ block: "center", behavior: "smooth" });
-    const inp = row.querySelector('input[data-role="paid"]');
+  const editBtn = ev.target.closest("[data-edit-paid]");
+  if (editBtn) {
+    stEditWho = editBtn.dataset.editPaid;
+    drawStatMembers();
+    const inp = $("stMembers").querySelector(`[data-edit-box="${CSS.escape(stEditWho)}"] input[data-role="paid"]`);
     if (inp) { inp.focus(); inp.select(); }
-  } else $("stPaidPanel").scrollIntoView({ block: "start", behavior: "smooth" });
+    return;
+  }
+  const cancelBtn = ev.target.closest("[data-cancel-who]");
+  if (cancelBtn) { stEditWho = null; drawStatMembers(); return; }
+  const saveBtn = ev.target.closest("[data-save-who]");
+  if (saveBtn) {
+    const box = saveBtn.closest("[data-edit-box]");
+    const paidVal = Math.max(0, Math.round(Number(box.querySelector('input[data-role="paid"]').value) || 0));
+    const freeVal = Math.max(0, Math.round(Number(box.querySelector('input[data-role="free"]').value) || 0));
+    saveMemberPaid(saveBtn.dataset.saveWho, paidVal, freeVal, saveBtn);
+    return;
+  }
+  const setBtn = ev.target.closest("[data-set-who]");
+  if (setBtn) saveMemberPaid(setBtn.dataset.setWho, Number(setBtn.dataset.paid), Number(setBtn.dataset.free), setBtn);
+};
+$("stMembers").onkeydown = (ev) => {
+  const box = ev.target.closest("[data-edit-box]"); if (!box) return;
+  if (ev.key === "Escape") { ev.preventDefault(); stEditWho = null; drawStatMembers(); }
+  else if (ev.key === "Enter") {
+    ev.preventDefault();
+    const saveBtn = box.querySelector("[data-save-who]");
+    if (saveBtn) saveBtn.click();
+  }
 };
 $("stSearch").oninput = () => stData && drawStatMembers();
 $("stActiveOnly").onchange = () => stData && drawStatMembers();
