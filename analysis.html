@@ -3618,7 +3618,10 @@ async function openPublicKifu(id, at = null) {   // at: 수순 탐색's moves on
   document.title = `${title} · KataGo Cloud`;
   // which game opened, as for 내 기보 (user 2026-10-23); the old hint about '내 기보 저장' stays out (it made the board smaller).
   // Not from 수순 탐색: the game is the one tapped there (user 2026-10-24 "그거 … 없애")
-  if (at === null) $("err").textContent = `기보실 '${title}${k.played_on ? " · " + k.played_on : ""}'을(를) 열었습니다`;
+  if (at === null) {
+    $("err").textContent = `기보실 '${title}${k.played_on ? " · " + k.played_on : ""}'을(를) 열었습니다`;
+    c.rpc("touch_feature", {p_feature: "library", p_force: true}).then(() => {}, () => {});
+  }
   return true;
 }
 
