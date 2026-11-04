@@ -785,6 +785,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 // ------------------------------------------------------------------ data
 let vastBalance = null, vastAt = 0;   // admins: the operator's Vast balance is their balance (checked once a minute)
+// 운영 관리자: handles money and pays GPUs from Vast; a 제한 관리자 (profiles.admin_limited, 2026-11-04) pays like a member
+const opAdmin = (p) => !!p?.is_admin && !p?.admin_limited;
 let lastModel = null, modelTouched = false, defaultModel = null;   // the model list's start (pickModel)
 // refresh(): everything again. refresh(true), the 4-second poll: the profile and the newest rental only, laid over the
 // last full read (rentals 100, 내역 100), which is read again each minute, and at once when the balance went up or
@@ -831,21 +833,24 @@ async function refreshNow(light) {
   // the model this member rented last (any device) is picked next time (user request 2026-09-29); not an admin test rental
   const last = (s || []).find((x) => x.model_id && !x.auto_test);
   if (last && last.model_id !== lastModel) { lastModel = last.model_id; pickModel(); }
-  if (p.is_admin && Date.now() - vastAt > 60_000) {
+  // 운영 관리자 = an admin who handles money and spends Vast credit; a 제한 관리자 (admin_limited, 2026-11-04) has a
+  // member's own balance and 충전 like any member
+  const op = opAdmin(p);
+  if (op && Date.now() - vastAt > 60_000) {
     vastAt = Date.now();
     api("/admin/vast").then((v) => { vastBalance = v; refresh(); }).catch(() => {});
   }
-  const balance = p.is_admin && vastBalance?.krw != null ? vastBalance.krw : p.balance_krw;
+  const balance = op && vastBalance?.krw != null ? vastBalance.krw : p.balance_krw;
   // an admin's balance is 관리자 잔액 (Vast − members), which takes a moment to fetch: until then "-", not their unused
   // profile balance (user report 2026-10-09: every reload showed that number for about a second)
-  const known = !p.is_admin || vastBalance?.krw != null, shown = known ? won(balance) : "-";
+  const known = !op || vastBalance?.krw != null, shown = known ? won(balance) : "-";
   if (known) { countTo($("balance"), balance); countTo($("dashBalance"), balance); }
   else for (const id of ["balance", "dashBalance"]) { $(id).textContent = "-"; delete $(id).dataset.v; }
   document.querySelectorAll("[data-bal]").forEach((el) => { el.textContent = shown; });
-  document.querySelectorAll("[data-bal-link]").forEach((a) => { a.href = p.is_admin ? "#gpu" : "#charge"; });
-  $("dashBalLabel").textContent = p.is_admin ? "관리자 잔액" : "내 잔액";
-  $("dashCharge").classList.toggle("hidden", !!p.is_admin);
-  $("balanceLabel").textContent = !(p.is_admin && vastBalance?.krw != null) ? "내 잔액"
+  document.querySelectorAll("[data-bal-link]").forEach((a) => { a.href = op ? "#gpu" : "#charge"; });
+  $("dashBalLabel").textContent = op ? "관리자 잔액" : "내 잔액";
+  $("dashCharge").classList.toggle("hidden", !!op);
+  $("balanceLabel").textContent = !(op && vastBalance?.krw != null) ? "내 잔액"
     : vastBalance.totalKrw != null ? `관리자 잔액 · Vast ${won(vastBalance.totalKrw)}($${vastBalance.usd.toFixed(2)}) − 회원 잔액 ${won(vastBalance.membersKrw)}`
     : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;   // a server before 2026-09-27 sends only the Vast balance
   $("helloName").textContent = `${p.name || "회원"}님`;
@@ -853,10 +858,10 @@ async function refreshNow(light) {
   $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
   $("meBalance").textContent = shown; $("chargeBalance").textContent = shown;
-  if (!p.is_admin && (chargeOpen || !chargeAt) && Date.now() - chargeAt > 15_000) loadCharge();   // an open 충전 요청: approved yet?
+  if (!op && (chargeOpen || !chargeAt) && Date.now() - chargeAt > 15_000) loadCharge();   // an open 충전 요청: approved yet?
   if (document.activeElement !== $("meName")) $("meName").value = p.name || "";
   document.querySelectorAll("[data-admin-link]").forEach((a) => a.classList.toggle("hidden", !p.is_admin));
-  $("chargeLink").classList.toggle("hidden", p.is_admin);   // the operator tops up members, not their own balance
+  $("chargeLink").classList.toggle("hidden", op);   // the operator tops up members, not their own balance
   $("analysisLink").classList.remove("hidden");   // without a GPU: saved games (내 기보) and SGF files, no new analysis
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
   const curActiveId = session ? session.id : "";
@@ -2218,7 +2223,7 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
 $("startButton").onclick = async () => {
   if (!picked) return;
   const free = picked.priceKrw === 0;
-  const pay = profile?.is_admin ? `시간당 ${won(picked.priceKrw)}, 관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다.`
+  const pay = opAdmin(profile) ? `시간당 ${won(picked.priceKrw)}, 관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다.`
     : free ? "무료 개방 GPU입니다 — 잔액이 차감되지 않습니다."
     : `시간당 ${won(picked.priceKrw)}, 1분 단위로 잔액에서 차감됩니다.`;
   const prep = free ? "분석 준비를 마치는 데 보통 1~3분 걸립니다."

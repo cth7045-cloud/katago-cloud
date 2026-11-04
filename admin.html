@@ -539,6 +539,16 @@ const STATE = { creating: ["준비 중", "warn"], booting: ["준비 중", "warn"
 // tabs (remembered in the address: admin.html#engine)
 let adminReady = false;   // signed in as an admin (the start below): tabs opened before it load nothing yet
 const TABS = ["gpu", "charges", "members", "engine", "price", "notice", "bank", "stats"];
+// 제한 관리자 (profiles.admin_limited, user 2026-11-04): no 충전·회원·잔액·요금 설정 — the server refuses those too.
+// The sections stay in the page, hidden (load() still fills their fields), only their tabs and cards go.
+let money = true;
+function limitMoney() {
+  money = false;
+  for (const t of ["charges", "members", "price"]) { TABS.splice(TABS.indexOf(t), 1); $("tabs").querySelector(`[data-tab="${t}"]`)?.remove(); }
+  document.querySelectorAll('.kpis [data-go="members"]').forEach((el) => { el.style.display = "none"; });
+  document.querySelector(".kpis").style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+  showTab(location.hash.slice(1));
+}
 function showTab(name) {
   if (!TABS.includes(name)) name = "gpu";
   for (const sec of document.querySelectorAll("section.tab")) sec.hidden = sec.dataset.tab !== name;
@@ -583,8 +593,8 @@ async function load() {
   try {
     // admins spend Vast credit, not their site balance: show the same figure as the home page (Vast − members)
     // 최근 입출금 comes from the database function admin_ledger (only what an admin did by hand, 2026-09-29)
-    const [d, funds, ledger, speed, sessModels, ping] = await Promise.all([api("/admin/overview"), api("/admin/vast").catch(() => null),
-      sb.rpc("admin_ledger").then(({ data, error }) => { if (error) throw error; return data ?? []; }),
+    const [d, funds, ledger, speed, sessModels, ping] = await Promise.all([api("/admin/overview"), money ? api("/admin/vast").catch(() => null) : null,
+      money ? sb.rpc("admin_ledger").then(({ data, error }) => { if (error) throw error; return data ?? []; }) : [],
       // GPU·모델별 속도 (admin_speed, 2026-09-29); an error here only empties that table
       sb.rpc("admin_speed").then(({ data, error }) => (error ? null : data ?? [])),
       // each rental's model (admin_session_models, 2026-09-29): the overview does not send it; an error only hides it
@@ -610,7 +620,9 @@ async function load() {
     $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배` +
       (Number(s.free_cost_krw) > 0 ? ` · 원가 ${won(s.free_cost_krw)} 이하 무료 개방 중` : "") +
       ` · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
-    const plain = d.members.filter((m) => !m.is_admin), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
+    // 운영 관리자 pay cost from Vast; a 제한 관리자 pays from their own balance like a member (2026-11-04)
+    const op = (m) => m.is_admin && !m.admin_limited;
+    const plain = d.members.filter((m) => !op(m)), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
     $("memberCount").textContent = `${d.members.length}명`;
     $("kLive").textContent = `${live.length}대`;
     $("kLiveSub").textContent = live.length ? live.map((x) => `${whoName(x.user_id, x.former_member)} ${x.gpu_name || ""}`).join(", ") : "켜진 GPU 없음";
@@ -618,11 +630,11 @@ async function load() {
     $("kMembers").textContent = won(plain.reduce((a, m) => a + Number(m.balance_krw || 0), 0));
     $("kMembersSub").textContent = `회원 ${plain.length}명`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
-      `<td class="muted small">${esc(m.email)}</td><td class="num">${m.is_admin && funds?.krw != null
+      `<td class="muted small">${esc(m.email)}</td><td class="num">${op(m) && funds?.krw != null
         ? `<span title="Vast ${won(funds.totalKrw)} − 회원 잔액 ${won(funds.membersKrw)}">${won(funds.krw)}</span>` : won(m.balance_krw)}</td>` +
       `<td>${when(m.created_at)}</td></tr>`).join("");
     // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
-    const rate = Number(s.usd_krw), admins = new Set(d.members.filter((m) => m.is_admin).map((m) => m.id));
+    const rate = Number(s.usd_krw), admins = new Set(d.members.filter(op).map((m) => m.id));
     const cost = (x) => x.vast_cost_usd == null ? null : Math.round(Number(x.vast_cost_usd) * rate);
     const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id));
     const net = (x) => x.charged_krw - (x.refunded_krw || 0);   // a failed setup is refunded in full (2026-09-29)
@@ -1694,7 +1706,7 @@ function drawStatMembers() {
     }
     return `${paid ? won(paid) : free || hasTopup ? '<span class="muted">0원</span>' : '<span class="muted">–</span>'}` +
       `${free ? `<span class="sub">서비스 ${won(free)}</span>` : ""}` +
-      `${hasTopup ? `<div><button type="button" class="st-edit-link" data-edit-paid="${esc(m.id)}">금액 설정</button></div>` : ""}`;
+      `${hasTopup && money ? `<div><button type="button" class="st-edit-link" data-edit-paid="${esc(m.id)}">금액 설정</button></div>` : ""}`;
   };
   $("stMembers").innerHTML = rows.map((m) => `<tr><td><b>${esc(m.name || "(이름 없음)")}</b>${m.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(m.email || "")}</span></td>` +
     `<td>${when(m.joined)}</td><td class="num">${topupCell(m)}</td><td class="num">${won(m.balance)}</td>` +
@@ -1748,7 +1760,7 @@ $("stMemberTable").querySelector("thead").onclick = (ev) => {
   drawStatMembers();
 };
 
-$("reload").onclick = () => { load(); loadCharges(); if (location.hash === "#stats") loadStats(); };
+$("reload").onclick = () => { load(); if (money) loadCharges(); if (location.hash === "#stats") loadStats(); };
 
 const { data } = await sb.auth.getSession();
 if (!data.session) location.href = "index.html";
@@ -1757,12 +1769,15 @@ else {
   // admin tab no longer asks Vast every 15 s all day; new 충전 요청 still come as push notifications (2026-10-10)
   const once = (fn) => { let busy = false; return () => { if (busy) return; busy = true; Promise.resolve(fn()).finally(() => { busy = false; }); }; };
   const front = () => document.visibilityState === "visible";
-  const poll = once(load), pollCharges = once(loadCharges);
+  // 제한 관리자: the money tabs go before the first read (admin_ledger and 충전 요청 are refused for them)
+  const { data: me } = await sb.from("profiles").select("admin_limited").single();
+  if (me?.admin_limited) limitMoney();
+  const poll = once(load), pollCharges = once(() => (money ? loadCharges() : null));
   const pollEngine = once(() => { if (!engDirty && !$("enginePanel").contains(document.activeElement)) return loadEngine(); });
   poll(); setInterval(() => { if (front()) poll(); }, 15000);
   pollCharges(); setInterval(() => { if (front()) pollCharges(); }, 15000); showPush().catch(() => {});
   loadEngine(); setInterval(() => { if (front()) pollEngine(); }, 30000);
-  adminReady = true; if (location.hash === "#engine") loadTune(); if (location.hash === "#price") countKorea(); if (location.hash === "#bank") loadBankAdmin(); if (location.hash === "#stats") loadStats();
+  adminReady = true; if (location.hash === "#engine") loadTune(); if (location.hash === "#price" && money) countKorea(); if (location.hash === "#bank") loadBankAdmin(); if (location.hash === "#stats") loadStats();
   document.addEventListener("visibilitychange", () => { if (front()) { poll(); pollCharges(); pollEngine(); } });
   sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") location.href = "index.html"; });   // signed out in another tab
 }
