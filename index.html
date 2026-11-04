@@ -215,10 +215,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       <!-- start a session -->
       <div class="panel" id="startCard">
         <div class="row" style="margin-bottom:14px">
-          <h2 class="grow" style="margin:0">GPU 시작</h2>
+          <h2 class="grow" id="startTitle" style="margin:0">GPU 시작</h2>
           <button class="quiet" id="refreshOffers">목록 새로고침</button>
         </div>
-        <div class="options">
+        <div class="options" id="startOptions">
           <div class="fld"><span class="lab">모델</span><div class="seg2" id="modelSeg" role="group" aria-label="모델"></div></div>
           <select id="model" class="hidden" aria-hidden="true" tabindex="-1"></select>
           <!-- admins, while an engine is being tried (관리자 화면 'KataGo 엔진·모델') -->
@@ -859,6 +859,9 @@ async function refreshNow(light) {
   $("chargeLink").classList.toggle("hidden", p.is_admin);   // the operator tops up members, not their own balance
   $("analysisLink").classList.remove("hidden");   // without a GPU: saved games (내 기보) and SGF files, no new analysis
   session = s && s[0] && ACTIVE.includes(s[0].status) ? s[0] : null;
+  const curActiveId = session ? session.id : "";
+  if (prevActiveSessionId !== undefined && prevActiveSessionId !== curActiveId) loadOffers();
+  prevActiveSessionId = curActiveId;
   const state = session && { creating: "대여 중", booting: "부팅 중", setup: "설치 중", ready: "사용 가능", stopping: "종료 중" }[session.status];
   gpuState = state;
   showSession(session || (s && s[0] && recent(s[0]) ? s[0] : null));
@@ -939,9 +942,10 @@ $("noticeBox").addEventListener("toggle", () => {
     $("noticeNote").textContent = notices.length ? `최근 ${noticeDay(notices[0].created_at)}` : "공지가 없습니다"; });
 });
 // ------------------------------------------------------------------ 홈 현황판의 GPU 카드 · 다른 화면의 실시간 알약 (2026-10-05)
-let gpuState = "", curPage = "hubView";
+let gpuState = "", curPage = "hubView", prevActiveSessionId = undefined;
+const isFreeSession = (s) => !!s && Number(s.price_krw_per_hour) === 0 && !(Number(s.charged_krw) > 0);
 function dashShow() {
-  const s = session, live = !!s, ready = live && s.status === "ready";
+  const s = session, live = !!s, ready = live && s.status === "ready", free = isFreeSession(s);
   $("dashOff").classList.toggle("hidden", live); $("dashLive").classList.toggle("hidden", !live);
   $("helloSub").textContent = !live ? "오늘도 한 판 복기해 볼까요?" : ready ? "GPU가 켜져 있어요." : s.status === "stopping" ? "GPU를 끄고 있어요."
     : "GPU를 준비하고 있어요. 다른 일을 하셔도 준비되면 알려 드려요.";
@@ -950,11 +954,11 @@ function dashShow() {
   if (live) {
     $("dashLive").classList.toggle("is-ready", ready);
     $("dashLiveHead").innerHTML = `${ready ? '<span class="live-dot" aria-hidden="true"></span>' : ""}${esc(s.gpu_name || "GPU")} · ${esc(currentModelName(s))} · ${esc(gpuState)}`;
-    $("dashLiveBig").innerHTML = ready || s.status === "stopping" ? `${min}분 <small>· ${won(s.charged_krw)}</small>` : esc({ creating: "GPU 빌리는 중", booting: "부팅 중", setup: "KataGo 설치 중" }[s.status] || gpuState);
+    $("dashLiveBig").innerHTML = ready || s.status === "stopping" ? `${min}분 <small>· ${free ? "무료" : won(s.charged_krw)}</small>` : esc({ creating: "GPU 빌리는 중", booting: "부팅 중", setup: "KataGo 설치 중" }[s.status] || gpuState);
     const stage = ["creating", "booting"].includes(s.status) ? 1 : s.status === "setup" ? 2 : 3;
     $("dashSteps").classList.toggle("hidden", ready || s.status === "stopping"); $("dashStepNames").classList.toggle("hidden", ready || s.status === "stopping");
     [...$("dashSteps").children].forEach((i, k) => { i.className = k + 1 < stage ? "done" : k + 1 === stage ? "on" : ""; });
-    $("dashLiveNote").textContent = ready ? `시간당 ${won(s.price_krw_per_hour)} · ` + (Number(s.idle_minutes) > 10 ? "자동 종료 꺼짐 — 다 쓰면 꼭 GPU를 끄세요" : "10분 동안 입력이 없으면 자동으로 꺼집니다") : s.progress || "";
+    $("dashLiveNote").textContent = ready ? `${free ? "무료 개방" : `시간당 ${won(s.price_krw_per_hour)}`} · ` + (Number(s.idle_minutes) > 10 ? "자동 종료 꺼짐 — 다 쓰면 꼭 GPU를 끄세요" : "10분 동안 입력이 없으면 자동으로 꺼집니다") : s.progress || "";
     $("dashOpen").classList.toggle("hidden", !ready); if (ready) $("dashOpen").href = $("openAnalysis").href;
     $("dashSee").classList.toggle("hidden", ready);
     $("dashStop").textContent = ready ? "종료" : "준비 취소";
@@ -964,7 +968,7 @@ function dashShow() {
   const pill = live && ["mineView", "libraryView", "studyView", "meView", "chargeView"].includes(curPage);
   $("livePill").classList.toggle("hidden", !pill);
   if (pill) {
-    $("livePillText").innerHTML = `${esc(s.gpu_name || "GPU")} · ${ready ? `${min}분 <span>· ${won(s.charged_krw)}</span>` : esc(gpuState)}`;
+    $("livePillText").innerHTML = `${esc(s.gpu_name || "GPU")} · ${ready ? `${min}분 <span>· ${free ? "무료" : won(s.charged_krw)}</span>` : esc(gpuState)}`;
     const go = $("livePillGo");
     if (ready) { go.href = $("openAnalysis").href; go.textContent = "분석 화면"; go.target = standalone ? "" : "_blank"; }
     else { go.href = "#gpu"; go.textContent = "보기"; go.removeAttribute("target"); }
@@ -977,11 +981,13 @@ const recent = (s) => Date.now() - new Date(s.stopped_at || s.created_at).getTim
 const currentModelName = (s) => ([...$("model").options].find((o) => o.value === s.model_id)?.textContent || s.model_name || "").replace(/ \(시험\)$/, "");
 function showSession(s) {
   $("sessionCard").classList.toggle("hidden", !s);
-  $("startCard").classList.toggle("hidden", !!session);
+  $("startCard").classList.toggle("hidden", !!session && curPage === "analyzeView");
+  $("startTitle").textContent = session ? "GPU 목록" : "GPU 시작";
+  $("startOptions").classList.toggle("hidden", !!session);
   // a GPU is on: drop the chosen one, or body.has-pick keeps hiding the 기보 분석 bar (분석 시작, progress) (2026-10-08)
   if (session && picked) { picked = null; document.querySelectorAll("#offerRows tr.sel").forEach((r) => r.classList.remove("sel")); updatePick(); }
   if (!s) return;
-  const st = s.status, ready = st === "ready", live = ACTIVE.includes(st);
+  const st = s.status, ready = st === "ready", live = ACTIVE.includes(st), free = isFreeSession(s);
   $("sessionCard").classList.toggle("is-ready", ready);
   $("sessionTitle").textContent = `${s.gpu_name || "GPU"} · ${currentModelName(s)}`;
   const pill = { creating: ["대여 중", "warn"], booting: ["부팅 중", "warn"], setup: ["설치 중", "warn"], ready: ["사용 가능", "good"],
@@ -991,7 +997,9 @@ function showSession(s) {
   [1, 2, 3].forEach((n) => { $("step" + n).className = "step" + (n < stage || (ready && n === 3) ? " done" : n === stage ? " on" : ""); });
   $("sessionProgress").textContent = live ? (s.progress || "") : (s.stop_reason ? `종료 사유: ${s.stop_reason}` : "");
   const minutes = Math.max(0, Math.round((Date.now() - new Date(s.ready_at || s.instance_created_at || s.created_at).getTime()) / 60000));
-  $("sessionMeta").innerHTML = `시간당 <b>${won(s.price_krw_per_hour)}</b> · ${live ? `${minutes}분 경과 · ` : ""}지금까지 <b>${won(s.charged_krw)}</b>` +
+  $("sessionMeta").innerHTML = (free
+    ? `<b>무료 개방</b> · ${live ? `${minutes}분 경과 · ` : ""}잔액 차감 없음`
+    : `시간당 <b>${won(s.price_krw_per_hour)}</b> · ${live ? `${minutes}분 경과 · ` : ""}지금까지 <b>${won(s.charged_krw)}</b>`) +
     (s.tuning?.visitsPerSecond ? ` · 초당 약 ${Math.round(s.tuning.visitsPerSecond)}번 탐색` : "");
   const open = $("openAnalysis");
   open.classList.toggle("hidden", !(ready && s.web_url && s.web_token));
@@ -1003,11 +1011,12 @@ function showSession(s) {
 }
 
 $("stopButton").onclick = async () => {
-  if (!confirm("GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
+  const free = isFreeSession(session);
+  if (!confirm(free ? "GPU를 끄고 삭제할까요?" : "GPU를 끄고 삭제할까요? 삭제가 확인되면 요금 차감이 멈춥니다.")) return;
   $("stopButton").disabled = true;
   try {
     const r = await api("/stop", {});
-    toast(r.stopped ? "GPU를 삭제했습니다. 요금 차감이 멈췄습니다." : "삭제 요청을 보냈습니다. 확인되는 대로 차감이 멈춥니다.");
+    toast(r.stopped ? (free ? "GPU를 삭제했습니다." : "GPU를 삭제했습니다. 요금 차감이 멈췄습니다.") : "삭제 요청을 보냈습니다. 잠시 뒤 종료됩니다.");
   } catch (err) { toast(err.message, true); }
   finally { $("stopButton").disabled = false; refresh(); }
 };
@@ -2161,8 +2170,9 @@ async function loadOffers() {
   $("offerRows").innerHTML = `<tr><td colspan="5" class="muted">불러오는 중…</td></tr>`;
   try {
     const r = await api("/offers");
-    // dearest first, no countries shown (user 2026-10-14; by country first from 2026-10-12); same price: nearer first
-    offers = r.offers.slice().sort((a, b) => b.priceKrw - a.priceKrw || (a.regionTier ?? 9) - (b.regionTier ?? 9) || b.perfPerDollar - a.perfPerDollar);
+    // dearest first, no countries shown (user 2026-10-14); free GPUs sort by cost/perf below paid ones; in-use rows sit beside their tier
+    const sortKey = (o) => o.priceKrw > 0 ? o.priceKrw : (o.costKrw || 0) * 0.001;
+    offers = r.offers.slice().sort((a, b) => sortKey(b) - sortKey(a) || (a.inUse ? 1 : 0) - (b.inUse ? 1 : 0) || (a.regionTier ?? 9) - (b.regionTier ?? 9) || (b.perfPerDollar ?? 0) - (a.perfPerDollar ?? 0));
     const sel = $("model"), keep = sel.value;
     sel.innerHTML = r.models.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
     defaultModel = r.defaultModel;
@@ -2171,11 +2181,17 @@ async function loadOffers() {
     $("testEngineLabel").classList.toggle("hidden", !r.testEngine);
     if (r.testEngine) $("testEngineText").textContent = `시험 엔진 ${r.testEngine}로 켜기 (지금 ${r.engine})`;
     else $("testEngine").checked = false;
-    $("offerRows").innerHTML = offers.map((o, i) => `<tr class="pick" data-i="${i}"><td class="rd"><span class="radio" aria-hidden="true"></span></td>` +
-      `<td><b class="gname">${esc(o.gpu)}</b><span class="m"><span class="show-sm">${Math.round(o.vramGb)}GB</span></span>` +
-      `${o.fast ? ` <span class="t2 fast" title="최근에 써 본 서버라 GPU가 빨리 켜집니다(보통 1~2분)">⚡빠른 시작</span>` : ""}</td>` +
-      `<td class="num hide-sm v">${Math.round(o.vramGb)}GB</td><td class="num"><b>${won(o.priceKrw)}</b></td>` +
-      `<td class="num hide-sm v">${o.cpuCores}</td></tr>`).join("")
+    $("offerRows").innerHTML = offers.map((o, i) => {
+      const isKr = o.regionTier === 0 || o.region === "한국";
+      const priceHtml = o.priceKrw === 0 ? '<span class="badge-free">무료</span>'
+        : `<b>${won(o.priceKrw)}</b>${o.free ? ' <span class="badge-free">무료</span>' : ""}`;
+      return `<tr class="${o.inUse ? "busy" : "pick"}" data-i="${i}"><td class="rd"><span class="radio" aria-hidden="true"></span></td>` +
+        `<td><b class="gname">${esc(o.gpu)}</b><span class="m"><span class="show-sm">${Math.round(o.vramGb)}GB</span></span>` +
+        `${isKr ? ' <span class="t2 fast">안정성 좋음</span>' : ""}` +
+        `${o.inUse ? ' <span class="t2 busy">사용 중</span>' : ""}</td>` +
+        `<td class="num hide-sm v">${Math.round(o.vramGb)}GB</td><td class="num">${priceHtml}</td>` +
+        `<td class="num hide-sm v">${o.cpuCores ?? "–"}</td></tr>`;
+    }).join("")
       || `<tr><td colspan="5" class="muted">지금 빌릴 수 있는 GPU가 없습니다.</td></tr>`;
   } catch (err) {
     $("offerRows").innerHTML = `<tr><td colspan="5" class="error">${esc(err.message)}</td></tr>`;
@@ -2183,7 +2199,9 @@ async function loadOffers() {
 }
 $("refreshOffers").onclick = loadOffers;
 $("offerRows").onclick = (ev) => {
+  if (ev.target.closest("tr.busy")) { toast("현재 사용 중인 GPU입니다."); return; }
   const tr = ev.target.closest("tr.pick"); if (!tr) return;
+  if (session) { toast("이미 사용 중인 GPU가 있습니다. 먼저 종료한 뒤 다른 GPU를 선택하세요."); return; }
   picked = offers[+tr.dataset.i];
   document.querySelectorAll("#offerRows tr").forEach((r) => r.classList.toggle("sel", r === tr));
   updatePick();
@@ -2194,14 +2212,19 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
   $("startButton").disabled = !picked;
   if (picked) {
     $("pickName").textContent = `${picked.gpu} · ${modelWord($("model").selectedOptions[0]?.textContent || "")}`;
-    $("pickInfo").textContent = `시간당 ${won(picked.priceKrw)} · 쓰는 만큼 1분 단위`;
+    $("pickInfo").textContent = picked.priceKrw === 0 ? "무료 개방 · 잔액 차감 없음" : `시간당 ${won(picked.priceKrw)} · 쓰는 만큼 1분 단위`;
   }
 }
 $("startButton").onclick = async () => {
   if (!picked) return;
-  const pay = profile?.is_admin ? "관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다" : "1분 단위로 잔액에서 차감됩니다";
-  const msg = `${picked.gpu}\n시간당 ${won(picked.priceKrw)}, ${pay}.\n준비(${picked.fast ? "보통 1~2분" : "보통 2~3분"}) 시간은 요금이 들지 않고, 분석 준비가 끝난 뒤부터 계산됩니다.\n` +
-    (idleStopOn() ? "10분 동안 입력이 없으면 자동으로 꺼집니다." : "자동 종료가 꺼져 있습니다(내 정보). 직접 끄거나 잔액이 떨어질 때까지 요금이 나갑니다.");
+  const free = picked.priceKrw === 0;
+  const pay = profile?.is_admin ? `시간당 ${won(picked.priceKrw)}, 관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다.`
+    : free ? "무료 개방 GPU입니다 — 잔액이 차감되지 않습니다."
+    : `시간당 ${won(picked.priceKrw)}, 1분 단위로 잔액에서 차감됩니다.`;
+  const prep = free ? "분석 준비를 마치는 데 보통 1~3분 걸립니다."
+    : "준비(보통 1~3분) 시간은 요금이 들지 않고, 분석 준비가 끝난 뒤부터 계산됩니다.";
+  const msg = `${picked.gpu}\n${pay}\n${prep}\n` +
+    (idleStopOn() ? "10분 동안 입력이 없으면 자동으로 꺼집니다." : "자동 종료가 꺼져 있습니다(내 정보). 직접 끄거나 한도에 도달할 때까지 계속 켜져 있습니다.");
   const autoBatch = batchAutoOk();
   if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
@@ -2261,6 +2284,7 @@ function showPage() {
   for (const id of ["walletBox", "sessionCard", "startCard"]) slot.appendChild($(id));
   for (const v of ["hubView", ...Object.values(PAGES)]) $(v).classList.toggle("hidden", v !== page);
   curPage = page; document.body.dataset.page = page;
+  $("startCard").classList.toggle("hidden", !!session && curPage === "analyzeView");
   const tab = { hubView: "hub", homeView: "gpu", analyzeView: "kifu", mineView: "kifu", libraryView: "kifu", studyView: "study", meView: "me", chargeView: "charge" }[page];
   document.querySelectorAll("#tabnav [data-tab]").forEach((a) => { a.classList.toggle("on", a.dataset.tab === tab); a.toggleAttribute("aria-current", a.dataset.tab === tab); });
   if (profile) dashShow();

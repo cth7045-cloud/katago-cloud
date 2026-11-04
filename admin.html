@@ -485,6 +485,16 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
     </div>
 
     <div class="panel">
+      <h2>GPU 무료 개방</h2>
+      <form id="freeGpuForm" class="inline-form" style="align-items:flex-end">
+        <label class="field">무료 개방 원가 기준 (시간당 원, 0 = 끔)<input id="freeCostKrw" type="number" min="0" max="100000" step="10" required></label>
+        <button class="primary" type="submit">저장</button>
+        <button class="quiet hidden" type="button" id="freeGpuOff">무료 개방 끄기</button>
+      </form>
+      <p class="muted small" id="freeGpuState" style="margin:8px 0 0"></p>
+    </div>
+
+    <div class="panel">
       <h2>GPU 목록 범위·원가 상한</h2>
       <p class="muted small lead">카드 1장의 시간당 원가가 상한보다 비싼 GPU는 회원 목록에서 뺍니다. 2~4장 기계는 장수만큼 곱합니다. 칸을 비우면 그 종류는 상한이 없습니다.</p>
       <div class="inline-form" style="margin-bottom:12px; align-items:center">
@@ -597,7 +607,9 @@ async function load() {
     capSettings = s;
     if (!capsDirty) { caps = { ...(s.gpu_caps || {}) }; drawCaps(); }
     drawCapState();
-    $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배 · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
+    $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배` +
+      (Number(s.free_cost_krw) > 0 ? ` · 원가 ${won(s.free_cost_krw)} 이하 무료 개방 중` : "") +
+      ` · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
     const plain = d.members.filter((m) => !m.is_admin), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
     $("memberCount").textContent = `${d.members.length}명`;
     $("kLive").textContent = `${live.length}대`;
@@ -657,7 +669,7 @@ async function load() {
       const prep = prepS != null ? `준비 ${mmss(prepS)}` : failS > 0 ? `준비 못 함 ${mmss(failS)}` : "";
       return `<tr><td title="${esc(who(x.user_id, x.former_member))}">${esc(whoName(x.user_id, x.former_member))}</td><td><span class="pill ${pill}">${label}</span></td>` +
         `<td>${esc([x.gpu_name, x.region].filter(Boolean).join(" · "))}<span class="sub">${esc(models[x.id] ? models[x.id].model_name || MODEL_NAMES[models[x.id].model_id] : "")}</span></td>` +
-        `<td class="num">${won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
+        `<td class="num">${!mine && x.instance_id && Number(x.price_krw_per_hour) === 0 ? '<span class="pill good">무료</span>' : won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
         `<td title="${x.stopped_at ? "종료 " + when(x.stopped_at) : ""}">${when(x.created_at)}<span class="sub">${[used + (live ? " (사용 중)" : ""), prep].filter(Boolean).join(" · ")}</span></td>` +
         `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
@@ -746,7 +758,7 @@ async function loadTune() {
   const models = (eng?.models ?? []).filter((m) => m.status === "on");
   const saved = new Map(tune.map((r) => [`${r.gpu_name}|${r.model_id}`, r]));
   const listed = new Map();   // kind -> {n, min price}
-  for (const o of list?.offers ?? []) {
+  for (const o of (list?.offers ?? []).filter((x) => !x.inUse)) {
     const k = listed.get(o.gpu) ?? { n: 0, min: Infinity };
     k.n++; k.min = Math.min(k.min, Number(o.priceKrw) || Infinity); listed.set(o.gpu, k);
   }
@@ -972,7 +984,34 @@ function drawCapState() {
     abroad ? "해외 열림 — 일본·대만/홍콩·동남아의 Vast 인증 기계도 회원 목록에 나옵니다(상한도 똑같이 적용)."
       : below ? `해외 닫힘 — 한국 GPU가 ${below}개 이하일 때만 해외 인증 기계도 나옵니다.` : "해외 닫힘 — 한국 GPU만 나옵니다."].filter(Boolean).join(" ");
   if (document.activeElement !== $("abroadBelow")) $("abroadBelow").value = below;
+  const savedFree = Number(capSettings?.free_cost_krw) || 0;
+  if (document.activeElement !== $("freeCostKrw")) $("freeCostKrw").value = savedFree;
+  drawFreeGpuHint();
 }
+function drawFreeGpuHint() {
+  const saved = Number(capSettings?.free_cost_krw) || 0, val = Math.max(0, Math.trunc(Number($("freeCostKrw").value) || 0));
+  const markup = Number(capSettings?.markup) || 1.5;
+  const memberEquiv = (w) => won(Math.ceil((w * markup) / 10) * 10);
+  $("freeGpuOff").classList.toggle("hidden", !(saved > 0));
+  $("freeGpuState").textContent = val !== saved
+    ? (val > 0 ? `저장하면 시간당 원가 ${won(val)} 이하(원래 회원가 약 ${memberEquiv(val)} 이하) GPU가 모두 무료로 개방됩니다.` : "저장하면 무료 개방이 꺼집니다.")
+    : saved > 0 ? `현재 무료 개방 중 — 시간당 원가 ${won(saved)} 이하(원래 회원가 약 ${memberEquiv(saved)} 이하) GPU가 회원에게 무료(0원)로 열려 있습니다.`
+    : "현재 꺼짐 — 모든 GPU에 정상 회원 요금이 적용됩니다.";
+}
+$("freeCostKrw").addEventListener("input", drawFreeGpuHint);
+async function saveFreeGpu(n) {
+  if (!(n >= 0 && n <= 100000)) return toast("0~100,000원 사이로 넣어 주세요(0 = 끔).", true);
+  if (!confirm(n > 0 ? `시간당 원가 ${won(n)} 이하 GPU를 모두 무료로 개방할까요?\n회원 화면에 바로 적용됩니다.` : "GPU 무료 개방을 끌까요?\n새로 켜는 GPU부터 정상 회원 요금이 적용됩니다.")) return;
+  try {
+    const r = await api("/admin/settings", { free_cost_krw: n });
+    capSettings = { ...capSettings, free_cost_krw: Number(r.free_cost_krw) || 0 };
+    $("freeCostKrw").value = capSettings.free_cost_krw; $("freeCostKrw").blur();
+    drawCapState(); load(); countKorea();
+    toast(capSettings.free_cost_krw > 0 ? `시간당 원가 ${won(capSettings.free_cost_krw)} 이하 GPU를 무료로 개방했습니다.` : "GPU 무료 개방을 껐습니다.");
+  } catch (e) { toast(e.message, true); }
+}
+$("freeGpuForm").onsubmit = (ev) => { ev.preventDefault(); saveFreeGpu(Math.trunc(Number($("freeCostKrw").value))); };
+$("freeGpuOff").onclick = () => saveFreeGpu(0);
 // how many Korean GPUs the member list has now (the same search as the member list: /api/offers, 2026-10-22)
 let counting = false;
 async function countKorea() {
@@ -980,9 +1019,11 @@ async function countKorea() {
   $("krCount").textContent = "지금 회원 목록: 세는 중…";
   try {
     const r = await api("/offers");
-    const all = (r.offers || []).length, t = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-    $("krCount").textContent = `지금 회원 목록: 한국 GPU ${r.korea ?? all}개` +
-      (r.abroad ? ` · 해외 포함 ${all}개${r.widened ? " (자동으로 열림)" : ""}` : "") + ` · ${t} 기준`;
+    const avail = (r.offers || []).filter((o) => !o.inUse).length, t = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    $("krCount").textContent = `지금 회원 목록: 한국 GPU ${r.korea ?? avail}개` +
+      (r.abroad ? ` · 해외 포함 ${avail}개${r.widened ? " (자동으로 열림)" : ""}` : "") +
+      (r.freeCount ? ` · 무료 개방 ${r.freeCount}개` : "") +
+      (r.inUse ? ` · 사용 중 ${r.inUse}개` : "") + ` · ${t} 기준`;
   } catch (e) { $("krCount").textContent = "지금 회원 목록: 세지 못했습니다 — " + e.message; }
   finally { counting = false; }
 }
