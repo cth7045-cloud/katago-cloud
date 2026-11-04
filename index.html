@@ -853,7 +853,7 @@ async function refreshNow(light) {
   $("balanceLabel").textContent = !(op && vastBalance?.krw != null) ? "내 잔액"
     : vastBalance.totalKrw != null ? `관리자 잔액 · Vast ${won(vastBalance.totalKrw)}($${vastBalance.usd.toFixed(2)}) − 회원 잔액 ${won(vastBalance.membersKrw)}`
     : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;   // a server before 2026-09-27 sends only the Vast balance
-  $("helloName").textContent = `${p.name || "회원"}님`;
+  $("helloName").textContent = `${p.is_admin ? "관리자 " : ""}${p.name || "회원"}님`;   // 관리자 (운영·제한 모두): "관리자 홍길동님" (user 2026-11-04)
   $("meTitle").textContent = p.name || p.email; $("meNameVal").textContent = p.name || "";
   $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();
   $("meEmail").textContent = p.email; $("meSince").textContent = new Date(p.created_at).toLocaleDateString("ko-KR");
