@@ -1188,6 +1188,7 @@ const GPU_HOST = /^[a-z0-9-]+\.(trycloudflare\.com|katago\.dpdns\.org)$/;
 const GPU_URL = /^https:\/\/[a-z0-9-]+\.(trycloudflare\.com|katago\.dpdns\.org)$/;
 let remoteGpu = GPU_URL.test(hashParams.get("u") || "") ? hashParams.get("u") : "";   // changes if the GPU's tunnel restarts (watchGpu)
 let ws = null, qn = 0, liveId = null, autoId = null, autoLine = [], autoDone = 0;
+let workAt = 0, hiddenAt = document.hidden ? performance.now() : 0;   // the "keep" below (자동분석·대국 리포트 still answering, screen not long hidden)
 let resumeAuto = null, autoRetried = false, liveRetried = false;   // 2026-10-10: 자동분석 cut off (its tree) / retried once after an engine error
 // One account = one board: every device of the member joins the same board through the GPU's bridge.
 let bridgeSync = false, synced = false, applyingRemote = false, lastSgf = null, pubTimer = 0;
@@ -1598,6 +1599,7 @@ function onMessage(msg) {
   if (msg.error && msg.id && msg.id === batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); q.tell("error", {text: "엔진 오류: " + msg.error}); q.batch(null); return; }
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; queryFailed(msg.id); return; }
   const q = queries.get(msg.id);
+  if (msg.id && (msg.id === autoId || msg.id === strengthId || msg.id === batchQ)) workAt = performance.now();   // its search answers: still going (keep)
   if (!q || !msg.rootInfo) return;
   if (q.score) { queries.delete(msg.id); scoreAnswer(msg); return; }   // 계가: the ownership for the dead stones
   if (q.xp) {   // 수순 탐색's table: each move's value so far (a move keeps its deepest one)
@@ -1736,7 +1738,7 @@ function startAuto(again = false) {
   autoLine = mainLine();
   const turns = autoLine.map((_, i) => i).filter(i => again || !analysed(autoLine[i]));
   if (!turns.length) return;
-  autoDone = 0; autoId = "a" + (++qn); autoRetried = false;
+  autoDone = 0; autoId = "a" + (++qn); autoRetried = false; workAt = performance.now();
   if (again) for (const i of turns) autoLine[i].aid = autoId;   // 재분석: the new results replace the old ones
   queries.set(autoId, {line: autoLine, todo: turns.length});
   send({...baseQuery(), includeOwnership: false, id: autoId, moves: movesOf(autoLine[autoLine.length - 1]),
@@ -3366,7 +3368,7 @@ function batchAnalyse(tell) {   // true once the main line is analysed at `level
   const line = lineThrough(root), turns = line.map((_, i) => i).filter(i => !analysed(line[i]));
   if (!turns.length) return Promise.resolve(true);
   return new Promise(resolve => {
-    batchQ = "b" + (++qn);
+    batchQ = "b" + (++qn); workAt = performance.now();
     queries.set(batchQ, {line, todo: turns.length, done: 0, batch: ok => { batchQ = null; resolve(ok); }, tell});
     tell("progress", {done: 0, todo: turns.length});
     if (!send({...baseQuery(), includeOwnership: false, id: batchQ, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, maxVisits: levelVisits()})) batchEnd(false);
@@ -3509,7 +3511,17 @@ if (batchMode) addEventListener("message", ev => {
 });
 // A long 자동분석 / 대국 리포트 / 여러 기보 분석 is one request: without another one the GPU's guard would count it as idle
 // (10 minutes) and delete the GPU mid-way (초정밀: a game takes ~20 minutes). While one runs, ask something cheap now and then.
-setInterval(() => { if (autoId || strengthId || batchQ) send({id: "keep", action: "query_version"}); }, 120000);
+// Only while it really goes on (user 2026-11-05: a free GPU stayed on 5 hours with nobody there): a result for it came in the
+// last 5 minutes (a search that stopped answering does not keep the GPU), and this screen has not been hidden for 30 minutes
+// (a tab left behind). Otherwise the guard's 10 minutes run as usual.
+const KEEP_STALE = 5 * 60000, KEEP_HIDDEN = 30 * 60000;
+document.addEventListener("visibilitychange", () => { hiddenAt = document.hidden ? performance.now() : 0; });
+setInterval(() => {
+  if (!(autoId || strengthId || batchQ)) return;
+  const now = performance.now();
+  if (now - workAt > KEEP_STALE || (hiddenAt && now - hiddenAt > KEEP_HIDDEN)) return;
+  send({id: "keep", action: "query_version"});
+}, 120000);
 
 // board_size (DB 20260929e, 9줄·13줄): lists read it when the column is there and without it before that is applied;
 // saving writes it once the column is known to be there (before that, a 9x9 game is saved without it: its SGF still
@@ -4862,7 +4874,7 @@ function openStrength(again = false) {
   if (line.length < 2) { $("strengthCards").innerHTML = ""; strengthMsg("기보에 수가 없습니다. 기보를 열거나 수를 둔 뒤 다시 누르세요."); return; }
   const turns = line.map((_, i) => i).filter(i => again || !analysed(line[i]));
   if (!turns.length) return renderStrength();
-  strengthId = "s" + (++qn);
+  strengthId = "s" + (++qn); workAt = performance.now();
   if (again) for (const i of turns) line[i].aid = strengthId;   // 다시 분석: the new results replace the old ones
   const q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now()};
   queries.set(strengthId, q);
