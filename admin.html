@@ -663,7 +663,7 @@ async function load() {
       return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
     };
     // 내 기기로 분석 (2026-10-15): the members' own-device runs between the rentals, newest first (no charge, no length)
-    lists.session = [...d.sessions, ...(d.devices || []).map((r) => ({ ...r, dev: true }))]
+    lists.session = [...d.sessions.filter((x) => x.error !== "offer gone"), ...(d.devices || []).map((r) => ({ ...r, dev: true }))]   // not a failure (2026-11-05)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     render.session = (list) => { $("sessionRows").innerHTML = list.map((x) => {
       if (x.dev) {   // open = the member's analysis screen said so within 2.5 minutes (it does each minute) and did not close
