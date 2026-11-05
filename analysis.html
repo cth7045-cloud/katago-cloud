@@ -4330,6 +4330,34 @@ async function bankDraftsLoad() {
   if (!bankDrafts) { const r = await fetch(`problems/drafts.json?v=${Date.now()}`); if (!r.ok) throw new Error("국면 목록 " + r.status); bankDrafts = await r.json(); }
   return bankDrafts;
 }
+// The same position in another book (drafts.json "x": [[pid, k]], user 2026-11-05 "자동으로 같은 답 넣는 걸로 해줘"): saving
+// one puts the same answer there too, turned by symmetry k (= drafts.py sym: flip x, flip y, then swap) — unless that one was
+// answered on its own (its note does not start with SAME_NOTE), which is kept.
+const SAME_NOTE = "같은 국면:";
+const bankSym = (m, k, n = 19) => {
+  if (m === "pass") return m;
+  let x = m.charCodeAt(0) - 97, y = m.charCodeAt(1) - 97;
+  if (k & 1) x = n - 1 - x; if (k & 2) y = n - 1 - y; if (k & 4) [x, y] = [y, x];
+  return String.fromCharCode(97 + x, 97 + y);
+};
+const bankSymTree = (t, k) => Object.fromEntries(Object.entries(t).map(([m, r]) => [bankSym(m, k),
+  r === 1 ? 1 : typeof r === "string" ? bankSym(r, k) : Object.fromEntries(Object.entries(r).map(([o, nx]) => [bankSym(o, k), nx === 1 ? 1 : bankSymTree(nx, k)]))]));
+async function bankDraftSame(e, k, prob, hidden) {   // -> how many other books' same position got this answer
+  const xs = e.draft.x || []; if (!xs.length) return 0;
+  const all = new Map((await bankDraftsLoad()).sets.flatMap(st => st.items.map(it => [it.d, {it, pack: st.pack}])));
+  const {data} = await mineSb.from("bank_edits").select("pid,note").in("pid", xs.map(x => x[0]));
+  const notes = new Map((data || []).map(r => [r.pid, r.note || ""])), book = bankBook(k.pack);
+  let n = 0;
+  for (const [d, sym] of xs) {
+    const o = all.get(d); if (!o || !bankBook(o.pack)) continue;
+    if (notes.has(d) && !notes.get(d).startsWith(SAME_NOTE)) continue;
+    const p2 = {k: o.it.k, s: o.it.s, b: o.it.b, w: o.it.w, p: o.it.p, t: bankSymTree(prob.t, sym)}; if (prob.g) p2.g = prob.g;
+    const {error} = await mineSb.rpc("admin_bank_save", {p_pid: d, p_pack: o.pack, p_added: true, p_prob: p2, p_hidden: hidden,
+      p_note: `${SAME_NOTE} ${book.title} 원서 ${e.draft.o}`.slice(0, 300)});
+    if (!error) n++;
+  }
+  return n;
+}
 async function bankDraftPick(spec, which, after = "") {   // -> [one item] or []; which = "next" (after = the draft just done) or a 원서 번호
   const set = (await bankDraftsLoad()).sets.find(x => x.pack === spec), book = bankBook(spec); if (!set || !book) return [];
   const saved = new Map((book.edit ? [...book.edit.add, ...book.edit.hidAdd] : []).map(p => [p.i, p]));
@@ -4482,6 +4510,7 @@ $("beSave").onclick = async () => {
   const {error} = await mineSb.rpc("admin_bank_save", {p_pid: e.isNew ? null : p.i, p_pack: k.pack, p_added: full, p_prob: prob,
     p_hidden: !e.isNew && $("beHide").checked, p_note: $("beNote").value.trim()});
   if (error) return bankEditSay("저장하지 못했습니다: " + error.message, true);
+  const same = e.draft ? await bankDraftSame(e, k, prob, !e.isNew && $("beHide").checked) : 0;
   await bankLoad(true);
   if (e.isNew) {   // the next new one right away (a book typed in one problem after another)
     const next = bankNewItem(k.pack); Object.assign(next.p, {s: e.s, p: e.p});
@@ -4489,7 +4518,7 @@ $("beSave").onclick = async () => {
     bankEditSay(`${k.no}번을 저장했습니다. 다음 문제를 놓으세요.`); return;
   }
   if (e.draft) {   // the next position not saved yet, at once
-    const next = await bankDraftPick(k.pack, "next", e.draft.d), was = `원서 ${e.draft.o}을(를) ${k.no}번으로 저장했습니다`;
+    const next = await bankDraftPick(k.pack, "next", e.draft.d), was = `원서 ${e.draft.o}을(를) ${k.no}번으로 저장했습니다` + (same ? ` · 다른 책의 같은 국면 ${same}개에도 넣었습니다` : "");
     if (!next.length) { p.t = e.t; bankEditClose(was + " · 이 책의 답지를 모두 만들었습니다"); return; }
     quiz.list = next; quiz.i = 0; bankShow(); await bankEditOpen(false); bankEditSay(was); return;
   }
