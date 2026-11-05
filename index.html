@@ -2229,7 +2229,8 @@ $("startButton").onclick = async () => {
   const prep = free ? "분석 준비를 마치는 데 보통 1~3분 걸립니다."
     : "준비(보통 1~3분) 시간은 요금이 들지 않고, 분석 준비가 끝난 뒤부터 계산됩니다.";
   const msg = `${picked.gpu}\n${pay}\n${prep}\n` +
-    (idleStopOn() ? "10분 동안 입력이 없으면 자동으로 꺼집니다." : "자동 종료가 꺼져 있습니다(내 정보). 직접 끄거나 한도에 도달할 때까지 계속 켜져 있습니다.");
+    (free && !opAdmin(profile) ? "무료 GPU는 자동 종료가 늘 켜져 있어 10분 동안 입력이 없으면 자동으로 꺼집니다."   // (user 2026-11-05)
+      : idleStopOn() ? "10분 동안 입력이 없으면 자동으로 꺼집니다." : "자동 종료가 꺼져 있습니다(내 정보). 직접 끄거나 한도에 도달할 때까지 계속 켜져 있습니다.");
   const autoBatch = batchAutoOk();
   if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
@@ -2576,12 +2577,12 @@ const idleStopOn = () => !profile || profile.idle_stop !== false;
 function showIdleStop() {
   $("idleStopSwitch").setAttribute("aria-checked", String(idleStopOn()));
   $("idleStopNote").textContent = idleStopOn() ? "10분 동안 입력이 없으면 GPU를 끕니다. 깜빡하고 안 꺼도 요금이 계속 나가지 않습니다."
-    : "꺼져 있습니다. 직접 끄거나 잔액이 떨어질 때까지 GPU가 켜져 있고 요금이 나갑니다.";
+    : "꺼져 있습니다. 직접 끄거나 잔액이 떨어질 때까지 GPU가 켜져 있고 요금이 나갑니다. 무료 GPU는 꺼 두어도 10분 동안 입력이 없으면 꺼집니다.";
 }
 $("idleStopSwitch").onclick = async () => {
   const sw = $("idleStopSwitch"), on = !idleStopOn();
   if (!on && !confirm("GPU 자동 종료를 끌까요?\n\n끄면 분석을 하지 않고 탭을 닫거나 깜빡해도 GPU가 꺼지지 않고, 그동안 요금이 계속 나갑니다.\n" +
-    "직접 GPU 종료를 누르거나, 잔액이 다 떨어지거나, 최대 사용 시간이 될 때까지 켜져 있습니다.\n\n다 쓰면 꼭 GPU 종료를 눌러 주세요.")) return;
+    "직접 GPU 종료를 누르거나, 잔액이 다 떨어지거나, 최대 사용 시간이 될 때까지 켜져 있습니다.\n무료 GPU는 이 설정과 상관없이 10분 동안 입력이 없으면 꺼집니다.\n\n다 쓰면 꼭 GPU 종료를 눌러 주세요.")) return;
   sw.disabled = true;
   try {
     const { error } = await sb.rpc("set_idle_stop", { p_on: on });
