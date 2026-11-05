@@ -1043,7 +1043,7 @@ button.primary:hover { background: var(--blue-deep); }
         <label class="be-hide"><input type="checkbox" id="beHide"> 숨기기</label>
       </div>
       <div class="be-set">
-        <button id="beSave" class="primary">저장</button><button id="beReset">원래대로</button><button id="beClose">닫기</button>
+        <button id="beSave" class="primary">저장</button><button id="beSkip" hidden>다음 국면</button><button id="beReset">원래대로</button><button id="beClose">닫기</button>
         <span class="be-msg" id="beMsg"></span>
       </div>
     </div>
@@ -3056,7 +3056,7 @@ mineClient().then(c => {
   $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
   if (hashParams.has("bank")) {   // the website's 문제 은행 link (k = a card; p = a 복습 card; admin: q = a problem by id, edit = 답 고치기, add = 새 문제)
-    bankHashOnce = {q: hashParams.get("q") || "", edit: hashParams.get("edit") === "1", add: hashParams.get("add") === "1"};
+    bankHashOnce = {q: hashParams.get("q") || "", edit: hashParams.get("edit") === "1", add: hashParams.get("add") === "1", draft: hashParams.get("draft") || ""};
     openBank(hashParams.get("bank"), +hashParams.get("k") || 0, hashParams.get("p") || "");
   }
 });
@@ -4108,15 +4108,17 @@ async function openBank(spec, from = 0, start = "") {   // from = a problem numb
   const once = bankHashOnce || {}; bankHashOnce = null;
   try {
     await bankLoad();
-    if ((once.add || once.edit) && !await bankIsAdmin()) { say("관리자만 고칠 수 있습니다"); return; }
+    if ((once.add || once.edit || once.draft) && !await bankIsAdmin()) { say("관리자만 고칠 수 있습니다"); return; }
     if (spec !== "review" && bankBook(spec)?.off && !await bankIsAdmin()) { say("없는 책입니다"); return; }   // a book an admin took off the site
     if (once.add) list = bankBook(spec) ? [bankNewItem(spec)] : [];
+    else if (once.draft) list = await bankDraftPick(spec, once.draft);
     else if (once.q) {   // by id (the admin page's list): that one first, even hidden, then the book's next ones
       const f = await bankFind({pid: once.q, pack: spec, file: 0}, await bankIsAdmin());
       list = f ? [f, ...(await bankPickFrom(spec, f.no + 1)).slice(0, BANK_SET - 1)] : [];
     }
     else list = from ? await bankPickFrom(spec, from) : await bankPick(spec, start);
   } catch (err) { say("문제를 불러오지 못했습니다: " + (err.message || err)); return; }
+  if (!list.length && once.draft) { say("이 책의 답지를 모두 만들었습니다"); return; }
   if (!list.length) { say(spec === "review" ? "오늘 복습할 문제가 없습니다" : bankBook(spec) ? "이 책의 문제를 모두 풀었습니다" : "없는 책입니다"); return; }
   if (!quiz) {   // the board being studied comes back when the problems end
     if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
@@ -4127,7 +4129,7 @@ async function openBank(spec, from = 0, start = "") {   // from = a problem numb
   document.body.classList.add("bankq");
   await bankIsAdmin();
   say(""); bankShow();
-  if (once.add || once.edit) bankEditOpen(!!once.add);
+  if (once.add || once.edit || once.draft) bankEditOpen(!!once.add);
 }
 const bankXY = m => m === "pass" ? null : [m.charCodeAt(0) - 97, m.charCodeAt(1) - 97];
 function bankShow() {
@@ -4318,18 +4320,41 @@ function bankNewItem(spec) {   // an empty problem with the book's next number
   const book = bankBook(spec), ks = (book.ks || []).flat(), k = (ks.length ? Math.max(...ks) : 0) + 1;
   return {p: {k, s: 19, b: "", w: "", p: "B", t: {}}, pack: spec, file: book.static, no: k, isNew: true};
 }
+// 답지 만들기 (user 2026-11-05 "내가 직접 답지 만들테니 문제만 가져와봐"): problems/drafts.json = the original books' positions
+// with no answer yet (katagovast tools/problem_bank/drafts.py; members never read it). #bank=<book>&draft=next opens the
+// first one not saved yet (draft=<원서 번호> that one) with its stones already placed; 저장 keeps it as the book's added
+// problem under the draft's own id and number (bank_edits pid = d, k = d.k — the book's order stays the original's),
+// then the next one opens; 다음 국면 skips one. Saved ones are what members see.
+let bankDrafts = null;
+async function bankDraftsLoad() {
+  if (!bankDrafts) { const r = await fetch(`problems/drafts.json?v=${Date.now()}`); if (!r.ok) throw new Error("국면 목록 " + r.status); bankDrafts = await r.json(); }
+  return bankDrafts;
+}
+async function bankDraftPick(spec, which, after = "") {   // -> [one item] or []; which = "next" (after = the draft just done) or a 원서 번호
+  const set = (await bankDraftsLoad()).sets.find(x => x.pack === spec), book = bankBook(spec); if (!set || !book) return [];
+  const saved = new Map((book.edit ? [...book.edit.add, ...book.edit.hidAdd] : []).map(p => [p.i, p]));
+  let it;
+  if (which === "next") {
+    const from = after ? set.items.findIndex(x => x.d === after) + 1 : 0;
+    it = set.items.slice(from).find(x => !saved.has(x.d)) || set.items.slice(0, from).find(x => !saved.has(x.d));
+  } else it = set.items.find(x => x.o === which);
+  if (!it) return [];
+  const sp = saved.get(it.d), left = set.items.filter(x => !saved.has(x.d)).length;
+  return [{p: {i: it.d, k: it.k, s: it.s, b: it.b, w: it.w, p: it.p, t: sp ? sp.t : {}, ...(sp && sp.g ? {g: sp.g} : {})},
+           pack: spec, file: book.static, no: it.k, draft: {...it, left, total: set.items.length}}];
+}
 async function bankEditOpen(setup = false) {
   if (!quiz || !quiz.bank || quiz.busy || !bankAdmin) return;
   if (quiz.free) bankFreeEnd();
   const k = quiz.list[quiz.i], p = k.p;
   let row = null;
   if (!k.isNew) { const {data} = await mineSb.from("bank_edits").select("note,hidden,added").eq("pid", p.i).maybeSingle(); row = data; }
-  const added = !k.isNew && (!!(row && row.added) || bankBook(k.pack).edit?.add.includes(p));
-  quiz.edit = {t: JSON.parse(JSON.stringify(p.t || {})), setup, isNew: !!k.isNew, added, tool: "b", s: p.s, b: p.b || "", w: p.w || "", p: p.p, info: ""};
+  const added = !!k.draft || (!k.isNew && (!!(row && row.added) || bankBook(k.pack).edit?.add.includes(p)));
+  quiz.edit = {t: JSON.parse(JSON.stringify(p.t || {})), setup, isNew: !!k.isNew, added, draft: k.draft || null, tool: "b", s: p.s, b: p.b || "", w: p.w || "", p: p.p, info: ""};
   Object.assign(quiz, {done: false, answer: null, grade: null, reveal: false});
   document.body.classList.add("bankedit"); $("bankEdit").hidden = false;
   $("beGoal").value = p.g || ""; $("beNote").value = row ? row.note : ""; $("beHide").checked = !!(row && row.hidden);
-  $("beHide").parentElement.hidden = !!k.isNew; $("beReset").hidden = !!k.isNew || added;
+  $("beHide").parentElement.hidden = !!k.isNew; $("beReset").hidden = !!k.isNew || added; $("beSkip").hidden = !k.draft;
   for (const b of $("beTool").children) b.classList.toggle("on", b.dataset.v === "b");
   bankEditSay("");
   bankEditLoad();
@@ -4380,7 +4405,8 @@ function bankPrune(t) {   // a branch with nothing in it says nothing (and would
 function bankEditInfo() {
   const e = quiz.edit, k = quiz.list[quiz.i]; if (!e) return;
   bankNavState();
-  const title = (e.isNew ? "새 문제" : "답 고치기") + ` · ${k.no}번`;
+  const title = e.draft ? `답지 만들기 · 원서 ${e.draft.o} → ${k.no}번 · 남은 ${e.draft.left}/${e.draft.total}`
+    : (e.isNew ? "새 문제" : "답 고치기") + ` · ${k.no}번`;
   let info;
   if (e.setup) { info = "판을 눌러 돌을 놓거나 지우고, 차례를 고른 뒤 '답 만들기'를 누르세요"; $("beInfo").textContent = ""; }
   else {
@@ -4438,6 +4464,12 @@ $("beDel").onclick = () => {
   bankEditSet(quiz.edit.t, path); bankEditBack(); bankEditSay("지웠습니다"); schedule();
 };
 $("beClose").onclick = () => bankEditClose();
+$("beSkip").onclick = async () => {   // 답지 만들기: this one later, the next one not saved yet now
+  const k = quiz.list[quiz.i]; if (!k.draft) return;
+  const next = await bankDraftPick(k.pack, "next", k.draft.d);
+  if (!next.length || next[0].draft.d === k.draft.d) return bankEditSay("남은 국면이 이것뿐입니다", true);
+  quiz.list = next; quiz.i = 0; bankShow(); await bankEditOpen(false);
+};
 $("beSave").onclick = async () => {
   const e = quiz.edit, k = quiz.list[quiz.i], p = k.p;
   if (e.setup) return bankEditSay("'답 만들기'로 정답 수순을 먼저 넣으세요", true);
@@ -4455,6 +4487,11 @@ $("beSave").onclick = async () => {
     const next = bankNewItem(k.pack); Object.assign(next.p, {s: e.s, p: e.p});
     quiz.list = [next]; quiz.i = 0; bankShow(); await bankEditOpen(true);
     bankEditSay(`${k.no}번을 저장했습니다. 다음 문제를 놓으세요.`); return;
+  }
+  if (e.draft) {   // the next position not saved yet, at once
+    const next = await bankDraftPick(k.pack, "next", e.draft.d), was = `원서 ${e.draft.o}을(를) ${k.no}번으로 저장했습니다`;
+    if (!next.length) { p.t = e.t; bankEditClose(was + " · 이 책의 답지를 모두 만들었습니다"); return; }
+    quiz.list = next; quiz.i = 0; bankShow(); await bankEditOpen(false); bankEditSay(was); return;
   }
   const f = await bankFind({pid: p.i, pack: k.pack, file: k.file}, true);   // the saved version (hidden ones too: still on screen)
   if (f) quiz.list[quiz.i] = {...k, ...f};

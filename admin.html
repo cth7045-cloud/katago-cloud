@@ -79,6 +79,15 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 .bk-shelf { border-radius: 16px; background: var(--soft); padding: 12px; display: grid; gap: 8px; }
 .bk-shelf.off, .bk-book.off { opacity: .55; }
 .bk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+/* 답지 만들기 (2026-11-05): 원서 국면 묶음마다 진행·이어서, 번호를 펼치면 저장한 것 초록 */
+.bk-draft { padding: 10px 0; border-top: 1px solid var(--line); }
+.bk-draft:first-child { border-top: 0; }
+.bk-draft .bk-row b { flex: 1 1 auto; min-width: 0; }
+.bk-draft summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.bk-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.bk-chips button { min-height: 0; padding: 3px 7px; font-size: 12px; font-weight: 500; border-radius: 8px; background: var(--soft); color: var(--ink); }
+.bk-chips button.done { background: #e5f5ec; color: var(--good); }
+@media (prefers-color-scheme: dark) { .bk-chips button.done { background: rgba(31, 157, 85, .2); } }
 .bk-row input[type=text] { flex: 1 1 160px; min-width: 0; }
 .bk-row input.sub { flex: 1 1 120px; }
 .bk-row select { flex: 0 1 170px; min-width: 0; }
@@ -449,6 +458,10 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
         <button class="primary" type="submit">만들기</button>
       </form>
       <p class="muted small">문제가 하나라도 들어가야 회원에게 보입니다. 아래 '문제'에서 그 책을 골라 '새 문제 추가'로 넣으세요.</p>
+    </div>
+    <div class="panel">
+      <h2>답지 만들기</h2>
+      <div id="bkDrafts"><p class="muted">불러오는 중…</p></div>
     </div>
     <div class="panel">
       <h2>문제</h2>
@@ -1153,6 +1166,7 @@ async function loadBankAdmin() {
       bankAllRows("bank_edits", "pid,pack,added,hidden,prob,note,updated_at")]);
     bkModel = bkBuild(bankRaw, own.reverse(), meta, edits); bkSnap = bkState(); bkEdits = edits; bkFiles.clear();
     showBankTree(); showBankBooks(); showBankEdits(); showBankCards();
+    showBankDrafts().catch((err) => { $("bkDrafts").innerHTML = `<p class="muted">국면 목록을 불러오지 못했습니다: ${esc(err.message || String(err))}</p>`; });
   } catch (err) { $("bkTree").innerHTML = `<p class="muted">불러오지 못했습니다: ${esc(err.message || String(err))}</p>`; }
 }
 function showBankTree() {
@@ -1278,6 +1292,23 @@ $("bkCards").onclick = async (ev) => {
   if (error) { toast("바꾸지 못했습니다: " + error.message, true); hide.disabled = false; return; }
   toast(on ? `${card.dataset.k}번을 숨겼습니다` : `${card.dataset.k}번을 다시 보이게 했습니다`); await loadBankAdmin();
 };
+// 답지 만들기 (user 2026-11-05 "내가 직접 답지 만들테니 문제만 가져와봐"): problems/drafts.json = the original books' positions
+// not in the bank yet (no answer; katagovast tools/problem_bank/drafts.py). A position saved on the analysis screen
+// (#bank=<book>&draft=…) is the book's added problem with the position's own id (bank_edits pid = d) — that is what members see.
+let bkDraftData = null;
+async function showBankDrafts() {
+  if (!bkDraftData) { const r = await fetch(`problems/drafts.json?v=${Date.now()}`); if (!r.ok) throw new Error(r.status); bkDraftData = await r.json(); }
+  const saved = new Set(bkEdits.filter((e) => e.added).map((e) => e.pid)), open = new Set([...$("bkDrafts").querySelectorAll("details[open]")].map((d) => d.dataset.set));
+  $("bkDrafts").innerHTML = bkDraftData.sets.map((st) => {
+    const done = st.items.filter((it) => saved.has(it.d)).length;
+    return `<div class="bk-draft"><div class="bk-row"><b>${esc(st.title)}</b><span class="muted small">${done.toLocaleString()} / ${st.items.length.toLocaleString()}</span>` +
+      `<button type="button" class="${done < st.items.length ? "primary" : "btn"}" data-draft="${esc(st.pack)}" data-o="next"${done < st.items.length ? "" : " disabled"}>${done ? "이어서 만들기" : "만들기"}</button></div>` +
+      `<details data-set="${esc(st.pack)}"${open.has(st.pack) ? " open" : ""}><summary>원서 번호</summary><div class="bk-chips">` +
+      st.items.map((it) => `<button type="button" class="${saved.has(it.d) ? "done" : ""}" data-draft="${esc(st.pack)}" data-o="${esc(it.o)}" title="${it.k}번">${esc(it.o)}</button>`).join("") +
+      `</div></details></div>`;
+  }).join("");
+}
+$("bkDrafts").onclick = (ev) => { const b = ev.target.closest("[data-draft]"); if (b) openAnalysis(`bank=${encodeURIComponent(b.dataset.draft)}&draft=${encodeURIComponent(b.dataset.o)}`); };
 function openAnalysis(hash) {   // the analysis screen in a new tab (in the installed app: this window)
   const url = `analysis.html?v=${Date.now()}#${hash}`;
   if (standalone) location.href = url; else window.open(url, "_blank", "noopener");
