@@ -10,4 +10,8 @@
 
 3. 망우청락집 Wangyou Qingle Ji: the SGF files in https://github.com/tasuki/tsumego (books/sources/wangyou-qingle-ji).
 
+4. Problem ids "q…" (천룡도 Tianlong Tu 1–4, and problems added to 현현기경·사활묘기·관자보·기경중묘·발양론) and the answer lines of
+   the 답지 positions (DB bank_edits, note "원서 답지:"): a 고전 사활 전집 PDF supplied by the site's operator (2026-11-05) —
+   positions read from its diagrams, the main line from its 정해 수순; no wrong lines.
+
 Since 2026-11-05 only classical collections (published before 1911) are kept here; the modern books were removed.
