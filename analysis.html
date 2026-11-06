@@ -5941,8 +5941,9 @@ async function watchGpu() {
   let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !hashParams.has("bank") && !hashParams.has("tree") && !batchMode;
   // Opened while the GPU was still booting (user 2026-11-06 "부팅 준비 끝났을 때 자동으로 연결"): joins it the moment it is
   // ready, on this page, with the board as it is now (moves played or a game opened while waiting stay — joinBootedGpu).
-  // Not 기보 기록 / 연구, a shared game, 문제 은행, 수순 탐색, 기보 분석, 내 기기.
-  const canJoin = !recordMode && !shareToken && !hashParams.has("bank") && !hashParams.has("tree") && !batchMode && !localMode && !watchLocal && !viewOnly;
+  // Not 문제 은행, 여러 기보 분석, 내 기기, nor an admin's 화면 보기 (user 2026-11-06: 기보 기록·연구, a shared game and
+  // 수순 탐색 join too — their boards stay as they are and the AI comes only with 분석 시작).
+  const canJoin = !hashParams.has("bank") && !batchMode && !localMode && !watchLocal && !viewOnly;
   let booting = false, fastTimer = 0;
   async function tick() {
     const mine = !token;
