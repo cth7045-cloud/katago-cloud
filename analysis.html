@@ -1181,7 +1181,7 @@ let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashPar
 if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub")   // …or a 기보실 game (2026-10-22)
   + (/^([a-s]{2}|tt)*$/.test(hashParams.get("p") ?? "x") ? ":" + hashParams.get("p") : "");   // from 수순 탐색: at its moves, turned its way
 const shareToken = /^[A-Za-z0-9_-]{24}$/.test(hashParams.get("share") || "") ? hashParams.get("share") : null;   // 기보 공유 link
-const token = hashParams.get("t") || "";
+let token = hashParams.get("t") || "";   // set once later when this screen joins a GPU that was booting (joinBootedGpu)
 // When the page is served by the website (not by the GPU itself), #u= names the member's own GPU.
 // The GPU's own address: a named tunnel on our domain (2026-09-28), or a quick tunnel (the fallback, and the PC app).
 const GPU_HOST = /^[a-z0-9-]+\.(trycloudflare\.com|katago\.dpdns\.org)$/;
@@ -5918,25 +5918,45 @@ for (const id of ["showBar", "showGraph", "showTree"]) $(id).onchange = () => {
 };
 
 // ------------------------------------------------------------------ GPU time, cost and stop (website only, for the logged-in member)
+// The GPU this screen waited for is ready (watchGpu): connect to it here, without reloading, so the board stays. A new
+// GPU's bridge has no board yet, so this one becomes the shared board (hello → publish); if another device of the member
+// got there first, the two are merged like a board changed while cut off (unsent → mergeSgf: nothing deleted).
+function joinBootedGpu(url, t) {
+  token = t; remoteGpu = url; pendingKifu = null;
+  history.replaceState(null, "", `#u=${encodeURIComponent(url)}&t=${encodeURIComponent(t)}`);
+  if (root.children.length || Object.keys(root.setup || {}).some(k => (root.setup[k] || []).length)) unsent = performance.now();
+  $("conn").textContent = "GPU 연결 중";
+  clearTimeout(retryTimer); connect();
+  mirrorScreen(token);   // 관리자 화면 보기 follows this GPU from now on
+}
 const LIVE = ["creating", "booting", "setup", "ready", "stopping"];
 async function watchGpu() {
   if (GPU_HOST.test(location.hostname)) return;
   let site; try { site = await import("./app.js"); } catch { return; }
   // Opened without a GPU (the top bar's 분석 화면, a saved game, 기보 추가) while the member has one running: show it
   // here, to join or stop it (user report 2026-09-28: a member closed the GPU's screen and found no way to stop it).
-  const mine = !token;
   // Opened plainly (the top bar's 분석 화면, 앱 아이콘) while the member's GPU is ready: go straight to it, so the board
   // left there (kept by the GPU's bridge) comes back as it was (user request 2026-09-29; the "이 GPU로 연결" button is gone).
   // Only when the page opens: never pulls away a board the member started here, nor 기보 기록 / a 내 기보 / a shared game.
   let first = !recordMode && !shareToken && !hashParams.has("kifu") && !hashParams.has("pub") && !hashParams.has("notes") && !hashParams.has("bank") && !hashParams.has("tree") && !batchMode;
+  // Opened while the GPU was still booting (user 2026-11-06 "부팅 준비 끝났을 때 자동으로 연결"): joins it the moment it is
+  // ready, on this page, with the board as it is now (moves played or a game opened while waiting stay — joinBootedGpu).
+  // Not 기보 기록 / 연구, a shared game, 문제 은행, 수순 탐색, 기보 분석, 내 기기.
+  const canJoin = !recordMode && !shareToken && !hashParams.has("bank") && !hashParams.has("tree") && !batchMode && !localMode && !watchLocal && !viewOnly;
+  let booting = false, fastTimer = 0;
   async function tick() {
+    const mine = !token;
     const cols = "status,charged_krw,ready_at,instance_created_at,created_at,web_url,web_token,gpu_name";
     const {data: s} = await (mine ? site.sb.from("gpu_sessions").select(cols).in("status", LIVE).order("created_at", {ascending: false})
       : site.sb.from("gpu_sessions").select(cols).eq("web_token", token)).limit(1).maybeSingle();
-    if (!s) { $("gpuMeter").hidden = true; return; }   // not logged in on this browser, or not this member's GPU
+    if (!s) { $("gpuMeter").hidden = true; booting = false; return; }   // not logged in on this browser, or not this member's GPU
     const joinable = mine && s.status === "ready" && GPU_URL.test(s.web_url || "") && s.web_token;
     if (first && joinable) { location.replace(`analysis.html?v=${Date.now()}#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`); return; }
+    if (mine && ["creating", "booting", "setup"].includes(s.status)) booting = canJoin;
+    if (booting && joinable) { booting = false; first = false; joinBootedGpu(s.web_url, s.web_token); return tick(); }
     first = false;
+    if (!booting) { clearInterval(fastTimer); fastTimer = 0; }
+    else if (!fastTimer) fastTimer = setInterval(() => tick().catch(() => {}), 5000);   // while booting: every 5 s, to join at once
     if (!mine && GPU_URL.test(s.web_url || "") && s.web_url !== remoteGpu) {   // the GPU restarted its tunnel: follow the new address
       remoteGpu = s.web_url;
       history.replaceState(null, "", `#u=${encodeURIComponent(remoteGpu)}&t=${encodeURIComponent(token)}`);
@@ -5949,7 +5969,8 @@ async function watchGpu() {
     }
     // billed from ready_at (2026-10-15): the boot and setup minutes are free, so they are not counted here either
     const min = Math.max(0, Math.round((Date.now() - new Date(s.ready_at || s.instance_created_at || s.created_at)) / 60000));
-    $("gpuUse").textContent = (mine ? `켜진 GPU ${s.gpu_name || ""} · ` : "") + (live ? `${min}분 · ${site.won(s.charged_krw)}` : `GPU 종료됨 · ${site.won(s.charged_krw)}`);
+    const phase = s.status === "setup" ? "준비 중" : s.status === "creating" || s.status === "booting" ? "부팅 중" : "";
+    $("gpuUse").textContent = (mine ? `켜진 GPU ${s.gpu_name || ""} · ` : "") + (phase && mine ? phase : live ? `${min}분 · ${site.won(s.charged_krw)}` : `GPU 종료됨 · ${site.won(s.charged_krw)}`);
     $("gpuStop").hidden = !live || s.status === "stopping";
     $("gpuMeter").hidden = false;
   }
