@@ -1369,7 +1369,16 @@ function connect() {
     if (analyzing) requestLive();
   };
   sock.onclose = () => { if (ws === sock) lost(); };
-  sock.onmessage = ev => { heardAt = performance.now(); onMessage(JSON.parse(ev.data)); };
+  // flow (2026-11-06, webbridge.py top): a bridge whose hello has "flow" sends at most that many partial reports
+  // ("seq") until they are acked, so on a slow network the newest arrives instead of a queue of old ones. Acked
+  // after handling: a phone that draws slowly gets fewer too. Straight on the socket: not use, and the admin view acks too.
+  let flow = false;
+  sock.onmessage = ev => {
+    heardAt = performance.now();
+    const msg = JSON.parse(ev.data);
+    if ("hello" in msg) flow = !!msg.flow;
+    try { onMessage(msg); } finally { if (flow && msg.seq && sock.readyState === 1) sock.send(`{"ack":${Number(msg.seq)}}`); }
+  };
 }
 // The connection is gone, or silent: a phone waking up or switching Wi-Fi/LTE can leave a socket that looks open
 // but never delivers again, and the browser may take minutes to notice. Drop it and connect again.
