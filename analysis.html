@@ -1179,6 +1179,7 @@ const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, s
 let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
 const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // the list on screen (메뉴 › 보기 › 수순 탐색 목록)
 const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
+const hashPub = !!hashStudy && hashParams.get("pub") === "1";   // 학습방 연구(공개)에서 연 새 연구: 공개 연구로 (관리자만, 2026-11-07)
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
 if (!pendingKifu && /^\d{1,12}$/.test(hashParams.get("pub") || "")) pendingKifu = "pub:" + hashParams.get("pub")   // …or a 기보실 game (2026-10-22)
@@ -2277,6 +2278,8 @@ function parseSgf(text) {
   return tree();
 }
 const sgfXY = v => (!v || v === "tt") ? null : [v.charCodeAt(0) - 97, v.charCodeAt(1) - 97];
+// LB 글자(2026-11-07, 학습방 정석 연구의 다음 수 후보 A·B …): [[x, y], "A"] 목록
+const sgfLabels = vals => (vals || []).map(v => { const k = v.indexOf(":"), p = k > 0 ? sgfXY(v.slice(0, k)) : null; return p && [p, v.slice(k + 1)]; }).filter(Boolean);
 function expandPoints(vals) {
   const out = [];
   for (const v of vals || []) {
@@ -2458,6 +2461,7 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
         const next = play(node, color, sgfXY(p[color][0]));
         if (!next) { skipped++; return; }
         next.comment = (p.C || [""])[0]; node = next;
+        if (p.LB) next.labels = sgfLabels(p.LB);
         if (p.KGA) next.analysis = unpackAnalysis(p.KGA[0]);
       }
       for (const v of mainLineOnly ? tr.vars.slice(0, 1) : tr.vars) build(v, 0, node);
@@ -2467,6 +2471,7 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   }
   $("handicap").value = handicapShown = String(ha >= 2 && ha <= 9 ? ha : 0);
   newRoot.comment = (first.C || [""])[0];
+  if (first.LB) newRoot.labels = sgfLabels(first.LB);
   for (const k of GAME_INFO) if (first[k]) newRoot.info[k] = first[k][0];
   if (first.KGA) newRoot.analysis = unpackAnalysis(first.KGA[0]);
   if (first.KM) setKomi(foxKomi(first, parseFloat(first.KM[0]) || 0));
@@ -2507,6 +2512,7 @@ function unpackAnalysis(text) {
 function toSgf(withAnalysis = true, upTo = null, marks = null) {   // upTo: only the moves leading to that node (오답노트)
   const c = (x, y) => String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
   const esc = s => s.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
+  const lbText = n => n.labels && n.labels.length ? "LB" + n.labels.map(([q, t]) => `[${c(q[0], q[1])}:${esc(t)}]`).join("") : "";
   let head = `(;GM[1]FF[4]CA[UTF-8]AP[KataGoVast]SZ[${N}]RU[Korean]KM[${komi()}]`;
   if (root.setup.B.length) head += "AB" + root.setup.B.map(([x, y]) => `[${c(x, y)}]`).join("");
   if (root.setup.W.length) head += "AW" + root.setup.W.map(([x, y]) => `[${c(x, y)}]`).join("");
@@ -2517,10 +2523,11 @@ function toSgf(withAnalysis = true, upTo = null, marks = null) {   // upTo: only
   if (start) head += `KGS[${pathTo(start).slice(1).map(n => n.parent.children.indexOf(n)).join(".")}]`;
   for (const k of GAME_INFO) if (root.info[k]) head += `${k}[${esc(root.info[k])}]`;
   if (root.comment) head += `C[${esc(root.comment)}]`;
+  head += lbText(root);
   // marks (기보 분석 on the GPU): a marker where the analysis still to come goes, filled in by the website's function
   const kga = n => marks && marks.has(n) ? marks.get(n) : withAnalysis && n.analysis && n.analysis.rootInfo ? `KGA[${esc(packAnalysis(n.analysis))}]` : "";
   head += kga(root);
-  const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + (n.comment ? `C[${esc(n.comment)}]` : "") + kga(n);
+  const nodeText = n => `;${n.move.c}[${n.move.pass ? "" : c(n.move.x, n.move.y)}]` + lbText(n) + (n.comment ? `C[${esc(n.comment)}]` : "") + kga(n);
   if (upTo) return head + pathTo(upTo).slice(1).map(nodeText).join("") + ")";
   const body = n => {
     let s = "";
@@ -3025,7 +3032,7 @@ $("kifuRows").addEventListener("click", async ev => {
 let mineSb = null, mineId = null, mineRoot = null, mineTitle = "", mineList = [];
 let mineFolder = null, mineFolders = [];   // the opened game's 분류 (kifu_folders id), and the member's folders
 const hashFolder = /^[0-9a-f-]{36}$/.test(hashParams.get("folder") || "") ? hashParams.get("folder") : null;   // 기보 추가 from a folder
-let mineStudy = null;   // the opened row's topic (null: a game of 내 기보)
+let mineStudy = null, minePub = false;   // the opened row's topic (null: a game of 내 기보), and whether it is a public 연구 (else 내 연구)
 // 연구 기보 (user request 2026-10-09: "기보를 열 때 항상 정해둔 수순에서 열리게 만드는 세팅", "뒤로가기는 놔두고 앞으로
 // 가기 제스처를 없애서 일반 기보처럼 확확 넘어가지 않게"): the board is a study when it is a 학습방 row, or the empty board
 // of 새 연구 (studyRoot) before its first save.
@@ -3117,8 +3124,8 @@ $("saveMine").onclick = async () => {
   $("saveDoStopRow").hidden = !gpuOn(); $("saveDoStop").checked = false;   // off every time: turning the GPU off is never a leftover choice
   saveDoChanged();
   if (!["Kifu", "Notes"].some(k => $("saveDo" + k).checked)) { $("saveDoKifu").checked = true; saveDoChanged(); }   // never open with nothing to do
-  await fillSaveFolders(again ? (mineStudy ? `study:${mineStudy}${mineBranch ? ":" + mineBranch : ""}` : mineFolder)
-    : hashStudy ? `study:${hashStudy}${hashBranch ? ":" + hashBranch : ""}` : hashFolder || (() => { try { return localStorage.getItem("kgv.saveFolder"); } catch { return null; } })());
+  await fillSaveFolders(again ? (mineStudy ? `${minePub ? "pstudy" : "study"}:${mineStudy}${mineBranch ? ":" + mineBranch : ""}` : mineFolder)
+    : hashStudy ? `${hashPub ? "pstudy" : "study"}:${hashStudy}${hashBranch ? ":" + hashBranch : ""}` : hashFolder || (() => { try { return localStorage.getItem("kgv.saveFolder"); } catch { return null; } })());
   $("saveTitle").value = saveTitleAuto = again ? mineTitle : saveDefaultTitle();
   saveDoChanged();
   $("saveDlg").showModal();
@@ -3132,28 +3139,30 @@ async function loadMineFolders(c) {
 async function loadStudyFolders(c) {
   if (!c) return [];
   const uid = (await c.auth.getSession()).data.session?.user?.id;
-  let q = c.from("study_folders").select("id,study,name").order("created_at");
-  if (uid) q = q.eq("user_id", uid);   // 연구 (2026-11-07): the 갈래 of public studies are everyone's to read, not to save into
-  const {data, error} = await q;
+  const sel = cols => { let q = c.from("study_folders").select(cols).order("created_at"); return uid ? q.eq("user_id", uid) : q; };   // 연구 (2026-11-07): the 갈래 of public studies are everyone's to read, not to save into
+  let {data, error} = await sel("id,study,name,public_study");
+  if (error && /public_study/.test(error.message || "")) ({data, error} = await sel("id,study,name"));
   studyFolders = error ? null : data || [];   // (before DB 20261009b: no 갈래, and saving leaves the column out)
   return studyFolders || [];
 }
-const studyOptions = () => Object.entries(STUDY).map(([k, name]) => `<option value="study:${k}">${name} 연구</option>` +
-  (studyFolders || []).filter(f => f.study === k).map(f => `<option value="study:${k}:${f.id}">${name} › ${escHtml(f.name)}</option>`).join("")).join("");
+// 내 연구 (study:…, 비공개) and, for an admin, 공개 연구 (pstudy:…) — 2026-11-07 "내 연구 카테고리 따로"
+const studyOptions = (pub = false) => Object.entries(STUDY).map(([k, name]) => `<option value="${pub ? "pstudy" : "study"}:${k}">${name} 연구</option>` +
+  (studyFolders || []).filter(f => f.study === k && !!f.public_study === pub).map(f => `<option value="${pub ? "pstudy" : "study"}:${k}:${f.id}">${name} › ${escHtml(f.name)}</option>`).join("")).join("");
 async function fillSaveFolders(want) {
   const c = await mineClient(); if (!c) return;
   await Promise.all([loadMineFolders(c), loadStudyFolders(c)]);
   $("saveFolder").innerHTML = `<optgroup label="내 기보"><option value="">분류 없음</option>` +
     mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="+">＋ 새 분류 만들기…</option></optgroup>` +
-    (await bankIsAdmin() || mineStudy ? `<optgroup label="학습방">${studyOptions()}</optgroup>` : "");
+    `<optgroup label="내 연구">${studyOptions(false)}</optgroup>` + (await bankIsAdmin() ? `<optgroup label="공개 연구 (모두가 봄)">${studyOptions(true)}</optgroup>` : "");
   const has = v => [...$("saveFolder").options].some(o => o.value === v && v !== "+");
   want = String(want ?? "");
   $("saveFolder").value = has(want) ? want : has(want.split(":").slice(0, 2).join(":")) ? want.split(":").slice(0, 2).join(":") : "";   // a 갈래 deleted meanwhile: its topic
   $("saveFolder").dataset.last = $("saveFolder").value;
 }
-const saveStudy = () => $("saveFolder").value.startsWith("study:") ? $("saveFolder").value.split(":")[1] : null;   // the topic picked, or null: 내 기보
+const saveStudy = () => /^p?study:/.test($("saveFolder").value) ? $("saveFolder").value.split(":")[1] : null;   // the topic picked, or null: 내 기보
+const savePub = () => $("saveFolder").value.startsWith("pstudy:");   // 공개 연구 (관리자), else 내 연구
 const saveBranch = () => saveStudy() && $("saveFolder").value.split(":")[2] || null;   // the 갈래 picked in it, or null
-const saveAgain = () => !!(mineId && mineRoot === root) && !saveStudy() === !mineStudy;   // 덮어쓰기: the same side as the opened row
+const saveAgain = () => !!(mineId && mineRoot === root) && !saveStudy() === !mineStudy && (!saveStudy() || savePub() === minePub);   // 덮어쓰기: the same side as the opened row
 let saveTitleAuto = null;   // the title the save window filled in itself (not typed)
 function saveDefaultTitle() {   // a study is named by its topic and today (a game, as before, by its players or date)
   const t = saveStudy();
@@ -3231,13 +3240,13 @@ async function saveMine(asNew) {
   const kifu = $("saveDoKifu").checked, notes = $("saveDoNotes").checked, stop = $("saveDoStop").checked && gpuOn();
   const say = (t, bad = false) => { $("saveMsg").textContent = t; $("saveMsg").classList.toggle("bad", bad); };
   const title = $("saveTitle").value.trim().slice(0, 100) || mineDefaultTitle();
-  const study = saveStudy(), branch = saveBranch(), folder = !study && $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
+  const study = saveStudy(), branch = saveBranch(), pub = !!study && savePub(), folder = !study && $("saveFolder").value && $("saveFolder").value !== "+" ? $("saveFolder").value : null;
   if (!study) try { localStorage.setItem("kgv.saveFolder", folder || ""); } catch { /* storage blocked */ }   // a game's 분류 is remembered, not 학습방
   const auto = autoFirst();
   if (auto || ((stop || waitRunning()) && analysisRunning())) {   // save (and add the mistakes) when the analysis ends; 다 끝나면: then the GPU goes off
     if (auto) startAuto(false);
     if (!analysisRunning()) { say("자동분석을 시작하지 못했습니다. GPU 연결을 확인하세요.", true); return; }
-    finishPlan = {kifu, notes, title, asNew, root, folder, study, branch, stop};
+    finishPlan = {kifu, notes, title, asNew, root, folder, study, branch, pub, stop};
     $("saveDlg").close();
     const what = [kifu && "저장", notes && (stop ? "오답노트 후보 모두 담기" : "오답노트 목록 열기"), stop && "GPU 끄기"].filter(Boolean).join(" → ");
     const jong = (what.charCodeAt(what.length - 1) - 0xAC00) % 28 > 0;   // 저장을 / 끄기를
@@ -3246,7 +3255,7 @@ async function saveMine(asNew) {
   }
   if (kifu) {
     $("saveGo").disabled = $("saveAsNew").disabled = true; say("저장 중…");
-    try { const why = await putMine(c, title, asNew, folder, study, branch); if (why) { say(why, true); return; } }
+    try { const why = await putMine(c, title, asNew, folder, study, branch, pub); if (why) { say(why, true); return; } }
     catch (err) { say("저장하지 못했습니다: " + err.message, true); return; }
     finally { $("saveAsNew").disabled = false; saveDoChanged(); }
   }
@@ -3264,19 +3273,20 @@ async function addAllNotes(c, title) {   // every candidate by the criteria last
   const [added, tried] = picked.length ? await insertNotes(c, picked, (mineId && mineRoot === root ? mineTitle : title).slice(0, 100)) : [0, 0];
   return ` 오답노트 ${added}문제를 담았습니다` + (tried > added ? `(이미 있던 ${tried - added}문제 건너뜀).` : ".");
 }
-async function putMine(c, title, asNew, folder = null, study = null, branch = null) {   // the game on screen into 내 기보 (folder: its 분류) or 학습방 (study: its topic, branch: its 갈래): "" when saved, else why not
+async function putMine(c, title, asNew, folder = null, study = null, branch = null, pub = false) {   // the game on screen into 내 기보 (folder: its 분류) or 학습방 (study: its topic, branch: its 갈래): "" when saved, else why not
   const row = await mineRow(title, !!study);
   if (!row) return "기보가 너무 큽니다(분석 포함 2MB 초과). 필요 없는 변화도를 지운 뒤 저장하세요.";
   row.folder_id = folder;
   if (study) row.study = study;   // (a game leaves the column out: saving still works before DB 20261009a)
   if (study && studyFolders) row.study_folder_id = branch;   // (likewise before DB 20261009b)
-  const update = !asNew && mineId && mineRoot === root && !study === !mineStudy;   // the other side: a new row there
+  const update = !asNew && mineId && mineRoot === root && !study === !mineStudy && (!study || !!pub === minePub);   // the other side: a new row there
+  if (study && !update) row.public_study = !!pub;   // 공개 연구 only when an admin picks it (DB 20261107c); fixed once saved
   const {data: saved, error} = await (update ? c.from("saved_kifu").update(row).eq("id", mineId) : c.from("saved_kifu").insert(row)).select("id").single();
   if (error) return /100(판|개)/.test(error.message) ? error.message : "저장하지 못했습니다: " + error.message;
-  mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder; mineStudy = study; mineBranch = study && branch;
+  mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder; mineStudy = study; mineBranch = study && branch; minePub = !!study && !!pub;
   mineDirtyAt = 0;   // 자동 저장: nothing left to write
   const fname = folder && (mineFolders.find(f => f.id === folder) || {}).name;
-  $("err").textContent = study ? `학습방 '${studyLabel(study, branch)} 연구'에 ${update ? "덮어썼습니다" : "저장했습니다"}`
+  $("err").textContent = study ? `${pub ? "공개 연구" : "내 연구"} '${studyLabel(study, branch)} 연구'에 ${update ? "덮어썼습니다" : "저장했습니다"}`
     : (fname ? `'${fname}' 분류 · ` : "") + (update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다");
   return "";
 }
@@ -3332,7 +3342,7 @@ async function runFinishPlan(p) {
   const c = await mineClient(); if (!c) return;
   const keep = p.stop ? " · GPU는 켜 둡니다" : "";
   try {
-    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder, p.study, p.branch); if (why) { $("err").textContent = why + keep; return; } }
+    if (p.kifu) { const why = await putMine(c, p.title, p.asNew, p.folder, p.study, p.branch, p.pub); if (why) { $("err").textContent = why + keep; return; } }
     if (!p.stop) {   // the member is here: the mistake list opens to pick from
       if (p.notes) $("addNote").onclick();
       if (p.kifu) $("err").textContent = "분석이 끝나 " + $("err").textContent;
@@ -3634,7 +3644,7 @@ async function openMineKifu(id) {
     $("err").textContent = `연구 '${k.title}'을(를) 열었습니다`;
     return true;
   }
-  mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null;
+  mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null; minePub = !!(mineStudy && k.public_study);
   // the preview again on every open (a study saved before 미리보기, by a tab from before, or before it followed the
   // 시작 국면): one small write, the game itself is unchanged so its 저장 time stays
   if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).then(() => {}, () => {});
@@ -5111,6 +5121,15 @@ function cropGeometry(px, view, bigMargin, k) {
 }
 function fillCircle(ctx, cx, cy, r) { ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r + .5, 0, Math.PI * 2); ctx.fill(); }
 function strokeCircle(ctx, cx, cy, r, width) { ctx.lineWidth = width; ctx.beginPath(); ctx.arc(cx + .5, cy + .5, r, 0, Math.PI * 2); ctx.stroke(); }
+function drawSgfLabels(ctx, G, node) {   // 기보의 LB 글자(정석 연구의 다음 수 후보 A·B …, 2026-11-07): 빈 자리는 나뭇결로 선을 덮고 진한 파랑, 돌 위는 반대색
+  const {margin: m, sq, r} = G;
+  for (const [[x, y], t] of node.labels) {
+    if (!t || x < 0 || y < 0 || x >= N || y >= N) continue;
+    const cx = m + sq * x, cy = m + sq * y, c = node.grid[idx(x, y)];
+    if (!c) { ctx.fillStyle = woodPaint(ctx); fillCircle(ctx, cx, cy, r * .86); }
+    jString(ctx, UI_FONT, 700, t, cx + .5, cy + .5, r * 1.25, r * 1.5, c === 1 ? "#fff" : c ? "#000" : "rgb(31, 63, 184)");
+  }
+}
 function drawGoban(ctx, G, coords) {
   const {size, margin: m, avail, sq, r, k} = G;
   ctx.fillStyle = woodPaint(ctx); ctx.fillRect(0, 0, size, size);
@@ -5321,6 +5340,7 @@ function drawMain() {
   if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else if (!quiz.free) drawBankMarks(boardCtx, boardG); }
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
   else if (xp && !quiz && !sc) drawXpMarks(boardCtx, boardG);
+  if (!hover && !sc && cur.labels && cur.labels.length) drawSgfLabels(boardCtx, boardG, cur);
   if (sc) drawScoreMarks(boardCtx, boardG);
   boardCtx.setTransform(1, 0, 0, 1, 0, 0);
   updateScoreBox();
