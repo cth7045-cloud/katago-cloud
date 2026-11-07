@@ -395,6 +395,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
         <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
         <button type="button" data-kind="vs" aria-pressed="false">프로 vs AI</button>
+        <button type="button" data-kind="etc" aria-pressed="false">기타 대국</button>
       </div>
       <!-- 분류: 프로 기보 · AI 기보 · 프로 vs AI 모두 최신 대국 · 연도 → 그해 대회 → 기보 (a list: name, games, ›) -->
       <nav class="lib-crumb" id="libCrumb" aria-label="위치"></nav>
@@ -1991,7 +1992,11 @@ $("mineRows").onclick = async (ev) => {
 // (the 50 newest, inside 프로 기보 since "최신기보를 프로기보 안쪽으로"), else by year and in a year by 대회
 // (DB 20261022g tournament); AI 기보 by year.
 const LIB_PAGE = 50;   // (설명 문구는 사용자 2026-10-23 "설명 문구 지워줘"로 뺌)
-const LIB_KINDS = { pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI" };
+const LIB_KINDS = { pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI", etc: "기타 대국" };
+// 기타 대국 (2026-11-07, DB 20261107b, JGDB): no names, dates or 대회 — straight to its 칸 (사용자 "프로는 구분하지마.
+// 아마추어만 구분해줘": '프로', '아마 9단' … '아마 1급'), kept as year 0 ('#library/etc/0/<칸>').
+const LIB_NODATE = "etc";
+const libEtcOrder = (t) => t === "프로" ? -100 : (/(\d+)단$/.test(t) ? -Number(t.match(/(\d+)단$/)[1]) : /(\d+)급$/.test(t) ? Number(t.match(/(\d+)급$/)[1]) : 999);
 const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 AI 대국", vs: "가장 최근 프로 vs AI 대국" };
 // where the member is: kind ('pro' | 'ai' | 'vs'), then year ('latest' = 최신 대국 50판, '2026'), then tour
 // (null = the year's 대회 cards, '*' = the whole year, else one 대회). All three kinds use the same hierarchy (2026-10-25).
@@ -2048,6 +2053,7 @@ async function libShow() {
   // 위치: 프로 기보 › 2026년 › 몽백합배 세계바둑오픈전 (each part goes back there)
   const parts = [`<button type="button" class="quiet" data-crumb="root">${kindName}</button>`];
   if (libYear === "latest") parts.push(`<span>최신 대국</span>`);
+  else if (kind === LIB_NODATE && libYear) { if (libTour && libTour !== "*") parts.push(`<span>${esc(libTour)}</span>`); }
   else if (libYear) {
     parts.push(libTour !== null ? `<button type="button" class="quiet" data-crumb="year">${libYear}년</button>` : `<span>${libYear}년</span>`);
     if (libTour && libTour !== "*") parts.push(`<span>${esc(libTour)}</span>`);
@@ -2060,7 +2066,10 @@ async function libShow() {
   $("libCards").innerHTML = `<p class="muted lib-cat-msg">불러오는 중…</p>`;
   try {
     let html;
-    if (!libYear) {   // 연도 cards (최신 대국 first)
+    if (kind === LIB_NODATE) {   // 기타 대국: its 칸 cards (프로 first, then 아마 from the strongest)
+      const tours = (await libTourList(kind, 0)).filter((t) => t.tournament).sort((a, b) => libEtcOrder(a.tournament) - libEtcOrder(b.tournament));
+      html = tours.map((t) => libCard(`data-year="0" data-tour="${esc(t.tournament)}"`, t.tournament, `${Number(t.n).toLocaleString()}판`)).join("");
+    } else if (!libYear) {   // 연도 cards (최신 대국 first)
       const years = await libYearList(kind);
       html = libCard(`data-year="latest"`, "최신 대국", "50판", LIB_LATEST_SUB[kind]) +
         years.map((y) => libCard(`data-year="${y.year}"`, `${y.year}년`, `${Number(y.n).toLocaleString()}판`)).join("");
@@ -2076,7 +2085,8 @@ async function libShow() {
     if (seq === libSeq) $("libCards").innerHTML = `<p class="muted lib-cat-msg">불러오지 못했습니다: ${esc(e.message || e)}</p>`;
   }
 }
-const libName = (name, rank) => `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
+const libName = (name, rank) => !name && rank ? esc(rank)   // 기타 대국: no names, the 단수 only
+  : `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
 async function loadLibrary(reset) {
   const q = libFindQ(), seq = ++libSeq, latest = !q && libLatest();
   const hit = q && reset ? libFindCache.get(q) : null, fresh = hit && Date.now() - hit.at < 300000 ? hit : null;
@@ -2102,7 +2112,7 @@ async function loadLibrary(reset) {
       : libYears[src]?.find((y) => String(y.year) === String(year))?.n) : undefined;
     let req = sb.from("public_kifu").select("id,played_on,date_text,event,black,white,black_rank,white_rank,result,moves", { count: reset && !latest && known == null ? "exact" : undefined })
       .eq("source", src).order("played_on", { ascending: false }).order("id", { ascending: false }).range(libRows.length, libRows.length + LIB_PAGE - 1);
-    if (year) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
+    if (year && src !== LIB_NODATE) req = req.gte("played_on", `${year}-01-01`).lte("played_on", `${year}-12-31`);
     if (tour) req = req.eq("tournament", tour);
     ({ data, error, count } = await req);
     if (known != null) count = Number(known);
@@ -2117,7 +2127,7 @@ async function loadLibrary(reset) {
   $("libMore").classList.toggle("hidden", latest || libRows.length >= total || data.length < LIB_PAGE);
   $("libRows").innerHTML = libRows.map((k, i) => `<tr class="pick" data-lib="${i}"><td><div class="lib-players"><span class="stone b" aria-label="흑"></span>${libName(k.black, k.black_rank)}` +
     ` <span class="muted">vs</span> <span class="stone w" aria-label="백"></span>${libName(k.white, k.white_rank)}</div>` +
-    `<div class="lib-meta">${esc(k.date_text || k.played_on || "")}${k.event ? " · " + esc(k.event) : ""}${k.moves ? ` · ${k.moves}수` : ""}</div></td>` +
+    `<div class="lib-meta">${[k.date_text || k.played_on, k.event, k.moves ? `${k.moves}수` : ""].filter(Boolean).map(esc).join(" · ")}</div></td>` +
     `<td class="lib-result">${esc(k.result || "")}</td></tr>`).join("")
     || `<tr><td colspan="2" class="muted">${q ? "찾는 기보가 없습니다." : "아직 모은 기보가 없습니다. 잠시 뒤에 다시 열어 보세요."}</td></tr>`;
 }
@@ -2127,7 +2137,8 @@ $("libKind").onclick = (ev) => {
 };
 $("libCards").onclick = (ev) => {
   const c = ev.target.closest(".lib-cat"); if (!c) return;
-  if (c.dataset.year) libGo(c.dataset.year, null);
+  if (c.dataset.year && c.dataset.tour) libGo(c.dataset.year, c.dataset.tour);
+  else if (c.dataset.year) libGo(c.dataset.year, null);
   else if (c.dataset.tour) libGo(libYear, c.dataset.tour);
 };
 $("libCrumb").onclick = (ev) => {

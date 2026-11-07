@@ -3647,12 +3647,14 @@ async function openMineKifu(id) {
 async function openPublicKifu(id, at = null) {   // at: 수순 탐색's moves on its board (the game opens there, turned that way)
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 기보실 기보를 열 수 있습니다"; return false; }
-  const {data: k, error} = await c.from("public_kifu").select("id,event,black,white,played_on,sgf").eq("id", Number(id)).maybeSingle();
+  const {data: k, error} = await c.from("public_kifu").select("id,source,event,tournament,black,white,played_on,sgf").eq("id", Number(id)).maybeSingle();
   if (error || !k) { $("err").textContent = "기보실 기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
   try { loadSgf(k.sgf); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
   if (at !== null) pubAt(at);
-  const title = `${k.black || "?"} vs ${k.white || "?"}`;
+  // 기타 대국 (2026-11-07, JGDB): no names — the 칸 (프로 · 아마 7단) and 덤 stand for them
+  const title = k.source === "etc" && !k.black && !k.white ? ["기타 대국", k.tournament, k.event].filter(Boolean).join(" · ")
+    : `${k.black || "?"} vs ${k.white || "?"}`;
   document.title = `${title} · KataGo Cloud`;
   // which game opened, as for 내 기보 (user 2026-10-23); the old hint about '내 기보 저장' stays out (it made the board smaller).
   // Not from 수순 탐색: the game is the one tapped there (user 2026-10-24 "그거 … 없애")
