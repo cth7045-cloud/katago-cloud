@@ -21,6 +21,9 @@
    interactive problems (stones placed on a 19×19 board by the diagram's edges and star points; right line and the
    answer to the wrong choice from the book's answer diagrams; five of those answers, where the book gives none, chosen
    with KataGo or set to the right point). These adapted problems are shared under the same license, CC BY-SA 4.0.
+   The same book's explanatory diagrams (554 studies in 학습방 › 연구, 2026-11-07) are adapted too: diagrams turned into
+   SGF records (moves and variations from the numbered stones) and the explanations translated into Korean; each
+   record carries this attribution, and they are shared under CC BY-SA 4.0 as well.
 
 Since 2026-11-05 only classical collections (published before 1911) are kept here; the modern books were removed —
 except openly licensed material such as 5.
