@@ -638,6 +638,9 @@ button.primary:hover { background: var(--blue-deep); }
   .center { order: 1; }
   .left { order: 2; padding: 8px 8px 0; }
   #capBox, #graphBox, .comment, .right { display: none; }
+  /* 연구 (학습방, 2026-11-07): a study's explanation is its point — on a phone too, under the board, while the move has one */
+  .study-open .comment { display: flex; flex: none; max-height: 34vh; margin-top: 8px; }
+  .study-open .comment:has(#comment:empty) { display: none; }
   #statBox { flex: none; height: 72px; }
   .graph-open #graphBox { display: block; flex: none; height: 130px; margin-top: 8px; }
   .bar-off #statBox { display: none; }
@@ -3128,7 +3131,10 @@ async function loadMineFolders(c) {
 }
 async function loadStudyFolders(c) {
   if (!c) return [];
-  const {data, error} = await c.from("study_folders").select("id,study,name").order("created_at");
+  const uid = (await c.auth.getSession()).data.session?.user?.id;
+  let q = c.from("study_folders").select("id,study,name").order("created_at");
+  if (uid) q = q.eq("user_id", uid);   // 연구 (2026-11-07): the 갈래 of public studies are everyone's to read, not to save into
+  const {data, error} = await q;
   studyFolders = error ? null : data || [];   // (before DB 20261009b: no 갈래, and saving leaves the column out)
   return studyFolders || [];
 }
@@ -3139,7 +3145,7 @@ async function fillSaveFolders(want) {
   await Promise.all([loadMineFolders(c), loadStudyFolders(c)]);
   $("saveFolder").innerHTML = `<optgroup label="내 기보"><option value="">분류 없음</option>` +
     mineFolders.map(f => `<option value="${f.id}">${escHtml(f.name)}</option>`).join("") + `<option value="+">＋ 새 분류 만들기…</option></optgroup>` +
-    `<optgroup label="학습방">${studyOptions()}</optgroup>`;
+    (await bankIsAdmin() || mineStudy ? `<optgroup label="학습방">${studyOptions()}</optgroup>` : "");
   const has = v => [...$("saveFolder").options].some(o => o.value === v && v !== "+");
   want = String(want ?? "");
   $("saveFolder").value = has(want) ? want : has(want.split(":").slice(0, 2).join(":")) ? want.split(":").slice(0, 2).join(":") : "";   // a 갈래 deleted meanwhile: its topic
@@ -3553,7 +3559,8 @@ function mineMsg(text, bad = false) { $("mineMsg").textContent = text; $("mineMs
 async function loadMineList() {
   const c = await mineClient(); if (!c) return;
   mineMsg("불러오는 중…");
-  const list = cols => selectSized(cols => c.from("saved_kifu").select(cols).order("updated_at", {ascending: false}), cols);
+  const uid = (await c.auth.getSession()).data.session?.user?.id;
+  const list = cols => selectSized(cols => { const q = c.from("saved_kifu").select(cols).order("updated_at", {ascending: false}); return uid ? q.eq("user_id", uid) : q; }, cols);
   let [{data, error}] = await Promise.all([list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,study,study_folder_id"), loadMineFolders(c), loadStudyFolders(c)]);
   if (error && /study_folder_id/.test(error.message || "")) ({data, error} = await list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id,study"));   // before DB 20261009b
   if (error && /study/.test(error.message || "")) ({data, error} = await list("id,title,black,white,result,game_date,moves,analyzed,updated_at,folder_id"));   // before DB 20261009a
@@ -3611,12 +3618,22 @@ async function openMineKifu(id) {
   if (String(id).startsWith("pub:")) { const [, pid, at] = String(id).split(":"); return openPublicKifu(pid, at === undefined ? null : at); }
   const c = await mineClient();
   if (!c) { $("err").textContent = "로그인한 사이트에서만 내 기보를 열 수 있습니다"; return false; }
-  let {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study,study_folder_id").eq("id", id).maybeSingle();
+  let {data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study,study_folder_id,user_id,public_study").eq("id", id).maybeSingle();
+  if (error && /public_study|user_id/.test(error.message || "")) ({data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study,study_folder_id").eq("id", id).maybeSingle());   // before DB 20261107a
   if (error && /study_folder_id/.test(error.message || "")) ({data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id,study").eq("id", id).maybeSingle());   // before DB 20261009b
   if (error && /study/.test(error.message || "")) ({data: k, error} = await c.from("saved_kifu").select("id,title,encoding,data,folder_id").eq("id", id).maybeSingle());   // before DB 20261009a
   if (error || !k) { $("err").textContent = "기보를 불러오지 못했습니다" + (error ? ": " + error.message : ""); return false; }
   try { loadSgf(k.encoding === "gzip-b64" ? await gunzip64(k.data) : k.data); }
   catch (err) { $("err").textContent = "기보를 열지 못했습니다: " + err.message; return false; }
+  // 연구 (학습방, 2026-11-07): a public study another member (an admin) posted opens read-only, like a 기보실 game —
+  // '내 기보 저장' keeps a copy; only its owner saves over it
+  document.body.classList.toggle("study-open", !!(k.public_study || STUDY[k.study]));
+  if (k.public_study && k.user_id && k.user_id !== (await c.auth.getSession()).data.session?.user?.id) {
+    mineId = null; mineStudy = null; mineBranch = null; mineDirtyAt = 0;
+    document.title = `${k.title} · KataGo Cloud`;
+    $("err").textContent = `연구 '${k.title}'을(를) 열었습니다`;
+    return true;
+  }
   mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null;
   // the preview again on every open (a study saved before 미리보기, by a tab from before, or before it followed the
   // 시작 국면): one small write, the game itself is unchanged so its 저장 time stays
