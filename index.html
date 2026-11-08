@@ -431,7 +431,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <span class="hub-icon folder c3" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M9 14l5-5 2 2-5 5H9z"/></svg></span>
           <span class="grow"><b>내 연구</b></span><span class="chev" aria-hidden="true">›</span>
         </a>
-        <a class="batch-entry" href="#study/bank">
+        <a class="batch-entry" href="#study/bank" id="bankEntry">
           <span class="hub-icon batch" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16M15 4v16"/><circle class="bs" cx="10" cy="10" r="1.6"/></svg></span>
           <span class="grow"><b>문제 은행</b></span><span class="chev" aria-hidden="true">›</span>
         </a>
@@ -701,6 +701,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 import { $, api, esc, sb, toast, when, won } from "./app.js";
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
+// 숨김 보관 (user 2026-11-08 "문제은행방 전체랑 연구방의 기타방 숨김처리 … 완전삭제는 하지말고 … 사람을 못보게"): members see neither;
+// admins still do, to improve them. Data (problems/, bank_edits, bank_progress, the 기타 studies) stays as it is.
+const HIDE_BANK = true, HIDE_STUDY_OTHER = true;
+const memberHides = (what) => !profile?.is_admin && (what === "bank" ? HIDE_BANK : HIDE_STUDY_OTHER);
 let mode = "login", profile = null, session = null, offers = [], picked = null, pollTimer = null;
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Screen changes cross-fade like a native app (browsers without View Transitions just switch).
@@ -837,6 +841,8 @@ async function refreshNow(light) {
   if (!got) return;
   const { p, s, l } = got;
   profile = p;
+  $("bankEntry").classList.toggle("hidden", memberHides("bank"));   // 숨김 보관 (2026-11-08)
+  if (location.hash.startsWith("#study/bank") && memberHides("bank")) location.replace("#study");
   $("studyNew").classList.toggle("hidden", !(studyScope === "mine" || p?.is_admin));   // 연구: only an admin posts; 내 연구: everyone (2026-11-07)
   keepPush();
   // the model this member rented last (any device) is picked next time (user request 2026-09-29); not an admin test rental
@@ -1800,10 +1806,12 @@ function showStudies() {
   const n = (t) => studies.filter((k) => !t || k.study === t).length;
   const branchOf = (k) => studyFolders.find((f) => f.id === k.study_folder_id && f.study === k.study);
   studies = studyScope === "mine" ? studiesMine : studiesPub; studyFolders = studyScope === "mine" ? foldersMine : foldersPub;
+  const hideOther = studyScope !== "mine" && memberHides("other");
+  if (hideOther) { studies = studies.filter((k) => k.study !== "other"); if (studyTopic === "other") studyTopic = ""; }
   const adm = studyScope === "mine" || !!profile?.is_admin; myUid = myUid || profile?.id;   // 내 연구: every tool; 연구: an admin's own
-  $("studyInfo").textContent = `${studyScope === "mine" ? "내 연구" : "연구"} ${studies.length}개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")} · 기타 ${n("other")}`;
+  $("studyInfo").textContent = `${studyScope === "mine" ? "내 연구" : "연구"} ${studies.length}개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")}` + (hideOther ? "" : ` · 기타 ${n("other")}`);
   $("studyNew").classList.toggle("hidden", !adm);
-  $("studyTopics").innerHTML = [["", "전체"], ...Object.entries(STUDY)].map(([t, name]) =>
+  $("studyTopics").innerHTML = [["", "전체"], ...Object.entries(STUDY).filter(([t]) => !(hideOther && t === "other"))].map(([t, name]) =>
     `<button type="button" data-topic="${t}" class="${t === studyTopic ? "on" : ""}" aria-pressed="${t === studyTopic}">${name}<small>${n(t)}개</small></button>`).join("");
   // 갈래 of the topic shown: 전체 · each 갈래 · 갈래 없음 · ＋ 새 갈래 (and, for the one picked, 이름 바꾸기 · 지우기)
   const branches = studyFolders.filter((f) => f.study === studyTopic);
@@ -2306,6 +2314,8 @@ new IntersectionObserver((entries, io) => {
 // ------------------------------------------------------------------ pages: start page (three tiles) / GPU 대여 / 내 기보 / 학습방 / 내 정보
 const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#library": "libraryView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
 function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 · 문제 은행, or one of them (#study/notes, …; #study/bank/<책장>)
+  $("bankEntry").classList.toggle("hidden", memberHides("bank"));
+  if (location.hash.startsWith("#study/bank") && profile && memberHides("bank")) { location.replace("#study"); return; }   // 숨김 보관
   const part = location.hash.startsWith("#study/bank") ? "bank" : { "#study/notes": "notes", "#study/research": "research", "#study/mine": "mine" }[location.hash] || "";
   const scope = part === "mine" ? "mine" : "pub";
   if ((part === "research" || part === "mine") && scope !== studyScope) { studyScope = scope; studyTopic = ""; studyBranch = ""; showStudies(); }
@@ -2315,7 +2325,7 @@ function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 �
   $("studyHead").textContent = { notes: "오답노트", research: "연구", mine: "내 연구", bank: "문제 은행" }[part] || "학습방";
   $("studyBack").setAttribute("href", "#study"); $("studyBack").textContent = "‹ 학습방";
   if (part === "bank") { if (bankIdx) showBank(); if (profile) loadBank(); }
-  else if (!part && profile && !bankIdx) bankData().catch(() => {});   // 학습방: 문제 은행 read ahead
+  else if (!part && profile && !bankIdx && !memberHides("bank")) bankData().catch(() => {});   // 학습방: 문제 은행 read ahead
   $("studyBack").classList.toggle("hidden", !part);
 }
 function showPage() {

@@ -4198,6 +4198,7 @@ async function bankPickFrom(spec, from) {   // -> problem number `from` on, in t
 async function openBank(spec, from = 0, start = "") {   // from = a problem number: that one and the next ones in order (a card on the site)
   const say = text => { $("err").textContent = text; };
   if (!await mineClient()) { say("로그인한 사이트에서만 쓸 수 있습니다"); return; }
+  if (!await bankIsAdmin()) { say("문제 은행은 지금 준비 중입니다"); return; }   // 숨김 보관 (user 2026-11-08): members cannot open it, admins can
   if (game) { say("AI 대국 중에는 문제를 풀 수 없습니다. 대국을 멈춘 뒤 다시 여세요."); return; }
   if (strengthId) { say("대국 리포트 분석이 끝난 뒤에 풀 수 있습니다"); return; }
   say("문제를 불러오는 중…");
