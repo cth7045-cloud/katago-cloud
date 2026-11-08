@@ -370,6 +370,10 @@ body.dropping::after { content: "여기에 놓으면 기보를 엽니다"; posit
 #gpuMeter { gap: 8px; padding-right: 5px; }
 #gpuMeter button { min-height: 26px; padding: 2px 10px; font-size: 12px; }
 .center { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+/* 꾸미기 › 실제 나무 판: the board's own thickness and its shadow on the table (3D 느낌, 2026-11-08) */
+body[data-board="oak"] #board { box-shadow: 0 6px 0 #5e4127, 0 10px 18px rgba(0,0,0,.35) !important; }
+body[data-board="bamboo"] #board { box-shadow: 0 6px 0 #9c7a4c, 0 10px 18px rgba(0,0,0,.3) !important; }
+body[data-board="cherry"] #board { box-shadow: 0 6px 0 #985f37, 0 10px 18px rgba(0,0,0,.3) !important; }
 #board { display: block; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
   box-shadow: 0 2px 4px rgba(90, 60, 20, .12), 0 30px 60px -24px rgba(120, 80, 20, .45); }
 .main { touch-action: pan-x pan-y; }   /* two-finger gestures instead of pinch zoom */
@@ -827,8 +831,8 @@ button.primary:hover { background: var(--blue-deep); }
       <button id="nums">수순</button>
       <button id="coords">좌표</button>
       <hr>
-      <label class="check" id="skinBoardLabel">바둑판 무늬<select id="skinBoard" aria-label="바둑판 무늬"><option value="yzy">기본 나무</option><option value="light">밝은 나무</option><option value="dark">진한 나무</option><option value="fine">가는 결 나무</option><option value="orange">주황 나무</option><option value="glow">빛 받은 판</option><option value="flat">단색</option></select></label>
-      <label class="check" id="skinStoneLabel">돌 모양<select id="skinStone" aria-label="돌 모양"><option value="yzy">기본</option><option value="glass">유리</option><option value="soft">부드러운 광택</option><option value="jade">옥빛</option><option value="flat">평면</option></select></label>
+      <label class="check" id="skinBoardLabel">바둑판 무늬<select id="skinBoard" aria-label="바둑판 무늬"><option value="yzy">기본 나무</option><option value="light">밝은 나무</option><option value="dark">진한 나무</option><option value="fine">가는 결 나무</option><option value="orange">주황 나무</option><option value="glow">빛 받은 판</option><option value="oak" data-photo>참나무 (실제 나무)</option><option value="bamboo" data-photo>밝은 결 (실제 나무)</option><option value="cherry" data-photo>체리 (실제 나무)</option><option value="flat">단색</option></select></label>
+      <label class="check" id="skinStoneLabel">돌 모양<select id="skinStone" aria-label="돌 모양"><option value="yzy">기본</option><option value="glass">유리</option><option value="soft">부드러운 광택</option><option value="jade">옥빛</option><option value="3d" data-photo>3D 조개돌</option><option value="flat">평면</option></select></label>
       <label class="check" id="soundLabel">돌 소리<select id="skinSound" aria-label="돌 소리"><option value="off">끄기</option><option value="wood">딱 (나무판)</option><option value="soft">톡 (부드럽게)</option></select></label>
     </div>
   </details>
@@ -5171,6 +5175,12 @@ for (const [k, src] of [["board", "assets/board.png"], ["black", "assets/black0.
 }
 let boardPattern = null;
 function woodPaint(ctx) {
+  if (PHOTO_BOARDS.includes(SKIN.board)) {   // 실제 나무 사진 (Poly Haven, CC0): until it has loaded, the drawn light wood
+    const im = skinImg(`wood-${SKIN.board}.jpg`);
+    if (!im) return "rgb(222,184,128)";
+    if (!boardPattern) boardPattern = ctx.createPattern(im, "repeat");
+    return boardPattern;
+  }
   if (SKIN.board !== "yzy") {   // 꾸미기 › 바둑판 무늬: drawn here, no image
     if (!boardPattern) boardPattern = ctx.createPattern(makeWood(SKIN.board), "repeat");
     return boardPattern;
@@ -5181,6 +5191,20 @@ function woodPaint(ctx) {
 }
 // ------------------------------------------------------------------ 꾸미기 (user 2026-11-08 "바둑판 스킨이랑 돌 스킨, 그리고 돌 소리 설정"):
 // board grain, stones and the stone sound are made in code (no image or sound files, nothing third-party); kept on this device.
+// 3D 느낌 (user 2026-11-08 "3D의 느낌나는 바둑판과 바둑돌을 찾아줘" → "다 넣어"): real wood photos from Poly Haven and stones rendered
+// in POV-Ray (github.com/zpmorgan/gostones-render), both CC0, in the website's assets/skins/ — loaded only when chosen. The GPU's own
+// page (another origin) leaves them out: drawn from there they would taint the canvas the admin's 화면 보기 copies.
+const PHOTO_BOARDS = ["oak", "bamboo", "cherry"], SKIN_IMG = {};
+function skinImg(name) {
+  if (SKIN_IMG[name] === undefined) {
+    SKIN_IMG[name] = null; const im = new Image();
+    im.onload = () => { SKIN_IMG[name] = im; boardPattern = null; schedule(); }; im.src = "assets/skins/" + name;
+  }
+  return SKIN_IMG[name];
+}
+function applySkinBody() {   // the board's edge (thickness and shadow) goes with the real wood
+  document.body.dataset.board = PHOTO_BOARDS.includes(SKIN.board) ? SKIN.board : "";
+}
 function makeWood(kind) {   // a seamless 1024px grain tile: vertical rings that wrap left-right and top-bottom
   const S = 1024, c = document.createElement("canvas"); c.width = c.height = S; const g = c.getContext("2d");
   const pal = {light: ["rgb(238,207,152)", [176, 120, 60]], dark: ["rgb(190,128,62)", [96, 54, 20]], flat: ["rgb(222,180,108)", null],
@@ -5242,12 +5266,19 @@ function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: a short knock
   } catch { /* no audio on this device */ }
 }
 function applySkinMenu() {
+  if (GPU_HOST.test(location.hostname)) {   // see PHOTO_BOARDS
+    document.querySelectorAll("#skinBoard option[data-photo], #skinStone option[data-photo]").forEach(o => o.remove());
+    if (PHOTO_BOARDS.includes(SKIN.board)) SKIN.board = "yzy";
+    if (SKIN.stone === "3d") SKIN.stone = "yzy";
+  }
   $("skinBoard").value = SKIN.board; $("skinStone").value = SKIN.stone; $("skinSound").value = SKIN.sound;
+  applySkinBody();
 }
 for (const [id, k] of [["skinBoard", "board"], ["skinStone", "stone"], ["skinSound", "sound"]]) $(id).onchange = () => {
   SKIN[k] = $(id).value;
   try { localStorage.setItem("kgv.skin", JSON.stringify(SKIN)); } catch { /* storage blocked */ }
-  boardPattern = null; schedule();
+  boardPattern = null; applySkinBody(); schedule();
+  if (k === "board") layout();   // the edge under the board takes room
   if (k === "sound") stoneSound();   // hear it once
 };
 applySkinMenu();
@@ -5335,6 +5366,10 @@ function drawStone(ctx, cx, cy, r, color) {  // image stone + GlassEffectRendere
     ctx.fillStyle = color === 1 ? "#141414" : "#fafafa"; fillCircle(ctx, cx, cy, r);
     ctx.strokeStyle = color === 1 ? "#000" : "rgba(60,60,60,.85)"; strokeCircle(ctx, cx, cy, r, Math.max(1, r / 14));
     return;
+  }
+  if (SKIN.stone === "3d") {   // 3D 조개돌: a black stone and 15 white shells, each point keeps its own shell
+    const im = color === 1 ? skinImg("stone-b.png") : skinImg(`stone-w${1 + (((cx * 73856093) ^ (cy * 19349663)) >>> 0) % 15}.png`);
+    if (im) { ctx.imageSmoothingQuality = "high"; ctx.drawImage(im, cx - r - r * .04, cy - r - r * .04, 2 * r * 1.04 + 1, 2 * r * 1.04 + 1); return; }
   }
   if (SKIN.stone === "jade") {   // 옥빛 (user's example 2026-11-08): black with a faint teal glow and a light rim, milky white with a green tint
     const X = cx + .5, Y = cy + .5;
