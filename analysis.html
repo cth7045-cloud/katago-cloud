@@ -297,6 +297,9 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #photoKifu { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 8h3l2-3h6l2 3h3v11H4z'/><circle cx='12' cy='13' r='3.5'/></svg>"); }
 #menuBody #pasteSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='4' width='14' height='17' rx='2'/><path d='M9 4V3h6v1M9 11h6M9 15h4'/></svg>"); }
 #menuBody #openMine { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h6l2 2h8v12H4zM4 10h16'/></svg>"); }
+#menuBody #skinBoardLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18M3 15h18M9 3v18M15 3v18'/></svg>"); }
+#menuBody #skinStoneLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='12' r='6'/><circle cx='16' cy='12' r='6'/></svg>"); }
+#menuBody #soundLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12'/></svg>"); }
 #menuBody #addNote { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 3h12v18l-6-4-6 4zM12 7v6M9 10h6'/></svg>"); }
 #menuBody #openNotes { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3h13v18H5zM9 3v18M12 8h3M12 12h3'/></svg>"); }
 #menuBody #kifuOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8M12 12v8M9 17l3 3 3-3'/></svg>"); }
@@ -823,6 +826,10 @@ button.primary:hover { background: var(--blue-deep); }
       <hr>
       <button id="nums">수순</button>
       <button id="coords">좌표</button>
+      <hr>
+      <label class="check" id="skinBoardLabel">바둑판 무늬<select id="skinBoard" aria-label="바둑판 무늬"><option value="yzy">기본 나무</option><option value="light">밝은 나무</option><option value="dark">진한 나무</option><option value="flat">단색</option></select></label>
+      <label class="check" id="skinStoneLabel">돌 모양<select id="skinStone" aria-label="돌 모양"><option value="yzy">기본</option><option value="glass">유리</option><option value="flat">평면</option></select></label>
+      <label class="check" id="soundLabel">돌 소리<select id="skinSound" aria-label="돌 소리"><option value="off">끄기</option><option value="wood">딱 (나무판)</option><option value="soft">톡 (부드럽게)</option></select></label>
     </div>
   </details>
   <button id="newGame">AI대국</button>
@@ -1192,6 +1199,9 @@ const STUDY = {joseki: "정석", fuseki: "포석", other: "기타"};
 const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : null;   // 학습방 → 새 연구: the topic it is saved under
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
+// 꾸미기 (바둑판 무늬·돌 모양·돌 소리), see makeWood/stoneSound; here, before anything can draw or move
+const SKIN = {board: "yzy", stone: "yzy", sound: "off"};
+try { Object.assign(SKIN, JSON.parse(localStorage.getItem("kgv.skin") || "{}")); } catch { /* storage blocked */ }
 const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, seq: null, data: null, timer: 0, lastAt: 0,
   q: "", found: new Map(), findTimer: 0, shown: []} : null;
 let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
@@ -1803,6 +1813,10 @@ const komiText = (k = komi()) => k < 0 ? `역덤 ${-k}` : `덤 ${k}`;
 function goTo(node) {
   if (!node) return;
   if (scoring && node !== scoring.node) closeScoring();
+  if (SKIN.sound !== "off" && node.parent === cur && node.move && !node.move.pass && !applyingRemote) {   // 돌 소리: one move forward (a stone put down, ▶, the AI's move); not jumps
+    let a = 0, b = 0; for (let i = 0; i < node.grid.length; i++) { if (cur.grid[i]) a++; if (node.grid[i]) b++; }
+    stoneSound(Math.max(0, a + 1 - b));
+  }
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
   if (!applyingRemote) { requestLive(); publish(); }   // following another device: it runs the analysis
@@ -5157,10 +5171,75 @@ for (const [k, src] of [["board", "assets/board.png"], ["black", "assets/black0.
 }
 let boardPattern = null;
 function woodPaint(ctx) {
+  if (SKIN.board !== "yzy") {   // 꾸미기 › 바둑판 무늬: drawn here, no image
+    if (!boardPattern) boardPattern = ctx.createPattern(makeWood(SKIN.board), "repeat");
+    return boardPattern;
+  }
   if (!IMG.board) return "rgb(217,152,77)";   // Theme.createSolidFallbackImage
   if (!boardPattern) boardPattern = ctx.createPattern(IMG.board, "repeat");
   return boardPattern;
 }
+// ------------------------------------------------------------------ 꾸미기 (user 2026-11-08 "바둑판 스킨이랑 돌 스킨, 그리고 돌 소리 설정"):
+// board grain, stones and the stone sound are made in code (no image or sound files, nothing third-party); kept on this device.
+function makeWood(kind) {   // a seamless 1024px grain tile: vertical rings that wrap left-right and top-bottom
+  const S = 1024, c = document.createElement("canvas"); c.width = c.height = S; const g = c.getContext("2d");
+  const pal = {light: ["rgb(238,207,152)", [176, 120, 60]], dark: ["rgb(190,128,62)", [96, 54, 20]], flat: ["rgb(222,180,108)", null]}[kind] || ["rgb(222,180,108)", null];
+  g.fillStyle = pal[0]; g.fillRect(0, 0, S, S);
+  if (!pal[1]) return c;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const [r, gg, b] = pal[1];
+  for (let i = 0; i < 40; i++) {   // soft wide bands first, then fine rings
+    const x0 = rnd() * S, w = 20 + rnd() * 70;
+    for (const dx of [-S, 0, S]) { g.fillStyle = `rgba(${r},${gg},${b},${.015 + rnd() * .03})`; g.fillRect(x0 + dx, 0, w, S); }
+  }
+  for (let i = 0; i < 320; i++) {
+    const x0 = rnd() * S, A = 3 + rnd() * 12, k1 = 1 + Math.floor(rnd() * 2), k2 = 2 + Math.floor(rnd() * 3), ph = rnd() * 6.28, ph2 = rnd() * 6.28;
+    g.strokeStyle = `rgba(${r},${gg},${b},${.02 + rnd() * .05})`; g.lineWidth = .5 + rnd() * 1.6;
+    for (const dx of [-S, 0, S]) {
+      g.beginPath();
+      for (let y = 0; y <= S; y += 8) {
+        const x = x0 + dx + A * Math.sin(y / S * 6.2832 * k1 + ph) + A * .35 * Math.sin(y / S * 6.2832 * k2 + ph2);
+        y ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.stroke();
+    }
+  }
+  return c;
+}
+let audioCtx = null;
+function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: a short knock (noise through a filter + a low body), a few clicks when stones are taken
+  if (SKIN.sound === "off" || document.hidden) return;
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const A = audioCtx, t0 = A.currentTime + .01, wood = SKIN.sound === "wood";
+    const knock = (t, freq, vol, len, body) => {
+      const n = A.createBuffer(1, Math.ceil(A.sampleRate * len), A.sampleRate), d = n.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+      const src = A.createBufferSource(); src.buffer = n;
+      const f = A.createBiquadFilter(); f.type = wood ? "bandpass" : "lowpass"; f.frequency.value = freq; f.Q.value = wood ? 1.4 : .7;
+      const gn = A.createGain(); gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(.001, t + len);
+      src.connect(f).connect(gn).connect(A.destination); src.start(t); src.stop(t + len);
+      if (body) {
+        const o = A.createOscillator(), og = A.createGain(); o.frequency.setValueAtTime(body, t); o.frequency.exponentialRampToValueAtTime(body * .6, t + len);
+        og.gain.setValueAtTime(vol * .5, t); og.gain.exponentialRampToValueAtTime(.001, t + len);
+        o.connect(og).connect(A.destination); o.start(t); o.stop(t + len);
+      }
+    };
+    knock(t0, wood ? 1900 : 900, wood ? .7 : .45, wood ? .07 : .1, wood ? 210 : 150);
+    for (let i = 0; i < Math.min(captured, 4); i++) knock(t0 + .12 + i * .06, 3200, .22, .035, 0);
+  } catch { /* no audio on this device */ }
+}
+function applySkinMenu() {
+  $("skinBoard").value = SKIN.board; $("skinStone").value = SKIN.stone; $("skinSound").value = SKIN.sound;
+}
+for (const [id, k] of [["skinBoard", "board"], ["skinStone", "stone"], ["skinSound", "sound"]]) $(id).onchange = () => {
+  SKIN[k] = $(id).value;
+  try { localStorage.setItem("kgv.skin", JSON.stringify(SKIN)); } catch { /* storage blocked */ }
+  boardPattern = null; schedule();
+  if (k === "sound") stoneSound();   // hear it once
+};
+applySkinMenu();
 
 // ------------------------------------------------------------------ board renderer (BoardRenderer.java)
 // Like YZY (which draws in physical pixels, Utils: g.scale(1/javaScaleFactor)), the boards are
@@ -5236,6 +5315,21 @@ function drawShadow(ctx, cx, cy, r) {  // drawShadowCache, shadow-size 85
   radial(X + ss, Y + ss, r + far, [[0, "rgba(0,0,0,.588)"], [.5, "rgba(0,0,0,.588)"], [1, "rgba(0,0,0,0)"]]);
 }
 function drawStone(ctx, cx, cy, r, color) {  // image stone + GlassEffectRenderer.drawStoneHighlight
+  if (SKIN.stone === "flat") {   // 꾸미기 › 돌 모양 평면: solid with a thin edge
+    ctx.fillStyle = color === 1 ? "#141414" : "#fafafa"; fillCircle(ctx, cx, cy, r);
+    ctx.strokeStyle = color === 1 ? "#000" : "rgba(60,60,60,.85)"; strokeCircle(ctx, cx, cy, r, Math.max(1, r / 14));
+    return;
+  }
+  if (SKIN.stone === "glass") {   // 유리: a lit sphere
+    const X = cx + .5, Y = cy + .5, g = ctx.createRadialGradient(X - r * .35, Y - r * .4, r * .05, X, Y, r * 1.05);
+    if (color === 1) { g.addColorStop(0, "#7a7f88"); g.addColorStop(.35, "#2a2d33"); g.addColorStop(1, "#08090b"); }
+    else { g.addColorStop(0, "#ffffff"); g.addColorStop(.55, "#eeede8"); g.addColorStop(1, "#bcbab2"); }
+    ctx.fillStyle = g; fillCircle(ctx, cx, cy, r);
+    const h = ctx.createRadialGradient(X - r * .38, Y - r * .45, 0, X - r * .38, Y - r * .45, r * .45);
+    h.addColorStop(0, `rgba(255,255,255,${color === 1 ? .55 : .9})`); h.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = h; fillCircle(ctx, cx, cy, r);
+    return;
+  }
   const img = color === 1 ? IMG.black : IMG.white, size = 2 * r + 1;
   if (img) { ctx.imageSmoothingQuality = "high"; ctx.drawImage(img, cx - r, cy - r, size, size); }
   else {  // Theme.createStoneFallback
@@ -5898,6 +5992,7 @@ const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["대국", ["newGame", "pass", "gameScore", "gameResign"]],
               ["바둑판", ["sizeLabel", "handicapLabel", "komiLabel", "placeRow"]],
               ["보기", ["candsLabel", "ownerLabel", "hideLabel", "barLabel", "graphLabel", "treeLabel", "xpLabel", "nums", "coords"]],
+              ["꾸미기", ["skinBoardLabel", "skinStoneLabel", "soundLabel"]],
               ["편집", ["promote", "studyStart", "deleteNode", "resetBoard"]],
               ["정보", ["aboutOss"]]];
 const menuHomes = new Map(), menuSections = MENU.map(([title]) => {
