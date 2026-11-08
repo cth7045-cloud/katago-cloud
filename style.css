@@ -810,6 +810,8 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
 .item-d[open] > summary .chev { transform: rotate(90deg); }
 .item-body { padding: 4px 18px 18px; }
 .item-body .inline-form { margin: 0; }
+.skin-body { display: grid; gap: 12px; }
+.skin-body select { width: 100%; }
 .leave-d { margin: 26px 0 0; text-align: center; }
 .leave-d summary { display: inline-block; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); list-style: none; padding: 6px 12px; }
 .leave-d summary::-webkit-details-marker { display: none; }

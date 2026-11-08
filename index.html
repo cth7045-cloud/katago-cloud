@@ -559,6 +559,16 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <button type="button" data-theme="dark">어둡게</button>
           </div>
         </div>
+        <!-- 꾸미기 (2026-11-08, moved here from the analysis screen's menu): the analysis screen's board, stones and stone
+             sound, kept in this browser (localStorage kgv.skin, read by analysis.html) -->
+        <details class="item-d" id="skinItem">
+          <summary class="item"><span class="ic" style="background:#fbefe0;color:#a8661c" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span><span class="grow">꾸미기<span class="item-note" id="skinNote"></span></span><span class="chev" aria-hidden="true">›</span></summary>
+          <div class="item-body skin-body">
+            <label class="field">바둑판 무늬<select id="skinBoard" aria-label="바둑판 무늬"><option value="yzy">기본 나무</option><option value="light">밝은 나무</option><option value="dark">진한 나무</option><option value="fine">가는 결 나무</option><option value="orange">주황 나무</option><option value="glow">빛 받은 판</option><option value="oak" data-photo>참나무 (실제 나무)</option><option value="bamboo" data-photo>밝은 결 (실제 나무)</option><option value="cherry" data-photo>체리 (실제 나무)</option><option value="flat">단색</option></select></label>
+            <label class="field">돌 모양<select id="skinStone" aria-label="돌 모양"><option value="yzy">기본</option><option value="glass">유리</option><option value="soft">부드러운 광택</option><option value="jade">옥빛</option><option value="3d" data-photo>3D 조개돌</option><option value="flat">평면</option></select></label>
+            <label class="field">돌 소리<select id="skinSound" aria-label="돌 소리"><option value="off">끄기</option><option value="wood">딱 (나무판)</option><option value="soft">톡 (부드럽게)</option></select></label>
+          </div>
+        </details>
         <!-- 알림: all of the site's notifications on or off for this account (2026-10-05) -->
         <div class="item">
           <span class="ic" style="background:var(--cyan-soft);color:#0b8ea4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><span class="grow">알림<span class="item-note" id="notifyNote"></span></span>
@@ -2493,6 +2503,20 @@ $("coCopy").onclick = async () => {
 // 화면 밝기(theme.js): 기기 설정 따라가기 / 밝게 / 어둡게
 function showTheme() { for (const b of $("themeSeg").children) b.setAttribute("aria-pressed", String(b.dataset.theme === kcTheme.pref())); }
 $("themeSeg").onclick = (ev) => { const b = ev.target.closest("button"); if (b) kcTheme.set(b.dataset.theme); };
+// 꾸미기: the analysis screen reads the same storage (kgv.skin) when it opens, and an open one follows a change here
+const SKIN_KEYS = [["skinBoard", "board", "yzy"], ["skinStone", "stone", "yzy"], ["skinSound", "sound", "off"]];
+function readSkin() { try { return JSON.parse(localStorage.getItem("kgv.skin") || "{}") || {}; } catch { return {}; } }
+function showSkin() {
+  const v = readSkin();
+  for (const [id, k, d] of SKIN_KEYS) { const el = $(id); el.value = v[k] || d; if (el.selectedIndex < 0) el.value = d; }
+  $("skinNote").textContent = SKIN_KEYS.map(([id]) => $(id).selectedOptions[0]?.textContent.replace(/ \(.*\)$/, "")).join(" · ");
+}
+for (const [id, k] of SKIN_KEYS) $(id).onchange = () => {
+  const v = readSkin(); v[k] = $(id).value;
+  try { localStorage.setItem("kgv.skin", JSON.stringify(v)); } catch { /* storage blocked */ }
+  showSkin();
+};
+showSkin();
 kcTheme.onChange(showTheme); showTheme();
 $("nameForm").onsubmit = (ev) => {
   ev.preventDefault();
