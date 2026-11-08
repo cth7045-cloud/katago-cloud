@@ -650,7 +650,12 @@ button.primary:hover { background: var(--blue-deep); }
   .left { order: 2; padding: 8px 8px 0; }
   #capBox, #graphBox, .comment, .right { display: none; }
   /* 연구 (학습방, 2026-11-07): a study's explanation is its point — on a phone too, under the board, while the move has one */
-  .study-open .comment { display: flex; flex: none; max-height: 34vh; margin-top: 8px; }
+  /* it takes the room between the board and the buttons and scrolls inside (user report 2026-11-08: under 34vh and a layout made
+     before the text came, a long one ran under the buttons on a phone); the board keeps its size (layout() keeps STUDY_MIN for it) */
+  body.study-open:not(.xp-open) { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .study-open:not(.xp-open) .left { display: flex; flex: 1 1 0; min-height: 0; }
+  .study-open .center { flex: none; }
+  .study-open .comment { display: flex; flex: 1 1 0; min-height: 0; max-height: none; margin-top: 8px; }
   .study-open .comment:has(#comment:empty) { display: none; }
   #statBox { flex: none; height: 72px; }
   .graph-open #graphBox { display: block; flex: none; height: 130px; margin-top: 8px; }
@@ -1191,7 +1196,15 @@ const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, s
   q: "", found: new Map(), findTimer: 0, shown: []} : null;
 let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
 const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // the list on screen (메뉴 › 보기 › 수순 탐색 목록)
-const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
+const XP_MIN_LIST = 140;
+const STUDY_MIN = 150;   // px: a study's explanation's least room under the board on a phone (it scrolls inside)
+const studyShown = () => document.body.classList.contains("study-open") && !xpShown();
+function studyRoom() {   // what .left needs under the board in a study on a phone: its other boxes + STUDY_MIN, the same with or without text
+  const L = document.querySelector(".left"), cs = getComputedStyle(L), gap = parseFloat(cs.rowGap) || 0;
+  let h = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  for (const el of L.children) if (!el.classList.contains("comment") && el.offsetParent) h += el.offsetHeight + gap;
+  return h + STUDY_MIN + 8;   // 8 = .comment's margin-top
+}   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
 const hashPub = !!hashStudy && hashParams.get("pub") === "1";   // 학습방 연구(공개)에서 연 새 연구: 공개 연구로 (관리자만, 2026-11-07)
 const hashBranch = hashStudy && /^[0-9a-f-]{36}$/.test(hashParams.get("sf") || "") ? hashParams.get("sf") : null;   // …in this 갈래 (DB 20261009b)   // 새 연구 with the GPU: an empty board in place of the shared one
 let pendingKifu = /^[0-9a-f-]{36}$/.test(hashParams.get("kifu") || "") ? hashParams.get("kifu") : null;   // 내 기보 to open
@@ -3651,6 +3664,7 @@ async function openMineKifu(id) {
   // 연구 (학습방, 2026-11-07): a public study another member (an admin) posted opens read-only, like a 기보실 game —
   // '내 기보 저장' keeps a copy; only its owner saves over it
   document.body.classList.toggle("study-open", !!(k.public_study || STUDY[k.study]));
+  layout();   // a phone keeps room under the board for the explanation
   if (k.public_study && k.user_id && k.user_id !== (await c.auth.getSession()).data.session?.user?.id) {
     mineId = null; mineStudy = null; mineBranch = null; mineDirtyAt = 0;
     document.title = `${k.title} · KataGo Cloud`;
@@ -5951,7 +5965,7 @@ function layout() {
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
   const side = matchMedia("(orientation: portrait)").matches
     ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - document.querySelector(".menubar").offsetHeight
-        - document.querySelector(".left").offsetHeight - (xpShown() ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
+        - (studyShown() ? studyRoom() : document.querySelector(".left").offsetHeight) - (xpShown() ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
   const view = quiz && quiz.view;
