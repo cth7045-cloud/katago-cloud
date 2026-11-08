@@ -568,6 +568,17 @@ button.primary:hover { background: var(--blue-deep); }
 .xp-game b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xp-game span { grid-column: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xp-game a { grid-row: 1 / span 2; grid-column: 2; font-size: 12px; font-weight: 600; color: var(--blue); text-decoration: none; padding: 4px 6px; }
+/* 선수 이름으로 찾기 (user 2026-11-08) */
+.xp-find { display: flex; align-items: center; gap: 8px; margin: 10px 2px 4px; }
+.xp-find[hidden] { display: none; }
+.xp-find .xp-sub { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#xpFind { flex: 0 1 150px; min-width: 90px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--soft); font-size: 16px; outline: none; }
+#xpFind:focus { border-color: var(--blue); background: var(--panel); }
+@media (min-width: 700px) { #xpFind { font-size: 13px; } }
+.xp-players { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 2px 4px; }
+.xp-players:empty { display: none; }
+.xp-players button { min-height: 26px; height: 26px; padding: 0 10px; font-size: 12px; border-radius: 999px; background: var(--soft); color: var(--ink); box-shadow: none; }
+.xp-players button.on { background: var(--ink); color: var(--panel); }
 .xp-msg { padding: 14px 4px; font-size: 13px; color: var(--muted); }
 .rb-head { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rb-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1006,7 +1017,8 @@ button.primary:hover { background: var(--blue-deep); }
       <div class="xp-head"><span id="xpNow"></span><div class="lvl" id="xpSrc" role="group" aria-label="기보"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
       <div class="xp-body" id="xpBody">
         <table><thead><tr><th>다음 수</th><th>판</th><th>비율</th><th>승리 비율</th><th>AI</th></tr></thead><tbody id="xpNext"></tbody></table>
-        <div class="xp-sub" id="xpGamesHead"></div>
+        <div class="xp-find" id="xpFindRow" hidden><span class="xp-sub" id="xpGamesHead"></span><input id="xpFind" type="search" placeholder="선수 이름" autocomplete="off" enterkeyhint="search" aria-label="선수 이름으로 찾기"></div>
+        <div class="xp-players" id="xpPlayers"></div>
         <div id="xpGames"></div>
       </div>
     </div>
@@ -1175,7 +1187,8 @@ const STUDY = {joseki: "정석", fuseki: "포석", other: "기타"};
 const hashStudy = STUDY[hashParams.get("study")] ? hashParams.get("study") : null;   // 학습방 → 새 연구: the topic it is saved under
 let freshStudy = !!hashStudy && hashParams.get("new") === "1";
 let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see that section): an empty board, the 기보실 games beside it
-const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, seq: null, data: null, timer: 0, lastAt: 0} : null;
+const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, seq: null, data: null, timer: 0, lastAt: 0,
+  q: "", found: new Map(), findTimer: 0, shown: []} : null;
 let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
 const xpShown = () => !!xp && document.body.classList.contains("xp-open");   // the list on screen (메뉴 › 보기 › 수순 탐색 목록)
 const XP_MIN_LIST = 140;   // px: the list's least room under the board on a phone (= .xp-open .right min-height)
@@ -4693,8 +4706,26 @@ function xpPrefetch(node, seq, src, data) {   // parallel top-6 + 2-ply lookahea
 }
 function xpApply(node, seq, src, data) {
   $("xpBox").classList.remove("loading");
-  xp.data = data; xp.dataNode = node; xpDraw(); xpEvalSync(); schedule();
+  xp.data = data; xp.dataNode = node; xpFindLoad(); xpDraw(); xpEvalSync(); schedule();
   xpPrefetch(node, seq, src, data);
+}
+const xpFindKey = (seq, src, q) => src + ":" + seq + ":" + q;
+function xpFindLoad() {   // 선수 이름으로 찾기: this position's games with the typed name (DB kifu_tree_find, 20261108a)
+  const seq = xp.seq, src = xp.src, q = xp.q, key = xpFindKey(seq, src, q);
+  if (!q || seq === null || !xp.data || xp.data.error || !xp.data.total || xp.found.has(key)) return;
+  if (xp.found.size > 200) xp.found.clear();
+  xp.found.set(key, null);
+  (async () => {
+    const c = await mineClient();
+    let f;
+    if (!c) f = {error: "로그인한 사이트에서만 쓸 수 있습니다"};
+    else {
+      const {data, error} = await c.rpc("kifu_tree_find", {p_seq: seq, p_src: src || null, p_name: q});
+      f = error ? {error: "찾지 못했습니다: " + error.message} : data;
+    }
+    if (f.error) xp.found.delete(key); else xp.found.set(key, f);
+    if (xp.seq === seq && xp.src === src && xp.q === q) { if (f.error) xp.found.set(key, f); xpDraw(); if (f.error) xp.found.delete(key); }
+  })();
 }
 function xpUpdate() {
   if (!xp) return;
@@ -4723,7 +4754,7 @@ const xpPct = (a, b) => b ? Math.round(a / b * 100) : 0;
 function xpDraw() {
   if (!xp) return;
   const d = xp.data, seq = xp.seq;
-  let now = "", rows = "", head = "", list = "";
+  let now = "", rows = "", head = "", list = "", players = [];
   if (seq === null) now = N !== 19 ? "19줄 기보만 찾습니다" : quiz ? "" : "흑부터 번갈아 둔 맞바둑 수순만 찾습니다";
   else if (!d) now = "찾는 중…";
   else if (d.error) now = d.error;
@@ -4740,13 +4771,24 @@ function xpDraw() {
         `<td>${r.bw + r.ww ? xpPct(wins(r.bw, r.ww, mover), r.bw + r.ww) + "%" : "-"}</td><td></td></tr>`;
     }).join("");
     head = d.total > d.games.length ? `최근 기보 ${d.games.length}판` : `기보 ${d.games.length}판`;
-    list = d.games.map((g, i) => {
+    let games = d.games;
+    if (xp.q) {   // 선수 이름으로 찾기 (user 2026-11-08): the games here with that name on either side
+      const f = xp.found.get(xpFindKey(seq, xp.src, xp.q));
+      games = f && !f.error ? f.games : [];
+      head = !f ? "찾는 중…" : f.error ? f.error : !f.total ? "그 이름의 기보가 없습니다"
+        : `${$("xpFind").value.trim()} 기보 ${f.total.toLocaleString()}판` + (f.total > f.games.length ? ` · 최근 ${f.games.length}판` : "");
+      players = f && !f.error && f.players.length && !(f.players.length === 1 && f.players[0].name.toLowerCase() === xp.q) ? f.players : [];
+    }
+    xp.shown = games;
+    list = games.map((g, i) => {
       const who = `${escHtml(g.black || "흑")}${g.br ? " " + escHtml(g.br) : ""} · ${escHtml(g.white || "백")}${g.wr ? " " + escHtml(g.wr) : ""}`;
       const meta = [g.src === "vs" ? "프로 vs AI" : g.src === "ai" ? "AI" : "", g.event, g.day, g.result].filter(Boolean).map(escHtml).join(" · ");
       return `<div class="xp-game" data-i="${i}"><b>${who}</b><span>${meta}</span><a href="#" data-open="${g.id}">열기</a></div>`;
     }).join("");
   }
   $("xpNow").innerHTML = now; $("xpNext").innerHTML = rows; $("xpGamesHead").textContent = head; $("xpGames").innerHTML = list;
+  $("xpFindRow").hidden = !(d && !d.error && d.total) || seq === null;
+  $("xpPlayers").innerHTML = players.map(p => `<button type="button" data-name="${escHtml(p.name)}">${escHtml(p.name)} ${p.n.toLocaleString()}</button>`).join("");
   $("xpNext").closest("table").hidden = !rows;
   xpAi();
 }
@@ -4872,7 +4914,16 @@ if (xp) {
   $("xpGames").onclick = ev => {
     const a = ev.target.closest("a[data-open]");
     if (a) { ev.preventDefault(); xpOpen(a.dataset.open); return; }
-    const row = ev.target.closest(".xp-game"); if (row && xp.data && xp.data.games) xpFollow(xp.data.games[+row.dataset.i]); };
+    const row = ev.target.closest(".xp-game"); if (row && xp.shown[+row.dataset.i]) xpFollow(xp.shown[+row.dataset.i]); };
+  $("xpFind").oninput = () => {   // 선수 이름으로 찾기 (user 2026-11-08 "1을 둔 기사들중에 이름을 검색하면")
+    clearTimeout(xp.findTimer);
+    xp.findTimer = setTimeout(() => { xp.q = $("xpFind").value.trim().toLowerCase().slice(0, 40); xpFindLoad(); xpDraw(); }, 300);
+  };
+  $("xpFind").onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); $("xpFind").blur(); } ev.stopPropagation(); };
+  $("xpPlayers").onclick = ev => {
+    const b = ev.target.closest("button[data-name]"); if (!b) return;
+    $("xpFind").value = b.dataset.name; xp.q = b.dataset.name.toLowerCase(); xpFindLoad(); xpDraw();
+  };
   xpUpdate();
 }
 
