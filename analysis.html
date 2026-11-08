@@ -1643,13 +1643,14 @@ function onMessage(msg) {
   if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
   if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
-    if (/:b\d+$/.test(msg.peerQuery || "") || /^x\d/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board; 수순 탐색's table: not the board's analysis
+    if (/:b\d+$/.test(msg.peerQuery || "") || /^[xv]\d/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board; 수순 탐색's table: not the board's analysis
     const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
     if (node) { store(node, msg, msg.peerQuery); schedule(); }
     return;
   }
   if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
   if (msg.error && msg.id && msg.id === batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); q.tell("error", {text: "엔진 오류: " + msg.error}); q.batch(null); return; }
+  if (msg.id && queries.get(msg.id)?.verify) { const v = queries.get(msg.id); if (msg.error || !msg.isDuringSearch) { queries.delete(msg.id); v.verify(msg.error ? null : msg); } return; }   // 정답 순서 확인
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; queryFailed(msg.id); return; }
   const q = queries.get(msg.id);
   if (msg.id && (msg.id === autoId || msg.id === strengthId || msg.id === batchQ)) workAt = performance.now();   // its search answers: still going (keep)
@@ -3120,6 +3121,7 @@ async function mineClient() {
 mineClient().then(c => {
   $("saveMine").hidden = $("openMine").hidden = $("addNote").hidden = $("openNotes").hidden = !c;
   if (c && hashParams.has("notes")) openNotes();   // the website's 오답노트 link
+  if (hashParams.get("verify") === "swaps") { verifySwaps(); return; }   // 관리자: 정답 순서 확인 (see verifySwaps)
   if (hashParams.has("bank")) {   // the website's 문제 은행 link (k = a card; p = a 복습 card; admin: q = a problem by id, edit = 답 고치기, add = 새 문제)
     bankHashOnce = {q: hashParams.get("q") || "", edit: hashParams.get("edit") === "1", add: hashParams.get("add") === "1", draft: hashParams.get("draft") || ""};
     openBank(hashParams.get("bank"), +hashParams.get("k") || 0, hashParams.get("p") || "");
@@ -4405,6 +4407,97 @@ function bankLeave() {
 // wrong move listed with its answer, blue = the other side's answers. 저장 keeps it in bank_edits (the file stays as it
 // is; 원래대로 goes back to it). 새 문제 (#bank=<book>&add=1): first the stones and whose turn (배치), then the tree; it
 // is saved as the book's next number and the next new one opens at once.
+// ------------------------------------------------------------------ 정답 순서 확인 (관리자, user 2026-11-08 "두번째 사진이랑 세번째 사진은 순서만
+// 다를뿐 … 한개는 맞았다고하고 한개는 틀렸다고" → "GPU 빌려서 전부"): every place in the 문제 은행 trees where my later right move m (… c, r, m …)
+// could be played first instead of c. KataGo (this screen's GPU) decides: m first must keep the result (solver's score within
+// VERIFY_DROP of c first — or, when m was the last move, of the solved position), the other side's best answer to m must be one the
+// tree already has after m, and after that and c it must answer r again. Only then the tree gets m → that answer → c → r → (the rest
+// as it was), or m = solved. Order often matters in 사활 (a CPU sample: 3 of 12 swaps held), so nothing is added unchecked.
+// Open analysis.html#verify=swaps with a GPU on, as an admin; it saves each problem as it goes and goes on from there if reopened.
+const VERIFY_VISITS = 400, VERIFY_DROP = 1.0, VERIFY_PAR = 6;
+function verifyCands(t, path = [], out = []) {   // [{path, c, r, m, v}] (v = t[c][r][m]: 1 or the answers to m)
+  for (const [c, cv] of Object.entries(t || {})) {
+    if (!cv || typeof cv !== "object") continue;
+    for (const [r, rv] of Object.entries(cv)) {
+      if (!rv || typeof rv !== "object") continue;
+      for (const [m, mv] of Object.entries(rv)) {
+        if (m === c || m === r || !(mv === 1 || (mv && typeof mv === "object"))) continue;
+        const now = t[m]; if (now === 1 || (now && typeof now === "object")) continue;
+        if (!out.some(o => o.path.join() === path.join() && o.m === m)) out.push({path, c, r, m, v: mv});
+      }
+      verifyCands(rv, [...path, c, r], out);
+    }
+  }
+  return out;
+}
+function verifyNode(t, path) { let n = t; for (const k of path) n = n[k]; return n; }   // the solver's node at path
+function verifyAsk(p, moves) {   // -> KataGo's answer (scoreLead for black, BLACK reports) or null
+  const s = p.s || 19, g = mv => "ABCDEFGHJKLMNOPQRST"[mv.charCodeAt(0) - 97] + (s - (mv.charCodeAt(1) - 97));
+  const st = (str, c) => (str.match(/../g) || []).map(m => [c, g(m)]), me = p.p, op = me === "B" ? "W" : "B";
+  return new Promise(done => {
+    const id = "v" + (++qn);
+    queries.set(id, {verify: done});
+    if (!send({id, rules: "korean", komi: 6.5, boardXSize: s, boardYSize: s, initialPlayer: me, initialStones: [...st(p.b, "B"), ...st(p.w, "W")],
+               moves: moves.map((m, i) => [i % 2 ? op : me, g(m)]), maxVisits: VERIFY_VISITS})) { queries.delete(id); done(null); }
+  });
+}
+async function verifySwaps() {
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:50;padding:12px 14px;border-radius:14px;background:var(--panel);box-shadow:var(--shadow);font-size:14px;line-height:1.5";
+  document.body.append(box); const say = t => { box.textContent = t; };
+  const c = await mineClient();
+  if (!c || !(await bankIsAdmin())) { say("관리자로 로그인한 사이트에서만 씁니다"); return; }
+  say("GPU 연결을 기다립니다…");
+  while (!(ws && ws.readyState === 1) || localMode) await new Promise(r => setTimeout(r, 1000));
+  await bankLoad(true);
+  const books = bankIndex.groups.flatMap(g => g.books);
+  let done = {}; try { done = JSON.parse(localStorage.getItem("kgv.verifySwaps") || "{}"); } catch { /* storage blocked */ }
+  const list = [];
+  for (const b of books) for (let f = 0; f < b.files; f++) for (const p of await bankFile(`${b.id}-${f}`)) list.push({p, pack: b.id, added: f >= b.static});
+  if (Array.isArray(window.VERIFY_ONLY)) list.splice(0, list.length, ...list.filter(x => window.VERIFY_ONLY.includes(x.p.i)));   // 시험용
+  let i = 0, asked = 0, added = 0, fixed = 0, failed = 0;
+  const show = () => say(`정답 순서 확인 · 문제 ${i}/${list.length} · KataGo 질문 ${asked} · 정답 길 추가 ${added}개 (문제 ${fixed}개) · 오류 ${failed}`);
+  const work = async ({p, pack, added: isAdded}) => {
+    if (done[p.i]) return;
+    const cands = verifyCands(p.t);
+    if (!cands.length) { done[p.i] = 1; return; }
+    const t = JSON.parse(JSON.stringify(p.t)), cache = new Map();
+    const ask = moves => { const k = moves.join(); if (!cache.has(k)) { asked++; cache.set(k, verifyAsk(p, moves)); } return cache.get(k); };
+    const mine = a => a ? (p.p === "B" ? 1 : -1) * a.rootInfo.scoreLead : null;   // the solver's score, any side to move
+    const best = a => a && a.moveInfos && a.moveInfos[0] ? a.moveInfos[0].move : null;
+    const sgf = gm => { if (!gm || gm === "pass") return null; const s = p.s || 19; return String.fromCharCode(97 + "ABCDEFGHJKLMNOPQRST".indexOf(gm[0]), 97 + s - +gm.slice(1)); };
+    let n = 0;
+    for (const k of cands) {
+      const node = verifyNode(t, k.path);
+      if (node[k.m] === 1 || (node[k.m] && typeof node[k.m] === "object")) continue;   // an earlier swap here already
+      const [aM, aRef] = await Promise.all([ask([...k.path, k.m]), ask(k.v === 1 ? [...k.path, k.c, k.r, k.m] : [...k.path, k.c])]);
+      if (!aM || !aRef) { failed++; continue; }
+      if (mine(aM) < mine(aRef) - VERIFY_DROP) continue;
+      if (k.v === 1) { node[k.m] = 1; n++; continue; }
+      const r2 = sgf(best(aM));
+      if (!r2 || !(r2 in k.v)) continue;
+      const aC = await ask([...k.path, k.m, r2, k.c]);
+      if (!aC) { failed++; continue; }
+      if (sgf(best(aC)) !== k.r) continue;
+      node[k.m] = {[r2]: {[k.c]: {[k.r]: k.v[r2]}}}; n++;
+    }
+    if (n) {
+      const {data: row} = await mineSb.from("bank_edits").select("note").eq("pid", p.i).maybeSingle();
+      const note = ((row && row.note) ? row.note + " · " : "") + `순서 바꾼 정답 ${n}개(KataGo 확인)`;
+      const prob = isAdded ? (({i: _, ...rest}) => ({...rest, t}))(p) : {t, ...(p.g ? {g: p.g} : {})};
+      const {error} = await mineSb.rpc("admin_bank_save", {p_pid: p.i, p_pack: pack, p_added: isAdded, p_prob: prob, p_hidden: false, p_note: note});
+      if (error) { failed++; return; }
+      added += n; fixed++;
+    }
+    done[p.i] = 1;
+  };
+  let next = 0;
+  const lane = async () => { while (next < list.length) { const job = list[next++]; await work(job); i++; show(); if (i % 20 === 0) try { localStorage.setItem("kgv.verifySwaps", JSON.stringify(done)); } catch { /* storage blocked */ } } };
+  show();
+  await Promise.all(Array.from({length: VERIFY_PAR}, lane));
+  try { localStorage.setItem("kgv.verifySwaps", JSON.stringify(done)); } catch { /* storage blocked */ }
+  show(); box.textContent += " · 끝";
+}
 async function bankIsAdmin() {
   if (bankAdmin === null) {
     try { const {data} = await mineSb.from("profiles").select("is_admin").single(); bankAdmin = !!(data && data.is_admin); } catch { bankAdmin = false; }
