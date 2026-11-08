@@ -282,6 +282,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <div class="drop">
             <label class="btn" id="batchPick">📁 파일 추가<input type="file" id="batchFiles" accept=".sgf,.gib,.ngf,.ugf,.ugi,.mgt,application/x-go-sgf" multiple hidden></label>
             <button type="button" id="foxOpen">🔗 한큐 기보 불러오기</button>
+            <!-- 타이젬·오로: no public per-member list (타이젬 = encrypted app API, 오로 = only in its logged-in program),
+                 so these pick the member's own saved files; where they are is in the guide (2026-11-08) -->
+            <label class="btn" id="tygemPick">⚫ 타이젬 기보 불러오기<input type="file" id="tygemFiles" accept=".gib,.sgf,application/x-go-sgf" multiple hidden></label>
+            <label class="btn" id="oroPick">⚪ 오로 기보 불러오기<input type="file" id="oroFiles" accept=".sgf,.ngf,application/x-go-sgf" multiple hidden></label>
             <button type="button" id="pickOpen" class="drop-wide">📚 내 기보에서 고르기</button>
           </div>
           <div class="table-wrap hidden" id="batchTable" style="margin-top:12px">
@@ -1289,7 +1293,7 @@ function batchShow() {
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
   const nameMissing = $("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim();
   $("batchStart").disabled = (!running && !batchQueued && !(session && session.status !== "stopping" && todo && !nameMissing)) || !!(batchJob && batchJob.cancelling);
-  for (const id of ["batchFiles", "batchLevel", "foxOpen", "pickOpen", ...BATCH_FORM]) $(id).disabled = running;
+  for (const id of ["batchFiles", "tygemFiles", "oroFiles", "batchLevel", "foxOpen", "pickOpen", ...BATCH_FORM]) $(id).disabled = running;
   $("batchNoteSide").closest(".batch-note-opts").classList.toggle("hidden", !$("batchNotes").checked);
   $("batchNoteNameField").classList.toggle("hidden", $("batchNoteSide").value !== "name");
   segSyncAll();
@@ -1308,6 +1312,12 @@ function batchAdd(files) {   // → how many SGF files were added
   batchShow(); return sgf.length;
 }
 $("batchFiles").onchange = (e) => { batchAdd(e.target.files); e.target.value = ""; };
+for (const [id, what, ok] of [["tygemFiles", "타이젬 기보(GIB·SGF)", /\.(gib|sgf)$/i], ["oroFiles", "오로 기보(SGF·NGF)", /\.(sgf|ngf)$/i]])
+  $(id).onchange = (e) => {
+    const all = [...e.target.files], fit = all.filter((f) => ok.test(f.name)), k = batchAdd(fit);
+    if (all.length) toast(k ? `${what} ${k}개를 더했습니다` + (all.length > k ? ` (다른 파일 ${all.length - k}개는 뺐습니다)` : "") : `${what} 파일만 더할 수 있습니다`, !k);
+    e.target.value = "";
+  };
 // A computer: while 기보 분석 is on screen and waiting for files, SGF files dragged from the desktop / explorer
 // onto the page are added to it. Anywhere else (or while it runs) the drop is refused ("none": no drop event at all),
 // and files are always caught here so one dropped by mistake never makes the browser leave the site.
