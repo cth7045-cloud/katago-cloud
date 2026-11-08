@@ -340,6 +340,11 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #capBox { flex: 0 0 11%; min-height: 80px; }
 #statBox { flex: 0 0 10%; min-height: 70px; }
 #graphBox { flex: 1 1 0; min-height: 90px; cursor: pointer; }
+/* 흐름 = the game's win-rate graph, 생각 = how the engine's view of this position moved as the search deepened (2026-11-08) */
+.graph-seg { position: absolute; top: 6px; right: 6px; z-index: 1; padding: 2px; opacity: .78; }
+.graph-seg:hover, .graph-think .graph-seg { opacity: 1; }   /* over the game graph's top corner: the line shows through */
+.graph-seg button { min-height: 24px; padding: 2px 9px; font-size: 12px; }
+.graph-think #graphBox { cursor: default; }
 /* game info takes the height it needs (on a short tablet screen it used to share it with the graph and cut its own
    last lines, with no scrollbar to show it); the graph gets the rest, and a long move comment scrolls inside */
 .comment { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }   /* too short: the comment scrolls */
@@ -1018,7 +1023,7 @@ button.primary:hover { background: var(--blue-deep); }
   <aside class="left">
     <div class="cv-box" id="capBox"><canvas id="cap"></canvas></div>
     <div class="cv-box" id="statBox"><canvas id="stat"></canvas></div>
-    <div class="cv-box" id="graphBox"><canvas id="graph" aria-label="승률 그래프"></canvas></div>
+    <div class="cv-box" id="graphBox"><canvas id="graph" aria-label="승률 그래프"></canvas><div class="seg graph-seg" id="graphSeg" role="group" aria-label="그래프 종류"><button data-m="flow">흐름</button><button data-m="think">생각</button></div></div>
     <div class="comment">
       <div id="gameInfo"></div>
       <div class="engine-line"><span id="engineName">KataGo</span><span id="hint">생각 멈춤 · 단축키=Space</span></div>
@@ -1645,7 +1650,7 @@ function onMessage(msg) {
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
     if (/:b\d+$/.test(msg.peerQuery || "") || /^[xv]\d/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board; 수순 탐색's table: not the board's analysis
     const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
-    if (node) { store(node, msg, msg.peerQuery); schedule(); }
+    if (node) { store(node, msg, msg.peerQuery); if (/^q\d/.test(msg.peerQuery || "") && !/~/.test(msg.peerQuery)) traceAdd(node, msg); schedule(); }
     return;
   }
   if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
@@ -1676,6 +1681,7 @@ function onMessage(msg) {
     }
   } else {
     store(q.node, msg, msg.id);
+    if (msg.id === liveId) traceAdd(q.node, msg);
     if (msg.id === liveId && liveRetried) { liveRetried = false; if ($("err").textContent.endsWith(LIVE_ON)) $("err").textContent = ""; }
     // visits/s like YZY's title bar: measured from this query's first report so network delay drops out
     const now = performance.now(), v = msg.rootInfo.visits;
@@ -5917,6 +5923,7 @@ const graphCv = $("graph"); let graphCtx, graphW = 280, graphH = 150;
 const WR_MISS = "#9db2f8", SCORE_LINE = "rgb(230,70,200)";
 function drawGraph() {
   if (!graphCtx) return;
+  if (graphMode === "think") return drawThink();
   const g = graphCtx; let posx = 8, posy = 0, width = graphW, height = graphH;
   g.clearRect(0, 0, width, height);
   posy += 2; width -= 16; height -= 4;
@@ -5959,9 +5966,81 @@ function drawGraph() {
   g.strokeStyle = "rgba(112,24,28,.9)"; g.lineWidth = 1; g.beginPath(); g.arc(mx, my, 4, 0, Math.PI * 2); g.stroke();
 }
 graphCv.addEventListener("click", ev => {
+  if (graphMode === "think") return;
   const rect = graphCv.getBoundingClientRect(), line = lineThrough(cur), numMoves = Math.max(50, line.length - 1);
   const k = Math.round((ev.clientX - rect.left - 8) / (T((graphW - 16) * .98)) * numMoves); goTo(line[Math.max(0, Math.min(line.length - 1, k))]);
 });
+
+// ------------------------------------------------------------------ AI 생각 변화 (2026-11-08)
+// While the live analysis runs, each report of this position is kept (visits, black's win rate and lead of the top move,
+// which move is on top); the chart puts them on a log scale of visits, so it shows where a deeper search changed its
+// mind: the line bends, and a mark with the move's name where the top move changed. Kept per position for this visit
+// of the screen only (not saved). A new search that starts lower (a fresh query, not one going on) starts a new trace.
+let graphMode = "flow";
+try { if (localStorage.getItem("kgv.graphMode") === "think") graphMode = "think"; } catch { /* storage blocked */ }
+const TRACE_MAX = 400;
+function traceAdd(node, msg) {
+  if (!node || !msg.rootInfo || !(msg.moveInfos || []).length) return;
+  const top = msg.moveInfos.find(m => m.order === 0) || msg.moveInfos[0], v = msg.rootInfo.visits;
+  const t = node.trace ||= [], last = t[t.length - 1];
+  if (last && v < last.v * .5) t.length = 0;   // a new search of this position
+  else if (last && v <= last.v) return;
+  else if (last && v < last.v * 1.04 && top.move === last.top) return;   // keeps a few hundred points over a long search
+  t.push({v, wr: top.winrate * 100, lead: top.scoreLead, top: top.move});
+  if (t.length > TRACE_MAX) t.splice(1, 1);
+}
+function setGraphMode(m, draw = true) {
+  graphMode = m;
+  try { localStorage.setItem("kgv.graphMode", m); } catch { /* storage blocked */ }
+  $("graphSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  document.body.classList.toggle("graph-think", m === "think");
+  $("graph").setAttribute("aria-label", m === "think" ? "탐색 깊이에 따른 판단 변화" : "승률 그래프");
+  if (draw) render();
+}
+$("graphSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return; setGraphMode(b.dataset.m); if (ev.detail) b.blur(); });   // a click leaves no focus ring
+setGraphMode(graphMode, false);   // the rest of the screen is not set up yet here
+function drawThink() {
+  const g = graphCtx; let posx = 8, posy = 0, width = graphW, height = graphH;
+  g.clearRect(0, 0, width, height);
+  posy += 40; width -= 16; height -= 40 + 18;   // room for the switch above and the visits under the chart
+  g.strokeStyle = TH.grid; g.lineWidth = 1; g.setLineDash([4, 4]);
+  for (let i = 1; i <= 3; i++) { const yy = posy + height - T(height * (i * 25) / 100) + .5; g.beginPath(); g.moveTo(posx, yy); g.lineTo(posx + width, yy); g.stroke(); }
+  g.setLineDash([]);
+  if (analysisHidden()) return;
+  const t = cur.trace || [];
+  if (t.length < 2) return;
+  const lo = Math.log10(Math.max(1, t[0].v)), hi = Math.max(lo + 1, Math.log10(t[t.length - 1].v));
+  const X = v => posx + T((Math.log10(Math.max(1, v)) - lo) / (hi - lo) * width), Yw = wr => posy + height - T(wr * height / 100);
+  let maxScore = 15; for (const p of t) maxScore = Math.max(maxScore, Math.abs(p.lead));
+  const Ys = lead => posy + height / 2 - T(lead * height / 2 / maxScore);
+  // visits on a log scale: 100, 1k, 10k, ...
+  g.font = `500 11px ${UI_FONT}`; g.fillStyle = TH.muted || TH.grid; g.textBaseline = "alphabetic";
+  for (let e = Math.ceil(lo); e <= Math.floor(hi); e++) {
+    const x = X(10 ** e), s = playoutsString(10 ** e), w = g.measureText(s).width;
+    g.fillText(s, Math.min(Math.max(x - w / 2, 6), graphW - w - 10), posy + height + 14);   // clear of the rounded corners
+  }
+  // the top move at the start, and where it changed: a thin line and the move it changed to (inside the chart, clear
+  // of the 흐름·생각 switch above it)
+  g.strokeStyle = TH.grid; g.lineWidth = 1; g.font = `600 11px ${UI_FONT}`; g.fillStyle = TH.ink;
+  let lastLabel = -1e9;
+  for (let j = 0; j < t.length; j++) {
+    if (j && t[j].top === t[j - 1].top) continue;
+    const x = X(t[j].v) + .5;
+    if (j) { g.beginPath(); g.moveTo(x, posy); g.lineTo(x, posy + height); g.stroke(); }
+    const s = t[j].top, w = g.measureText(s).width;
+    if (x - lastLabel > w + 8 && x + 3 + w < graphW - 4) { g.fillText(s, x + 3, posy + 11); lastLabel = x + 3 + w; }
+  }
+  // score lead (black), thin; win rate (black), thicker — the colours of the game graph
+  g.strokeStyle = SCORE_LINE; g.lineWidth = 1; g.beginPath();
+  t.forEach((p, j) => j ? g.lineTo(X(p.v), Ys(p.lead)) : g.moveTo(X(p.v), Ys(p.lead))); g.stroke();
+  g.strokeStyle = TH.wr; g.lineWidth = 1.7; g.beginPath();
+  t.forEach((p, j) => j ? g.lineTo(X(p.v), Yw(p.wr)) : g.moveTo(X(p.v), Yw(p.wr))); g.stroke();
+  const p = t[t.length - 1], cx = X(p.v), cy = Math.max(posy + 3, Math.min(posy + height - 3, Yw(p.wr)));
+  g.fillStyle = TH.wr; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill();
+  g.font = `700 16px ${UI_FONT}`; g.fillStyle = cur.toPlay === "B" ? TH.wr : TH.ink;
+  const s = p.wr.toFixed(1), sw = g.measureText(s).width;
+  g.fillText(s, Math.min(Math.max(cx - sw - 6, 0), graphW - sw), p.wr > 50 ? Math.min(posy + height, cy + 18) : Math.max(posy + 14, cy - 6));
+}
 
 // ------------------------------------------------------------------ variation tree (VariationTree.java)
 const treeCv = $("tree"), XS = 20, YS = 20, DOT = 11, CENTER = 5, OFF_PATH = .5;    // OFF_PATH: 지금 길이 아닌 갈래의 불투명도
@@ -6092,6 +6171,7 @@ function drawSide() {
   $("comment").textContent = [cur.comment, text].filter(Boolean).join("\n\n");
   drawGameInfo();
   emptyHint($("graphBox"), analysisHidden() ? ($("hideEval").checked ? "승률 가리기 중입니다" : quiz ? "답을 고르면 분석이 보입니다" : "AI 대국 중에는 승률 그래프를 숨깁니다")
+    : graphMode === "think" ? ((cur.trace || []).length > 1 ? "" : "분석을 시작하면 탐색이 깊어지며 바뀌는 판단이 표시됩니다")
     : lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
   emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
   emptyHint($("candRows").closest(".table-box"), cands.length ? "" : $("hideEval").checked ? "승률 가리기 중입니다" : quiz && !quiz.shown ? "답을 고르면 AI 후보수가 보입니다"
