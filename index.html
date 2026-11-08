@@ -705,7 +705,8 @@ const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 // admins still do, to improve them. Data (problems/, bank_edits, bank_progress, the 기타 studies) stays as it is.
 const HIDE_BANK = true, HIDE_STUDY_OTHER = true;
 // 연구 '기타'는 관리자에게도 숨김(사용자 같은 날 "연구방의 기타도 아예 숨겨놓고") — 연구·내 연구·주제 옮기기 모두에서
-const memberHides = (what) => what === "bank" ? !profile?.is_admin && HIDE_BANK : HIDE_STUDY_OTHER;
+// 문제 은행도 관리자에게까지 숨김(사용자 같은 날 "나도 안보이게 숨겨놔 문제은행방"); 관리자 페이지 '문제 은행' 탭은 그대로
+const memberHides = (what) => what === "bank" ? HIDE_BANK : HIDE_STUDY_OTHER;
 let mode = "login", profile = null, session = null, offers = [], picked = null, pollTimer = null;
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Screen changes cross-fade like a native app (browsers without View Transitions just switch).
