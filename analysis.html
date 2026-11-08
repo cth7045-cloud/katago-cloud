@@ -827,8 +827,8 @@ button.primary:hover { background: var(--blue-deep); }
       <button id="nums">수순</button>
       <button id="coords">좌표</button>
       <hr>
-      <label class="check" id="skinBoardLabel">바둑판 무늬<select id="skinBoard" aria-label="바둑판 무늬"><option value="yzy">기본 나무</option><option value="light">밝은 나무</option><option value="dark">진한 나무</option><option value="flat">단색</option></select></label>
-      <label class="check" id="skinStoneLabel">돌 모양<select id="skinStone" aria-label="돌 모양"><option value="yzy">기본</option><option value="glass">유리</option><option value="flat">평면</option></select></label>
+      <label class="check" id="skinBoardLabel">바둑판 무늬<select id="skinBoard" aria-label="바둑판 무늬"><option value="yzy">기본 나무</option><option value="light">밝은 나무</option><option value="dark">진한 나무</option><option value="fine">가는 결 나무</option><option value="orange">주황 나무</option><option value="glow">빛 받은 판</option><option value="flat">단색</option></select></label>
+      <label class="check" id="skinStoneLabel">돌 모양<select id="skinStone" aria-label="돌 모양"><option value="yzy">기본</option><option value="glass">유리</option><option value="soft">부드러운 광택</option><option value="jade">옥빛</option><option value="flat">평면</option></select></label>
       <label class="check" id="soundLabel">돌 소리<select id="skinSound" aria-label="돌 소리"><option value="off">끄기</option><option value="wood">딱 (나무판)</option><option value="soft">톡 (부드럽게)</option></select></label>
     </div>
   </details>
@@ -5183,11 +5183,22 @@ function woodPaint(ctx) {
 // board grain, stones and the stone sound are made in code (no image or sound files, nothing third-party); kept on this device.
 function makeWood(kind) {   // a seamless 1024px grain tile: vertical rings that wrap left-right and top-bottom
   const S = 1024, c = document.createElement("canvas"); c.width = c.height = S; const g = c.getContext("2d");
-  const pal = {light: ["rgb(238,207,152)", [176, 120, 60]], dark: ["rgb(190,128,62)", [96, 54, 20]], flat: ["rgb(222,180,108)", null]}[kind] || ["rgb(222,180,108)", null];
+  const pal = {light: ["rgb(238,207,152)", [176, 120, 60]], dark: ["rgb(190,128,62)", [96, 54, 20]], flat: ["rgb(222,180,108)", null],
+               fine: ["rgb(214,176,112)", [150, 100, 45]], orange: ["rgb(221,174,102)", [160, 96, 30]], glow: ["rgb(197,174,112)", [130, 105, 50]]}[kind] || ["rgb(222,180,108)", null];
   g.fillStyle = pal[0]; g.fillRect(0, 0, S, S);
   if (!pal[1]) return c;
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const [r, gg, b] = pal[1];
+  if (kind === "fine" || kind === "orange" || kind === "glow") {   // 곧고 가는 세로 결 (user's examples 2026-11-08): many thin, nearly straight lines
+    const n = kind === "orange" ? 700 : kind === "fine" ? 420 : 260, amax = kind === "glow" ? .02 : .065;
+    for (let i = 0; i < 30; i++) { const x0 = rnd() * S, w = 10 + rnd() * 50; for (const dx of [-S, 0, S]) { g.fillStyle = `rgba(${r},${gg},${b},${.01 + rnd() * (kind === "glow" ? .015 : .035)})`; g.fillRect(x0 + dx, 0, w, S); } }
+    for (let i = 0; i < n; i++) {
+      const x0 = rnd() * S, A = .4 + rnd() * 2.5, ph = rnd() * 6.28, k1 = 1 + Math.floor(rnd() * 2);
+      g.strokeStyle = `rgba(${r},${gg},${b},${.01 + rnd() * amax})`; g.lineWidth = .4 + rnd() * 1.1;
+      for (const dx of [-S, 0, S]) { g.beginPath(); for (let y = 0; y <= S; y += 16) { const x = x0 + dx + A * Math.sin(y / S * 6.2832 * k1 + ph); y ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+    }
+    return c;
+  }
   for (let i = 0; i < 40; i++) {   // soft wide bands first, then fine rings
     const x0 = rnd() * S, w = 20 + rnd() * 70;
     for (const dx of [-S, 0, S]) { g.fillStyle = `rgba(${r},${gg},${b},${.015 + rnd() * .03})`; g.fillRect(x0 + dx, 0, w, S); }
@@ -5277,6 +5288,11 @@ function drawSgfLabels(ctx, G, node) {   // 기보의 LB 글자(정석 연구의
 function drawGoban(ctx, G, coords) {
   const {size, margin: m, avail, sq, r, k} = G;
   ctx.fillStyle = woodPaint(ctx); ctx.fillRect(0, 0, size, size);
+  if (SKIN.board === "glow") {   // 빛 받은 판: a soft light from above the middle, darker toward the edges
+    const L = ctx.createRadialGradient(size * .5, size * .28, 0, size * .5, size * .4, size * .75);
+    L.addColorStop(0, "rgba(255,248,220,.38)"); L.addColorStop(.55, "rgba(255,248,220,.08)"); L.addColorStop(1, "rgba(60,40,10,.16)");
+    ctx.fillStyle = L; ctx.fillRect(0, 0, size, size);
+  }
   // GlassEffectRenderer.drawBoardLightGradient + drawBoardInnerShadow
   let gr = ctx.createLinearGradient(0, 0, size, size); gr.addColorStop(0, "rgba(255,255,230,.098)"); gr.addColorStop(1, "rgba(0,0,20,.098)");
   ctx.fillStyle = gr; ctx.fillRect(0, 0, size, size);
@@ -5318,6 +5334,31 @@ function drawStone(ctx, cx, cy, r, color) {  // image stone + GlassEffectRendere
   if (SKIN.stone === "flat") {   // 꾸미기 › 돌 모양 평면: solid with a thin edge
     ctx.fillStyle = color === 1 ? "#141414" : "#fafafa"; fillCircle(ctx, cx, cy, r);
     ctx.strokeStyle = color === 1 ? "#000" : "rgba(60,60,60,.85)"; strokeCircle(ctx, cx, cy, r, Math.max(1, r / 14));
+    return;
+  }
+  if (SKIN.stone === "jade") {   // 옥빛 (user's example 2026-11-08): black with a faint teal glow and a light rim, milky white with a green tint
+    const X = cx + .5, Y = cy + .5;
+    if (color === 1) {
+      const g = ctx.createRadialGradient(X, Y - r * .05, 0, X, Y, r);
+      g.addColorStop(0, "#334545"); g.addColorStop(.45, "#1b2526"); g.addColorStop(.86, "#0a0d0e"); g.addColorStop(1, "#141818");
+      ctx.fillStyle = g; fillCircle(ctx, cx, cy, r);
+      const rim = ctx.createLinearGradient(X - r, Y - r, X + r, Y + r);
+      rim.addColorStop(0, "rgba(220,228,224,.08)"); rim.addColorStop(.6, "rgba(220,228,224,.3)"); rim.addColorStop(1, "rgba(240,244,240,.75)");
+      ctx.strokeStyle = rim; strokeCircle(ctx, cx, cy, r - Math.max(.5, r * .02), Math.max(1, r * .04));
+    } else {
+      const g = ctx.createRadialGradient(X - r * .12, Y - r * .28, 0, X, Y, r);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(.5, "#eef6ef"); g.addColorStop(.86, "#d6dfd6"); g.addColorStop(1, "#b6beb4");
+      ctx.fillStyle = g; fillCircle(ctx, cx, cy, r);
+      ctx.strokeStyle = "rgba(140,150,140,.55)"; strokeCircle(ctx, cx, cy, r, Math.max(1, r / 20));
+    }
+    return;
+  }
+  if (SKIN.stone === "soft") {   // 부드러운 광택 (user's examples 2026-11-08): a gentle glow in the middle, thin edge, no sharp highlight
+    const X = cx + .5, Y = cy + .5, g = ctx.createRadialGradient(X, Y - r * .18, 0, X, Y, r);
+    if (color === 1) { g.addColorStop(0, "#4b4f53"); g.addColorStop(.55, "#24272a"); g.addColorStop(1, "#0b0c0d"); }
+    else { g.addColorStop(0, "#ffffff"); g.addColorStop(.6, "#f6f6f2"); g.addColorStop(.92, "#dcd8cc"); g.addColorStop(1, "#c9c2b0"); }
+    ctx.fillStyle = g; fillCircle(ctx, cx, cy, r);
+    ctx.strokeStyle = color === 1 ? "rgba(0,0,0,.85)" : "rgba(120,95,55,.7)"; strokeCircle(ctx, cx, cy, r, Math.max(1, r / 18));
     return;
   }
   if (SKIN.stone === "glass") {   // 유리: a lit sphere
