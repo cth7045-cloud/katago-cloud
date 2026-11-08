@@ -3192,7 +3192,7 @@ async function loadStudyFolders(c) {
   return studyFolders || [];
 }
 // 내 연구 (study:…, 비공개) and, for an admin, 공개 연구 (pstudy:…) — 2026-11-07 "내 연구 카테고리 따로"
-const studyOptions = (pub = false) => Object.entries(STUDY).map(([k, name]) => `<option value="${pub ? "pstudy" : "study"}:${k}">${name} 연구</option>` +
+const studyOptions = (pub = false) => Object.entries(STUDY).filter(([k]) => k !== "other").map(([k, name]) => `<option value="${pub ? "pstudy" : "study"}:${k}">${name} 연구</option>` +
   (studyFolders || []).filter(f => f.study === k && !!f.public_study === pub).map(f => `<option value="${pub ? "pstudy" : "study"}:${k}:${f.id}">${name} › ${escHtml(f.name)}</option>`).join("")).join("");
 async function fillSaveFolders(want) {
   const c = await mineClient(); if (!c) return;

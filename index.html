@@ -704,7 +704,8 @@ const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 // 숨김 보관 (user 2026-11-08 "문제은행방 전체랑 연구방의 기타방 숨김처리 … 완전삭제는 하지말고 … 사람을 못보게"): members see neither;
 // admins still do, to improve them. Data (problems/, bank_edits, bank_progress, the 기타 studies) stays as it is.
 const HIDE_BANK = true, HIDE_STUDY_OTHER = true;
-const memberHides = (what) => !profile?.is_admin && (what === "bank" ? HIDE_BANK : HIDE_STUDY_OTHER);
+// 연구 '기타'는 관리자에게도 숨김(사용자 같은 날 "연구방의 기타도 아예 숨겨놓고") — 연구·내 연구·주제 옮기기 모두에서
+const memberHides = (what) => what === "bank" ? !profile?.is_admin && HIDE_BANK : HIDE_STUDY_OTHER;
 let mode = "login", profile = null, session = null, offers = [], picked = null, pollTimer = null;
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Screen changes cross-fade like a native app (browsers without View Transitions just switch).
@@ -1806,7 +1807,7 @@ function showStudies() {
   const n = (t) => studies.filter((k) => !t || k.study === t).length;
   const branchOf = (k) => studyFolders.find((f) => f.id === k.study_folder_id && f.study === k.study);
   studies = studyScope === "mine" ? studiesMine : studiesPub; studyFolders = studyScope === "mine" ? foldersMine : foldersPub;
-  const hideOther = studyScope !== "mine" && memberHides("other");
+  const hideOther = memberHides("other");
   if (hideOther) { studies = studies.filter((k) => k.study !== "other"); if (studyTopic === "other") studyTopic = ""; }
   const adm = studyScope === "mine" || !!profile?.is_admin; myUid = myUid || profile?.id;   // 내 연구: every tool; 연구: an admin's own
   $("studyInfo").textContent = `${studyScope === "mine" ? "내 연구" : "연구"} ${studies.length}개 · 정석 ${n("joseki")} · 포석 ${n("fuseki")}` + (hideOther ? "" : ` · 기타 ${n("other")}`);
@@ -1829,7 +1830,7 @@ function showStudies() {
     (!studyBranch || (studyBranch === "none" ? !branchOf(k) : k.study_folder_id === studyBranch)));
   $("studyList").classList.toggle("hidden", !studies.length);
   // 주제·갈래 칸: 정석 / 정석 › 화점 … (a 갈래 is in one topic, so the two are picked together)
-  const opts = (k) => { const b = branchOf(k); return Object.entries(STUDY).map(([t, name]) => `<optgroup label="${name}">` +
+  const opts = (k) => { const b = branchOf(k); return Object.entries(STUDY).filter(([t]) => !hideOther || t !== "other").map(([t, name]) => `<optgroup label="${name}">` +
     [["", name], ...studyFolders.filter((f) => f.study === t).map((f) => [f.id, `${name} › ${f.name}`])].map(([id, label]) =>
       `<option value="${t}:${id}"${t === k.study && id === (b ? b.id : "") ? " selected" : ""}>${esc(label)}</option>`).join("") + `</optgroup>`).join(""); };
   // one card each (user request 2026-10-10): the small board on top, then the title, 수 · 분석 · 저장, 주제·갈래, 공유 · 삭제
