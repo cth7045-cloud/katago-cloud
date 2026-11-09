@@ -810,8 +810,15 @@ a.item:hover, button.item:hover, summary.item:hover { text-decoration: none; bac
 .item-d[open] > summary .chev { transform: rotate(90deg); }
 .item-body { padding: 4px 18px 18px; }
 .item-body .inline-form { margin: 0; }
-.skin-body { display: grid; gap: 12px; }
-.skin-body select { width: 100%; }
+.skin-body { display: grid; gap: 8px; }
+.skin-h { font-size: 14px; font-weight: 500; color: var(--muted); margin-top: 6px; }
+.skin-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.skin-tile { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; min-height: 0; border-radius: 14px;
+  background: var(--soft); border: 2px solid transparent; color: var(--ink); font-size: 13px; line-height: 1.25; text-align: center; }
+.skin-tile img { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 10px; display: block; object-fit: cover; }
+.skin-tile small { display: block; font-size: 11px; color: var(--muted); }
+.skin-tile.on { border-color: var(--blue); background: var(--panel); }
+#skinSound button.on { background: var(--panel); color: var(--ink); }
 .leave-d { margin: 26px 0 0; text-align: center; }
 .leave-d summary { display: inline-block; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); list-style: none; padding: 6px 12px; }
 .leave-d summary::-webkit-details-marker { display: none; }
