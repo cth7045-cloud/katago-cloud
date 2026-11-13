@@ -396,6 +396,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
         <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
         <button type="button" data-kind="vs" aria-pressed="false">프로 vs AI</button>
+        <button type="button" data-kind="ama" aria-pressed="false">아마 대회</button>
         <button type="button" data-kind="etc" aria-pressed="false">기타 대국</button>
       </div>
       <!-- 분류: 프로 기보 · AI 기보 · 프로 vs AI 모두 최신 대국 · 연도 → 그해 대회 → 기보 (a list: name, games, ›) -->
@@ -2094,12 +2095,14 @@ $("mineRows").onclick = async (ev) => {
 // (the 50 newest, inside 프로 기보 since "최신기보를 프로기보 안쪽으로"), else by year and in a year by 대회
 // (DB 20261022g tournament); AI 기보 by year.
 const LIB_PAGE = 50;   // (설명 문구는 사용자 2026-10-23 "설명 문구 지워줘"로 뺌)
-const LIB_KINDS = { pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI", etc: "기타 대국" };
+// 아마 대회 (2026-11-13, DB 20261113b): 권위 있는 아마 대회의 4강·결승 + 프로·아마가 함께 두는 대회 (사용자 "'아마 대회' 탭을
+// 새로 만들고 … 프로와 아마가 같이하는 대회는 아마추어대회쪽"), 연도 → 대회 → 기보로 프로 기보와 같게
+const LIB_KINDS = { pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI", ama: "아마 대회", etc: "기타 대국" };
 // 기타 대국 (2026-11-07, DB 20261107b, JGDB): no names, dates or 대회 — straight to its 칸 (사용자 "프로는 구분하지마.
 // 아마추어만 구분해줘": '프로', '아마 9단' … '아마 1급'), kept as year 0 ('#library/etc/0/<칸>').
 const LIB_NODATE = "etc";
 const libEtcOrder = (t) => t === "프로" ? -100 : (/(\d+)단$/.test(t) ? -Number(t.match(/(\d+)단$/)[1]) : /(\d+)급$/.test(t) ? Number(t.match(/(\d+)급$/)[1]) : 999);
-const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 AI 대국", vs: "가장 최근 프로 vs AI 대국" };
+const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 AI 대국", vs: "가장 최근 프로 vs AI 대국", ama: "가장 최근 아마 대회 대국" };
 // where the member is: kind ('pro' | 'ai' | 'vs'), then year ('latest' = 최신 대국 50판, '2026'), then tour
 // (null = the year's 대회 cards, '*' = the whole year, else one 대회). All three kinds use the same hierarchy (2026-10-25).
 let libKind = "pro", libYear = null, libTour = null;

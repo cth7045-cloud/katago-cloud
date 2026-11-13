@@ -448,8 +448,8 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
 .seg button:hover { background: transparent; color: var(--ink); }
 .seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(23, 26, 34, .14); }
 @media (max-width: 640px) { .seg { display: grid; grid-template-columns: repeat(3, 1fr); } .seg button { padding-inline: 8px; } }
-/* 기보실 4칸(기타 대국, 2026-11-07): 폰에서도 한 줄 */
-@media (max-width: 640px) { .seg.lib-kind { grid-template-columns: repeat(4, minmax(0, 1fr)); } .seg.lib-kind button { padding-inline: 2px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+/* 기보실 5칸(기타 대국 2026-11-07, 아마 대회 2026-11-13): 폰에서도 한 줄 */
+@media (max-width: 640px) { .seg.lib-kind { grid-template-columns: repeat(5, minmax(0, 1fr)); } .seg.lib-kind button { padding-inline: 2px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
 
 /* 다크모드: 기기 설정 또는 내 정보에서 고른 값을 따름(theme.js, 2026-09-30). 색은 :root 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판 그림은 그대로. */
 @media (prefers-color-scheme: dark) {
@@ -967,3 +967,11 @@ dialog.tut:focus { outline: none; }
   .tut-x:hover { background: #253049; }
   .tut-off span { background: #3a1d22; color: #ff6b70; }
 }
+/* 기보실 5칸(아마 대회, 2026-11-13): 좁은 폰은 글자를 조금 작게 */
+@media (max-width: 400px) { .seg.lib-kind button { font-size: 12px; padding-inline: 1px; letter-spacing: -.02em; } }
+/* 영어·러시아어는 탭 이름이 길어 폰에서 3칸 2줄로(잘리지 않게) */
+@media (max-width: 640px) {
+  html[lang="en"] .seg.lib-kind, html[lang="ru"] .seg.lib-kind { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  html[lang="en"] .seg.lib-kind button, html[lang="ru"] .seg.lib-kind button { white-space: normal; overflow: visible; line-height: 1.2; padding-inline: 4px; font-size: 13px; letter-spacing: 0; }
+}
+@media (max-width: 640px) { html[lang="ru"] .seg.lib-kind button { font-size: 12px; } }
