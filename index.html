@@ -2143,7 +2143,7 @@ async function loadLibrary(reset) {
     if (fresh) {
       data = fresh.rows; count = fresh.count;
     } else {
-      ({ data, error } = await sb.rpc("public_kifu_search", { p_q: q, p_offset: libRows.length, p_limit: LIB_PAGE }));
+      ({ data, error } = await sb.rpc("public_kifu_search", { p_q: window.kgvLang?.untr?.(q) ?? q, p_offset: libRows.length, p_limit: LIB_PAGE }));
       if (data && reset) {
         count = data.length ? Number(data[0].total) : 0;
         if (libFindCache.size > 80) libFindCache.clear();

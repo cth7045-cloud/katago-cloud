@@ -31,7 +31,7 @@
   const api = {
     lang, locale: LOCALE[lang], list: LANGS,
     set(l) { if (!ok(l)) return; try { localStorage.setItem("kgv.lang", l); } catch {} location.reload(); },
-    t: (s) => s,
+    t: (s) => s, untr: (s) => s,
     // a <select> (or any element: filled with one) that switches the language
     picker(el) {
       if (!el) return;
@@ -46,7 +46,7 @@
   if (lang === "ko") return;
 
   // dictionaries, before the page's own scripts run
-  const v = "20261112";
+  const v = "20261113b";
   document.write(`<script src="${base}i18n/${lang}.js?v=${v}"><\/script>`);
   if (me && me.hasAttribute("data-names")) document.write(`<script src="${base}i18n/names-${lang}.js?v=${v}"><\/script>`);
   if (me && me.hasAttribute("data-guide")) document.write(`<script src="${base}i18n/guide-${lang}.js?v=${v}"><\/script>`);
