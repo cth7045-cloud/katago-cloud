@@ -425,7 +425,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <span class="hub-icon folder c4" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span>
           <span class="grow"><b>오답노트</b></span><span class="chev" aria-hidden="true">›</span>
         </a>
-        <a class="batch-entry" href="#study/research">
+        <a class="batch-entry" href="#study/research" id="researchEntry">
           <span class="hub-icon study" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M8 8l2 2 4-4"/></svg></span>
           <span class="grow"><b>연구</b></span><span class="chev" aria-hidden="true">›</span>
         </a>
@@ -777,9 +777,12 @@ const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
 // 숨김 보관 (user 2026-11-08 "문제은행방 전체랑 연구방의 기타방 숨김처리 … 완전삭제는 하지말고 … 사람을 못보게"): members see neither;
 // admins still do, to improve them. Data (problems/, bank_edits, bank_progress, the 기타 studies) stays as it is.
 const HIDE_BANK = true, HIDE_STUDY_OTHER = true;
+// 학습방 '연구'(공개 연구 칸) 전체도 숨김 보관 — 회원·관리자 모두(사용자 2026-11-13 "연구 카테고리는 숨김처리하고"); 내 연구는 그대로,
+// 공개 연구 줄(saved_kifu.public_study)은 DB에 그대로. 다시 열려면 false.
+const HIDE_STUDY_PUB = true;
 // 연구 '기타'는 관리자에게도 숨김(사용자 같은 날 "연구방의 기타도 아예 숨겨놓고") — 연구·내 연구·주제 옮기기 모두에서
 // 문제 은행도 관리자에게까지 숨김(사용자 같은 날 "나도 안보이게 숨겨놔 문제은행방"); 관리자 페이지 '문제 은행' 탭은 그대로
-const memberHides = (what) => what === "bank" ? HIDE_BANK : HIDE_STUDY_OTHER;
+const memberHides = (what) => what === "bank" ? HIDE_BANK : what === "research" ? HIDE_STUDY_PUB : HIDE_STUDY_OTHER;
 let mode = "login", profile = null, session = null, offers = [], picked = null, pollTimer = null;
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Screen changes cross-fade like a native app (browsers without View Transitions just switch).
@@ -2400,7 +2403,9 @@ new IntersectionObserver((entries, io) => {
 const PAGES = { "#gpu": "homeView", "#analyze": "analyzeView", "#mine": "mineView", "#library": "libraryView", "#study": "studyView", "#me": "meView", "#charge": "chargeView", "#notices": "meView" };
 function showStudyPart() {   // 학습방 (#study): 오답노트 · 내 연구 · 문제 은행, or one of them (#study/notes, …; #study/bank/<책장>)
   $("bankEntry").classList.toggle("hidden", memberHides("bank"));
+  $("researchEntry").classList.toggle("hidden", memberHides("research"));
   if (location.hash.startsWith("#study/bank") && profile && memberHides("bank")) { location.replace("#study"); return; }   // 숨김 보관
+  if (location.hash === "#study/research" && memberHides("research")) { location.replace("#study"); return; }   // 숨김 보관 (2026-11-13)
   const part = location.hash.startsWith("#study/bank") ? "bank" : { "#study/notes": "notes", "#study/research": "research", "#study/mine": "mine" }[location.hash] || "";
   const scope = part === "mine" ? "mine" : "pub";
   if ((part === "research" || part === "mine") && scope !== studyScope) { studyScope = scope; studyTopic = ""; studyBranch = ""; showStudies(); }
