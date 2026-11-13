@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="i18n.js" data-names></script>   <!-- 화면 언어 (2026-11-13): 한국어 외 언어면 사전을 붙이고 화면을 바꾼다 -->
 <meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
 <title>KataGo Cloud · 카타고 바둑 AI 분석 (전용 GPU)</title>
@@ -42,7 +43,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
   <section id="authView" class="hidden">
     <div class="wrap hero">
       <div class="hero-copy">
-        <a class="brand" href="./"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
+        <div class="hero-top"><a class="brand" href="./"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a><select id="langAuth" class="lang-sel" aria-label="Language"></select></div>
         <h1>KataGo를<br>내 전용 GPU로.</h1>
         <p class="lede">폰·태블릿·PC 브라우저에서 YZY와 같은 화면으로 바둑을 분석하세요. GPU는 쓰는 동안만, 1분 단위로 요금이 나갑니다.</p>
       </div>
@@ -558,6 +559,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <button type="button" data-theme="light">밝게</button>
             <button type="button" data-theme="dark">어둡게</button>
           </div>
+        </div>
+        <!-- 언어 (2026-11-13, 해외 회원): this browser's language (i18n.js, localStorage kgv.lang), the analysis screen and guide follow it -->
+        <div class="item wrap-item">
+          <span class="ic" style="background:#e6f0fd;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="grow">언어<span class="item-note" translate="no">Language · 言語 · 语言 · Язык</span></span>
+          <select id="langSel" class="lang-sel" aria-label="언어 · Language"></select>
         </div>
         <!-- 꾸미기 (2026-11-08, moved here from the analysis screen's menu): the analysis screen's board, stones and stone
              sound, kept in this browser (localStorage kgv.skin, read by analysis.html) -->
@@ -2510,6 +2516,7 @@ $("coCopy").onclick = async () => {
 // 화면 밝기(theme.js): 기기 설정 따라가기 / 밝게 / 어둡게
 function showTheme() { for (const b of $("themeSeg").children) b.setAttribute("aria-pressed", String(b.dataset.theme === kcTheme.pref())); }
 $("themeSeg").onclick = (ev) => { const b = ev.target.closest("button"); if (b) kcTheme.set(b.dataset.theme); };
+window.kgvLang?.picker($("langSel")); window.kgvLang?.picker($("langAuth"));   // 화면 언어 (i18n.js)
 // 꾸미기: the analysis screen reads the same storage (kgv.skin) when it opens, and an open one follows a change here.
 // Each look is a small picture of the analysis screen's own board (assets/skins/preview, taken from analysis.html
 // with that look, 2026-11-09), and 착수음 plays once when chosen (the same sound as the analysis screen's).
