@@ -445,13 +445,14 @@ details.more .table-wrap { margin: 4px 0 8px; }
       <div class="table-wrap"><table>
         <thead><tr><th>세기</th><th>한 수에</th><th>쓰임</th></tr></thead>
         <tbody>
+          <tr><td>즉시</td><td>한 판 약 5초</td><td>흐름을 바로 볼 때 · 가장 덜 정확</td></tr>
           <tr><td>빠름</td><td>250 visits</td><td>흐름만 볼 때</td></tr>
           <tr><td>보통</td><td>500 visits</td><td>기본값 · 275수 한 판 약 2분(RTX 3060)</td></tr>
           <tr><td>정밀</td><td>1000 visits</td><td>더 정확</td></tr>
-          <tr><td>초정밀</td><td>5000 visits</td><td>중요한 대국 · 정밀보다 약 5배 오래(한 판 약 20분)</td></tr>
         </tbody>
       </table></div>
       <ul>
+        <li><b>즉시</b>는 정해진 visits 대신 한 판 전체를 약 5초 안에 끝내도록 수마다 시간을 나눠 줍니다. 수가 많을수록 한 수를 덜 보므로 정확도는 가장 낮습니다. 느린 GPU에서 큰 모델로 긴 대국을 분석하거나 내 기기로 분석하면 5초보다 더 걸릴 수 있습니다.</li>
         <li>이미 그 세기 이상 분석된 수는 건너뜁니다. 다 분석돼 있으면 버튼이 <span class="chip">재분석</span>이 됩니다.</li>
         <li>진행 중 버튼(<b>■ 자동분석 취소 n/N</b>)을 누르면 멈추고, 그때까지의 결과는 남습니다.</li>
         <li>다른 변화도를 두며 연구하는 중이어도 자동분석은 항상 <b>주 변화(본선)</b>를 분석합니다. 연구한 변화도를 분석하려면 그 변화에서 <b>주 변화로 지정</b>을 누른 뒤 자동분석하세요.</li>
@@ -560,9 +561,9 @@ details.more .table-wrap { margin: 4px 0 8px; }
         <figure class="fig phone"><img src="guide/mine.webp" width="700" height="1818" alt="내 기보 화면: 기보 분석, 기보 추가, 분류 카드(전체 기보, 오프라인 대국, 타이젬 기보, 프로 기보, 한큐 기보 등)와 새 분류" loading="lazy"></figure>
       </div>
       <h3>저장 창</h3>
-      <figure class="fig" style="max-width:460px"><img src="guide/save.webp" width="690" height="732" alt="내 기보에 저장 창: 제목, 분류, 먼저 자동분석과 세기(빠름·보통·정밀·초정밀), 기보 저장·오답노트 만들기·다 끝나면 GPU 끄기 체크" loading="lazy"></figure>
+      <figure class="fig" style="max-width:460px"><img src="guide/save.webp" width="690" height="732" alt="내 기보에 저장 창: 제목, 분류, 먼저 자동분석과 세기(즉시·빠름·보통·정밀), 기보 저장·오답노트 만들기·다 끝나면 GPU 끄기 체크" loading="lazy"></figure>
       <ul>
-        <li><b>먼저 자동분석</b>: 고른 세기(빠름·보통·정밀·초정밀)로 아직 분석되지 않은 수만 분석한 뒤 저장합니다. 분석된 수가 하나도 없으면 처음부터 체크돼 있고, 이미 자동분석·대국 리포트가 돌고 있으면 그것이 끝난 뒤 저장합니다. GPU에 연결돼 있지 않으면 고를 수 없습니다.</li>
+        <li><b>먼저 자동분석</b>: 고른 세기(즉시·빠름·보통·정밀)로 아직 분석되지 않은 수만 분석한 뒤 저장합니다. 분석된 수가 하나도 없으면 처음부터 체크돼 있고, 이미 자동분석·대국 리포트가 돌고 있으면 그것이 끝난 뒤 저장합니다. GPU에 연결돼 있지 않으면 고를 수 없습니다.</li>
         <li><b>기보 저장 · 오답노트 만들기</b>: 체크한 것만 만듭니다. 오답노트를 체크하면 이 기보의 실수 목록이 열립니다.</li>
         <li><b>다 끝나면 GPU 끄기</b>(GPU가 켜져 있을 때): 저장(과 오답노트)이 끝나면 GPU를 끕니다. 이때는 고를 사람이 없을 수 있어 오답노트 후보를 <b>모두</b> 담습니다(기준은 오답노트에 담기 창에서 마지막으로 고른 것).</li>
       </ul>

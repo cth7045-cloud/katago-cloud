@@ -296,12 +296,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
             <span class="lab">얼마나 꼼꼼히</span>
             <div class="seg2" data-seg-for="batchLevel" role="group" aria-label="분석 세기"></div>
             <select id="batchLevel" class="hidden" aria-hidden="true" tabindex="-1">
+              <option value="instant" data-l="즉시" data-s="약 5초">즉시 · 한 판 약 5초</option>
               <option value="fast" data-l="빠름" data-s="250">빠름 · 한 수 250 visits</option>
               <option value="normal" data-l="보통" data-s="500" selected>보통 · 한 수 500 visits</option>
               <option value="precise" data-l="정밀" data-s="1000">정밀 · 한 수 1000 visits</option>
-              <option value="ultra" data-l="초정밀" data-s="5000">초정밀 · 한 수 5000 visits</option>
             </select>
-            <p class="small hidden" id="batchWarn" style="margin:0;color:#c2410c;font-weight:600">⚠ 초정밀은 시간이 오래 걸립니다 — 정밀보다 약 5배(275수 한 판에 약 20분).</p>
           </div>
           <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류(내 기보에서 고른 기보는 원래 분류 그대로)"><option value="">분류 없음</option></select></label>
           <label class="toggle-row"><span class="grow"><b>오답노트도 만들기</b></span><input type="checkbox" class="sw-input" id="batchNotes"></label>
@@ -1379,7 +1378,6 @@ function batchShow() {
   segSyncAll();
   $("batchPick").style.opacity = running ? ".45" : "";
   $("batchClear").disabled = running || !batchFiles.length;
-  $("batchWarn").classList.toggle("hidden", $("batchLevel").value !== "ultra");
   $("batchTable").classList.toggle("hidden", !batchFiles.length);
   const color = { saved: "var(--good)", error: "var(--bad)", run: "var(--blue)" };
   $("batchRows").innerHTML = batchFiles.map((f) => `<tr><td style="white-space:normal;word-break:break-all">${esc(f.file.name)}</td>` +

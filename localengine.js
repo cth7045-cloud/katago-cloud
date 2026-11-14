@@ -530,7 +530,9 @@ function addQuery(q) {
   let all;
   try { all = positionsOf(q); } catch (err) { post({id: q.id, error: String(err.message)}); return; }
   const turns = Array.isArray(q.analyzeTurns) ? q.analyzeTurns.filter(t => t >= 0 && t < all.length) : [all.length - 1];
-  tasks.push({id: q.id, q, turns, all, i: 0, root: null, prio: q.priority || 0, maxVisits: q.maxVisits || 500,
+  // overrideSettings.maxTime (seconds per analyzed turn, as KataGo takes it): the analysis screen's 즉시 (2026-11-14)
+  const maxTime = q.overrideSettings && +q.overrideSettings.maxTime > 0 ? +q.overrideSettings.maxTime * 1000 : Infinity;
+  tasks.push({id: q.id, q, turns, all, i: 0, root: null, prio: q.priority || 0, maxVisits: q.maxVisits || 500, maxTime,
               every: q.reportDuringSearchEvery || 0, first: q.firstReportDuringSearchAfter || q.reportDuringSearchEvery || 0, said: 0, t0: 0, live: !q.analyzeTurns});
   pump();
 }
@@ -562,7 +564,7 @@ async function pump() {
       if (!tasks.includes(t)) continue;   // terminated while it was evaluating
       const now = performance.now(), el = (now - t.t0) / 1000;
       if (t.every && el >= (t.said ? t.said + t.every : t.first)) { t.said = el; report(t, t.root, true, t.live ? undefined : t.turns[t.i]); }
-      if (t.root.N >= t.maxVisits) {
+      if (t.root.N >= t.maxVisits || now - t.t0 >= t.maxTime) {
         report(t, t.root, false, t.live ? undefined : t.turns[t.i]);
         t.root = null; t.i++;
         if (t.i >= t.turns.length) tasks.splice(tasks.indexOf(t), 1);

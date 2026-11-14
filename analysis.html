@@ -88,23 +88,17 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 #saveDo label.check.off { opacity: .45; }
 #saveDoAutoRow .lvl { margin: 4px 0 4px 22px; }
 #saveDoAutoRow .lvl[hidden] { display: none; }
-#saveDoAutoRow .lvl:has(button.on[data-l="ultra"]) { margin-bottom: 26px; }
 /* installed app: the logo leads home ("‹" before it), instead of a separate '‹ 홈' that took the top bar's room (2026-10-16) */
 .brand.home { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .brand.home::before { content: "‹"; font-size: 22px; font-weight: 700; line-height: 1; margin: -2px -4px 0 0; color: var(--muted); }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -.02em; font-size: 16px; margin-right: 6px; }
 .mark { width: 24px; height: 24px; flex: none; border-radius: 6px; background: url(icons/icon-light-192.png) center / cover; }   /* 앱 아이콘과 같은 그림(2026-09-30) */
-/* 빠름 / 보통 / 정밀 / 초정밀 next to 자동분석 and 대국 리포트 (one shared setting) */
+/* 즉시 / 빠름 / 보통 / 정밀 next to 자동분석 and 대국 리포트 (one shared setting; 초정밀 = 5000 visits gave way to 즉시, 2026-11-14) */
 .lvl { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
 div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
 div.lvl button:hover { background: rgba(255, 255, 255, .7); }
 div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
 #menuBody section > .lvl { margin: 0 0 6px 48px; }
-/* 초정밀 picked in the menu: say under the buttons that it takes long (the landscape list says it on the row itself) */
-.lvl:has(button.on[data-l="ultra"]) { position: relative; }
-#menuBody section > .lvl:has(button.on[data-l="ultra"]) { margin-bottom: 26px; }
-.lvl:has(button.on[data-l="ultra"])::after { content: "⚠ 시간이 오래 걸립니다 — 정밀보다 약 5배"; position: absolute; left: 8px; top: calc(100% + 5px);
-  white-space: nowrap; font-size: 12px; font-weight: 600; color: #c2410c; }
 /* landscape: no buttons beside 자동분석 / 대국 리포트 — pressing them asks for the level instead (portrait keeps them in the menu) */
 .toolbar #autoLevel, .menubar #strengthLevel { display: none; }
 .level-pop { position: fixed; z-index: 40; display: grid; gap: 2px; min-width: 230px; padding: 6px; background: var(--panel); border-radius: 14px;
@@ -114,8 +108,6 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
   border-radius: 10px; background: transparent; box-shadow: none; }
 .level-pop button span { color: var(--muted); font-size: 12px; font-weight: 500; }
 .level-pop button:hover { background: var(--soft); }
-.level-pop button em { flex-basis: 100%; margin: -6px 0 8px; font-style: normal; font-size: 12px; font-weight: 600; color: #c2410c; text-align: left; }
-.level-pop button:has(em) { flex-wrap: wrap; row-gap: 0; }
 .level-pop button.on { background: var(--cyan-soft); color: var(--blue-deep); }
 #menuBody section > .lvl::before { display: none; }
 /* which stones a board click puts down: black only / white only / alternate
@@ -736,7 +728,6 @@ button.primary:hover { background: var(--blue-deep); }
   #saveMine:hover { background: #22305a; }
   .rb-bars .b i { background: #000; box-shadow: inset 0 0 0 1px #3a4560; }
   div.lvl button:hover, .stone-seg button:hover, .seg button:hover { background: rgba(255, 255, 255, .08); }
-  .lvl:has(button.on[data-l="ultra"])::after, .level-pop button em { color: #ff9a5c; }
   body.dropping::after { background: rgba(22, 34, 74, .88); color: var(--blue-deep); }
   dialog::backdrop { background: rgba(0, 0, 0, .5); }
   .stone-seg i.w, .stone-seg i.bw::after, .gi-stone.w { box-shadow: none; }
@@ -829,7 +820,7 @@ button.primary:hover { background: var(--blue-deep); }
   </details>
   <button id="newGame">AI대국</button>
   <button id="strengthOpen">대국 리포트</button>
-  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div>
+  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
   <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
   <span class="spacer"></span>
   <span class="status" id="vps"></span>
@@ -873,7 +864,7 @@ button.primary:hover { background: var(--blue-deep); }
     <label class="gd-row" id="saveFolderRow"><span>저장할 곳</span><select id="saveFolder" aria-label="저장할 곳"></select></label>
     <div id="saveDo" role="group" aria-label="만들 것">
       <div id="saveDoAutoRow"><label class="check"><input type="checkbox" id="saveDoAuto"><span>먼저 자동분석<small id="saveDoAutoHint"></small></span></label>
-        <div class="lvl" id="saveLevel" role="group" aria-label="자동분석 세기"><button type="button" data-l="fast">빠름</button><button type="button" data-l="normal">보통</button><button type="button" data-l="precise">정밀</button><button type="button" data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div></div>
+        <div class="lvl" id="saveLevel" role="group" aria-label="자동분석 세기"><button type="button" data-l="instant">즉시</button><button type="button" data-l="fast">빠름</button><button type="button" data-l="normal">보통</button><button type="button" data-l="precise">정밀</button></div></div>
       <label class="check"><input type="checkbox" id="saveDoKifu"><span>기보 저장<small id="saveDoKifuHint">기보와 분석값을 내 기보에 저장합니다.</small></span></label>
       <label class="check"><input type="checkbox" id="saveDoNotes"><span>오답노트 만들기<small id="saveDoNotesHint"></small></span></label>
       <label class="check" id="saveDoStopRow"><input type="checkbox" id="saveDoStop"><span>다 끝나면 GPU 끄기<small id="saveDoStopHint"></small></span></label>
@@ -1073,7 +1064,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div id="clocks" hidden><span id="clockB"></span><span id="clockW"></span></div>
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
-  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="ultra" title="한 수 5000 visits — 정밀보다 약 5배 오래 걸립니다">초정밀</button></div>
+  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
   <span class="sep"></span>
   <span class="nav">
   <button id="first" class="mv" title="처음 (Home)" aria-label="처음"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 6l-8 6 8 6z"/></svg></button>
@@ -1104,10 +1095,10 @@ button.primary:hover { background: var(--blue-deep); }
 
 <div class="level-pop" id="levelPop" role="menu" hidden>
   <p id="levelPopTitle"></p>
+  <button data-l="instant" role="menuitem"><b>즉시</b><span>한 판 약 5초</span></button>
   <button data-l="fast" role="menuitem"><b>빠름</b><span>한 수 250 visits</span></button>
   <button data-l="normal" role="menuitem"><b>보통</b><span>한 수 500 visits</span></button>
   <button data-l="precise" role="menuitem"><b>정밀</b><span>한 수 1000 visits</span></button>
-  <button data-l="ultra" role="menuitem"><b>초정밀</b><span>한 수 5000 visits</span><em>⚠ 시간이 오래 걸립니다 — 정밀보다 약 5배</em></button>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="메뉴">
@@ -1651,11 +1642,11 @@ function onMessage(msg) {
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
     if (q.strength) strengthStep(q);
-    else if (q.batch) { q.done++; q.tell("progress", {done: q.done, todo: q.todo}); if (q.done >= q.todo) batchEnd(true); }
+    else if (q.batch) { q.done++; q.tell("progress", {done: q.done, todo: q.todo}); if (q.done >= q.todo) { instantLearn(q.inst); batchEnd(true); } }
     else {
       autoDone++;
       if (autoRetried) { autoRetried = false; if ($("err").textContent.endsWith(AUTO_ON)) $("err").textContent = ""; }   // going again
-      if (autoDone >= q.todo) stopAuto(); else autoButton();
+      if (autoDone >= q.todo) { if (!autoRetried) instantLearn(q.inst); stopAuto(); } else autoButton();
     }
   } else {
     store(q.node, msg, msg.id);
@@ -1722,12 +1713,44 @@ function reportPing(ms, sentAt) {
   if (p.n < 3 || p.n > 30) return;
   import("./app.js").then(({ sb }) => sb.rpc("report_ping", { p_token: token, p_n: p.n, p_total_ms: p.total, p_min_ms: p.min, p_slow: p.slow })).catch(() => {});
 }
-// 빠름 / 보통 / 정밀 / 초정밀: one setting for 자동분석 and 대국 리포트.
+// 즉시 / 빠름 / 보통 / 정밀: one setting for 자동분석 and 대국 리포트 (and the hidden 여러 기보 분석 frame).
 // Each skips the moves already analysed at least that deep, so what one of them did, the other does not redo.
-const LEVELS = {fast: 250, normal: 500, precise: 1000, ultra: 5000};
+// 즉시 (user request 2026-11-14, in place of 초정밀 = 5000 visits; a stored "ultra" reads as 보통): the whole line in about
+// INSTANT_S seconds. Not a number of visits but a time per position — KataGo's maxTime, which a query may override
+// (analysis.cpp overrideSettings → loadParams) — the turns shared out over the analysis threads that search them side
+// by side (websetup.sh numAnalysisThreads = 2; this device's own engine and a thread held by the live search: one).
+// A position also costs time maxTime does not count (its first evaluation, the search threads' last batch, the reply):
+// each 즉시 run of 40 positions or more measures it (instantLearn) and the next run leaves that much off. Where that cost
+// alone is more than the time there is (a slow GPU or this device's CPU with the heaviest model and a long game), 즉시
+// takes longer: every position still gets its own search, never none. Any analysis counts as done at this level.
+const LEVELS = {instant: 1, fast: 250, normal: 500, precise: 1000};
+const INSTANT_S = 5, INSTANT_CAP = 1000;   // a short line ends sooner: no position goes past 정밀's visits
 let level = "normal";
 try { const v = localStorage.getItem("kgv.level"); if (LEVELS[v]) level = v; } catch { /* storage blocked */ }
 const levelVisits = () => LEVELS[level];
+let instantCost = null;   // s per position beyond maxTime, per thread: measured on this screen (per engine name), else a guess
+function instantCostNow() {
+  if (instantCost === null) {
+    try { const v = JSON.parse(localStorage.getItem("kgv.instantCost") || "{}")[modelName]; if (v >= 0) instantCost = v; } catch { /* storage blocked */ }
+  }
+  return instantCost ?? (localMode ? 0.08 : 0.012);
+}
+// The limits of a query over n positions at this level; 즉시 also gives back what instantLearn needs.
+function levelQuery(n) {
+  if (level !== "instant") return {query: {maxVisits: levelVisits()}};
+  const threads = localMode || (analyzing && (pdaAt(cur) || xpEval)) ? 1 : 2;   // a PDA or 수순 탐색 search holds one
+  const each = Math.max(0.005, (INSTANT_S - 0.4) * threads / Math.max(1, n) - instantCostNow());
+  return {query: {maxVisits: INSTANT_CAP, overrideSettings: {maxTime: +each.toFixed(3)}}, inst: {at: performance.now(), each, threads, n}};
+}
+function instantLearn(inst) {   // a 즉시 run came back whole: how long each position really took beyond its maxTime
+  if (!inst || inst.n < 40) return;   // a short line: the round trip, not the positions, would be most of it
+  const took = (performance.now() - inst.at) / 1000 - 0.3;   // ~ the round trip and the first answer
+  instantCost = Math.min(0.5, Math.max(0, took * inst.threads / inst.n - inst.each));
+  try {
+    const all = JSON.parse(localStorage.getItem("kgv.instantCost") || "{}"); all[modelName] = +instantCost.toFixed(4);
+    localStorage.setItem("kgv.instantCost", JSON.stringify(all));
+  } catch { /* storage blocked */ }
+}
 const analysed = n => !!(n.analysis && n.analysis.rootInfo && n.analysis.rootInfo.visits >= levelVisits());
 function levelButtons() {
   document.querySelectorAll(".lvl button").forEach(b => { const on = b.dataset.l === level; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
@@ -1778,9 +1801,10 @@ function startAuto(again = false) {
   if (!turns.length) return;
   autoDone = 0; autoId = "a" + (++qn); autoRetried = false; workAt = performance.now();
   if (again) for (const i of turns) autoLine[i].aid = autoId;   // 재분석: the new results replace the old ones
-  queries.set(autoId, {line: autoLine, todo: turns.length});
+  const lq = levelQuery(turns.length);
+  queries.set(autoId, {line: autoLine, todo: turns.length, inst: lq.inst});
   send({...baseQuery(), includeOwnership: false, id: autoId, moves: movesOf(autoLine[autoLine.length - 1]),
-        analyzeTurns: turns, maxVisits: levelVisits()});
+        analyzeTurns: turns, ...lq.query});
   autoButton();
 }
 function stopAuto() {
@@ -3235,7 +3259,8 @@ function saveDoChanged() {
     : running ? (box0.checked ? `지금 ${running} 중입니다${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}. 끝난 뒤 저장합니다. 끄면 지금까지 분석된 그대로 바로 저장합니다.`
                               : `지금 ${running} 중입니다. 켜면 끝난 뒤 저장합니다.`)
     : !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
-    : todo ? `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`
+    : todo ? (level === "instant" ? `${todo}수를 즉시(한 판 약 ${INSTANT_S}초) 분석한 뒤 저장합니다. 이미 분석된 수는 건너뜁니다.`
+                                  : `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`)
     : "이 세기로 이미 모두 분석돼 있어 바로 저장합니다.";
   const auto = autoFirst(), wait = auto || ((stop || waitRunning()) && analysisRunning());
   // 오답노트: possible once something is analysed, or will be. With 다 끝나면 GPU 끄기 nobody may be there to pick, so a
@@ -3424,9 +3449,10 @@ function batchAnalyse(tell) {   // true once the main line is analysed at `level
   if (!turns.length) return Promise.resolve(true);
   return new Promise(resolve => {
     batchQ = "b" + (++qn); workAt = performance.now();
-    queries.set(batchQ, {line, todo: turns.length, done: 0, batch: ok => { batchQ = null; resolve(ok); }, tell});
+    const lq = levelQuery(turns.length);
+    queries.set(batchQ, {line, todo: turns.length, done: 0, inst: lq.inst, batch: ok => { batchQ = null; resolve(ok); }, tell});
     tell("progress", {done: 0, todo: turns.length});
-    if (!send({...baseQuery(), includeOwnership: false, id: batchQ, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, maxVisits: levelVisits()})) batchEnd(false);
+    if (!send({...baseQuery(), includeOwnership: false, id: batchQ, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, ...lq.query})) batchEnd(false);
   });
 }
 function batchEnd(ok) {   // the running game's query is over (ok = every turn came back)
@@ -3471,7 +3497,7 @@ function batchSpec(saved, name, notes) {
   line.forEach((n, i) => { if (!marks.has(n) && n.analysis && n.analysis.rootInfo) have[i] = packAnalysis(n.analysis); });
   const texts = line.map(n => toSgf(false, n));   // the record up to each position; a move's own text is the difference
   const spec = {
-    query: {...baseQuery(), includeOwnership: false, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, maxVisits: levelVisits()},
+    query: {...baseQuery(), includeOwnership: false, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, ...levelQuery(turns.length).query},
     template: toSgf(true, null, marks),
     meta: {title: batchTitle(saved, name), black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60),
            game_date: cut(root.info.DT, 40), moves: line.length - 1, size: N, analyzedBase},
@@ -3565,7 +3591,7 @@ if (batchMode) addEventListener("message", ev => {
   if (ev.data.batch === "cancel") { batchStop = true; batchEnd(false); }
 });
 // A long 자동분석 / 대국 리포트 / 여러 기보 분석 is one request: without another one the GPU's guard would count it as idle
-// (10 minutes) and delete the GPU mid-way (초정밀: a game takes ~20 minutes). While one runs, ask something cheap now and then.
+// (10 minutes) and delete the GPU mid-way (정밀 on a long game takes minutes). While one runs, ask something cheap now and then.
 // Only while it really goes on (user 2026-11-05: a free GPU stayed on 5 hours with nobody there): a result for it came in the
 // last 5 minutes (a search that stopped answering does not keep the GPU), and this screen has not been hidden for 30 minutes
 // (a tab left behind). Otherwise the guard's 10 minutes run as usual.
@@ -5074,14 +5100,15 @@ function openStrength(again = false) {
   if (!turns.length) return renderStrength();
   strengthId = "s" + (++qn); workAt = performance.now();
   if (again) for (const i of turns) line[i].aid = strengthId;   // 다시 분석: the new results replace the old ones
-  const q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now()};
+  const lq = levelQuery(turns.length), q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now(), inst: lq.inst};
   queries.set(strengthId, q);
   if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
-             analyzeTurns: turns, maxVisits: levelVisits()})) {
+             analyzeTurns: turns, ...lq.query})) {
     queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
   }
   $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true;
-  strengthMsg(`주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
+  strengthMsg(level === "instant" ? `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (즉시 · 한 판 약 ${INSTANT_S}초) · 창을 닫아도 계속 분석합니다`
+                                 : `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
 }
 function strengthStep(q) {
   if (q.line[0] !== root) { stopStrength(); strengthMsg("다른 기보를 열어 분석을 멈췄습니다. 다시 누르면 지금 기보로 분석합니다."); return; }
@@ -5090,6 +5117,7 @@ function strengthStep(q) {
   strengthMsg(`주 변화 ${q.line.length - 1}수를 분석하는 중… ${q.done}/${q.todo}` + (left !== null ? ` · 약 ${left}초 남음` : "") + " · 창을 닫아도 계속 분석합니다");
   strengthButton(q);
   if (q.done >= q.todo) {
+    instantLearn(q.inst);
     queries.delete(strengthId); strengthId = null; strengthButton(); renderStrength();
     if (!$("strengthDlg").open) $("err").textContent = STRENGTH_DONE;
     finishCheck(true);

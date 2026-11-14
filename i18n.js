@@ -46,7 +46,7 @@
   if (lang === "ko") return;
 
   // dictionaries, before the page's own scripts run
-  const v = "20261113f";
+  const v = "20261114a";
   document.write(`<script src="${base}i18n/${lang}.js?v=${v}"><\/script>`);
   if (me && me.hasAttribute("data-names")) document.write(`<script src="${base}i18n/names-${lang}.js?v=${v}"><\/script>`);
   if (me && me.hasAttribute("data-guide")) document.write(`<script src="${base}i18n/guide-${lang}.js?v=${v}"><\/script>`);
