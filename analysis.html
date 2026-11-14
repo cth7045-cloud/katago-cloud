@@ -1095,7 +1095,7 @@ button.primary:hover { background: var(--blue-deep); }
 
 <div class="level-pop" id="levelPop" role="menu" hidden>
   <p id="levelPopTitle"></p>
-  <button data-l="instant" role="menuitem"><b>즉시</b><span>한 판 약 5초</span></button>
+  <button data-l="instant" role="menuitem"><b>즉시</b></button>
   <button data-l="fast" role="menuitem"><b>빠름</b><span>한 수 250 visits</span></button>
   <button data-l="normal" role="menuitem"><b>보통</b><span>한 수 500 visits</span></button>
   <button data-l="precise" role="menuitem"><b>정밀</b><span>한 수 1000 visits</span></button>
@@ -3259,7 +3259,7 @@ function saveDoChanged() {
     : running ? (box0.checked ? `지금 ${running} 중입니다${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}. 끝난 뒤 저장합니다. 끄면 지금까지 분석된 그대로 바로 저장합니다.`
                               : `지금 ${running} 중입니다. 켜면 끝난 뒤 저장합니다.`)
     : !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
-    : todo ? (level === "instant" ? `${todo}수를 즉시(한 판 약 ${INSTANT_S}초) 분석한 뒤 저장합니다. 이미 분석된 수는 건너뜁니다.`
+    : todo ? (level === "instant" ? `${todo}수를 즉시 분석한 뒤 저장합니다. 이미 분석된 수는 건너뜁니다.`
                                   : `${todo}수를 한 수 ${levelVisits()} visits로 분석한 뒤 저장합니다. 이미 이 세기로 분석된 수는 건너뜁니다.`)
     : "이 세기로 이미 모두 분석돼 있어 바로 저장합니다.";
   const auto = autoFirst(), wait = auto || ((stop || waitRunning()) && analysisRunning());
@@ -5107,7 +5107,7 @@ function openStrength(again = false) {
     queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
   }
   $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true;
-  strengthMsg(level === "instant" ? `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (즉시 · 한 판 약 ${INSTANT_S}초) · 창을 닫아도 계속 분석합니다`
+  strengthMsg(level === "instant" ? `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (즉시) · 창을 닫아도 계속 분석합니다`
                                  : `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
 }
 function strengthStep(q) {
