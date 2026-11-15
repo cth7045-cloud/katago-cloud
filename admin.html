@@ -612,8 +612,8 @@ async function load() {
       sb.rpc("admin_speed").then(({ data, error }) => (error ? null : data ?? [])),
       // each rental's model (admin_session_models, 2026-09-29): the overview does not send it; an error only hides it
       sb.rpc("admin_session_models").then(({ data, error }) => (error ? [] : data ?? [])),
-      // 나라별 연결 지연 (admin_ping, 2026-10-24); an error here only empties that table
-      sb.rpc("admin_ping").then(({ data, error }) => (error ? null : data ?? []))]);
+      // 나라별 연결 지연 (admin_ping_v2 = admin_ping + min_ms, 2026-11-15; first 2026-10-24); an error here only empties that table
+      sb.rpc("admin_ping_v2").then(({ data, error }) => (error ? null : data ?? []))]);
     const models = Object.fromEntries(sessModels.map((r) => [r.id, r]));
     emails = Object.fromEntries(d.members.map((m) => [m.id, m.email]));
     formers = Object.fromEntries(d.former.map((f) => [f.id, f.email]));
