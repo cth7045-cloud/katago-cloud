@@ -294,7 +294,7 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
     <div class="panel">
       <h2>나라별 연결 지연</h2>
       <div class="table-wrap"><table>
-        <thead><tr><th>GPU 나라</th><th class="num" title="모든 핑의 평균 — 회원 와이파이·기기 상태 포함">평균</th><th class="num" title="대여별 평균의 중앙값">중앙값</th><th class="num" title="대여별 가장 빠른 핑의 중앙값 — 그 나라까지의 거리">가장 빠름</th><th class="num">500ms 넘음</th><th class="num" title="측정한 대여 수 · 핑 수">대여·핑</th><th>마지막 측정</th></tr></thead>
+        <thead><tr><th>GPU 나라</th><th class="num" title="모든 핑의 평균 — 회원 와이파이·기기 상태 포함">평균</th><th class="num" title="대여별 평균의 중앙값">중앙값</th><th class="num" title="대여마다 가장 빠른 핑을 하나씩 뽑아 그 가운데 값 — 회원 대부분이 그 나라까지 내는 속도">대여별 최저 (중간값)</th><th class="num" title="모든 핑 중 가장 빠른 값 — 좋은 회선이면 이만큼 나옴">전체 최저</th><th class="num">500ms 넘음</th><th class="num" title="측정한 대여 수 · 핑 수">대여·핑</th><th>마지막 측정</th></tr></thead>
         <tbody id="pingRows"></tbody>
       </table></div>
     </div>
@@ -753,12 +753,13 @@ const COUNTRY = { KR: "한국", JP: "일본", TW: "대만", HK: "홍콩", VN: "�
   ID: "인도네시아", PH: "필리핀", CN: "중국", IN: "인도", AU: "호주", US: "미국" };
 const countryName = (geo) => COUNTRY[/, ([A-Z]{2})$/.exec(geo || "")?.[1]] || geo || "?";
 function showPing(rows) {
-  if (rows == null) { $("pingRows").innerHTML = `<tr><td colspan="7" class="muted">지연 기록을 불러오지 못했습니다.</td></tr>`; return; }
+  if (rows == null) { $("pingRows").innerHTML = `<tr><td colspan="8" class="muted">지연 기록을 불러오지 못했습니다.</td></tr>`; return; }
   const list = [...rows].sort((a, b) => (/, KR$/.test(b.geolocation) - /, KR$/.test(a.geolocation)) || Number(a.best_ms) - Number(b.best_ms));
   $("pingRows").innerHTML = list.map((r) => `<tr><td>${esc(countryName(r.geolocation))}</td><td class="num"><b>${Number(r.avg_ms).toLocaleString()} ms</b></td>` +
     `<td class="num">${Number(r.median_ms).toLocaleString()} ms</td><td class="num">${Number(r.best_ms).toLocaleString()} ms</td>` +
+    `<td class="num">${r.min_ms == null ? "–" : `${Number(r.min_ms).toLocaleString()} ms`}</td>` +
     `<td class="num">${Number(r.slow_pct)}%</td><td class="num">${r.sessions} · ${Number(r.samples).toLocaleString()}</td><td>${when(r.last_at)}</td></tr>`).join("")
-    || `<tr><td colspan="7" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석 화면을 열면 1분마다 쌓입니다.</td></tr>`;
+    || `<tr><td colspan="8" class="muted">아직 기록이 없습니다. 회원이 GPU로 분석 화면을 열면 1분마다 쌓입니다.</td></tr>`;
 }
 
 // ------------------------------------------------------------------ GPU별 탐색 스레드 (user request 2026-10-17)
