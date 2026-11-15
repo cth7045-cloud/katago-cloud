@@ -582,17 +582,6 @@ button.primary:hover { background: var(--blue-deep); }
 .xp-players button.on { background: var(--ink); color: var(--panel); }
 .xp-msg { padding: 14px 4px; font-size: 13px; color: var(--muted); }
 .rb-head { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-/* 수순 설명 (AI 과외, user 2026-11-15 "온라인 과외 받는 거처럼 ai가 바둑판에 수순을 놓아보면서 설명"): in the report box, in place of its chart */
-#rbLesson { flex: none; min-height: 28px; padding: 0 12px; font-size: 13px; font-weight: 600; }
-#rbLesson[hidden], #lessonBox { display: none; }
-.lesson-on #rbChart { display: none; }
-.lesson-on #lessonBox { display: block; }
-#lsText { min-height: 46px; margin: 6px 2px 10px; font-size: 15px; line-height: 1.5; font-weight: 600; color: var(--ink); word-break: keep-all; overflow-wrap: anywhere; }
-.ls-bar { display: flex; align-items: center; gap: 6px; }
-.ls-bar button { flex: none; min-height: 32px; min-width: 40px; padding: 0 10px; font-size: 14px; }
-#lsStep { flex: 1; min-width: 0; text-align: center; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-#lsVoice.off { opacity: .5; text-decoration: line-through; }
-#lsVoice[hidden] { display: none; }
 .rb-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rb-head b { color: var(--ink); }
 #rbClose { flex: none; min-height: 28px; width: 32px; padding: 0; font-size: 18px; line-height: 1; }
@@ -1032,8 +1021,7 @@ button.primary:hover { background: var(--blue-deep); }
       </div>
     </div>
     <div id="treeBox"><canvas id="tree" aria-label="변화도"></canvas></div>
-    <div id="reportBox" aria-label="대국 리포트"><div class="rb-head"><span id="rbNow"></span><button type="button" id="rbLesson" hidden>수순 설명</button><button type="button" id="rbClose" aria-label="리포트 닫기">×</button></div><div class="rb-chart" id="rbChart"></div>
-      <div id="lessonBox"><div id="lsText" aria-live="polite"></div><div class="ls-bar"><button type="button" id="lsPrev" aria-label="이전">‹</button><button type="button" id="lsPlay" aria-label="멈춤">❚❚</button><button type="button" id="lsNext" aria-label="다음">›</button><span id="lsStep"></span><button type="button" id="lsVoice">음성</button><button type="button" id="lsStop">닫기</button></div></div></div>
+    <div id="reportBox" aria-label="대국 리포트"><div class="rb-head"><span id="rbNow"></span><button type="button" id="rbClose" aria-label="리포트 닫기">×</button></div><div class="rb-chart" id="rbChart"></div></div>
     <div class="table-box">
       <table>
         <thead><tr><th>순서</th><th>승률</th><th>비짓</th><th>비중</th><th>리드</th></tr></thead>
@@ -1185,7 +1173,6 @@ function lineThrough(node) { const p = pathTo(node); let n = node; while (n.chil
 function movesOf(node) { return pathTo(node).slice(1).map(n => [n.move.c, n.move.pass ? "pass" : gtp(n.move.x, n.move.y)]); }
 
 let root = makeRoot(), cur = root;
-let lesson = null;   // 수순 설명 while it runs: {n, base, steps: [{pv, k, text, extra, marks, ok}], k, auto, voice, due, spoken, timer, own}
 let scoring = null;   // 계가 on screen: {node, own, dead: Set of points, id, waiting} (see the 계가 section)
 
 // ------------------------------------------------------------------ engine connection
@@ -1637,7 +1624,6 @@ function onMessage(msg) {
   }
   if (msg.id === "ver" && msg.version) { engineVersion = msg.version; updateEngineName(); return; }
   if (msg.error && msg.id && msg.id === batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); q.tell("error", {text: "엔진 오류: " + msg.error}); q.batch(null); return; }
-  if (msg.id && queries.get(msg.id)?.lesson) { const v = queries.get(msg.id); if (msg.error || !msg.isDuringSearch) { queries.delete(msg.id); v.lesson(msg.error ? null : msg); } return; }   // 수순 설명's ownership
   if (msg.id && queries.get(msg.id)?.verify) { const v = queries.get(msg.id); if (msg.error || !msg.isDuringSearch) { queries.delete(msg.id); v.verify(msg.error ? null : msg); } return; }   // 정답 순서 확인
   if (msg.error) { if (!msg.id || queries.has(msg.id)) $("err").textContent = "엔진 오류: " + msg.error; queryFailed(msg.id); return; }
   const q = queries.get(msg.id);
@@ -1839,7 +1825,6 @@ const komiText = (k = komi()) => k < 0 ? `역덤 ${-k}` : `덤 ${k}`;
 // ------------------------------------------------------------------ navigation / actions
 function goTo(node) {
   if (!node) return;
-  if (lesson && node !== lesson.base) stopLesson();   // moving away ends 수순 설명
   if (scoring && node !== scoring.node) closeScoring();
   if (SKIN.sound !== "off" && node.parent === cur && node.move && !node.move.pass && !applyingRemote) {   // 돌 소리: one move forward (a stone put down, ▶, the AI's move); not jumps
     let a = 0, b = 0; for (let i = 0; i < node.grid.length; i++) { if (cur.grid[i]) a++; if (node.grid[i]) b++; }
@@ -1852,7 +1837,6 @@ function goTo(node) {
   schedule();
 }
 function step(k) {
-  if (lesson) { lessonMove(k > 0 ? 1 : -1); return; }   // 수순 설명: ◀ ▶ and the arrow keys go through its steps
   if (k === 1 && xp && !cur.children.length && !quiz && !game) { xpStepTop(); return; }   // 수순 탐색: past the moves on the board, the most played one
   let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n);
 }
@@ -5202,7 +5186,7 @@ function openReport() {
 }
 function closeReport() {
   if (!report) return;
-  stopLesson(); report = null; document.body.classList.remove("report-open"); layout();
+  report = null; document.body.classList.remove("report-open"); layout();
 }
 function reportGo(g, side, fromStart = false) {   // the next move of grade g (side "B"/"W", or either when none)
   const ms = reportMoves().filter(m => m.grade === g && (!side || m.side === side));
@@ -5240,240 +5224,6 @@ $("strengthCancel").onclick = () => {   // the moves analysed so far keep their 
   else strengthMsg("분석을 취소했습니다. '대국 리포트'를 다시 누르면 남은 수를 이어서 분석합니다.");
 };
 $("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strengthDlg")) $("strengthDlg").close(); });   // backdrop
-
-// ------------------------------------------------------------------ 수순 설명 (AI 과외)
-// user 2026-11-15 "실제로 온라인 과외 받는 거처럼 ai가 바둑판에 수순을 놓아보면서 설명해주는 기능": from the 대국 리포트, the move
-// on the board is taught step by step — the position before it; the move played and how the opponent answers it (KataGo's line
-// after the move); then KataGo's first choice and its line. Each stone gets a caption from its shape (붙임·젖힘·단수 …, worked
-// out from the stones around it, nothing when unsure), each line's end the score and win rate; with the GPU connected a quick
-// ownership search at the start and both ends tells which stones the move puts in danger (red rings) and whether the better line
-// keeps them (green). Captions are short pieces joined by " · " so the site's translator can put each piece in the chosen
-// language; the voice (the browser's own speech) reads the translated caption without the coordinates.
-// (lesson itself is declared with root and cur: goTo and drawMain look at it from the start)
-const LESSON_LINE = 8, LESSON_STONE_MS = 1700, LESSON_TEXT_MS = 3400, LESSON_VISITS = 120;
-const lessonSide = c => c === "B" ? "흑" : "백";
-function lessonOk(n) {
-  return !!(n && n.move && !n.move.pass && n.parent && moveGrade(n) && candidates(n.parent)[0]);
-}
-function lessonRegion(stones) {   // where a set of points is: 좌상귀 … 중앙 (by their middle)
-  const cx = stones.reduce((a, i) => a + i % N, 0) / stones.length, cy = stones.reduce((a, i) => a + ((i / N) | 0), 0) / stones.length;
-  const third = (v) => v < (N - 1) / 3 ? 0 : v > (N - 1) * 2 / 3 ? 2 : 1, h = third(cx), v = third(cy);
-  if (h !== 1 && v !== 1) return (v ? "하" : "상") === "상" ? (h ? "우상귀" : "좌상귀") : (h ? "우하귀" : "좌하귀");
-  if (h === 1 && v === 1) return "중앙";
-  return h === 1 ? (v ? "하변" : "상변") : (h ? "우변" : "좌변");
-}
-// The words for a stone put at xy by color on grid (ko point ko): what it takes, cuts, joins, ataris, touches; with nothing
-// around it, the jump it makes from its own stones or, in an empty corner, the point's name. [] when nothing sure.
-function lessonShape(grid, ko, color, xy) {
-  const r = placeOn(grid, ko, color, xy[0], xy[1]); if (!r) return null;
-  const me = color === "B" ? 1 : 2, op = 3 - me, i = idx(xy[0], xy[1]), [x, y] = xy;
-  const at = (a, b) => a < 0 || b < 0 || a >= N || b >= N ? -1 : grid[idx(a, b)];
-  const gid = j => Math.min(...groupAt(grid, j).stones);
-  const oppG = new Set(), ownG = new Set();
-  for (const j of neighbors(i)) { if (grid[j] === op) oppG.add(gid(j)); else if (grid[j] === me) ownG.add(gid(j)); }
-  const words = [];
-  if (r.captured.length) words.push(r.ko >= 0 ? "패" : `${r.captured.length}점 따냄`);
-  else {
-    if (oppG.size >= 2) words.push("끊음");
-    if (ownG.size >= 2) words.push("이음");
-  }
-  if (neighbors(i).some(j => r.grid[j] === op && groupAt(r.grid, j).libs === 1)) words.push("단수");
-  const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
-  if (!words.length && oppG.size) {
-    if (!ownG.size) words.push("붙임");
-    else if (DIAG.some(([dx, dy]) => at(x + dx, y + dy) === me && (at(x + dx, y) === op || at(x, y + dy) === op))) words.push("젖힘");
-  }
-  if (!words.length && !oppG.size && ownG.size === 1) {
-    const g0 = [...ownG][0];
-    words.push(DIAG.some(([dx, dy]) => at(x + dx, y + dy) === me && gid(idx(x + dx, y + dy)) !== g0) ? "이음" : "뻗음");
-  }
-  if (!words.length && !oppG.size && !ownG.size) { const w = lessonFar(at, me, op, x, y); if (w) words.push(w); }
-  return {r, words};
-}
-function lessonFar(at, me, op, x, y) {
-  const sym = (a, b) => [[a, b], [-a, b], [a, -b], [-a, -b], [b, a], [-b, a], [b, -a], [-b, -a]];
-  const ex = Math.min(x, N - 1 - x) + 1, ey = Math.min(y, N - 1 - y) + 1, lo = Math.min(ex, ey), hi = Math.max(ex, ey);
-  let near = 0;
-  for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) if (at(x + dx, y + dy) > 0) near++;
-  if (N === 19) {
-    if (lo === 3 && hi === 3) {   // the 3-3 under an opponent's 4-4
-      const sx = x < N / 2 ? 1 : -1, sy = y < N / 2 ? 1 : -1;
-      if (at(x + sx, y + sy) === op) return "삼삼 침입";
-    }
-    if (!near) {
-      if (lo === 4 && hi === 4) return "화점";
-      if (lo === 3 && hi === 3) return "삼삼";
-      if (lo === 3 && hi === 4) return "소목";
-      if (lo === 3 && hi === 5) return "외목";
-      if (lo === 4 && hi === 5) return "고목";
-    }
-  }
-  const mine = ([dx, dy]) => at(x + dx, y + dy) === me;
-  const free = (a, b) => at(a, b) === 0;
-  if (sym(1, 1).some(([dx, dy]) => mine([dx, dy]) && free(x + dx, y) && free(x, y + dy))) return "마늘모";
-  if (sym(0, 2).some(([dx, dy]) => mine([dx, dy]) && free(x + dx / 2, y + dy / 2))) return "한칸뛰기";
-  if (sym(1, 2).some(mine)) return "날일자";
-  if (sym(0, 3).some(([dx, dy]) => mine([dx, dy]) && free(x + Math.sign(dx), y + Math.sign(dy)) && free(x + 2 * Math.sign(dx), y + 2 * Math.sign(dy)))) return "두칸뛰기";
-  if (sym(1, 3).some(mine)) return "눈목자";
-  // an approach to an opponent's corner stone, with none of one's own close by
-  const corner = (a, b) => Math.min(a, N - 1 - a) < 5 && Math.min(b, N - 1 - b) < 5;
-  let own3 = false; for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) if (at(x + dx, y + dy) === me) own3 = true;
-  if (N === 19 && !own3 && hi <= 6 && [...sym(1, 2), ...sym(0, 2), ...sym(1, 3), ...sym(0, 3)].some(([dx, dy]) => at(x + dx, y + dy) === op && corner(x + dx, y + dy))) return "걸침";
-  return "";
-}
-function lessonLine(base, pv) {   // the stones of pv played out from base, with their words (stops at a pass or an illegal move)
-  let grid = base.grid, ko = base.ko, color = base.toPlay; const out = [], seen = [];
-  for (const m of pv.slice(0, LESSON_LINE)) {
-    const xy = parseGtp(m); if (!xy) break;
-    // a teacher shows the fight where it is: the line ends where KataGo's sequence goes off to another part of the board
-    if (seen.length >= 2 && seen.every(([a, b]) => Math.max(Math.abs(a - xy[0]), Math.abs(b - xy[1])) > 4)) break;
-    seen.push(xy);
-    const s = lessonShape(grid, ko, color, xy); if (!s) break;
-    out.push({move: m, color, words: s.words}); grid = s.r.grid; ko = s.r.ko; color = other(color);
-  }
-  return out;
-}
-const lessonStone = (s, num, tag) => [`${lessonSide(s.color)} ${num}`, s.move, ...s.words, tag].filter(Boolean).join(" · ");
-const lessonLead = (side, lead) => `${side} ${Math.abs(lead).toFixed(1)}집 ${lead >= 0 ? "앞섬" : "뒤짐"}`;
-function buildLesson(n) {
-  if (!lessonOk(n)) return null;
-  const p = n.parent, g = moveGrade(n), loss = moveLoss(n), bp = candidates(p)[0], bn = candidates(n)[0];
-  const c = n.move.c, side = lessonSide(c), played = noteMove(n), label = GRADES.find(x => x[0] === g.grade)[1];
-  const wrBefore = Math.round(nodeStats(p).wr), wrAfter = Math.round(100 - nodeStats(n).wr);
-  const steps = [{pv: [], k: 0, text: [`${n.depth}수째`, `${side} ${played}`, label,
-    ...(g.grade === "ai" ? [] : [`약 ${Math.max(0, loss.points).toFixed(1)}집 손해`]), `승률 ${wrBefore}% → ${wrAfter}%`].join(" · ")}];
-  const lineA = [played, ...((bn && bn.pv) || [])], A = lessonLine(p, lineA);
-  A.forEach((s, j) => steps.push({pv: lineA, k: j + 1, text: lessonStone(s, j + 1, j ? "" : "실전")}));
-  const view = (lead, wr) => [c === "B" ? lead : -lead, (c === "B" ? wr : 1 - wr) * 100];
-  if (bn) { const [lead, wr] = view(bn.scoreLead, bn.winrate); steps.push({pv: lineA, k: A.length, end: "A", text: `이 수순이면 · ${lessonLead(side, lead)} · 승률 ${Math.round(wr)}%`}); }
-  let B = null;
-  if (bp.move !== played) {
-    const lineB = bp.pv && bp.pv.length ? bp.pv : [bp.move];
-    B = lessonLine(p, lineB);
-    steps.push({pv: [], k: 0, text: `더 나은 수 · ${side} ${bp.move} · KataGo 1순위`});
-    B.forEach((s, j) => steps.push({pv: lineB, k: j + 1, text: lessonStone(s, j + 1, "")}));
-    const [lead, wr] = view(bp.scoreLead, bp.winrate);
-    steps.push({pv: lineB, k: B.length, end: "B", text: `이 수순이면 · ${lessonLead(side, lead)} · 승률 ${Math.round(wr)}%`});
-  }
-  return {n, base: p, c, steps, lineA: lineA.slice(0, A.length), lineB: B ? (bp.pv && bp.pv.length ? bp.pv : [bp.move]).slice(0, B.length) : null};
-}
-// ownership (the mover's view) at the start and at both ends → the mover's stones the played line puts in danger
-function lessonAsk(L) {
-  const own = L.own = {};
-  const ask = (key, pv) => {
-    const id = "l" + (++qn);
-    queries.set(id, {lesson: msg => { if (lesson !== L || !msg || !msg.ownership) return; own[key] = msg.ownership; lessonDanger(L); }});
-    const moves = [...movesOf(L.base), ...pv.map((m, j) => [j % 2 ? other(L.base.toPlay) : L.base.toPlay, m])];
-    if (!send({...baseQuery(), id, includeOwnership: true, moves, maxVisits: LESSON_VISITS})) queries.delete(id);
-  };
-  ask("start", []); ask("A", L.lineA); if (L.lineB) ask("B", L.lineB);
-}
-function lessonDanger(L) {
-  const o = L.own; if (!o.start || !o.A || (L.lineB && !o.B)) return;
-  const me = L.c === "B" ? 1 : 2, sg = L.c === "B" ? 1 : -1, side = lessonSide(L.c);
-  const gA = pvBoard(L.base, L.lineA).grid, g0 = L.base.grid;
-  const danger = [];
-  for (let i = 0; i < N * N; i++) if (gA[i] === me && o.A[i] * sg < -0.4 && (g0[i] !== me || o.start[i] * sg > 0.2)) danger.push(i);
-  if (danger.length < 2) return;
-  const sA = L.steps.find(s => s.end === "A");
-  if (sA) { sA.extra = `${lessonRegion(danger)} · ${side} ${danger.length}점 위험`; sA.marks = danger; sA.ok = false; }
-  if (L.lineB) {
-    const gB = pvBoard(L.base, L.lineB).grid, safe = danger.filter(i => gB[i] === me && o.B[i] * sg > 0.2);
-    const sB = L.steps.find(s => s.end === "B");
-    if (sB && safe.length >= Math.max(2, danger.length / 2)) { sB.extra = `${lessonRegion(safe)} · ${side} ${safe.length}점 안전`; sB.marks = safe; sB.ok = true; }
-  }
-  if (lesson === L) { lessonText(); schedule(); }
-}
-function drawLessonMarks(ctx, G, st) {   // red rings on the stones in danger, green on the ones the better line keeps
-  if (!st.marks) return;
-  const {margin: m, sq, r} = G;
-  ctx.save(); ctx.strokeStyle = st.ok ? "rgb(31,157,85)" : "rgb(224,72,77)"; ctx.lineWidth = Math.max(2, r / 5);
-  for (const i of st.marks) { ctx.beginPath(); ctx.arc(m + sq * (i % N) + .5, m + sq * ((i / N) | 0) + .5, r + 2, 0, Math.PI * 2); ctx.stroke(); }
-  ctx.restore();
-}
-function lessonVoicePref() { try { return localStorage.getItem("kgv.lessonVoice") !== "0"; } catch { return true; } }
-function startLesson(n = cur) {
-  const L = buildLesson(n);
-  if (!L) return;
-  stopLesson();
-  goTo(L.base);
-  lesson = Object.assign(L, {k: 0, auto: true, voice: lessonVoicePref() && "speechSynthesis" in window});
-  document.body.classList.add("lesson-on");
-  $("lsVoice").hidden = !("speechSynthesis" in window);
-  lessonAsk(L);
-  lesson.timer = setInterval(lessonTick, 200);
-  lessonShow();
-}
-function stopLesson() {
-  if (!lesson) return;
-  clearInterval(lesson.timer);
-  if ("speechSynthesis" in window) speechSynthesis.cancel();
-  lesson = null; document.body.classList.remove("lesson-on"); schedule();
-}
-function lessonText() {
-  const st = lesson.steps[lesson.k];
-  $("lsText").textContent = st.text + (st.extra ? " · " + st.extra : "");
-}
-function lessonButtons() {
-  const last = lesson.steps.length - 1;
-  $("lsStep").textContent = `${lesson.k + 1}/${lesson.steps.length}`;
-  $("lsPrev").disabled = lesson.k === 0; $("lsNext").disabled = lesson.k === last;
-  $("lsPlay").textContent = lesson.auto ? "❚❚" : "▶"; $("lsPlay").setAttribute("aria-label", lesson.auto ? "멈춤" : "자동 재생");
-  $("lsVoice").classList.toggle("off", !lesson.voice);
-}
-function lessonShow() {
-  const st = lesson.steps[lesson.k];
-  if (lesson.k === lesson.steps.length - 1) lesson.auto = false;
-  lessonText(); lessonButtons();
-  lesson.due = performance.now() + (st.k && !st.end ? LESSON_STONE_MS : LESSON_TEXT_MS);
-  lesson.spoken = !lesson.voice;
-  if (st.k && !st.end && SKIN.sound !== "off") stoneSound(0);
-  schedule();
-  lessonSpeak();
-}
-function lessonSpeak() {
-  if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  if (!lesson.voice) return;
-  const L = lesson, k = L.k;
-  setTimeout(() => {   // after the page's translator has put the caption in the chosen language
-    if (lesson !== L || L.k !== k) return;
-    const t = $("lsText").textContent.replace(/\b[A-HJ-T](1[0-9]|[1-9])\b/g, "").replace(/\s*[·→]\s*/g, ", ").replace(/(,\s*)+/g, ", ").replace(/^[\s,]+|[\s,]+$/g, "");
-    const u = new SpeechSynthesisUtterance(t);
-    u.lang = (window.kgvLang && kgvLang.locale) || "ko-KR"; u.rate = 1.05;
-    u.onend = u.onerror = () => { if (lesson === L && L.k === k) L.spoken = true; };
-    try { speechSynthesis.speak(u); } catch { L.spoken = true; }   // no voice: the steps go on by time
-  }, 80);
-}
-function lessonTick() {
-  if (!lesson || !lesson.auto) return;
-  const now = performance.now();
-  if (now >= lesson.due && (lesson.spoken || now > lesson.due + 8000)) lessonMove(1);
-}
-function lessonMove(d) {
-  if (!lesson) return;
-  const k = Math.max(0, Math.min(lesson.steps.length - 1, lesson.k + d));
-  if (k === lesson.k) return;
-  lesson.k = k; lessonShow();
-}
-$("rbLesson").onclick = () => startLesson(cur);
-$("lsPrev").onclick = () => { if (lesson) { lesson.auto = false; lessonMove(-1); } };
-$("lsNext").onclick = () => { if (lesson) { lesson.auto = false; lessonMove(1); } };
-$("lsPlay").onclick = () => {
-  if (!lesson) return;
-  if (!lesson.auto && lesson.k === lesson.steps.length - 1) { lesson.k = 0; lesson.auto = true; lessonShow(); return; }   // from the end: again from the start
-  lesson.auto = !lesson.auto;
-  if (lesson.auto) lesson.due = Math.min(lesson.due, performance.now() + 600);   // going on: the next step soon (after the voice)
-  lessonButtons();
-};
-$("lsVoice").onclick = () => {
-  if (!lesson) return;
-  lesson.voice = !lesson.voice;
-  try { localStorage.setItem("kgv.lessonVoice", lesson.voice ? "1" : "0"); } catch { /* storage blocked */ }
-  $("lsVoice").classList.toggle("off", !lesson.voice);
-  if (lesson.voice) lessonSpeak(); else { speechSynthesis.cancel(); lesson.spoken = true; }
-};
-$("lsStop").onclick = () => { const n = lesson && lesson.n; stopLesson(); if (n) goTo(n); };
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
 function candidates(node, shown = false) {
@@ -5924,13 +5674,12 @@ function drawMain() {
   if (!boardCtx) return;
   boardCtx.setTransform(1, 0, 0, 1, -(boardG.ox || 0), -(boardG.oy || 0));
   boardCtx.clearRect(0, 0, boardG.size, boardG.size);
-  const sc = scoring && scoring.node === cur, ls = lesson && lesson.base === cur ? lesson.steps[lesson.k] : null;
-  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc && !ls,
-    branch: ls ? (ls.k ? ls.pv.slice(0, ls.k) : null) : hover && !sc ? hover.pv : null, hover: ls ? null : hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free || quiz.edit) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free || quiz.edit)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
+  const sc = scoring && scoring.node === cur;
+  renderBoard(boardCtx, boardG, cur, {coords: $("coords").classList.contains("on"), candidates: candsShown() && !sc,
+    branch: hover && !sc ? hover.pv : null, hover: hover && !sc ? hover.xy : null, numbers: quiz && (quiz.reveal || quiz.free || quiz.edit) ? "all" : $("nums").dataset.mode || "", noLast: !!(quiz && (quiz.reveal || quiz.free || quiz.edit)),   // 정답 보기·놓아보기 = move numbers (user 2026-10-23)
     noOrder: !!(xp && !quiz && !sc && xp.data && xp.data.next && xp.dataNode === cur),
-    ownership: $("showOwner").checked && !$("hideEval").checked && !sc && !ls});
-  if (ls) drawLessonMarks(boardCtx, boardG, ls);
-  else if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else if (!quiz.free) drawBankMarks(boardCtx, boardG); }
+    ownership: $("showOwner").checked && !$("hideEval").checked && !sc});
+  if (quiz && quiz.bank) { if (quiz.edit) drawBankEdit(boardCtx, boardG); else if (!quiz.free) drawBankMarks(boardCtx, boardG); }
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
   else if (xp && !quiz && !sc) drawXpMarks(boardCtx, boardG);
   if (!hover && !sc && cur.labels && cur.labels.length) drawSgfLabels(boardCtx, boardG, cur);
@@ -6590,9 +6339,7 @@ function schedule() {
 }
 function render() {
   if (boardG && boardG.n !== N) { layout(); return; }   // the board size changed: its lines and margins are laid out anew
-  if (touchCursor) hover = hoverFor(touchCursor);
-  if (report) $("rbLesson").hidden = !!lesson || !lessonOk(cur);
-  drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
+  if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
 // Re-lay out only when the window (or a bar's height, now that the bars wrap) really changes;
 // text/table updates must not clear the canvases.
 let lastSize = "";
