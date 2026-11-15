@@ -489,7 +489,7 @@ body.quiz .menubar > :not(.brand):not(.spacer):not(#vps):not(#connStatus):not(#g
 .gd-row > span { color: var(--muted); font-size: 13px; font-weight: 600; }
 .gd-row select, .gd-row input[type=number], .gd-row input[type=text] { width: 100%; }
 .gd-resign label.check { color: var(--ink); }
-.gd-checks { display: flex; gap: 16px; }
+.gd-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .gd-checks label.check { color: var(--ink); }
 .gd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .gd-pair-komi { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
@@ -938,7 +938,7 @@ button.primary:hover { background: var(--blue-deep); }
     <div class="gd-row"><span>초반 무작위</span><select id="gdRandom"><option value="0">없음 (항상 최선수)</option><option value="10">10수까지 상위 후보 중 무작위</option><option value="20">20수까지 상위 후보 중 무작위</option><option value="40">40수까지 상위 후보 중 무작위</option></select></div>
     <div class="gd-row"><span>시간</span><select id="gdTime" aria-label="대국 시간"><option value="">없음</option><option value="300/30/3">5분 + 초읽기 30초 3회</option><option value="600/30/3">10분 + 초읽기 30초 3회</option><option value="1200/30/3">20분 + 초읽기 30초 3회</option><option value="1800/40/3">30분 + 초읽기 40초 3회</option><option value="0/30/3">초읽기만 30초 3회</option><option value="0/60/3">초읽기만 1분 3회</option><option value="600/0/0">10분 (초읽기 없음)</option></select></div>
     <div class="gd-row"><span>AI 기권</span><div class="gd-resign"><label class="check"><input type="checkbox" id="gdResign" checked> 사용</label></div></div>
-    <div class="gd-row"><span>AI분석 보기</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label></div></div>
+    <div class="gd-row"><span>AI분석 보기</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label><label class="check"><input type="checkbox" id="gdShowWr"> 승률만</label></div></div>
     <p class="gd-note" id="gdNote"></p>
     <div class="gd-actions"><button id="gdCancel">취소</button><button id="gdGo" class="primary">대국 시작</button></div>
   </div>
@@ -2106,11 +2106,13 @@ $("gameResign").onclick = () => {
 };
 function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
 const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]) && !(quiz && !quiz.shown) && !$("hideEval").checked;
-// AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment).
+// AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment) — unless 승률만
+// (show.wr, user 2026-11-15 "승률그래프만 볼 수 있게"): the win rate bar, graph and comment, but never a candidate (board,
+// table, PV, or the move names on the 생각 graph).
 // With one colour on, only the board / table candidates follow the turn, as before. The same for a 오답노트 problem until it is answered.
 // 승률 가리기 (user request 2026-10-03): the member looks back over a game without the evaluation, the same way; the
 // analysis stays in the record (and is still saved), only the screen leaves it out until the box is unticked.
-const analysisHidden = () => $("hideEval").checked || (!!game && game.root === root && !game.show.B && !game.show.W) || (!!quiz && !quiz.shown);
+const analysisHidden = () => $("hideEval").checked || (!!game && game.root === root && !game.show.B && !game.show.W && !game.show.wr) || (!!quiz && !quiz.shown);
 const hiddenWhy = () => $("hideEval").checked ? "승률 가리기 중 · 체크를 풀면 보입니다" : quiz ? (quiz.bank ? "문제 풀기 중" : "오답노트 · 답을 고르면 분석이 보입니다") : "AI 대국 중 · 분석 숨김";
 setInterval(() => {
   if (!game || scoring) return;   // 계가 on screen: the AI waits (and the clocks stop)
@@ -2170,7 +2172,7 @@ $("gdSize").onchange = () => {
 function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
 function saveGameForm() {
   const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
-             resign: $("gdResign").checked, time: $("gdTime").value};
+             resign: $("gdResign").checked, time: $("gdTime").value, showWr: $("gdShowWr").checked};
   try { localStorage.setItem(GAME_FORM, JSON.stringify(f)); } catch { /* storage blocked */ }
 }
 function loadGameForm() {
@@ -2182,6 +2184,7 @@ function loadGameForm() {
   $("gdRandom").value = f.random; $("gdTime").value = f.time || "";
   $("gdResign").checked = Array.isArray(f.resign) ? !!f.resign[0] : f.resign !== false;   // older saves kept [on, move, count, wr]
   $("gdShowB").checked = $("gdShowW").checked = f.kind === "ai";
+  $("gdShowWr").checked = !!f.showWr;
 }
 $("newGame").onclick = () => {
   if (game) { if (confirm("AI 대국을 멈출까요? (지금까지 둔 수는 남습니다)")) stopGame("대국을 멈췄습니다."); return; }
@@ -2206,7 +2209,7 @@ $("gdGo").onclick = () => {
                  DT: new Date().toISOString().slice(0, 10)};
     goTo(root);
   }
-  game = {kind, root, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked}, random: +$("gdRandom").value,
+  game = {kind, root, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked, wr: $("gdShowWr").checked}, random: +$("gdRandom").value,
           resign: $("gdResign").checked, low: {B: 0, W: 0}, clock: makeClock($("gdTime").value)};
   saveGameForm(); $("gameDlg").close();
   if (!analyzing) setAnalyzing(true);
@@ -6027,7 +6030,7 @@ function drawThink() {
   // of the 흐름·생각 switch above it)
   g.strokeStyle = TH.grid; g.lineWidth = 1; g.font = `600 11px ${UI_FONT}`; g.fillStyle = TH.ink;
   let lastLabel = -1e9;
-  for (let j = 0; j < t.length; j++) {
+  for (let j = 0; j < t.length && (!game || candsShown()); j++) {   // AI대국 승률만: no move names (they would be hints)
     if (j && t[j].top === t[j - 1].top) continue;
     const x = X(t[j].v) + .5;
     if (j) { g.beginPath(); g.moveTo(x, posy); g.lineTo(x, posy + height); g.stroke(); }
