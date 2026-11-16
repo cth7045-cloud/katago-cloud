@@ -301,6 +301,7 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody #gameResign { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 21V4'/><path d='M5 4h12l-2 4 2 4H5'/></svg>"); }
 #menuBody #pass { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h12M12 7l5 5-5 5M20 5v14'/></svg>"); }
 #menuBody #autoAnalyze { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 20h18M6 17v-5M11 17V7M16 17v-8'/></svg>"); }
+#menuBody #reviewOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 3h9l4 4v14H6z'/><path d='M15 3v4h4M9 12h7M9 16h5'/></svg>"); }
 #menuBody #strengthOpen { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='9' r='6'/><path d='M8.5 14 7 22l5-3 5 3-1.5-8'/></svg>"); }
 #menuBody #ownerLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 3v18'/></svg>"); }
 #menuBody #candsLabel { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='3'/></svg>"); }
@@ -926,6 +927,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="newGame">AI대국</button>
   <button id="strengthOpen">대국 리포트</button>
   <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
+  <button id="reviewOpen" title="실수·악수마다 AI 참고도를 붙인 문서">복기 리포트</button>
   <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
   <span class="spacer"></span>
   <span class="status" id="vps"></span>
@@ -1093,7 +1095,6 @@ button.primary:hover { background: var(--blue-deep); }
     <h2>대국 리포트</h2>
     <span class="spacer"></span>
     <button id="strengthCancel" hidden title="분석을 멈춥니다. 이미 분석된 수의 결과는 남습니다.">분석 취소</button>
-    <button id="reviewOpen" disabled title="실수·악수마다 AI 참고도를 붙인 문서">복기 리포트</button>
     <button id="strengthRedo" disabled title="지금 세기로 모든 수를 다시 분석합니다">다시 분석</button>
     <button id="strengthClose">닫기</button>
   </div>
@@ -5189,7 +5190,7 @@ if (xp) {
 // after the move): AI의 수 = the AI's first choice; 좋은 수 = within GOOD_POINTS/GOOD_WR (what counts as right when
 // solving a problem); 실수 / 악수 = 오답노트's 'normal' / 'big' levels; 평범 = in between. No rank: a single game
 // says little about it, and the rank model ran past 9 dan.
-let strengthId = null;
+let strengthId = null, reviewAfter = false;   // reviewAfter: 복기 리포트 waits for this analysis
 function strengthMsg(text, bad = false) { $("strengthMsg").textContent = text; $("strengthMsg").classList.toggle("bad", bad); }
 const GRADES = [["ai", "AI의 수", "#16a3dc"], ["good", "좋은 수", "#1f9d55"], ["inacc", "평범", "#e3a008"], ["mistake", "실수", "#f07a2a"], ["blunder", "악수", "#e0484d"]];
 function moveGrade(n) {   // {grade, points} for an analysed move, or null
@@ -5201,7 +5202,7 @@ function moveGrade(n) {   // {grade, points} for an analysed move, or null
   return {grade, points};
 }
 function stopStrength() {
-  const was = strengthId;
+  const was = strengthId; reviewAfter = false;
   if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
   queries.delete(strengthId); strengthId = null; strengthButton();
   if (was) finishCheck(false);
@@ -5209,6 +5210,7 @@ function stopStrength() {
 // The estimate keeps running with its window closed; the button shows how far it is.
 function strengthButton(q) {
   $("strengthOpen").textContent = q ? `대국 리포트 ${q.done}/${q.todo}` : "대국 리포트"; $("strengthOpen").classList.toggle("on", !!q);
+  $("reviewOpen").textContent = q && reviewAfter ? `복기 리포트 ${q.done}/${q.todo}` : "복기 리포트"; $("reviewOpen").classList.toggle("on", !!(q && reviewAfter));
   $("strengthCancel").hidden = !q;
 }
 const STRENGTH_DONE = "대국 리포트 분석이 끝났습니다. '대국 리포트'를 누르면 결과를 볼 수 있습니다.";
@@ -5226,9 +5228,9 @@ function openStrength(again = false) {
   queries.set(strengthId, q);
   if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
              analyzeTurns: turns, ...lq.query})) {
-    queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
+    queries.delete(strengthId); strengthId = null; reviewAfter = false; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
   }
-  $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true; $("reviewOpen").disabled = true;
+  $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true;
   strengthMsg(level === "instant" ? `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (즉시) · 창을 닫아도 계속 분석합니다`
                                  : `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
 }
@@ -5240,8 +5242,10 @@ function strengthStep(q) {
   strengthButton(q);
   if (q.done >= q.todo) {
     instantLearn(q.inst);
+    const thenReview = reviewAfter; reviewAfter = false;
     queries.delete(strengthId); strengthId = null; strengthButton(); renderStrength();
-    if (!$("strengthDlg").open) $("err").textContent = STRENGTH_DONE;
+    if (thenReview) openReview();   // 복기 리포트 asked for it: the report now
+    else if (!$("strengthDlg").open) $("err").textContent = STRENGTH_DONE;
     finishCheck(true);
   }
 }
@@ -5249,7 +5253,6 @@ function renderStrength() {
   const line = lineThrough(root), bySide = {B: [], W: []};
   for (const n of line) { const g = n.move && !n.move.pass && moveGrade(n); if (g) bySide[n.move.c].push({...g, no: n.depth}); }
   const total = bySide.B.length + bySide.W.length;
-  $("reviewOpen").disabled = total < 6 || !!strengthId;
   if (total < 6) {
     $("strengthCards").innerHTML = "";
     strengthMsg(`분석된 수가 ${total}수뿐이라 리포트를 만들 수 없습니다. 최소 6수가 필요합니다.`, true); return;
@@ -5714,7 +5717,19 @@ addEventListener("popstate", ev => {
   if (st === "open" && !rvState) { const k = rvKeep; rvKeep = null; openReview(k || {side: "", top: 0}); }   // back from the board
   else if (st !== "open" && rvState) { rvKeep = null; closeReview(); }   // Back with the report up
 });
-$("reviewOpen").onclick = () => openReview();
+// 복기 리포트's own button beside 대국 리포트 (user 2026-11-16 "대국리포트 안에 숨겨놓지 말고 밖으로 빼줘"): every move analysed
+// (any strength) → the report; else the moves still to analyse first, as 대국 리포트 does (its window shows how far, the same
+// strength pick), and the report when they are done; no engine to analyse with (a 내 기보 opened without a GPU) → the report
+// from the moves analysed (openReview says when that is too few).
+$("reviewOpen").onclick = () => {
+  const line = lineThrough(root);
+  if (line.length > 1 && line.every(n => n.analysis && n.analysis.rootInfo)) return openReview();
+  if (strengthId) { reviewAfter = true; strengthButton(queries.get(strengthId)); return openStrength(); }   // already analysing
+  if (viewOnly || !(ws && ws.readyState === 1)) return openReview();
+  const go = () => { reviewAfter = true; openStrength(); };
+  if (isPortrait()) return go();
+  levelPop($("reviewOpen"), "복기 리포트 세기", go);
+};
 $("rvClose").onclick = leaveReview;
 $("rvPrint").onclick = rvPdf;
 $("rvSide").onclick = ev => { const b = ev.target.closest("button[data-v]"); if (!b || !rvState) return; rvState.side = b.dataset.v; renderReview(); };
@@ -6752,7 +6767,7 @@ const MENU = [["GPU", ["connStatus", "gpuMeter"]],
               ["대국 정보", ["gameInfo"]],
               ["기보", ["openSgf", "openMine", "kifuOpen", "photoKifu", "editInfo"]],
               ["SGF 파일", ["saveSgf", "copySgf", "pasteSgf"]],
-              ["복기", ["strengthOpen", "strengthLevel", "addNote", "openNotes"]],
+              ["복기", ["strengthOpen", "strengthLevel", "reviewOpen", "addNote", "openNotes"]],
               ["대국", ["newGame", "pass", "gameScore", "gameResign"]],
               ["바둑판", ["sizeLabel", "handicapLabel", "komiLabel", "placeRow"]],
               ["보기", ["candsLabel", "ownerLabel", "hideLabel", "barLabel", "graphLabel", "treeLabel", "xpLabel", "nums", "coords"]],
