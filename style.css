@@ -975,3 +975,12 @@ dialog.tut:focus { outline: none; }
   html[lang="en"] .seg.lib-kind button, html[lang="ru"] .seg.lib-kind button { white-space: normal; overflow: visible; line-height: 1.2; padding-inline: 4px; font-size: 13px; letter-spacing: 0; }
 }
 @media (max-width: 640px) { html[lang="ru"] .seg.lib-kind button { font-size: 12px; } }
+/* 기보실 명국 (2026-11-16): 나라 제목 줄, 항목 설명, 탭 2칸(명국 · AI 기보) */
+.lib-group { margin: 0; padding: 16px 22px 6px; font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .02em; border-bottom: 1px solid var(--line); }
+.lib-group:first-child { padding-top: 10px; }
+.lib-note { margin: -2px 0 12px; line-height: 1.55; }
+@media (max-width: 640px) {
+  .lib-group { padding-inline: 16px; }
+  html .seg.lib-kind.two, html[lang] .seg.lib-kind.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html .seg.lib-kind.two button, html[lang] .seg.lib-kind.two button { font-size: 14px; white-space: normal; overflow: visible; padding-inline: 6px; letter-spacing: 0; }
+}

@@ -387,13 +387,16 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       </div>
     </div>
 
-    <!-- 기보실 (#library, 2026-10-22; 2026-10-25 3분류 확장): 프로 기보 · AI 기보 · 프로 vs AI -->
+    <!-- 기보실 (#library, 2026-10-22; 2026-10-25 3분류 확장): 프로 기보 · AI 기보 · 프로 vs AI
+         2026-11-16 사용자 "기보실에 '명국' 모음을 따로 만들어 · 다른거는 다없애고 · AI기보는 빼고": 명국 + AI 기보만 보임
+         (나머지 탭은 LIB_SHOWN 밖 = 숨김, 기보는 DB에 그대로) -->
     <div class="wrap app narrow hidden" id="libraryView">
       <a class="back" href="#mine">‹ 기보</a>
       <h1 class="page-title">기보실</h1>
       <input type="search" class="lib-find" id="libFind" placeholder="대국자·대회 찾기 (예: 신진서)" autocomplete="off" enterkeyhint="search" aria-label="기보 찾기">
-      <div class="seg lib-kind" id="libKind" role="group" aria-label="기보 종류">
-        <button type="button" data-kind="pro" aria-pressed="true">프로 기보</button>
+      <div class="seg lib-kind two" id="libKind" role="group" aria-label="기보 종류">
+        <button type="button" data-kind="famous" aria-pressed="true">명국</button>
+        <button type="button" data-kind="pro" aria-pressed="false">프로 기보</button>
         <button type="button" data-kind="ai" aria-pressed="false">AI 기보</button>
         <button type="button" data-kind="vs" aria-pressed="false">프로 vs AI</button>
         <button type="button" data-kind="ama" aria-pressed="false">아마 대회</button>
@@ -406,6 +409,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <div class="row lib-top">
           <h2 class="grow" style="margin:0" id="libTitle"></h2>
         </div>
+        <p class="muted small lib-note hidden" id="libNote"></p>
         <div class="scroll-box fox-list lib-list">
           <table><thead><tr><th>대국</th><th>결과</th></tr></thead>
             <tbody id="libRows"><tr><td colspan="2" class="muted">불러오는 중…</td></tr></tbody></table>
@@ -853,7 +857,7 @@ function leave() {
     if (batchFrame) { batchFrame.remove(); batchFrame = null; }
     batchJob = null; batchQueued = false; batchFiles = []; batchRun = []; foxGames = []; foxShow(); batchShow();
   }
-  libLoaded = false; libRows = []; libYears = {}; libTours = {}; libYear = null; libTour = null; $("libFind").value = "";   // 기보실 loads again for the next member
+  libLoaded = false; libRows = []; libYears = {}; libTours = {}; libFamous = null; libYear = null; libTour = null; $("libFind").value = "";   // 기보실 loads again for the next member
   startHero(); $("bootFail")?.remove();
   swap(() => { document.body.classList.remove("authed"); $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); });
 }
@@ -2102,7 +2106,18 @@ $("mineRows").onclick = async (ev) => {
 const LIB_PAGE = 50;   // (설명 문구는 사용자 2026-10-23 "설명 문구 지워줘"로 뺌)
 // 아마 대회 (2026-11-13, DB 20261113b): 권위 있는 아마 대회의 4강·결승 + 프로·아마가 함께 두는 대회 (사용자 "'아마 대회' 탭을
 // 새로 만들고 … 프로와 아마가 같이하는 대회는 아마추어대회쪽"), 연도 → 대회 → 기보로 프로 기보와 같게
-const LIB_KINDS = { pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI", ama: "아마 대회", etc: "기타 대국" };
+const LIB_KINDS = { famous: "명국", pro: "프로 기보", ai: "AI 기보", vs: "프로 vs AI", ama: "아마 대회", etc: "기타 대국" };
+// 명국 (2026-11-16, DB 20261116a public_kifu_famous_*): 사용자 "기보실에 '명국' 모음을 따로 만들어 · 다른거는 다없애고 ·
+// AI기보는 빼고" → 기보실 화면은 명국 + AI 기보만(나머지 탭은 숨김 — 기보와 수순 탐색은 그대로, 다시 열려면 LIB_SHOWN에 넣기).
+// 명국 = 나라별 항목 카드(제목·연도·왜 유명한지·판 수) → 그 항목의 기보(대국 순서).
+const LIB_SHOWN = ["famous", "ai"], LIB_HOME = "famous";
+for (const b of $("libKind").children) b.classList.toggle("hidden", !LIB_SHOWN.includes(b.dataset.kind));
+let libFamous = null;   // [{item, country, kind, title, year, why, n}]
+async function libFamousList() {
+  if (!libFamous) { const { data, error } = await sb.rpc("public_kifu_famous_list"); if (error) throw error; libFamous = data || []; }
+  return libFamous;
+}
+const libFamousItem = (item) => (libFamous || []).find((x) => x.item === item);
 // 기타 대국 (2026-11-07, DB 20261107b, JGDB): no names, dates or 대회 — straight to its 칸 (사용자 "프로는 구분하지마.
 // 아마추어만 구분해줘": '프로', '아마 9단' … '아마 1급'), kept as year 0 ('#library/etc/0/<칸>').
 const LIB_NODATE = "etc";
@@ -2110,14 +2125,14 @@ const libEtcOrder = (t) => t === "프로" ? -100 : (/(\d+)단$/.test(t) ? -Numbe
 const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 AI 대국", vs: "가장 최근 프로 vs AI 대국", ama: "가장 최근 아마 대회 대국" };
 // where the member is: kind ('pro' | 'ai' | 'vs'), then year ('latest' = 최신 대국 50판, '2026'), then tour
 // (null = the year's 대회 cards, '*' = the whole year, else one 대회). All three kinds use the same hierarchy (2026-10-25).
-let libKind = "pro", libYear = null, libTour = null;
+let libKind = LIB_HOME, libYear = null, libTour = null;
 let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {}, libTours = {}, libFindCache = new Map();
-const libSource = () => (LIB_KINDS[libKind] ? libKind : "pro");
+const libSource = () => (LIB_SHOWN.includes(libKind) ? libKind : LIB_HOME);
 const libLatest = () => libYear === "latest";
 // 찾기 (사용자 2026-10-23 "검색 기능은 프로기보, ai기보 위에 별도로"): the box above the tabs searches the whole 기보실
 // (all three kinds, every year: DB 20261023g public_kifu_search); while it has words the tabs and cards give way to the results.
 const libFindQ = () => $("libFind").value.replace(/\s+/g, " ").trim();
-const libListing = () => libYear === "latest" || (libYear && libTour !== null);
+const libListing = () => libYear === "latest" || (libYear && (libKind === "famous" || libTour !== null));
 const libCard = (data, name, n, sub = "") => `<button type="button" class="lib-cat" ${data}><span class="grow"><b>${esc(name)}</b>` +
   `${sub ? `<span class="muted small">${esc(sub)}</span>` : ""}</span><span class="muted">${n}</span><span class="chev" aria-hidden="true">›</span></button>`;
 // 연도 (DB 20261022e public_kifu_years) and one year's 대회 (20261022g public_kifu_tournaments), with their numbers of games
@@ -2141,12 +2156,14 @@ async function libTourList(kind, year) {
 // Each place is its own address (사용자 2026-10-24 "뒤로가기 누르면 바로 … 나가버리는데 하나씩만 뒤로가게"): #library (프로 기보),
 // #library/ai, #library/vs, #library/<kind>/latest, #library/<kind>/2025, #library/<kind>/2025/<대회> ('*' = the whole year) —
 // a card, a tab or the path above pushes one, so the phone's back button goes up one level at a time.
-const libHash = (kind, year, tour) => "#library" + (kind !== "pro" || year ? "/" + kind : "") + (year ? "/" + year : "") +
+const libHash = (kind, year, tour) => "#library" + (kind !== LIB_HOME || year ? "/" + kind : "") + (year ? "/" + year : "") +
   (year && tour !== null ? "/" + encodeURIComponent(tour) : "");
 function libFromHash() {   // the place in the address -> libKind / libYear / libTour (and the tab buttons)
-  const [, kind = "pro", year = null, tour = null] = location.hash.split("/");
-  libKind = LIB_KINDS[kind] ? kind : "pro";
-  libYear = year || null;
+  const [, kind = LIB_HOME, year = null, tour = null] = location.hash.split("/");
+  const shown = LIB_SHOWN.includes(kind);   // a hidden tab's old address opens 명국 (and the address says so)
+  if (!shown && location.hash.startsWith("#library/")) history.replaceState(history.state, "", "#library");
+  libKind = shown ? kind : LIB_HOME;
+  libYear = shown && year ? decodeURIComponent(year) : null;
   libTour = !libYear || libYear === "latest" ? null : tour !== null ? decodeURIComponent(tour) : null;
   for (const x of $("libKind").children) x.setAttribute("aria-pressed", x.dataset.kind === libKind);
 }
@@ -2159,10 +2176,12 @@ function libGo(year, tour = null, kind = libKind) {
 async function libShow() {
   const seq = ++libSeq, kind = libSource(), finding = !!libFindQ(), listing = finding || libListing();
   $("libKind").classList.toggle("hidden", finding);
+  if (kind === "famous" && libYear && !libFamous) { try { await libFamousList(); } catch {} if (seq !== libSeq) return; }
   const kindName = LIB_KINDS[kind];
   // 위치: 프로 기보 › 2026년 › 몽백합배 세계바둑오픈전 (each part goes back there)
   const parts = [`<button type="button" class="quiet" data-crumb="root">${kindName}</button>`];
-  if (libYear === "latest") parts.push(`<span>최신 대국</span>`);
+  if (kind === "famous") { if (libYear) parts.push(`<span>${esc(libFamousItem(libYear)?.title || "")}</span>`); }
+  else if (libYear === "latest") parts.push(`<span>최신 대국</span>`);
   else if (kind === LIB_NODATE && libYear) { if (libTour && libTour !== "*") parts.push(`<span>${esc(libTour)}</span>`); }
   else if (libYear) {
     parts.push(libTour !== null ? `<button type="button" class="quiet" data-crumb="year">${libYear}년</button>` : `<span>${libYear}년</span>`);
@@ -2176,7 +2195,15 @@ async function libShow() {
   $("libCards").innerHTML = `<p class="muted lib-cat-msg">불러오는 중…</p>`;
   try {
     let html;
-    if (kind === LIB_NODATE) {   // 기타 대국: its 칸 cards (프로 first, then 아마 from the strongest)
+    if (kind === "famous") {   // 명국: 나라마다 제목 줄 + 항목 카드
+      let at = ""; html = "";
+      for (const x of await libFamousList()) {
+        if (x.country !== at) { at = x.country; html += `<h3 class="lib-group">${esc(at)}</h3>`; }
+        html += `<button type="button" class="lib-cat" data-item="${esc(x.item)}"><span class="grow"><b>${esc(x.title)}</b>` +
+          `<span class="muted"><span>${esc(x.year)}</span> · <span>${esc(x.why)}</span></span></span>` +
+          `<span class="muted">${Number(x.n).toLocaleString()}판</span><span class="chev" aria-hidden="true">›</span></button>`;
+      }
+    } else if (kind === LIB_NODATE) {   // 기타 대국: its 칸 cards (프로 first, then 아마 from the strongest)
       const tours = (await libTourList(kind, 0)).filter((t) => t.tournament).sort((a, b) => libEtcOrder(a.tournament) - libEtcOrder(b.tournament));
       html = tours.map((t) => libCard(`data-year="0" data-tour="${esc(t.tournament)}"`, t.tournament, `${Number(t.n).toLocaleString()}판`)).join("");
     } else if (!libYear) {   // 연도 cards (최신 대국 first)
@@ -2202,19 +2229,24 @@ async function loadLibrary(reset) {
   const hit = q && reset ? libFindCache.get(q) : null, fresh = hit && Date.now() - hit.at < 300000 ? hit : null;
   if (reset) { libRows = []; if (!fresh) $("libRows").innerHTML = `<tr><td colspan="2" class="muted">불러오는 중…</td></tr>`; }
   const year = latest ? "" : libYear, tour = libTour && libTour !== "*" ? libTour : "";
-  $("libTitle").textContent = q ? "찾은 기보" : latest ? "최신 대국" : tour || `${year}년 전체`;
+  const famous = !q && libSource() === "famous", fItem = famous ? libFamousItem(libYear) : null;
+  $("libTitle").textContent = q ? "찾은 기보" : latest ? "최신 대국" : famous ? fItem?.title || "" : tour || `${year}년 전체`;
+  $("libNote").textContent = fItem?.why || ""; $("libNote").classList.toggle("hidden", !fItem);
   let data, error, count;
   if (q) {   // the whole 기보실; each row carries the number found
     if (fresh) {
       data = fresh.rows; count = fresh.count;
     } else {
-      ({ data, error } = await sb.rpc("public_kifu_search", { p_q: window.kgvLang?.untr?.(q) ?? q, p_offset: libRows.length, p_limit: LIB_PAGE }));
+      ({ data, error } = await sb.rpc("public_kifu_search", { p_q: window.kgvLang?.untr?.(q) ?? q, p_offset: libRows.length, p_limit: LIB_PAGE, p_scope: "shown" }));
       if (data && reset) {
         count = data.length ? Number(data[0].total) : 0;
         if (libFindCache.size > 80) libFindCache.clear();
         libFindCache.set(q, { rows: data, count, at: Date.now() });
       }
     }
+  } else if (famous) {   // 명국 한 항목: 많아야 수십 판이라 한 번에
+    ({ data, error } = await sb.rpc("public_kifu_famous_games", { p_item: libYear }));
+    count = data ? data.length : 0;
   } else {
     const src = libSource(), tList = year ? libTours[`${src}:${year}`] : null;
     const known = reset && !latest ? (tour ? tList?.find((t) => t.tournament === tour)?.n
@@ -2247,7 +2279,8 @@ $("libKind").onclick = (ev) => {
 };
 $("libCards").onclick = (ev) => {
   const c = ev.target.closest(".lib-cat"); if (!c) return;
-  if (c.dataset.year && c.dataset.tour) libGo(c.dataset.year, c.dataset.tour);
+  if (c.dataset.item) libGo(c.dataset.item, null);
+  else if (c.dataset.year && c.dataset.tour) libGo(c.dataset.year, c.dataset.tour);
   else if (c.dataset.year) libGo(c.dataset.year, null);
   else if (c.dataset.tour) libGo(libYear, c.dataset.tour);
 };
