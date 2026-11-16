@@ -709,6 +709,100 @@ button.primary:hover { background: var(--blue-deep); }
   #quizBar #quizNext { background: var(--blue); color: #fff; }   /* the white buttons rule above would hide it */
   #quizBar #bankEdit button { width: auto; flex: 1 1 auto; min-height: 40px; padding: 2px 10px; }
 }
+/* 복기 리포트 (2026-11-16): a document over the whole screen — paper pages (white in dark mode too), printed by 'PDF 저장' */
+#reviewDoc { position: fixed; inset: 0; z-index: 1000; overflow: auto; -webkit-overflow-scrolling: touch; background: #e6e9f0; overscroll-behavior: contain; }
+#reviewDoc[hidden] { display: none; }
+.rv-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+  background: rgba(255, 255, 255, .86); backdrop-filter: saturate(1.6) blur(16px); -webkit-backdrop-filter: saturate(1.6) blur(16px); border-bottom: 1px solid var(--line); }
+.rv-bar > b { font-size: 16px; letter-spacing: -.02em; }
+.rv-bar .seg { width: auto; min-width: 190px; }
+.rv-bar .spacer { flex: 1; }
+.rv-pages { padding: 18px 12px 40px; }
+.rv-page { box-sizing: border-box; width: min(820px, 100%); margin: 0 auto 18px; padding: 44px 48px; background: #fff; color: #171a22; border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(23, 26, 34, .08), 0 18px 40px -24px rgba(23, 26, 34, .35); font-size: 14.5px; line-height: 1.6; }
+.rv-page h1 { margin: 2px 0 14px; font-size: 34px; font-weight: 800; letter-spacing: -.04em; }
+.rv-page h2 { margin: 30px 0 12px; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.rv-page h2.rv-sec { margin-top: 0; font-size: 22px; padding-bottom: 10px; border-bottom: 2px solid #171a22; }
+.rv-kicker { color: #2c5cf6; font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.rv-players { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 19px; font-weight: 700; }
+.rv-players em { font-style: normal; color: #8a92a5; font-weight: 600; font-size: 14px; }
+.rv-players span { display: inline-flex; align-items: center; gap: 8px; }
+.rv-meta { margin-top: 6px; color: #687082; }
+.rv-st { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
+.rv-st.b { background: #1b1b1b; } .rv-st.w { background: #fff; box-shadow: inset 0 0 0 1.5px #333; }
+.rv-graph { display: block; width: 100%; height: auto; }
+.rv-graph .rv-area { fill: rgba(23, 26, 34, .13); stroke: #4b5263; stroke-width: 1.2; }
+.rv-graph line { stroke: #e3e6ee; stroke-width: 1; } .rv-graph line.mid { stroke: #b9bfcc; stroke-dasharray: 4 4; } .rv-graph line.ph { stroke: #c9cfdb; stroke-dasharray: 2 4; }
+.rv-graph .rv-lead { fill: none; stroke: #2c5cf6; stroke-width: 1.6; }
+.rv-graph text { font: 600 11px var(--ui-font); fill: #8a92a5; dominant-baseline: middle; }
+.rv-graph .rv-yl { text-anchor: end; } .rv-graph .rv-yr { fill: #2c5cf6; } .rv-graph .rv-xl { text-anchor: middle; }
+.rv-dot { stroke: #fff; stroke-width: 1.5; } .rv-dot.mistake { fill: #f07a2a; } .rv-dot.blunder { fill: #e0484d; }
+.rv-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 2px; color: #687082; font-size: 12.5px; }
+.rv-legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.rv-legend .a::before { background: rgba(23, 26, 34, .2); } .rv-legend .l::before { height: 3px; vertical-align: 3px; background: #2c5cf6; }
+.rv-legend .m::before { border-radius: 50%; background: #f07a2a; } .rv-legend .k::before { border-radius: 50%; background: #e0484d; }
+.rv-sum, .rv-list { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rv-sum th, .rv-sum td, .rv-list th, .rv-list td { padding: 8px 10px; border-bottom: 1px solid #e8ebf2; text-align: left; }
+.rv-sum th { font-size: 14px; } .rv-sum td:first-child, .rv-list th { color: #687082; font-weight: 600; font-size: 13px; }
+.rv-sum td.mistake, .rv-list td.mistake { color: #d4621a; font-weight: 700; } .rv-sum td.blunder, .rv-list td.blunder { color: #d0393e; font-weight: 700; }
+.rv-list tbody tr { cursor: pointer; } .rv-list tbody tr:hover { background: #f3f5f9; }
+.rv-notes-sum p { margin: 10px 0 0; } .rv-notes-sum b { margin-right: 4px; }
+.rv-none { color: #687082; }
+.rv-scene { padding: 26px 0 22px; border-bottom: 1px solid #e8ebf2; }
+.rv-scene:last-child { border-bottom: 0; padding-bottom: 0; }
+.rv-scene header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.rv-scene header b { font-size: 17px; letter-spacing: -.02em; }
+.rv-k { background: #171a22; color: #fff; border-radius: 6px; padding: 2px 9px; font-size: 12.5px; font-weight: 700; }
+.rv-loss { border-radius: 999px; padding: 2px 10px; font-weight: 800; font-size: 13px; color: #fff; }
+.rv-loss.mistake { background: #f07a2a; } .rv-loss.blunder { background: #e0484d; }
+.rv-go { margin-left: auto; min-height: 30px; font-size: 13px; background: #eef1f7; color: #171a22; }
+.rv-go:hover { background: #e2e7f1; }
+.rv-scene p { margin: 6px 0; }
+.rv-figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; margin-top: 16px; align-items: start; }
+.rv-figs.whole { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 26px; margin-top: 12px; }
+.rv-fig { margin: 0; }
+.rv-fig figcaption { display: grid; gap: 1px; margin-top: 7px; font-size: 13px; color: #4b5263; }
+.rv-fig figcaption b { color: #171a22; font-size: 14px; }
+.rv-ev { color: #171a22; font-weight: 650; } .rv-notes { color: #8a92a5; font-size: 12px; }
+.rv-svg { display: block; max-width: 100%; height: auto; }
+.rv-svg .rv-wood { fill: #ebcb8b; }
+.rv-svg line { stroke: #6e5530; stroke-width: .9; } .rv-svg line.e { stroke-width: 1.5; }
+.rv-svg .rv-star { fill: #6e5530; }
+.rv-svg text { font: 700 11px var(--ui-font); text-anchor: middle; dominant-baseline: central; }
+.rv-svg .rv-co { font-size: 9px; font-weight: 600; fill: #8a6d3e; }
+.rv-svg .rv-b { fill: #1b1b1b; } .rv-svg .rv-w { fill: #fbfbfb; stroke: #2b2b2b; stroke-width: .9; }
+.rv-svg .rv-n.on-b { fill: #fff; } .rv-svg .rv-n.on-w { fill: #111; } .rv-svg .rv-n.s3 { font-size: 9px; letter-spacing: -.04em; }
+.rv-svg .rv-ring { fill: none; stroke-width: 2.4; } .rv-ring.mistake { stroke: #f07a2a; } .rv-ring.blunder { stroke: #e0484d; } .rv-ring.best { stroke: #1f9d55; }
+@media (max-width: 640px) {
+  .rv-pages { padding: 0 0 30px; }
+  .rv-page { padding: 26px 18px; margin-bottom: 10px; border-radius: 0; }
+  .rv-page h1 { font-size: 28px; }
+  .rv-figs, .rv-figs.whole { grid-template-columns: 1fr; gap: 16px; }
+  .rv-bar { gap: 8px; }
+  .rv-bar > b { display: none; }
+  .rv-sum th, .rv-sum td, .rv-list th, .rv-list td { padding: 7px 5px; }
+  .rv-bar .seg { min-width: 140px; }
+  .rv-bar .seg button { white-space: nowrap; }
+  .rv-bar button { padding: 5px 11px; }
+}
+@media (prefers-color-scheme: dark) {
+  #reviewDoc { background: #0c1222; }
+  .rv-bar { background: rgba(21, 28, 46, .86); }
+}
+@media print {
+  @page { size: A4; margin: 12mm; }
+  html, body.review-open { height: auto !important; overflow: visible !important; display: block !important; background: #fff !important; }
+  body.review-open > *:not(#reviewDoc) { display: none !important; }
+  #reviewDoc { position: static !important; overflow: visible !important; background: #fff !important; }
+  .rv-bar, .rv-go { display: none !important; }
+  .rv-pages { padding: 0 !important; }
+  .rv-page { width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; font-size: 10.5pt; }
+  .rv-page + .rv-page { break-before: page; }
+  .rv-scene, .rv-fig, .rv-sum, .rv-graph, .rv-list tr { break-inside: avoid; }
+  .rv-figs { grid-template-columns: repeat(3, 1fr) !important; }
+  .rv-figs.whole { grid-template-columns: 1fr 1fr !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 /* 다크모드: 기기 설정을 따름(2026-09-30). 색은 변수로 바꾸고, 직접 쓴 색만 여기서 덮어씀. 바둑판·돌 그림은 그대로. */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -988,6 +1082,7 @@ button.primary:hover { background: var(--blue-deep); }
     <h2>대국 리포트</h2>
     <span class="spacer"></span>
     <button id="strengthCancel" hidden title="분석을 멈춥니다. 이미 분석된 수의 결과는 남습니다.">분석 취소</button>
+    <button id="reviewOpen" disabled title="실수·악수마다 AI 참고도를 붙인 문서">복기 리포트</button>
     <button id="strengthRedo" disabled title="지금 세기로 모든 수를 다시 분석합니다">다시 분석</button>
     <button id="strengthClose">닫기</button>
   </div>
@@ -995,6 +1090,16 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="sp-msg" id="strengthMsg"></div>
   <div class="sp-cards" id="strengthCards"></div>
 </dialog>
+<div id="reviewDoc" hidden>
+  <div class="rv-bar">
+    <b>복기 리포트</b>
+    <div class="seg" id="rvSide" role="group" aria-label="볼 쪽"><button type="button" data-v="" class="on">둘 다</button><button type="button" data-v="B">흑</button><button type="button" data-v="W">백</button></div>
+    <span class="spacer"></span>
+    <button type="button" id="rvPrint">PDF 저장</button>
+    <button type="button" id="rvClose">닫기</button>
+  </div>
+  <div class="rv-pages" id="rvPages"></div>
+</div>
 
 <div class="main">
   <aside class="left">
@@ -2301,6 +2406,7 @@ $("hideEval").onchange = () => {
   hover = null; selectedPv = null; schedule();
 };
 document.addEventListener("keydown", e => {
+  if (rvState) { if (e.key === "Escape") closeReview(); return; }   // 복기 리포트 over the screen
   if (e.target.matches("input, select, textarea")) return;
   if (bankNavStart() && (e.key === "ArrowLeft" || e.key === "ArrowRight")) bankNav(e.key === "ArrowLeft" ? -1 : 1);   // 놓아보기 · 답 고치기
   else if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
@@ -3708,6 +3814,7 @@ async function openMineKifu(id) {
   // 시작 국면): one small write, the game itself is unchanged so its 저장 time stays
   if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).then(() => {}, () => {});
   $("err").textContent = mineStudy ? `학습방 '${k.title}'을(를) 열었습니다` : `내 기보 '${k.title}'을(를) 열었습니다`;
+  if (hashParams.get("review") === "1") { hashParams.delete("review"); openReview(); }   // 내 기보 → 복기 리포트 (2026-11-16)
   return true;
 }
 
@@ -5109,7 +5216,7 @@ function openStrength(again = false) {
              analyzeTurns: turns, ...lq.query})) {
     queries.delete(strengthId); strengthId = null; strengthMsg("GPU에 연결되지 않았습니다. 연결된 뒤 다시 누르세요.", true); return;
   }
-  $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true;
+  $("strengthCards").innerHTML = ""; strengthButton(q); $("strengthRedo").disabled = true; $("reviewOpen").disabled = true;
   strengthMsg(level === "instant" ? `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (즉시) · 창을 닫아도 계속 분석합니다`
                                  : `주 변화 ${line.length - 1}수를 분석하는 중… 0/${turns.length} (수마다 ${levelVisits()} visits) · 창을 닫아도 계속 분석합니다`);
 }
@@ -5130,6 +5237,7 @@ function renderStrength() {
   const line = lineThrough(root), bySide = {B: [], W: []};
   for (const n of line) { const g = n.move && !n.move.pass && moveGrade(n); if (g) bySide[n.move.c].push({...g, no: n.depth}); }
   const total = bySide.B.length + bySide.W.length;
+  $("reviewOpen").disabled = total < 6 || !!strengthId;
   if (total < 6) {
     $("strengthCards").innerHTML = "";
     strengthMsg(`분석된 수가 ${total}수뿐이라 리포트를 만들 수 없습니다. 최소 6수가 필요합니다.`, true); return;
@@ -5224,6 +5332,303 @@ $("strengthCancel").onclick = () => {   // the moves analysed so far keep their 
   else strengthMsg("분석을 취소했습니다. '대국 리포트'를 다시 누르면 남은 수를 이어서 분석합니다.");
 };
 $("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strengthDlg")) $("strengthDlg").close(); });   // backdrop
+
+// ------------------------------------------------------------------ 복기 리포트
+// (user 2026-11-16 "기보를 올리면 전체 수순을 분석한 후 … 실수,악수에 해당하는 수를 찾은 뒤 ai의 참고도를 몇개 첨부해서 '이 수는
+// 몇집손해인 수로 이렇게 뒀어야 합니다' … pdf같은 형식으로 … 밑으로 계속 내리면서 판 전체를 확인"): a document made from the
+// analysis already on the main line — nothing is asked of the engine, so a 내 기보 saved with its analysis opens it with no
+// GPU (#kifu=<id>&review=1). A cover (the game, the graph, each side's numbers and a line about them, the scenes), one scene
+// per 실수·악수 as 대국 리포트 grades them (moveGrade): 실전도 = the move played and KataGo's best answer to it, 참고도 1 =
+// KataGo's first choice with its line, 참고도 2 = another choice about as good; then the whole game in figures of 50 moves.
+// Diagrams are drawn as books draw them: the stones already on the board plain, the line's stones numbered, a stone played
+// where one was taken told under the diagram ("7 = 3"). Pages are paper (white in dark mode too); 'PDF 저장' prints them.
+// Region and shape words come from the board (the same rules the 수순 설명 test had, 2026-11-15) — no word when unsure.
+const RV_LINE = 10, RV_FIG = 50, RV_SECOND = 1.5;   // stones in a line at most · moves in a figure · 참고도 2 within this many points
+let rvState = null;   // {side: "" | "B" | "W", root} while the report is open
+function rvRegion(pts) {   // where a set of points [x, y] is: 좌상귀 … 중앙 (by their middle)
+  const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  const third = v => v < (N - 1) / 3 ? 0 : v > (N - 1) * 2 / 3 ? 2 : 1, h = third(cx), v = third(cy);
+  if (h !== 1 && v !== 1) return v ? (h ? "우하귀" : "좌하귀") : (h ? "우상귀" : "좌상귀");
+  if (h === 1 && v === 1) return "중앙";
+  return h === 1 ? (v ? "하변" : "상변") : (h ? "우변" : "좌변");
+}
+// The words for a stone put at xy by color on grid (ko point ko): what it takes, cuts, joins, ataris, touches; with nothing
+// around it, the jump it makes from its own stones or, in an empty corner, the point's name. null when illegal.
+function rvShape(grid, ko, color, xy) {
+  const r = placeOn(grid, ko, color, xy[0], xy[1]); if (!r) return null;
+  const me = color === "B" ? 1 : 2, op = 3 - me, i = idx(xy[0], xy[1]), [x, y] = xy;
+  const at = (a, b) => a < 0 || b < 0 || a >= N || b >= N ? -1 : grid[idx(a, b)];
+  const gid = j => Math.min(...groupAt(grid, j).stones);
+  const oppG = new Set(), ownG = new Set();
+  for (const j of neighbors(i)) { if (grid[j] === op) oppG.add(gid(j)); else if (grid[j] === me) ownG.add(gid(j)); }
+  const words = [];
+  if (r.captured.length) words.push(r.ko >= 0 ? "패" : `${r.captured.length}점 따냄`);
+  else {
+    if (oppG.size >= 2) words.push("끊음");
+    if (ownG.size >= 2) words.push("이음");
+  }
+  if (neighbors(i).some(j => r.grid[j] === op && groupAt(r.grid, j).libs === 1)) words.push("단수");
+  const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+  if (!words.length && oppG.size) {
+    if (!ownG.size) words.push("붙임");
+    else if (DIAG.some(([dx, dy]) => at(x + dx, y + dy) === me && (at(x + dx, y) === op || at(x, y + dy) === op))) words.push("젖힘");
+  }
+  if (!words.length && !oppG.size && ownG.size === 1) {
+    const g0 = [...ownG][0];
+    words.push(DIAG.some(([dx, dy]) => at(x + dx, y + dy) === me && gid(idx(x + dx, y + dy)) !== g0) ? "이음" : "뻗음");
+  }
+  if (!words.length && !oppG.size && !ownG.size) { const w = rvFar(at, me, op, x, y); if (w) words.push(w); }
+  return {r, words};
+}
+function rvFar(at, me, op, x, y) {
+  const sym = (a, b) => [[a, b], [-a, b], [a, -b], [-a, -b], [b, a], [-b, a], [b, -a], [-b, -a]];
+  const ex = Math.min(x, N - 1 - x) + 1, ey = Math.min(y, N - 1 - y) + 1, lo = Math.min(ex, ey), hi = Math.max(ex, ey);
+  let near = 0;
+  for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) if (at(x + dx, y + dy) > 0) near++;
+  if (N === 19) {
+    if (lo === 3 && hi === 3) {   // the 3-3 under an opponent's 4-4
+      const sx = x < N / 2 ? 1 : -1, sy = y < N / 2 ? 1 : -1;
+      if (at(x + sx, y + sy) === op) return "삼삼 침입";
+    }
+    if (!near) {
+      if (lo === 4 && hi === 4) return "화점";
+      if (lo === 3 && hi === 3) return "삼삼";
+      if (lo === 3 && hi === 4) return "소목";
+      if (lo === 3 && hi === 5) return "외목";
+      if (lo === 4 && hi === 5) return "고목";
+    }
+  }
+  const mine = ([dx, dy]) => at(x + dx, y + dy) === me;
+  const free = (a, b) => at(a, b) === 0;
+  if (sym(1, 1).some(([dx, dy]) => mine([dx, dy]) && free(x + dx, y) && free(x, y + dy))) return "마늘모";
+  if (sym(0, 2).some(([dx, dy]) => mine([dx, dy]) && free(x + dx / 2, y + dy / 2))) return "한칸뛰기";
+  if (sym(1, 2).some(mine)) return "날일자";
+  if (sym(0, 3).some(([dx, dy]) => mine([dx, dy]) && free(x + Math.sign(dx), y + Math.sign(dy)) && free(x + 2 * Math.sign(dx), y + 2 * Math.sign(dy)))) return "두칸뛰기";
+  if (sym(1, 3).some(mine)) return "눈목자";
+  // an approach to an opponent's corner stone, with none of one's own close by
+  const corner = (a, b) => Math.min(a, N - 1 - a) < 5 && Math.min(b, N - 1 - b) < 5;
+  let own3 = false; for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) if (at(x + dx, y + dy) === me) own3 = true;
+  if (N === 19 && !own3 && hi <= 6 && [...sym(1, 2), ...sym(0, 2), ...sym(1, 3), ...sym(0, 3)].some(([dx, dy]) => at(x + dx, y + dy) === op && corner(x + dx, y + dy))) return "걸침";
+  return "";
+}
+// pv played out from base: [{xy, color, words}], up to RV_LINE stones; it stops at a pass, an illegal move, or where the
+// line goes off to another part of the board (a teacher shows the fight where it is)
+function rvLine(base, pv) {
+  let grid = base.grid, ko = base.ko, color = base.toPlay; const out = [];
+  for (const m of pv.slice(0, RV_LINE)) {
+    const xy = parseGtp(m); if (!xy) break;
+    if (out.length >= 2 && out.every(s => Math.max(Math.abs(s.xy[0] - xy[0]), Math.abs(s.xy[1] - xy[1])) > 4)) break;
+    const s = rvShape(grid, ko, color, xy); if (!s) break;
+    out.push({xy, color, words: s.words}); grid = s.r.grid; ko = s.r.ko; color = other(color);
+  }
+  return out;
+}
+const rvPv = m => m.pv && m.pv.length ? m.pv : [m.move];
+function rvCrop(pts) {   // [x0, x1, y0, y1]: around the stones, out to an edge 3 lines away, at least 9 lines, the whole width when nearly so
+  if (!pts.length) return [0, N - 1, 0, N - 1];
+  const want = Math.min(9, N);
+  const span = vs => {
+    let a = Math.max(0, Math.min(...vs) - 2), b = Math.min(N - 1, Math.max(...vs) + 2);
+    if (a <= 3) a = 0;
+    if (b >= N - 4) b = N - 1;
+    while (b - a + 1 < want) { if (a > 0) a--; if (b - a + 1 < want && b < N - 1) b++; }
+    return b - a + 1 >= N - 3 ? [0, N - 1] : [a, b];
+  };
+  return [...span(pts.map(p => p[0])), ...span(pts.map(p => p[1]))];
+}
+// One diagram (SVG): grid as it stands, then the numbered stones; a point already shown (a stone taken there, or a numbered one)
+// gets no second stone but a note "k = j" (or "k = Q4" for a stone that was there before). ring: "mistake" / "blunder" / "".
+function rvBoard(grid, stones, crop) {
+  const [x0, x1, y0, y1] = crop, S = 26, P = 20, cut = S * .55;
+  const X = x => P + (x - x0) * S, Y = y => P + (y - y0) * S, W = P * 2 + (x1 - x0) * S, H = P * 2 + (y1 - y0) * S;
+  const shown = Array.from(grid), label = new Map(), notes = [], top = [];
+  for (const s of stones) {
+    const i = idx(s.xy[0], s.xy[1]);
+    if (shown[i]) { notes.push(`${s.no} = ${label.has(i) ? label.get(i) : gtp(s.xy[0], s.xy[1])}`); continue; }
+    shown[i] = s.color === "B" ? 1 : 2; label.set(i, s.no); if (s.ring) top.push([i, s.ring]);
+  }
+  let g = `<svg class="rv-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"><rect width="${W}" height="${H}" rx="6" class="rv-wood"/>`;
+  for (let x = x0; x <= x1; x++) g += `<line x1="${X(x)}" y1="${Y(y0) - (y0 ? cut : 0)}" x2="${X(x)}" y2="${Y(y1) + (y1 < N - 1 ? cut : 0)}"${x === 0 || x === N - 1 ? ' class="e"' : ""}/>`;
+  for (let y = y0; y <= y1; y++) g += `<line x1="${X(x0) - (x0 ? cut : 0)}" y1="${Y(y)}" x2="${X(x1) + (x1 < N - 1 ? cut : 0)}" y2="${Y(y)}"${y === 0 || y === N - 1 ? ' class="e"' : ""}/>`;
+  const [lo, mid, hi] = starLines();   // as the board draws them
+  const stars = N === 19 ? [lo, mid, hi].flatMap(a => [lo, mid, hi].map(b => [a, b])) : [[lo, lo], [lo, hi], [hi, lo], [hi, hi], [mid, mid]];
+  for (const [sx, sy] of stars) if (sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1) g += `<circle cx="${X(sx)}" cy="${Y(sy)}" r="2.4" class="rv-star"/>`;
+  for (let x = x0; x <= x1; x++) g += `<text x="${X(x)}" y="${P * .48}" class="rv-co">${LETTERS[x]}</text>`;
+  for (let y = y0; y <= y1; y++) g += `<text x="${P * .45}" y="${Y(y)}" class="rv-co">${N - y}</text>`;
+  for (let i = 0; i < N * N; i++) {
+    const c = shown[i], x = i % N, y = (i / N) | 0; if (!c || x < x0 || x > x1 || y < y0 || y > y1) continue;
+    g += `<circle cx="${X(x)}" cy="${Y(y)}" r="${S * .47}" class="${c === 1 ? "rv-b" : "rv-w"}"/>`;
+    if (label.has(i)) { const t = String(label.get(i)); g += `<text x="${X(x)}" y="${Y(y)}" class="rv-n ${c === 1 ? "on-b" : "on-w"}${t.length > 2 ? " s3" : ""}">${t}</text>`; }
+  }
+  for (const [i, ring] of top) { const x = i % N, y = (i / N) | 0; if (x >= x0 && x <= x1 && y >= y0 && y <= y1) g += `<circle cx="${X(x)}" cy="${Y(y)}" r="${S * .56}" class="rv-ring ${ring}"/>`; }
+  return {svg: g + "</svg>", notes};
+}
+function rvScenes() {   // the main line's 실수·악수: [{n, grade, loss}]
+  const out = [];
+  for (const n of lineThrough(root)) {
+    if (!n.move || n.move.pass) continue;
+    const g = moveGrade(n);
+    if (g && (g.grade === "mistake" || g.grade === "blunder")) out.push({n, grade: g.grade, loss: moveLoss(n)});
+  }
+  return out;
+}
+const rvGradeLabel = g => GRADES.find(x => x[0] === g)[1];
+const rvLead = (side, lead) => `${side} ${Math.abs(lead).toFixed(1)}집 ${lead >= 0 ? "앞섬" : "뒤짐"}`;
+function rvScene(s, k) {
+  const {n} = s, p = n.parent, c = n.move.c, side = colorName(c), opp = colorName(other(c));
+  const played = noteMove(n), cands = candidates(p), best = cands[0], nb = candidates(n)[0];
+  const label = rvGradeLabel(s.grade), loss = Math.max(0, s.loss.points);
+  // the lines: the move and KataGo's answer to it, KataGo's first choice, another choice about as good (enough visits to trust)
+  const lineA = rvLine(p, [played, ...(nb ? rvPv(nb) : [])]);
+  const lineB = best && best.move !== played ? rvLine(p, rvPv(best)) : [];
+  const second = best && cands.find((m, j) => j > 0 && m.move !== played && m.move !== "pass" && m.visits >= Math.max(2, best.visits * .1)
+    && moverLead(p, best.scoreLead) - moverLead(p, m.scoreLead) <= RV_SECOND);
+  const lineC = second ? rvLine(p, rvPv(second)) : [];
+  const ev = m => { const lead = moverLead(p, m.scoreLead), wr = Math.round((c === "B" ? m.winrate : 1 - m.winrate) * 100); return {lead, wr}; };
+  const fig = (title, sub, line, m, ring) => {
+    if (!line.length) return "";
+    // each its own part of the board (one crop for all made the stones small when the lines were far apart)
+    const {svg, notes} = rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), rvCrop(line.map(st => st.xy)));
+    const e = m && ev(m);
+    return `<figure class="rv-fig">${svg}<figcaption><b>${title}</b><span>${escHtml(sub)}</span>` +
+      (e ? `<span class="rv-ev">${escHtml(rvLead(side, e.lead))} · ${escHtml(`승률 ${e.wr}%`)}</span>` : "") +
+      (notes.length ? `<span class="rv-notes">${escHtml(notes.join(" · "))}</span>` : "") + `</figcaption></figure>`;
+  };
+  const where = st => [rvRegion([st.xy]), ...st.words].join(" · ");
+  const figs = fig("실전도", `1 = 실전 ${played} · ${where(lineA[0])}`, lineA, nb, s.grade) +
+    (lineB.length ? fig("참고도 1", `AI 1순위 ${best.move} · ${where(lineB[0])}`, lineB, best, "best") : "") +
+    (lineC.length ? fig("참고도 2", `AI ${cands.indexOf(second) + 1}순위 ${second.move} · ${where(lineC[0])}`, lineC, second, "best") : "");
+  // what it says: the loss, the win rate, what to play instead and how it turns out, and how the opponent answered
+  const wrB = Math.round(nodeStats(p).wr), wrA = Math.round(100 - nodeStats(n).wr), say = [], fix = [], reply_ = [];
+  say.push(`${side} ${n.depth}수(${played})는 약 ${loss.toFixed(1)}집 손해인 ${label}입니다.`);
+  say.push(Math.abs(wrB - wrA) < 2 ? `${side} 승률은 ${wrA}% 그대로입니다.` : wrA < wrB ? `${side} 승률이 ${wrB}%에서 ${wrA}%로 떨어졌습니다.`
+    : `${side} 승률이 ${wrB}%에서 ${wrA}%로 올랐습니다.`);   // points lost, win rate up: search noise on a won or lost game
+  if (lineB.length) {
+    const e = ev(best);
+    fix.push(`참고도 1처럼 ${best.move}에 두었어야 합니다.`);
+    fix.push(`이 수순이면 ${side}이 ${Math.abs(e.lead).toFixed(1)}집 ${e.lead >= 0 ? "앞섭니다" : "뒤집니다"}.`);
+  }
+  if (lineC.length) fix.push(`참고도 2의 ${second.move}도 비슷하게 좋습니다.`);
+  const reply = n.children[0];
+  if (nb && reply && reply.move && !reply.move.pass) {
+    const rm = noteMove(reply), rg = moveGrade(reply);
+    if (rm === nb.move) reply_.push(`${opp}은 ${reply.depth}수(${rm})로 정확히 응수했습니다.`);
+    else if (rg && (rg.grade === "mistake" || rg.grade === "blunder")) {
+      reply_.push(`${opp}도 ${reply.depth}수(${rm})로 받아 기회를 놓쳤습니다.`);
+      reply_.push(`실전도처럼 ${nb.move}에 두는 것이 좋았습니다.`);
+    }
+  }
+  return `<section class="rv-scene" id="rv-s${k}"><header><span class="rv-k">장면 ${k}</span><b>${escHtml([`${n.depth}수째`, side, label].join(" · "))}</b>` +
+    `<span class="rv-loss ${s.grade}">${escHtml(`−${loss.toFixed(1)}집`)}</span><button type="button" class="rv-go" data-go="${n.depth}">판에서 보기</button></header>` +
+    [say, fix, reply_].filter(ts => ts.length).map(ts => `<p>${ts.map(t => `<span>${escHtml(t)}</span>`).join(" ")}</p>`).join("") + `<div class="rv-figs">${figs}</div></section>`;
+}
+function rvGraph(line, scenes) {   // black's win rate (grey area) and lead (blue line) through the game, the scenes as dots
+  const W = 760, H = 190, l = 36, r = 36, t = 12, b = 24, moves = line.length - 1 || 1;
+  const X = k => l + k / moves * (W - l - r), st = line.map(n => n.analysis && n.analysis.rootInfo ? nodeStats(n) : null);
+  const top = Math.max(10, Math.ceil(Math.max(0, ...st.filter(Boolean).map(s => Math.abs(s.blackLead))) / 10) * 10);
+  const Yw = wr => t + (1 - wr / 100) * (H - t - b), Yl = v => t + (1 - (v + top) / (2 * top)) * (H - t - b);
+  let area = "", lead = "", g = `<svg class="rv-graph" viewBox="0 0 ${W} ${H}" role="img">`;
+  st.forEach((s, k) => { if (!s) return; area += `${area ? "L" : "M"}${X(k).toFixed(1)},${Yw(s.blackWr).toFixed(1)}`; lead += `${lead ? "L" : "M"}${X(k).toFixed(1)},${Yl(s.blackLead).toFixed(1)}`; });
+  const ks = st.map((s, k) => s ? k : -1).filter(k => k >= 0);
+  if (ks.length) g += `<path d="${area}L${X(ks[ks.length - 1]).toFixed(1)},${H - b}L${X(ks[0]).toFixed(1)},${H - b}Z" class="rv-area"/>`;
+  for (const v of [0, 50, 100]) g += `<line x1="${l}" x2="${W - r}" y1="${Yw(v)}" y2="${Yw(v)}" class="${v === 50 ? "mid" : "ax"}"/><text x="${l - 6}" y="${Yw(v)}" class="rv-yl">${v}%</text>`;
+  g += `<text x="${W - r + 6}" y="${Yl(top)}" class="rv-yr">+${top}</text><text x="${W - r + 6}" y="${Yl(-top)}" class="rv-yr">−${top}</text>`;
+  for (const [, , upTo] of PHASES.slice(0, -1)) { const k = phaseCut(upTo, N); if (k < moves) g += `<line x1="${X(k)}" x2="${X(k)}" y1="${t}" y2="${H - b}" class="ph"/>`; }
+  for (let k = 50; k < moves; k += 50) g += `<text x="${X(k)}" y="${H - 6}" class="rv-xl">${k}</text>`;
+  g += `<path d="${lead}" class="rv-lead"/>`;
+  for (const s of scenes) { const ss = st[s.n.depth]; if (ss) g += `<circle cx="${X(s.n.depth).toFixed(1)}" cy="${Yw(ss.blackWr).toFixed(1)}" r="${s.grade === "blunder" ? 5 : 4}" class="rv-dot ${s.grade}"/>`; }
+  return g + "</svg>";
+}
+function rvCover(line, scenes) {
+  const i = root.info, moves = line.length - 1, an = line.filter(n => n.analysis && n.analysis.rootInfo);
+  const vis = an.length ? Math.round(an.reduce((a, n) => a + n.analysis.rootInfo.visits, 0) / an.length) : 0;
+  const graded = reportMoves(), hc = root.setup.B.length && !root.setup.W.length ? root.setup.B.length : 0;
+  const meta = [i.DT, i.RE && resultText(i.RE), hc > 1 ? `${hc}점 접바둑` : "", `덤 ${komi()}`, `${moves}수`,
+    an.length < line.length ? `분석된 국면 ${an.length}/${line.length}` : "", vis ? `수마다 평균 ${vis} visits` : ""].filter(Boolean);
+  const sideRow = c => {
+    const xs = graded.filter(m => m.side === c), ns = scenes.filter(s => s.n.move.c === c);
+    if (!xs.length) return null;
+    const pts = xs.map(m => Math.max(0, moveGrade(m.n).points)), worst = ns.reduce((a, s) => !a || s.loss.points > a.loss.points ? s : a, null);
+    const count = g => ns.filter(s => s.grade === g).length;
+    const phases = PHASES.map(([, label, upTo], j) => [label, ns.filter(s => s.n.depth <= phaseCut(upTo, N) && (!j || s.n.depth > phaseCut(PHASES[j - 1][2], N))).length]);
+    const most = phases.reduce((a, p) => p[1] > a[1] ? p : a, ["", 0]);
+    return {c, ai: Math.round(xs.filter(m => m.grade === "ai").length / xs.length * 100), avg: (pts.reduce((a, v) => a + v, 0) / pts.length).toFixed(1),
+            mistake: count("mistake"), blunder: count("blunder"), worst, most, n: xs.length};
+  };
+  const rows = ["B", "W"].map(sideRow).filter(Boolean);
+  const name = c => c === "B" ? i.PB : i.PW;
+  const table = `<table class="rv-sum"><thead><tr><th></th>${rows.map(r => `<th><i class="rv-st ${r.c === "B" ? "b" : "w"}"></i>${escHtml(name(r.c) || colorName(r.c))}</th>`).join("")}</tr></thead><tbody>` +
+    `<tr><td>AI 일치율</td>${rows.map(r => `<td>${r.ai}%</td>`).join("")}</tr>` +
+    `<tr><td>평균 손해</td>${rows.map(r => `<td>${escHtml(`${r.avg}집`)}</td>`).join("")}</tr>` +
+    `<tr><td>실수</td>${rows.map(r => `<td class="mistake">${r.mistake}</td>`).join("")}</tr>` +
+    `<tr><td>악수</td>${rows.map(r => `<td class="blunder">${r.blunder}</td>`).join("")}</tr>` +
+    `<tr><td>가장 큰 손해</td>${rows.map(r => `<td>${r.worst ? escHtml(`${r.worst.n.depth}수째 · ${Math.max(0, r.worst.loss.points).toFixed(1)}집`) : "—"}</td>`).join("")}</tr></tbody></table>`;
+  const notes = rows.map(r => {
+    const side = colorName(r.c);
+    const said = r.mistake + r.blunder ? [`${r.most[0]}에 실수·악수가 가장 많았습니다 (${r.most[1]}개).`,
+      `가장 큰 손해는 ${r.worst.n.depth}수째 (${Math.max(0, r.worst.loss.points).toFixed(1)}집)입니다.`] : ["실수·악수가 없습니다."];
+    return `<p><b>${escHtml(side)}</b> ${said.map(t => `<span>${escHtml(t)}</span>`).join(" ")}</p>`;
+  }).join("");
+  const list = scenes.length ? `<table class="rv-list"><thead><tr><th>장면</th><th>수</th><th></th><th>등급</th><th>손해</th><th>실전</th><th>AI</th></tr></thead><tbody>` +
+    scenes.map((s, k) => { const best = candidates(s.n.parent)[0];
+      return `<tr data-to="${k + 1}"><td>${k + 1}</td><td>${s.n.depth}</td><td><i class="rv-st ${s.n.move.c === "B" ? "b" : "w"}"></i></td><td class="${s.grade}">${rvGradeLabel(s.grade)}</td>` +
+        `<td>${escHtml(`${Math.max(0, s.loss.points).toFixed(1)}집`)}</td><td>${noteMove(s.n)}</td><td>${best ? best.move : "—"}</td></tr>`; }).join("") + `</tbody></table>`
+    : `<p class="rv-none">실수·악수가 없습니다.</p>`;
+  return `<div class="rv-page rv-cover"><div class="rv-kicker">KataGo Cloud</div><h1>복기 리포트</h1>` +
+    `<div class="rv-players"><span><i class="rv-st b"></i>${escHtml(i.PB || "흑")}</span><em>vs</em><span><i class="rv-st w"></i>${escHtml(i.PW || "백")}</span></div>` +
+    `<div class="rv-meta">${escHtml(meta.join(" · "))}</div>` +
+    `<h2>흐름</h2>${rvGraph(line, scenes)}<div class="rv-legend"><span class="a">흑 승률</span><span class="l">흑 집 차이</span><span class="m">실수</span><span class="k">악수</span></div>` +
+    `<h2>요약</h2>${table}<div class="rv-notes-sum">${notes}</div><h2>실수·악수 장면</h2>${list}</div>`;
+}
+function rvFigures(line, scenes) {
+  const ring = new Map(scenes.map(s => [s.n, s.grade]));
+  let out = "";
+  for (let a = 1; a < line.length; a += RV_FIG) {
+    const b = Math.min(line.length - 1, a + RV_FIG - 1), stones = [], passes = [];
+    for (let k = a; k <= b; k++) {
+      const n = line[k];
+      if (n.move.pass) passes.push(`${k} 패스`); else stones.push({xy: [n.move.x, n.move.y], color: n.move.c, no: k, ring: ring.get(n) || ""});
+    }
+    const {svg, notes} = rvBoard(line[a - 1].grid, stones, [0, N - 1, 0, N - 1]), more = [...notes, ...passes];
+    out += `<figure class="rv-fig rv-whole">${svg}<figcaption><b>${escHtml(`기보 ${a}–${b}수`)}</b>${more.length ? `<span class="rv-notes">${escHtml(more.join(" · "))}</span>` : ""}</figcaption></figure>`;
+  }
+  return out;
+}
+function renderReview() {
+  const line = lineThrough(root), all = rvScenes(), scenes = all.filter(s => !rvState.side || s.n.move.c === rvState.side);
+  const k0 = s => all.indexOf(s) + 1;   // a scene keeps its number when one side is picked
+  $("rvPages").innerHTML = rvCover(line, all) +
+    `<div class="rv-page"><h2 class="rv-sec">실수·악수 장면</h2>${scenes.length ? scenes.map(s => rvScene(s, k0(s))).join("") : `<p class="rv-none">실수·악수가 없습니다.</p>`}</div>` +
+    `<div class="rv-page"><h2 class="rv-sec">기보도</h2><div class="rv-legend"><span class="m">실수</span><span class="k">악수</span></div><div class="rv-figs whole">${rvFigures(line, all)}</div></div>`;
+  for (const b of $("rvSide").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === rvState.side);
+}
+function openReview() {
+  if (reportMoves().length < 6) { $("err").textContent = "복기 리포트를 만들 분석이 부족합니다. '대국 리포트'로 먼저 분석하세요."; return false; }
+  if ($("strengthDlg").open) $("strengthDlg").close();
+  rvState = {side: rvState ? rvState.side : "", root};
+  renderReview();
+  $("reviewDoc").hidden = false; $("reviewDoc").scrollTop = 0; document.body.classList.add("review-open");
+  return true;
+}
+function closeReview() {
+  if (!rvState) return;
+  rvState = null; $("reviewDoc").hidden = true; $("rvPages").innerHTML = ""; document.body.classList.remove("review-open");
+}
+$("reviewOpen").onclick = openReview;
+$("rvClose").onclick = closeReview;
+$("rvPrint").onclick = () => window.print();
+$("rvSide").onclick = ev => { const b = ev.target.closest("button[data-v]"); if (!b || !rvState) return; rvState.side = b.dataset.v; renderReview(); };
+$("rvPages").onclick = ev => {
+  const go = ev.target.closest("button[data-go]"), to = ev.target.closest("tr[data-to]");
+  if (go && rvState) {   // the scene on the board: the move it is about
+    const same = rvState.root === root, n = lineThrough(root)[+go.dataset.go];
+    closeReview(); if (same && n) goTo(n);
+  } else if (to) {
+    const el = document.getElementById("rv-s" + to.dataset.to);
+    if (el) el.scrollIntoView({behavior: "smooth", block: "start"});
+    else { rvState.side = ""; renderReview(); document.getElementById("rv-s" + to.dataset.to)?.scrollIntoView({block: "start"}); }   // hidden by the side picked
+  }
+};
 
 // ------------------------------------------------------------------ analysis helpers (Lizzie conventions: side-to-move %)
 function candidates(node, shown = false) {

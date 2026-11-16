@@ -1241,7 +1241,7 @@ function showMine() {
     `<tr class="pick" data-open="${i}"><td>${sizeTag(k)}<b>${esc(k.title)}</b><span class="mine-meta">${mineMeta(k)}</span></td><td class="hide-sm">${esc(k.black || "")}</td><td class="hide-sm">${esc(k.white || "")}</td>` +
     `<td class="num hide-sm">${k.moves}</td><td class="num hide-sm">${k.analyzed}</td><td class="hide-sm">${esc(k.game_date || "")}</td><td class="hide-sm">${when(k.updated_at)}</td>` +
     `<td class="folder-col">${STUDY[k.study] ? `<span class="muted small">연구 · ${STUDY[k.study]}</span>` : `<select data-move="${i}" aria-label="분류 옮기기">${opts(k.folder_id)}</select>`}</td>` +
-    `<td style="text-align:right;white-space:nowrap">${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
+    `<td style="text-align:right;white-space:nowrap">${k.moves && k.analyzed >= k.moves ? `<button class="quiet" data-review="${i}" title="실수·악수마다 AI 참고도를 붙인 문서">복기 리포트</button>` : ""}${!canShare ? "" : `<button class="quiet${k.share_token ? " shared" : ""}" data-share="${i}" title="${k.share_token ? "공유 중 · 링크 보기·끄기" : "읽기 전용 링크 만들기"}">${k.share_token ? "공유 중" : "공유"}</button>`}<button class="quiet" data-del="${i}">삭제</button></td></tr>`).join("")
     || `<tr><td colspan="9" class="muted">${!mine.length ? "아직 저장한 기보가 없습니다." : words.length || onlyAnalyzed ? "찾는 기보가 없습니다." : "이 분류에는 기보가 없습니다."}</td></tr>`;
 }
 // 분류 (folders): #mine shows them as cards (전체 · each folder · 분류 없음 · ＋ 새 분류); a card opens #mine/<key>,
@@ -2077,6 +2077,9 @@ $("mineRows").onclick = async (ev) => {
   if (ev.target.closest("select")) return;
   const share = ev.target.closest("[data-share]");
   if (share) { openShare(mine[+share.dataset.share]); return; }
+  // 복기 리포트 (2026-11-16): the analysis screen opens the game and its report (made from the analysis saved with it, no GPU needed)
+  const review = ev.target.closest("[data-review]");
+  if (review) { const k = mine[+review.dataset.review]; if (k) openPage(`analysis.html?v=${Date.now()}#${engineHash()}kifu=${k.id}&review=1`); return; }
   const del = ev.target.closest("[data-del]");
   if (del) {
     const k = mine[+del.dataset.del];
