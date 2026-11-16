@@ -762,6 +762,20 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; margin-top: 16px; align-items: start; }
 .rv-figs.whole { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 26px; margin-top: 12px; }
 .rv-figs.n2 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } .rv-figs.n3 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); }
+/* 장면: 총평, 실전도(크게) + 설명, 참고도들(아래) + 각 설명 */
+.rv-sum { margin: 2px 0 0; font-size: 15px; }
+.rv-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 16px; }
+.rv-main .rv-svg { width: 100%; }
+.rv-refs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 22px; align-items: start; }
+.rv-refs.n1 { grid-template-columns: minmax(0, 1fr); }
+.rv-refs.n1 .rv-ref { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.rv-note { display: grid; gap: 4px; font-size: 13.5px; line-height: 1.55; color: #2b303b; }
+.rv-ref .rv-note { margin-top: 8px; } .rv-refs.n1 .rv-ref .rv-note { margin-top: 0; }
+.rv-note > b { font-size: 15.5px; color: #171a22; }
+.rv-note > b em { font-style: normal; font-weight: 700; color: #2c5cf6; margin-left: 4px; }
+.rv-note .rv-sub { color: #687082; font-size: 13px; }
+.rv-note p { margin: 0; }
+.rv-note .rv-notes { color: #8a92a5; font-size: 12px; }
 .rv-msg { color: var(--muted); font-size: 13px; }
 .rv-msg:empty { display: none; }
 .rv-pdf { position: fixed; left: -30000px; top: 0; width: 720px; background: #fff; pointer-events: none; }
@@ -771,6 +785,10 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-pdf .rv-page > div:not(.rv-figs):not(.rv-legend):not(.rv-players), .rv-pdf .rv-page > section { display: flow-root; }
 .rv-pdf .rv-figs, .rv-pdf .rv-figs.n2, .rv-pdf .rv-figs.n3 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) !important; gap: 14px !important; }
 .rv-pdf .rv-figs.whole { grid-template-columns: 1fr 1fr !important; gap: 20px !important; }
+.rv-pdf .rv-main { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) !important; gap: 20px !important; }
+.rv-pdf .rv-refs { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 20px !important; }
+.rv-pdf .rv-refs.n1 { grid-template-columns: minmax(0, 1fr) !important; }
+.rv-pdf .rv-refs.n1 .rv-ref { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
 .rv-pdf .rv-scene { padding: 16px 0 14px; }
 .rv-fig { margin: 0; }
 .rv-fig figcaption { display: grid; gap: 1px; margin-top: 7px; font-size: 13px; color: #4b5263; }
@@ -790,6 +808,7 @@ button.primary:hover { background: var(--blue-deep); }
   .rv-page { padding: 26px 18px; margin-bottom: 10px; border-radius: 0; }
   .rv-page h1 { font-size: 28px; }
   .rv-figs, .rv-figs.whole, .rv-figs.n2, .rv-figs.n3 { grid-template-columns: 1fr; gap: 16px; }
+  .rv-main, .rv-refs, .rv-refs.n1, .rv-refs.n1 .rv-ref { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .rv-bar { gap: 8px; }
   .rv-bar > b { display: none; }
   .rv-sum th, .rv-sum td, .rv-list th, .rv-list td { padding: 7px 5px; }
@@ -5358,7 +5377,7 @@ $("strengthDlg").addEventListener("click", ev => { if (ev.target === $("strength
 // Diagrams are drawn as books draw them: the stones already on the board plain, the line's stones numbered, a stone played
 // where one was taken told under the diagram ("7 = 3"). Pages are paper (white in dark mode too); 'PDF 저장' prints them.
 // Region and shape words come from the board (the same rules the 수순 설명 test had, 2026-11-15) — no word when unsure.
-const RV_LINE = 10, RV_FIG = 50, RV_SECOND = 1.5;   // stones in a line at most · moves in a figure · 참고도 2 within this many points
+const RV_LINE = 10, RV_FIG = 50;   // stones in a line at most · moves in a figure
 let rvState = null;   // {side: "" | "B" | "W", root} while the report is open
 function rvRegion(pts) {   // where a set of points [x, y] is: 좌상귀 … 중앙 (by their middle)
   const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
@@ -5488,55 +5507,72 @@ function rvScenes() {   // the main line's 실수·악수: [{n, grade, loss}]
   return out;
 }
 const rvGradeLabel = g => GRADES.find(x => x[0] === g)[1];
-const rvLead = (side, lead) => `${side} ${Math.abs(lead).toFixed(1)}집 ${lead >= 0 ? "앞섬" : "뒤짐"}`;
 function rvScene(s, k) {
   const {n} = s, p = n.parent, c = n.move.c, side = colorName(c), opp = colorName(other(c));
   const played = noteMove(n), cands = candidates(p), best = cands[0], nb = candidates(n)[0];
   const label = rvGradeLabel(s.grade), loss = Math.max(0, s.loss.points);
-  // the lines: the move and KataGo's answer to it, KataGo's first choice, another choice about as good (enough visits to trust)
+  // 장면 (user 2026-11-16 "실수한 수 딱 한 수만 나오는 판을 … '실전' 이름으로 보여주고, 실전을 뒀을 때 AI라면 어떻게 대응하는지 참고도를
+  // 하나 더, 그다음에 어떻게 뒀어야 하는지" · "총평은 실전 설명글로 … 더 상세하게 … 격차를 줄이거나 벌릴 수 있는 기회를 놓쳤다"):
+  // 실전 (the whole board, large, the one move) with its note beside: what it cost and the facts around it →
+  // 참고도 1 = AI의 대응 (the move, then KataGo's best answer) and what the real answer gave away · 참고도 2 = 올바른 수
   const lineA = rvLine(p, [played, ...(nb ? rvPv(nb) : [])]);
   const lineB = best && best.move !== played ? rvLine(p, rvPv(best)) : [];
-  const second = best && cands.find((m, j) => j > 0 && m.move !== played && m.move !== "pass" && m.visits >= Math.max(2, best.visits * .1)
-    && moverLead(p, best.scoreLead) - moverLead(p, m.scoreLead) <= RV_SECOND);
-  const lineC = second ? rvLine(p, rvPv(second)) : [];
   const ev = m => { const lead = moverLead(p, m.scoreLead), wr = Math.round((c === "B" ? m.winrate : 1 - m.winrate) * 100); return {lead, wr}; };
-  const fig = (title, sub, line, m, ring, whole = false) => {
-    if (!line.length) return "";
-    // 실전도 = the whole board (user 2026-11-16 "실전도는 판을 자르지 말고 전체를"); 참고도 each its own part of the board
-    // (one crop for all made the stones small when the lines were far apart)
-    const {svg, notes} = rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), whole ? [0, N - 1, 0, N - 1] : rvCrop(line.map(st => st.xy)));
-    const e = m && ev(m);
-    return `<figure class="rv-fig">${svg}<figcaption><b>${title}</b><span>${escHtml(sub)}</span>` +
-      (e ? `<span class="rv-ev">${escHtml(rvLead(side, e.lead))} · ${escHtml(`승률 ${e.wr}%`)}</span>` : "") +
-      (notes.length ? `<span class="rv-notes">${escHtml(notes.join(" · "))}</span>` : "") + `</figcaption></figure>`;
-  };
   const where = st => [rvRegion([st.xy]), ...st.words].join(" · ");
-  const figs = fig("실전도", `1 = 실전 ${played} · ${where(lineA[0])}`, lineA, nb, s.grade, true) +
-    (lineB.length ? fig("참고도 1", `AI 1순위 ${best.move} · ${where(lineB[0])}`, lineB, best, "best") : "") +
-    (lineC.length ? fig("참고도 2", `AI ${cands.indexOf(second) + 1}순위 ${second.move} · ${where(lineC[0])}`, lineC, second, "best") : "");
-  // what it says: the loss, the win rate, what to play instead and how it turns out, and how the opponent answered
-  const wrB = Math.round(nodeStats(p).wr), wrA = Math.round(100 - nodeStats(n).wr), say = [], fix = [], reply_ = [];
-  say.push(`${side} ${n.depth}수(${played})는 약 ${loss.toFixed(1)}집 손해인 ${label}입니다.`);
-  say.push(Math.abs(wrB - wrA) < 2 ? `${side} 승률은 ${wrA}% 그대로입니다.` : wrA < wrB ? `${side} 승률이 ${wrB}%에서 ${wrA}%로 떨어졌습니다.`
-    : `${side} 승률이 ${wrB}%에서 ${wrA}%로 올랐습니다.`);   // points lost, win rate up: search noise on a won or lost game
-  if (lineB.length) {
-    const e = ev(best);
-    fix.push(`참고도 1처럼 ${best.move}에 두었어야 합니다.`);
-    fix.push(`이 수순이면 ${side}이 ${Math.abs(e.lead).toFixed(1)}집 ${e.lead >= 0 ? "앞섭니다" : "뒤집니다"}.`);
-  }
-  if (lineC.length) fix.push(`참고도 2의 ${second.move}도 비슷하게 좋습니다.`);
-  const reply = n.children[0];
-  if (nb && reply && reply.move && !reply.move.pass) {
-    const rm = noteMove(reply), rg = moveGrade(reply);
-    if (rm === nb.move) reply_.push(`${opp}은 ${reply.depth}수(${rm})로 정확히 응수했습니다.`);
-    else if (rg && (rg.grade === "mistake" || rg.grade === "blunder")) {
-      reply_.push(`${opp}도 ${reply.depth}수(${rm})로 받아 기회를 놓쳤습니다.`);
-      reply_.push(`실전도처럼 ${nb.move}에 두는 것이 좋았습니다.`);
+  const board = (line, ring) => rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), rvCrop(line.map(st => st.xy)));
+  const leadSay = e => `이 수순이면 ${side}이 ${Math.abs(e.lead).toFixed(1)}집 ${e.lead >= 0 ? "유리합니다" : "불리합니다"} (승률 ${e.wr}%).`;   // 앞섬·뒤짐 → 유리·불리 (user 2026-11-16)
+  const note = (title, tag, sub, says, extra = "", notes = []) => `<div class="rv-note"><b>${title}${tag ? ` <em>${tag}</em>` : ""}</b><span class="rv-sub">${escHtml(sub)}</span>` +
+    says.map(t => `<p>${escHtml(t)}</p>`).join("") + extra + (notes.length ? `<p class="rv-notes">${escHtml(notes.join(" · "))}</p>` : "") + `</div>`;
+  // the mover's lead and win rate before and after the move
+  const before = nodeStats(p).score, after = -nodeStats(n).score, wrB = Math.round(nodeStats(p).wr), wrA = Math.round(100 - nodeStats(n).wr);
+  const reply = n.children[0], rm = reply && reply.move && !reply.move.pass ? noteMove(reply) : null;
+  // 실전: the one move on the whole board (its move number), and in plain sentences (user 2026-11-16 "표를 붙이지는 마 그냥 줄글로
+  // … 별 필요 없는 정보까지 다 넣을 필요는 없어"): what it cost, how the lead moved, the win rate when it moved, where to play instead
+  const R = rvBoard(p.grid, [{xy: lineA[0].xy, color: c, no: n.depth, ring: s.grade}], [0, N - 1, 0, N - 1]);
+  const sum = [`${side} ${n.depth}수(${played})는 약 ${loss.toFixed(1)}집 손해인 ${label}입니다.`];
+  const f = v => Math.abs(v).toFixed(1);
+  sum.push(before >= 0 && after >= 0 ? `유리한 차이가 ${f(before)}집에서 ${f(after)}집으로 줄었습니다.`
+    : before < 0 && after < 0 ? `불리한 차이가 ${f(before)}집에서 ${f(after)}집으로 벌어졌습니다.`
+    : before >= 0 ? `${f(before)}집 유리하던 형세가 ${f(after)}집 불리로 뒤집혔습니다.` : `${f(before)}집 불리하던 형세가 ${f(after)}집 유리로 바뀌었습니다.`);
+  if (Math.abs(wrB - wrA) >= 2) sum.push(`승률은 ${wrB}%에서 ${wrA}%로 ${wrA < wrB ? "떨어졌습니다" : "올랐습니다"}.`);
+  if (lineB.length) sum.push(`참고도 2처럼 ${best.move}에 두었어야 합니다.`);
+  const enough = m => best && m.visits >= Math.max(5, best.visits * .02);
+  const main = `<div class="rv-main"><figure class="rv-fig big">${R.svg}</figure>` +
+    note("실전", "", `${side} ${n.depth} ${played} · ${where(lineA[0])}`, sum) + `</div>`;
+  // 참고도 1 = AI의 대응: how KataGo answers the move, and what the real answer kept or gave away (its own loss, and the gap the
+  // opponent could have had against the one it got)
+  let refs = "", nRefs = 0;
+  if (nb && lineA.length > 1) {
+    const B = board(lineA, s.grade), eA = ev(nb), says = [`실전 수에 AI라면 ${opp}은 2(${nb.move})에 받습니다.`, leadSay(eA)];
+    if (rm === nb.move) says.push(`실전에서도 ${opp}은 ${reply.depth}수로 똑같이 받았습니다.`);
+    else if (rm) {
+      const rl = moveLoss(reply), rg = moveGrade(reply), oppBest = -eA.lead, oppReal = nodeStats(reply) ? -nodeStats(reply).score : null;
+      const wrBest = 100 - eA.wr, wrReal = nodeStats(reply) ? Math.round(100 - nodeStats(reply).wr) : null;
+      if (rl && Math.max(0, rl.points) < GOOD_POINTS) says.push(`실전 ${reply.depth}수(${rm})도 AI의 대응과 거의 같은 값입니다 (${Math.max(0, rl.points).toFixed(1)}집 차이).`);
+      else if (rl && oppReal !== null) {
+        const g = rg && (rg.grade === "mistake" || rg.grade === "blunder") ? ` (${rvGradeLabel(rg.grade)})` : "";
+        says.push(`실전 ${reply.depth}수(${rm})는 AI의 대응보다 약 ${Math.max(0, rl.points).toFixed(1)}집 손해였습니다${g}.`);
+        if (oppBest >= 0 && oppReal >= 0) says.push(`AI처럼 받았다면 ${opp}이 ${oppBest.toFixed(1)}집까지 유리할 수 있었는데, 실전은 ${oppReal.toFixed(1)}집 유리에 그쳤습니다.`);
+        else if (oppBest < 0 && oppReal < 0) says.push(`AI처럼 받았다면 ${opp}의 불리함을 ${(-oppBest).toFixed(1)}집까지 줄일 수 있었는데, 실전은 ${(-oppReal).toFixed(1)}집 불리로 남았습니다.`);
+        else if (oppBest >= 0) says.push(`AI처럼 받았다면 ${opp}이 ${oppBest.toFixed(1)}집 유리할 수 있었는데, 실전은 ${(-oppReal).toFixed(1)}집 불리가 됐습니다.`);
+        if (wrReal !== null && Math.abs(wrBest - wrReal) >= 2) says.push(`${opp} 승률로는 ${wrBest}% 대신 ${wrReal}%입니다.`);
+      }
     }
+    refs += `<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note(`참고도 ${++nRefs}`, "AI의 대응", `2 = AI ${nb.move} · ${where(lineA[1])}`, says, "", B.notes)}</div>`;
+  }
+  // 참고도 2 = 올바른 수: KataGo's first choice, how much better than the move played, and how far ahead of its second choice
+  if (lineB.length) {
+    const B = board(lineB, "best"), e = ev(best), says = [leadSay(e)];
+    if (nb && e.lead - ev(nb).lead >= .1) says.push(`실전보다 ${(e.lead - ev(nb).lead).toFixed(1)}집 낫습니다` + (Math.abs(e.wr - ev(nb).wr) >= 2 ? ` (승률 ${ev(nb).wr}% → ${e.wr}%).` : "."));
+    const c2 = cands.find((m, j) => j > 0 && m.move !== "pass" && enough(m));
+    if (c2) { const d2 = e.lead - moverLead(p, c2.scoreLead);
+      says.push(d2 < .3 ? `AI 2순위(${c2.move})와 거의 같은 값입니다.` : d2 < 2 ? `AI 2순위 ${c2.move}보다 ${d2.toFixed(1)}집 좋습니다.`
+        : `AI 2순위 ${c2.move}보다 ${d2.toFixed(1)}집이나 좋은, 이 국면의 확실한 한 수입니다.`); }
+    refs += `<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note(`참고도 ${++nRefs}`, "올바른 수", `AI 1순위 ${best.move} · ${where(lineB[0])}`, says, "", B.notes)}</div>`;
   }
   return `<section class="rv-scene" id="rv-s${k}"><header><span class="rv-k">장면 ${k}</span><b>${escHtml([`${n.depth}수째`, side, label].join(" · "))}</b>` +
     `<span class="rv-loss ${s.grade}">${escHtml(`−${loss.toFixed(1)}집`)}</span><button type="button" class="rv-go" data-go="${n.depth}">판에서 보기</button></header>` +
-    [say, fix, reply_].filter(ts => ts.length).map(ts => `<p>${ts.map(t => `<span>${escHtml(t)}</span>`).join(" ")}</p>`).join("") + `<div class="rv-figs n${1 + !!lineB.length + !!lineC.length}">${figs}</div></section>`;
+    main + (refs ? `<div class="rv-refs n${nRefs}">${refs}</div>` : "") + `</section>`;
 }
 function rvGraph(line, scenes) {   // black's win rate (grey area) and lead (blue line) through the game, the scenes as dots
   const W = 760, H = 190, l = 36, r = 36, t = 12, b = 24, moves = line.length - 1 || 1;
