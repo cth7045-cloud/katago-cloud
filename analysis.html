@@ -5533,7 +5533,7 @@ function rvScene(s, k) {
   const lineA = rvLine(p, [played, ...(nb ? rvPv(nb) : [])]);
   const lineB = best && best.move !== played ? rvLine(p, rvPv(best)) : [];
   const ev = m => { const lead = moverLead(p, m.scoreLead), wr = Math.round((c === "B" ? m.winrate : 1 - m.winrate) * 100); return {lead, wr}; };
-  const where = st => [rvRegion([st.xy]), ...st.words].join(" · ");
+  const where = st => rvRegion([st.xy]);   // 모양 이름(이음·붙임 …) 뺌 — 틀릴 때가 있어서 (user 2026-11-16)
   const board = (line, ring) => rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), rvCrop(line.map(st => st.xy)));
   const leadSay = e => `이 수순이면 ${side}이 ${Math.abs(e.lead).toFixed(1)}집 ${e.lead >= 0 ? "유리합니다" : "불리합니다"} (승률 ${e.wr}%).`;   // 앞섬·뒤짐 → 유리·불리 (user 2026-11-16)
   const note = (title, tag, sub, says, extra = "", notes = []) => `<div class="rv-note"><b>${title}${tag ? ` <em>${tag}</em>` : ""}</b><span class="rv-sub">${escHtml(sub)}</span>` +
