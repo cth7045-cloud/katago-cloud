@@ -749,6 +749,13 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-sum td.mistake, .rv-list td.mistake { color: #d4621a; font-weight: 700; } .rv-sum td.blunder, .rv-list td.blunder { color: #d0393e; font-weight: 700; }
 .rv-list tbody tr { cursor: pointer; } .rv-list tbody tr:hover { background: #f3f5f9; }
 .rv-notes-sum p { margin: 10px 0 0; } .rv-notes-sum b { margin-right: 4px; }
+.rv-gbar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: #eef1f6; }
+.rv-gbar i { display: block; min-width: 3px; }
+.rv-gd { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+.rv-grades small { color: #8a92a5; font-size: 12px; }
+.rv-sum:not(.rv-stages) { table-layout: fixed; } .rv-sum:not(.rv-stages) th:first-child { width: 32%; }
+.rv-grades td + td { white-space: nowrap; } .rv-stages td:first-child { white-space: nowrap; } .rv-stages th { vertical-align: bottom; }
+.rv-stages tr:has(+ .rv-st2) td { border-bottom-color: transparent; }
 .rv-none { color: #687082; }
 .rv-scene { padding: 26px 0 22px; border-bottom: 1px solid #e8ebf2; }
 .rv-scene:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -814,7 +821,8 @@ button.primary:hover { background: var(--blue-deep); }
   .rv-bar > b { display: none; }
   .rv-sum th, .rv-sum td, .rv-list th, .rv-list td { padding: 7px 5px; }
   .rv-bar .seg { min-width: 140px; }
-  .rv-bar .seg button { white-space: nowrap; }
+  .rv-bar .seg button { white-space: nowrap; flex: 0 0 auto; }
+  .rv-stages th, .rv-stages td { padding: 7px 3px; font-size: 12.5px; } .rv-stages th { font-size: 12px; }
   .rv-bar button { padding: 5px 11px; }
 }
 @media (prefers-color-scheme: dark) {
@@ -5616,21 +5624,37 @@ function rvCover(line, scenes) {
   const sideRow = c => {
     const xs = graded.filter(m => m.side === c), ns = scenes.filter(s => s.n.move.c === c);
     if (!xs.length) return null;
-    const pts = xs.map(m => Math.max(0, moveGrade(m.n).points)), worst = ns.reduce((a, s) => !a || s.loss.points > a.loss.points ? s : a, null);
-    const count = g => ns.filter(s => s.grade === g).length;
-    const phases = PHASES.map(([, label, upTo], j) => [label, ns.filter(s => s.n.depth <= phaseCut(upTo, N) && (!j || s.n.depth > phaseCut(PHASES[j - 1][2], N))).length]);
+    const loss = m => Math.max(0, moveGrade(m.n).points), worst = ns.reduce((a, s) => !a || s.loss.points > a.loss.points ? s : a, null);
+    const avg = ms => (ms.reduce((a, m) => a + loss(m), 0) / ms.length).toFixed(1), pct = (k, n) => Math.round(k / n * 100);
+    const count = g => xs.filter(m => m.grade === g).length;
+    const inPhase = (d, j) => d <= phaseCut(PHASES[j][2], N) && (!j || d > phaseCut(PHASES[j - 1][2], N));
+    const phases = PHASES.map(([, label], j) => [label, ns.filter(s => inPhase(s.n.depth, j)).length]);
     const most = phases.reduce((a, p) => p[1] > a[1] ? p : a, ["", 0]);
-    return {c, ai: Math.round(xs.filter(m => m.grade === "ai").length / xs.length * 100), avg: (pts.reduce((a, v) => a + v, 0) / pts.length).toFixed(1),
-            mistake: count("mistake"), blunder: count("blunder"), worst, most, n: xs.length};
+    // 대국 리포트's numbers (user 2026-11-16 "대국 리포트에 있는 이것도 복기리포트에 정리해서 넣자"): each grade, and each stage
+    const stages = PHASES.map(([, label], j) => { const ps = xs.filter(m => inPhase(m.no, j));
+      return ps.length ? {label, n: ps.length, ai: pct(ps.filter(m => m.grade === "ai").length, ps.length), avg: avg(ps),
+                          bad: ps.filter(m => m.grade === "mistake" || m.grade === "blunder").length} : null; }).filter(Boolean);
+    return {c, ai: pct(count("ai"), xs.length), avg: avg(xs), grades: GRADES.map(([g]) => [g, count(g), pct(count(g), xs.length)]),
+            mistake: count("mistake"), blunder: count("blunder"), worst, most, stages, n: xs.length};
   };
   const rows = ["B", "W"].map(sideRow).filter(Boolean);
   const name = c => c === "B" ? i.PB : i.PW;
-  const table = `<table class="rv-sum"><thead><tr><th></th>${rows.map(r => `<th><i class="rv-st ${r.c === "B" ? "b" : "w"}"></i>${escHtml(name(r.c) || colorName(r.c))}</th>`).join("")}</tr></thead><tbody>` +
+  const head = `<thead><tr><th></th>${rows.map(r => `<th><i class="rv-st ${r.c === "B" ? "b" : "w"}"></i>${escHtml(name(r.c) || colorName(r.c))}</th>`).join("")}</tr></thead>`;
+  const table = `<table class="rv-sum">${head}<tbody>` +
+    `<tr><td>분석된 수</td>${rows.map(r => `<td>${r.n}</td>`).join("")}</tr>` +
     `<tr><td>AI 일치율</td>${rows.map(r => `<td>${r.ai}%</td>`).join("")}</tr>` +
     `<tr><td>평균 손해</td>${rows.map(r => `<td>${escHtml(`${r.avg}집`)}</td>`).join("")}</tr>` +
-    `<tr><td>실수</td>${rows.map(r => `<td class="mistake">${r.mistake}</td>`).join("")}</tr>` +
-    `<tr><td>악수</td>${rows.map(r => `<td class="blunder">${r.blunder}</td>`).join("")}</tr>` +
     `<tr><td>가장 큰 손해</td>${rows.map(r => `<td>${r.worst ? escHtml(`${r.worst.n.depth}수째 · ${Math.max(0, r.worst.loss.points).toFixed(1)}집`) : "—"}</td>`).join("")}</tr></tbody></table>`;
+  // 등급별 수: a bar of the five grades per side, then each grade's count (share)
+  const gradeTable = `<table class="rv-sum rv-grades">${head}<tbody>` +
+    `<tr class="rv-gbar-row"><td></td>${rows.map(r => `<td><div class="rv-gbar">${r.grades.map(([g, k]) => k ? `<i style="flex:${k};background:${GRADES.find(x => x[0] === g)[2]}"></i>` : "").join("")}</div></td>`).join("")}</tr>` +
+    GRADES.map(([g, label, color], j) => `<tr><td><i class="rv-gd" style="background:${color}"></i>${label}</td>` +
+      rows.map(r => `<td${g === "mistake" || g === "blunder" ? ` class="${g}"` : ""}>${r.grades[j][1]} <small>(${r.grades[j][2]}%)</small></td>`).join("") + `</tr>`).join("") + `</tbody></table>`;
+  // 단계별: per stage and side, like the 대국 리포트's table
+  const stageTable = `<table class="rv-sum rv-stages"><thead><tr><th>단계</th><th>수</th><th>AI 일치율</th><th>평균 손해</th><th>실수·악수</th></tr></thead><tbody>` +
+    PHASES.map(([, label]) => rows.map(r => r.stages.find(st => st.label === label)).map((st, j) => st ?
+      `<tr${j ? ` class="rv-st2"` : ""}><td><i class="rv-st ${rows[j].c === "B" ? "b" : "w"}"></i>${j && rows[0].stages.some(x => x.label === label) ? "" : label}</td>` +
+      `<td>${st.n}</td><td>${st.ai}%</td><td>${escHtml(`${st.avg}집`)}</td><td>${st.bad}</td></tr>` : "").join("")).join("") + `</tbody></table>`;
   const notes = rows.map(r => {
     const side = colorName(r.c);
     const said = r.mistake + r.blunder ? [`${r.most[0]}에 실수·악수가 가장 많았습니다 (${r.most[1]}개).`,
@@ -5647,7 +5671,7 @@ function rvCover(line, scenes) {
     `<div class="rv-meta">${escHtml(meta.join(" · "))}</div>` +
     (models.length ? `<div class="rv-meta">분석 모델 ${models.map(m => `<b>${escHtml(m)}</b>`).join(", ")}</div>` : "") +
     `<h2>흐름</h2>${rvGraph(line, scenes)}<div class="rv-legend"><span class="a">흑 승률</span><span class="l">흑 집 차이</span><span class="m">실수</span><span class="k">악수</span></div>` +
-    `<h2>요약</h2>${table}<div class="rv-notes-sum">${notes}</div><h2>실수·악수 장면</h2>${list}</div>`;
+    `<h2>요약</h2>${table}<h2>등급별 수</h2>${gradeTable}<h2>단계별</h2>${stageTable}<div class="rv-notes-sum">${notes}</div><h2>실수·악수 장면</h2>${list}</div>`;
 }
 function rvFigures(line, scenes) {
   const ring = new Map(scenes.map(s => [s.n, s.grade]));
