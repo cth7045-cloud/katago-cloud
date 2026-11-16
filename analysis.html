@@ -760,6 +760,17 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-scene p { margin: 6px 0; }
 .rv-figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; margin-top: 16px; align-items: start; }
 .rv-figs.whole { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 26px; margin-top: 12px; }
+.rv-figs.n2 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } .rv-figs.n3 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); }
+.rv-msg { color: var(--muted); font-size: 13px; }
+.rv-msg:empty { display: none; }
+.rv-pdf { position: fixed; left: -30000px; top: 0; width: 720px; background: #fff; pointer-events: none; }
+.rv-pdf .rv-page { width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; font-size: 14px; }
+.rv-pdf .rv-page h1 { font-size: 34px; }
+.rv-pdf .rv-go { display: none !important; }
+.rv-pdf .rv-page > div:not(.rv-figs):not(.rv-legend):not(.rv-players), .rv-pdf .rv-page > section { display: flow-root; }
+.rv-pdf .rv-figs, .rv-pdf .rv-figs.n2, .rv-pdf .rv-figs.n3 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) !important; gap: 14px !important; }
+.rv-pdf .rv-figs.whole { grid-template-columns: 1fr 1fr !important; gap: 20px !important; }
+.rv-pdf .rv-scene { padding: 16px 0 14px; }
 .rv-fig { margin: 0; }
 .rv-fig figcaption { display: grid; gap: 1px; margin-top: 7px; font-size: 13px; color: #4b5263; }
 .rv-fig figcaption b { color: #171a22; font-size: 14px; }
@@ -777,7 +788,7 @@ button.primary:hover { background: var(--blue-deep); }
   .rv-pages { padding: 0 0 30px; }
   .rv-page { padding: 26px 18px; margin-bottom: 10px; border-radius: 0; }
   .rv-page h1 { font-size: 28px; }
-  .rv-figs, .rv-figs.whole { grid-template-columns: 1fr; gap: 16px; }
+  .rv-figs, .rv-figs.whole, .rv-figs.n2, .rv-figs.n3 { grid-template-columns: 1fr; gap: 16px; }
   .rv-bar { gap: 8px; }
   .rv-bar > b { display: none; }
   .rv-sum th, .rv-sum td, .rv-list th, .rv-list td { padding: 7px 5px; }
@@ -799,7 +810,7 @@ button.primary:hover { background: var(--blue-deep); }
   .rv-page { width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; font-size: 10.5pt; }
   .rv-page + .rv-page { break-before: page; }
   .rv-scene, .rv-fig, .rv-sum, .rv-graph, .rv-list tr { break-inside: avoid; }
-  .rv-figs { grid-template-columns: repeat(3, 1fr) !important; }
+  .rv-figs, .rv-figs.n2, .rv-figs.n3 { grid-template-columns: 1.5fr 1fr 1fr !important; }
   .rv-figs.whole { grid-template-columns: 1fr 1fr !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
@@ -1095,6 +1106,7 @@ button.primary:hover { background: var(--blue-deep); }
     <b>복기 리포트</b>
     <div class="seg" id="rvSide" role="group" aria-label="볼 쪽"><button type="button" data-v="" class="on">둘 다</button><button type="button" data-v="B">흑</button><button type="button" data-v="W">백</button></div>
     <span class="spacer"></span>
+    <span id="rvMsg" class="rv-msg" role="status"></span>
     <button type="button" id="rvPrint">PDF 저장</button>
     <button type="button" id="rvClose">닫기</button>
   </div>
@@ -2406,7 +2418,7 @@ $("hideEval").onchange = () => {
   hover = null; selectedPv = null; schedule();
 };
 document.addEventListener("keydown", e => {
-  if (rvState) { if (e.key === "Escape") closeReview(); return; }   // 복기 리포트 over the screen
+  if (rvState) { if (e.key === "Escape") leaveReview(); return; }   // 복기 리포트 over the screen
   if (e.target.matches("input, select, textarea")) return;
   if (bankNavStart() && (e.key === "ArrowLeft" || e.key === "ArrowRight")) bankNav(e.key === "ArrowLeft" ? -1 : 1);   // 놓아보기 · 답 고치기
   else if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
@@ -5485,17 +5497,18 @@ function rvScene(s, k) {
     && moverLead(p, best.scoreLead) - moverLead(p, m.scoreLead) <= RV_SECOND);
   const lineC = second ? rvLine(p, rvPv(second)) : [];
   const ev = m => { const lead = moverLead(p, m.scoreLead), wr = Math.round((c === "B" ? m.winrate : 1 - m.winrate) * 100); return {lead, wr}; };
-  const fig = (title, sub, line, m, ring) => {
+  const fig = (title, sub, line, m, ring, whole = false) => {
     if (!line.length) return "";
-    // each its own part of the board (one crop for all made the stones small when the lines were far apart)
-    const {svg, notes} = rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), rvCrop(line.map(st => st.xy)));
+    // 실전도 = the whole board (user 2026-11-16 "실전도는 판을 자르지 말고 전체를"); 참고도 each its own part of the board
+    // (one crop for all made the stones small when the lines were far apart)
+    const {svg, notes} = rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), whole ? [0, N - 1, 0, N - 1] : rvCrop(line.map(st => st.xy)));
     const e = m && ev(m);
     return `<figure class="rv-fig">${svg}<figcaption><b>${title}</b><span>${escHtml(sub)}</span>` +
       (e ? `<span class="rv-ev">${escHtml(rvLead(side, e.lead))} · ${escHtml(`승률 ${e.wr}%`)}</span>` : "") +
       (notes.length ? `<span class="rv-notes">${escHtml(notes.join(" · "))}</span>` : "") + `</figcaption></figure>`;
   };
   const where = st => [rvRegion([st.xy]), ...st.words].join(" · ");
-  const figs = fig("실전도", `1 = 실전 ${played} · ${where(lineA[0])}`, lineA, nb, s.grade) +
+  const figs = fig("실전도", `1 = 실전 ${played} · ${where(lineA[0])}`, lineA, nb, s.grade, true) +
     (lineB.length ? fig("참고도 1", `AI 1순위 ${best.move} · ${where(lineB[0])}`, lineB, best, "best") : "") +
     (lineC.length ? fig("참고도 2", `AI ${cands.indexOf(second) + 1}순위 ${second.move} · ${where(lineC[0])}`, lineC, second, "best") : "");
   // what it says: the loss, the win rate, what to play instead and how it turns out, and how the opponent answered
@@ -5520,7 +5533,7 @@ function rvScene(s, k) {
   }
   return `<section class="rv-scene" id="rv-s${k}"><header><span class="rv-k">장면 ${k}</span><b>${escHtml([`${n.depth}수째`, side, label].join(" · "))}</b>` +
     `<span class="rv-loss ${s.grade}">${escHtml(`−${loss.toFixed(1)}집`)}</span><button type="button" class="rv-go" data-go="${n.depth}">판에서 보기</button></header>` +
-    [say, fix, reply_].filter(ts => ts.length).map(ts => `<p>${ts.map(t => `<span>${escHtml(t)}</span>`).join(" ")}</p>`).join("") + `<div class="rv-figs">${figs}</div></section>`;
+    [say, fix, reply_].filter(ts => ts.length).map(ts => `<p>${ts.map(t => `<span>${escHtml(t)}</span>`).join(" ")}</p>`).join("") + `<div class="rv-figs n${1 + !!lineB.length + !!lineC.length}">${figs}</div></section>`;
 }
 function rvGraph(line, scenes) {   // black's win rate (grey area) and lead (blue line) through the game, the scenes as dots
   const W = 760, H = 190, l = 36, r = 36, t = 12, b = 24, moves = line.length - 1 || 1;
@@ -5602,27 +5615,116 @@ function renderReview() {
     `<div class="rv-page"><h2 class="rv-sec">기보도</h2><div class="rv-legend"><span class="m">실수</span><span class="k">악수</span></div><div class="rv-figs whole">${rvFigures(line, all)}</div></div>`;
   for (const b of $("rvSide").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === rvState.side);
 }
-function openReview() {
+// PDF 저장 (user 2026-11-16 "pdf로 저장 누르면 바로 저장이 되게"): no print window. A copy of the pages at an A4 width, off
+// screen, is cut into blocks (the cover's parts, each scene, two figures of the game record, long lists 20 rows at a time);
+// each block becomes a picture (html-to-image, with the screen's font: rvFontCSS) and the pictures go on A4 pages (jsPDF): a block is
+// never cut, a heading stays with what follows, each part starts a page. Then the file is saved. (Ctrl+P still prints.)
+const RV_PDF_W = 720, RV_PDF_LIBS = ["https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm", "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm"];
+let rvPdfBusy = false, rvMsgNo = 0, rvFont = null;
+// SUIT (the screen's font) as data for the pictures: html-to-image can't read the webfont's style sheet (another site's), and
+// with the device's font the text no longer fits the widths it copies from the screen (words cut, names wrapped)
+async function rvFontCSS() {
+  if (rvFont) return rvFont;
+  const b = await (await fetch("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.woff2")).blob();
+  const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(b); });
+  return (rvFont = `@font-face{font-family:'SUIT Variable';font-weight:100 900;src:url(${data}) format('woff2');}`);
+}
+async function rvPdf() {
+  if (rvPdfBusy || !rvState) return;
+  rvPdfBusy = true; $("rvPrint").disabled = true;
+  const say = t => { $("rvMsg").textContent = t; return ++rvMsgNo; }, box = document.createElement("div");
+  let done = 0;
+  try {
+    say("PDF 만드는 중…");
+    const [hti, {jsPDF}] = await Promise.all(RV_PDF_LIBS.map(u => import(u)));
+    box.className = "rv-pdf"; box.setAttribute("aria-hidden", "true");
+    box.innerHTML = $("rvPages").innerHTML;
+    for (const el of box.querySelectorAll("[id]")) el.removeAttribute("id");
+    document.body.appendChild(box);
+    const after = (at, el) => { at.after(el); return el; };
+    for (const t of box.querySelectorAll("table.rv-list")) {   // 20 rows a block, the header row on each
+      const rows = [...t.tBodies[0].rows]; let at = t;
+      for (let i = 20; i < rows.length; i += 20) {
+        const u = t.cloneNode(false), b = document.createElement("tbody");
+        u.appendChild(t.tHead.cloneNode(true)); rows.slice(i, i + 20).forEach(r => b.appendChild(r)); u.appendChild(b); at = after(at, u);
+      }
+    }
+    for (const g of box.querySelectorAll(".rv-figs.whole")) {   // the game record: two figures a block
+      const figs = [...g.children]; let at = g;
+      for (let i = 2; i < figs.length; i += 2) { const h = g.cloneNode(false); figs.slice(i, i + 2).forEach(f => h.appendChild(f)); at = after(at, h); }
+    }
+    for (const lg of box.querySelectorAll(".rv-graph + .rv-legend")) { const w = document.createElement("div"); lg.previousElementSibling.before(w); w.append(lg.previousElementSibling, lg); }
+    const blocks = [];
+    for (const page of box.querySelectorAll(".rv-page")) [...page.children].forEach((el, i) =>
+      blocks.push({el, page: i === 0, keep: /^H[12]$/.test(el.tagName) || el.matches(".rv-kicker, .rv-players, h2 + .rv-legend")}));
+    await document.fonts.ready;
+    const fontEmbedCSS = await rvFontCSS();
+    const pdf = new jsPDF({unit: "mm", format: "a4", compress: true});
+    const M = 12, CW = 186, BOT = 297 - M, mm = px => px * CW / RV_PDF_W;
+    const tall = el => mm(el.offsetHeight), gap = el => mm(parseFloat(getComputedStyle(el).marginTop) || 0);
+    let y = M, fresh = true, first = true;
+    for (let i = 0; i < blocks.length; i++) {
+      say(`PDF 만드는 중… ${i + 1}/${blocks.length}`);
+      const {el, page} = blocks[i];
+      if (page && !first) { pdf.addPage(); y = M; fresh = true; }
+      let need = tall(el);
+      for (let j = i; blocks[j].keep && blocks[j + 1] && !blocks[j + 1].page; j++) need += gap(blocks[j + 1].el) + tall(blocks[j + 1].el);
+      if (!fresh && y + gap(el) + need > BOT) { pdf.addPage(); y = M; fresh = true; }
+      if (!fresh) y += gap(el);
+      const c = await hti.toCanvas(el, {pixelRatio: 2, backgroundColor: "#ffffff", fontEmbedCSS, style: {margin: "0"}, width: el.offsetWidth, height: el.offsetHeight});
+      let w = mm(el.offsetWidth), h = tall(el);
+      if (h > BOT - M) { w *= (BOT - M) / h; h = BOT - M; }   // taller than a page: smaller, never cut
+      pdf.addImage(c.toDataURL("image/jpeg", .92), "JPEG", M, y, w, h, undefined, "FAST");
+      y += h; fresh = false; first = false;
+    }
+    const tr = window.kgvLang && typeof kgvLang.t === "function" ? kgvLang.t : x => x, i = root.info;
+    const name = [tr("복기 리포트"), i.PB || i.PW ? `${i.PB || "?"} vs ${i.PW || "?"}` : "", i.DT || ""].filter(Boolean).join(" ").replace(/[\\/:*?"<>|]+/g, " ").trim();
+    pdf.save(name + ".pdf");
+    done = say("PDF를 저장했습니다");
+  } catch (err) {
+    say(`PDF를 만들지 못했습니다: ${err && err.message || err}`);
+  } finally {
+    box.remove(); rvPdfBusy = false; $("rvPrint").disabled = false;
+    if (done) setTimeout(() => { if (rvMsgNo === done) $("rvMsg").textContent = ""; }, 4000);   // unless something else was said since
+  }
+}
+// Back (user 2026-11-16 "판으로 보기 누른 뒤 뒤로가기 누르면 화면을 아예 나가버리는데 다시 복기 리포트 화면으로"): opening the
+// report adds a history entry (state kgvReview "open") and Back closes it; '판에서 보기' keeps that entry and adds one for the
+// board, so Back from the board comes to "open" again and the report reopens where it was (side picked, scroll).
+let rvKeep = null;   // {side, top} as '판에서 보기' left the report
+function openReview(keep = null) {
   if (reportMoves().length < 6) { $("err").textContent = "복기 리포트를 만들 분석이 부족합니다. '대국 리포트'로 먼저 분석하세요."; return false; }
   if ($("strengthDlg").open) $("strengthDlg").close();
-  rvState = {side: rvState ? rvState.side : "", root};
+  rvState = {side: keep ? keep.side : rvState ? rvState.side : "", root};
   renderReview();
-  $("reviewDoc").hidden = false; $("reviewDoc").scrollTop = 0; document.body.classList.add("review-open");
+  $("reviewDoc").hidden = false; document.body.classList.add("review-open");
+  $("reviewDoc").scrollTop = keep ? keep.top : 0;
+  if (!(history.state && history.state.kgvReview === "open")) history.pushState({kgvReview: "open"}, "");
   return true;
 }
 function closeReview() {
   if (!rvState) return;
-  rvState = null; $("reviewDoc").hidden = true; $("rvPages").innerHTML = ""; document.body.classList.remove("review-open");
+  rvState = null; $("reviewDoc").hidden = true; $("rvPages").innerHTML = ""; $("rvMsg").textContent = ""; document.body.classList.remove("review-open");
 }
-$("reviewOpen").onclick = openReview;
-$("rvClose").onclick = closeReview;
-$("rvPrint").onclick = () => window.print();
+function leaveReview() {   // 닫기 · Esc: like Back, so the entry it added goes too
+  if (history.state && history.state.kgvReview === "open") history.back(); else closeReview();
+}
+addEventListener("popstate", ev => {
+  const st = ev.state && ev.state.kgvReview;
+  if (st === "open" && !rvState) { const k = rvKeep; rvKeep = null; openReview(k || {side: "", top: 0}); }   // back from the board
+  else if (st !== "open" && rvState) { rvKeep = null; closeReview(); }   // Back with the report up
+});
+$("reviewOpen").onclick = () => openReview();
+$("rvClose").onclick = leaveReview;
+$("rvPrint").onclick = rvPdf;
 $("rvSide").onclick = ev => { const b = ev.target.closest("button[data-v]"); if (!b || !rvState) return; rvState.side = b.dataset.v; renderReview(); };
 $("rvPages").onclick = ev => {
   const go = ev.target.closest("button[data-go]"), to = ev.target.closest("tr[data-to]");
-  if (go && rvState) {   // the scene on the board: the move it is about
+  if (go && rvState) {   // the scene on the board: the move it is about; Back comes back to the report
     const same = rvState.root === root, n = lineThrough(root)[+go.dataset.go];
+    rvKeep = {side: rvState.side, top: $("reviewDoc").scrollTop};
     closeReview(); if (same && n) goTo(n);
+    history.pushState({kgvReview: "board"}, "");
   } else if (to) {
     const el = document.getElementById("rv-s" + to.dataset.to);
     if (el) el.scrollIntoView({behavior: "smooth", block: "start"});
