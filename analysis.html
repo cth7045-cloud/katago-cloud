@@ -86,7 +86,7 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 #saveDo label.check input { margin-top: 3px; flex: none; }
 #saveDo label.check small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #saveDo label.check.off { opacity: .45; }
-#saveDoAutoRow .lvl { margin: 4px 0 4px 22px; }
+#saveDoAutoRow .lvl { margin: 4px 0 4px 22px; flex-wrap: wrap; max-width: calc(100% - 22px); border-radius: 17px; }
 #saveDoAutoRow .lvl[hidden] { display: none; }
 /* installed app: the logo leads home ("‹" before it), instead of a separate '‹ 홈' that took the top bar's room (2026-10-16) */
 .brand.home { cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -98,7 +98,7 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
 div.lvl button:hover { background: rgba(255, 255, 255, .7); }
 div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
-#menuBody section > .lvl { margin: 0 0 6px 48px; }
+#menuBody section > .lvl { margin: 0 0 6px 48px; flex-wrap: wrap; max-width: calc(100% - 48px); border-radius: 17px; }   /* 5 levels in a long language: two rows */
 /* landscape: no buttons beside 자동분석 / 대국 리포트 — pressing them asks for the level instead (portrait keeps them in the menu) */
 .toolbar #autoLevel, .menubar #strengthLevel { display: none; }
 .level-pop { position: fixed; z-index: 40; display: grid; gap: 2px; min-width: 230px; padding: 6px; background: var(--panel); border-radius: 14px;
@@ -469,6 +469,7 @@ body.bankq .left, body.bankq .right { display: none !important; }
 body.quiz .menubar > :not(.brand):not(.spacer):not(#vps):not(#connStatus):not(#gpuMeter) { display: none; }
 #saveDlg { width: min(460px, calc(100vw - 24px)); }
 #infoDlg { width: min(460px, calc(100vw - 24px)); }
+#customLvlDlg { width: min(380px, calc(100vw - 24px)); }
 #gameInfo { cursor: pointer; }
 #saveDlg .gd { gap: 14px; }
 #saveTitle { width: 100%; }
@@ -954,7 +955,7 @@ button.primary:hover { background: var(--blue-deep); }
   </details>
   <button id="newGame">AI대국</button>
   <button id="strengthOpen">대국 리포트</button>
-  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
+  <div class="lvl" id="strengthLevel" role="group" aria-label="대국 리포트 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="custom">직접</button></div>
   <button id="reviewOpen" title="실수·악수마다 AI 참고도를 붙인 문서">복기 리포트</button>
   <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
   <span class="spacer"></span>
@@ -999,7 +1000,7 @@ button.primary:hover { background: var(--blue-deep); }
     <label class="gd-row" id="saveFolderRow"><span>저장할 곳</span><select id="saveFolder" aria-label="저장할 곳"></select></label>
     <div id="saveDo" role="group" aria-label="만들 것">
       <div id="saveDoAutoRow"><label class="check"><input type="checkbox" id="saveDoAuto"><span>먼저 자동분석<small id="saveDoAutoHint"></small></span></label>
-        <div class="lvl" id="saveLevel" role="group" aria-label="자동분석 세기"><button type="button" data-l="instant">즉시</button><button type="button" data-l="fast">빠름</button><button type="button" data-l="normal">보통</button><button type="button" data-l="precise">정밀</button></div></div>
+        <div class="lvl" id="saveLevel" role="group" aria-label="자동분석 세기"><button type="button" data-l="instant">즉시</button><button type="button" data-l="fast">빠름</button><button type="button" data-l="normal">보통</button><button type="button" data-l="precise">정밀</button><button type="button" data-l="custom">직접</button></div></div>
       <label class="check"><input type="checkbox" id="saveDoKifu"><span>기보 저장<small id="saveDoKifuHint">기보와 분석값을 내 기보에 저장합니다.</small></span></label>
       <label class="check"><input type="checkbox" id="saveDoNotes"><span>오답노트 만들기<small id="saveDoNotesHint"></small></span></label>
       <label class="check" id="saveDoStopRow"><input type="checkbox" id="saveDoStop"><span>다 끝나면 GPU 끄기<small id="saveDoStopHint"></small></span></label>
@@ -1118,6 +1119,15 @@ button.primary:hover { background: var(--blue-deep); }
   </form>
 </dialog>
 
+<dialog id="customLvlDlg" aria-label="분석 세기 직접 설정">
+  <form class="gd" id="customLvlForm" novalidate>
+    <h2>분석 세기 직접 설정</h2>
+    <div class="gd-row"><span>한 수 visits</span><input type="number" id="customLvlVisits" min="1" max="20000" step="1" inputmode="numeric" autocomplete="off"></div>
+    <p class="gd-note" id="customLvlNote"></p>
+    <div class="gd-actions"><button type="button" id="customLvlCancel">취소</button><button type="submit" class="primary">확인</button></div>
+  </form>
+</dialog>
+
 <dialog id="strengthDlg" aria-label="대국 리포트">
   <div class="sp-top">
     <h2>대국 리포트</h2>
@@ -1210,7 +1220,7 @@ button.primary:hover { background: var(--blue-deep); }
   <div id="clocks" hidden><span id="clockB"></span><span id="clockW"></span></div>
   <button id="analyze">▶ 분석 시작</button>
   <button id="autoAnalyze">자동분석</button>
-  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button></div>
+  <div class="lvl" id="autoLevel" role="group" aria-label="자동분석 세기"><button data-l="instant">즉시</button><button data-l="fast">빠름</button><button data-l="normal">보통</button><button data-l="precise">정밀</button><button data-l="custom">직접</button></div>
   <span class="sep"></span>
   <span class="nav">
   <button id="first" class="mv" title="처음 (Home)" aria-label="처음"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 6l-8 6 8 6z"/></svg></button>
@@ -1245,6 +1255,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button data-l="fast" role="menuitem"><b>빠름</b><span>한 수 250 visits</span></button>
   <button data-l="normal" role="menuitem"><b>보통</b><span>한 수 500 visits</span></button>
   <button data-l="precise" role="menuitem"><b>정밀</b><span>한 수 1000 visits</span></button>
+  <button data-l="custom" role="menuitem"><b>직접</b><span id="levelPopCustom"></span></button>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="메뉴">
@@ -1870,8 +1881,12 @@ function reportPing(ms, sentAt) {
 // each 즉시 run of 40 positions or more measures it (instantLearn) and the next run leaves that much off. Where that cost
 // alone is more than the time there is (a slow GPU or this device's CPU with the heaviest model and a long game), 즉시
 // takes longer: every position still gets its own search, never none. Any analysis counts as done at this level.
-const LEVELS = {instant: 1, fast: 250, normal: 500, precise: 1000};
+const LEVELS = {instant: 1, fast: 250, normal: 500, precise: 1000, custom: 2000};
 const INSTANT_S = 5, INSTANT_CAP = 1000;   // a short line ends sooner: no position goes past 정밀's visits
+// 직접 (user 2026-11-16 "분석 세기를 직접 설정할 수 있는 버튼도 추가해줘"): the member's own visits per move, 1 to CUSTOM_MAX,
+// kept on this device (kgv.levelCustom) and used everywhere the four levels are
+const CUSTOM_MAX = 20000;
+try { const v = Math.round(+localStorage.getItem("kgv.levelCustom")); if (v >= 1 && v <= CUSTOM_MAX) LEVELS.custom = v; } catch { /* storage blocked */ }
 let level = "normal";
 try { const v = localStorage.getItem("kgv.level"); if (LEVELS[v]) level = v; } catch { /* storage blocked */ }
 const levelVisits = () => LEVELS[level];
@@ -1901,13 +1916,33 @@ function instantLearn(inst) {   // a 즉시 run came back whole: how long each p
 const analysed = n => !!(n.analysis && n.analysis.rootInfo && n.analysis.rootInfo.visits >= levelVisits());
 function levelButtons() {
   document.querySelectorAll(".lvl button").forEach(b => { const on = b.dataset.l === level; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  document.querySelectorAll('.lvl button[data-l="custom"]').forEach(b => { b.title = `한 수 ${LEVELS.custom} visits`; });
+  $("levelPopCustom").textContent = `한 수 ${LEVELS.custom} visits`;
 }
+let customThen = null;   // what picking 직접 from the list of levels starts once the number is set
+function openCustomLevel(then = null) {
+  customThen = then; $("customLvlVisits").value = LEVELS.custom; $("customLvlNote").textContent = "";
+  $("customLvlDlg").showModal(); $("customLvlVisits").select();
+}
+$("customLvlForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const v = Number($("customLvlVisits").value);
+  if (!Number.isInteger(v) || v < 1 || v > CUSTOM_MAX) { $("customLvlNote").textContent = `1~${CUSTOM_MAX} 사이의 정수를 넣으세요`; return; }
+  LEVELS.custom = v; try { localStorage.setItem("kgv.levelCustom", String(v)); } catch { /* storage blocked */ }
+  const then = customThen; customThen = null;   // read before close(): its listener forgets it
+  $("customLvlDlg").close(); setLevel("custom"); then && then();
+});
+$("customLvlCancel").onclick = () => $("customLvlDlg").close();
+$("customLvlDlg").addEventListener("close", () => { customThen = null; levelButtons(); });
 function setLevel(l) {
   level = l; try { localStorage.setItem("kgv.level", level); } catch { /* storage blocked */ }
   levelButtons(); if (!autoId) autoButton(); schedule();
   if ($("saveDlg").open) saveDoChanged();   // the save window's 먼저 자동분석 counts the moves for this level
 }
-document.querySelectorAll(".lvl").forEach(g => g.addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setLevel(b.dataset.l); }));
+document.querySelectorAll(".lvl").forEach(g => g.addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.l === "custom") openCustomLevel(); else setLevel(b.dataset.l);
+}));
 // Pressing 자동분석 (and 대국 리포트 outside the menu sheet) opens a small list of levels; picking one sets it and starts.
 const isPortrait = () => matchMedia("(orientation: portrait), (max-height: 520px)").matches;   // = 메뉴 시트를 쓰는 화면
 let popFor = null, popRun = null;
@@ -1923,7 +1958,9 @@ function levelPop(btn, title, run) {
 }
 $("levelPop").addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
-  setLevel(b.dataset.l); $("levelPop").hidden = true; popRun && popRun();
+  $("levelPop").hidden = true;
+  if (b.dataset.l === "custom") { openCustomLevel(popRun); return; }
+  setLevel(b.dataset.l); popRun && popRun();
 });
 document.addEventListener("pointerdown", ev => {
   if (!$("levelPop").hidden && !$("levelPop").contains(ev.target) && !(popFor && popFor.contains(ev.target))) $("levelPop").hidden = true;
