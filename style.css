@@ -353,6 +353,10 @@ dialog.sheet[open] { animation: unfold .35s var(--ease); }
 button.quiet.shared { color: var(--good); }
 .install-card { display: flex; align-items: center; gap: 16px; margin-top: 22px; flex-wrap: wrap; }
 .install-card b { display: block; font-size: 17px; }
+.install-steps { margin: 0; padding: 0; list-style: none; counter-reset: st; display: grid; gap: 12px; }
+.install-steps li { counter-increment: st; display: flex; gap: 12px; align-items: flex-start; line-height: 1.5; }
+.install-steps li::before { content: counter(st); flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--panel);
+  display: grid; place-items: center; font-size: 14px; font-weight: 700; margin-top: 1px; }
 .app-icon { width: 52px; height: 52px; flex: none; border-radius: 13px; background: url(icons/icon-light-192.png) center / cover; box-shadow: 0 6px 16px -8px rgba(23, 26, 34, .45); }
 .notify-row { margin-top: 10px; padding: 8px 4px 8px 14px; border-radius: 14px; background: var(--cyan-soft); }
 .notify-row button { color: var(--blue-deep); }
