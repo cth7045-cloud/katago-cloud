@@ -5575,14 +5575,19 @@ function rvScenes() {   // the main line's 실수·악수: [{n, grade, loss}]
   }
   return out;
 }
-// 묘수·함정수·꼼수·변칙수 (user 2026-11-17 "복기 리포트 기능에 꼼수나 함정수, 변칙수들도"): from the analysis already saved — each
-// position's candidates carry KataGo's first impression of them (the policy prior), their points and lines; nothing more is
-// asked of the engine. 묘수 = a move KataGo hardly looked at first (prior < 5%) that turned out best and clearly better than
-// anything else (2+ points); 함정수 = a move after which the opponent's most natural answer (the highest prior, near the move)
-// loses 3+ points while the right answer looks less natural — 꼼수 when the move itself gave up 1~2.5 points for it;
-// 변칙수 = a move KataGo hardly looks at (prior < 1%) that costs almost nothing. Decided games (under 5% or over 95%) and
-// moves already shown as 실수·악수 are left out, and so are positions read under 50 visits; how the numbers were set: 작업기록 2026-11-17.
-const TRICK = {minRead: 50, minV: 5, good: .7, brillPrior: .05, brillGap: 2, natPrior: .3, trapGap: 3, trickLoss: 1, trickMax: 2.5, near: 3, oddPrior: .01, oddLoss: .7};
+// 묘수·함정수·꼼수·변칙수 (user 2026-11-17 "복기 리포트 기능에 꼼수나 함정수, 변칙수들도"; rules redone the same day after
+// "변칙수,꼼수,함정수의 기준이 너무 이상해서" from what go sites, dictionaries and articles say — 작업기록 2026-11-17): from the
+// analysis already saved — each position's candidates carry KataGo's first impression of them (the policy prior), their
+// points and lines; nothing more is asked of the engine.
+// 묘수 = a move KataGo hardly looked at first (prior < 5%) that turned out best and clearly better than anything else (2+ points).
+// 꼼수·함정수 (trick play, hamete, 骗着): not the proper move (not KataGo's first choice, it gives something up when answered
+// right) but the obvious answer — the opponent's highest-prior reply near it — is bad (3+ points) while the right answer is
+// hard to see (low prior), and falling for it pays more than the move cost (2+ points net). 함정수 = it costs little when
+// answered right (0.5~1.5 points: a "good trick"); 꼼수 = it plainly loses when answered right (1.5 points up to a 실수).
+// 변칙수 = off the usual way (not KataGo's first choice and a prior under 1%) in the opening, no trap and not a 실수.
+// Decided games (under 5% or over 95%), moves already shown as 실수·악수 and positions read under 50 visits are left out.
+const TRICK = {minRead: 50, minV: 5, good: .7, brillPrior: .05, brillGap: 2, natPrior: .3, rightPrior: .15, trapGap: 3, trapNet: 2,
+  trapMin: .5, trickLoss: 1.5, near: 3, oddPrior: .01};
 const TRICK_KINDS = [["brilliant", "묘수"], ["trap", "함정수"], ["trick", "꼼수"], ["odd", "변칙수"]];
 const trickLabel = k => TRICK_KINDS.find(x => x[0] === k)[1];
 function rvTricks(skip) {   // [{n, kind, ...}] along the main line; skip = the nodes already a 실수·악수 scene
@@ -5600,16 +5605,21 @@ function rvTricks(skip) {   // [{n, kind, ...}] along the main line; skip = the 
       const gap = alt ? moverLead(p, me.scoreLead) - moverLead(p, alt.scoreLead) : 0;
       if (gap >= TRICK.brillGap) { out.push({n, kind: "brilliant", prior: me.prior, gap, alt, me}); continue; }
     }
+    if (best.move === played) continue;   // the proper move is no trick and nothing unusual
+    const small = L < NOTE_LEVELS.normal[0] && loss.wr < NOTE_LEVELS.normal[1];   // short of a 실수
     const nat = nc.reduce((a, m) => m.prior > a.prior ? m : a, nc[0]), nb = nc[0];   // 함정수·꼼수
-    if (nat !== nb && nat.move !== "pass" && nat.prior >= TRICK.natPrior && nb.prior < nat.prior && enough(nat, nb) && L <= TRICK.trickMax && far(nat.move, played) <= TRICK.near) {
+    if (small && L >= TRICK.trapMin && nat !== nb && nat.move !== "pass" && nat.prior >= TRICK.natPrior && nb.prior <= TRICK.rightPrior
+      && enough(nat, nb) && far(nat.move, played) <= TRICK.near) {
       const gap = moverLead(n, nb.scoreLead) - moverLead(n, nat.scoreLead);
-      if (gap >= TRICK.trapGap) {
+      if (gap >= TRICK.trapGap && gap - L >= TRICK.trapNet) {
         const reply = n.children[0], rm = reply && reply.move && !reply.move.pass ? noteMove(reply) : null;
         out.push({n, kind: L >= TRICK.trickLoss ? "trick" : "trap", nat, nb, gap, loss: L, fell: !rm ? "" : rm === nat.move ? "fell" : rm === nb.move ? "dodged" : "other", reply});
         continue;
       }
     }
-    if ((me ? me.prior < TRICK.oddPrior : pc.length >= 10) && L <= TRICK.oddLoss) out.push({n, kind: "odd", prior: me ? me.prior : null, loss: L, me, best});   // 변칙수
+    // 변칙수: the opening only — off the usual way there is what the word is used for (a corner, an approach, a joseki move)
+    if (small && n.depth <= phaseCut(PHASES[0][2], N) && (me ? me.prior < TRICK.oddPrior : pc.length >= 10))
+      out.push({n, kind: "odd", prior: me ? me.prior : null, loss: L, me, best});
   }
   return out;
 }
@@ -5627,7 +5637,8 @@ function rvTrickScene(t, k) {   // a 묘수·함정수·꼼수·변칙수: the m
   if (t.kind === "odd") {   // 변칙수 (user 2026-11-17 "묘수,함정수,변칙수도 이렇게도"): the move, how play goes on after it, and the AI's own move
     badge = `−${t.loss.toFixed(1)}집`;
     const best = t.best, nb = candidates(n)[0];
-    sum.push(`${side} ${n.depth}수(${played})는 AI가 거의 두지 않는 수(첫인상 ${t.prior === null ? "목록 밖" : pct1(t.prior)})지만, 손해는 약 ${t.loss.toFixed(1)}집뿐인 변칙수입니다.`);
+    sum.push(`${side} ${n.depth}수(${played})는 흔히 두는 길에서 벗어난 변칙수입니다. AI도 거의 두지 않는 수(첫인상 ${t.prior === null ? "목록 밖" : pct1(t.prior)})입니다.`,
+      t.loss < .5 ? "그래도 AI 1순위와 거의 같은 값입니다." : `AI 1순위보다 약 ${t.loss.toFixed(1)}집 손해입니다.`);
     if (best && best.move !== played) sum.push(`AI 1순위는 ${best.move}(첫인상 ${pct1(best.prior)})입니다.`);
     const lineA = rvLine(p, [played, ...(nb ? rvPv(nb) : [])]), lineB = best && best.move !== played ? rvLine(p, rvPv(best)) : [];
     if (lineA.length) { const B = board(lineA, "odd"), v = -lead(n, nb || {scoreLead: 0}), w = nb ? wr(nb) : 50;
@@ -5647,8 +5658,8 @@ function rvTrickScene(t, k) {   // a 묘수·함정수·꼼수·변칙수: the m
         [mine(lead(p, m), wr(m)), `묘수보다 ${t.gap.toFixed(1)}집 손해입니다.`], B.notes)}</div>`); }
   } else {
     badge = `함정 ${t.gap.toFixed(1)}집`;
-    sum.push(t.kind === "trick" ? `${side} ${n.depth}수(${played})는 정수보다 약 ${t.loss.toFixed(1)}집 손해지만, 함정이 숨어 있는 꼼수입니다.`
-      : `${side} ${n.depth}수(${played})는 손해가 거의 없으면서 함정이 숨어 있는 수입니다.`,
+    sum.push(t.kind === "trick" ? `${side} ${n.depth}수(${played})는 제대로 받으면 약 ${t.loss.toFixed(1)}집 손해지만, 상대의 착각을 노리는 꼼수입니다.`
+      : `${side} ${n.depth}수(${played})는 정수보다 약 ${t.loss.toFixed(1)}집 작은 손해를 감수하고 함정을 판 함정수입니다.`,
       `${opp}이 가장 두고 싶어지는 자연스러운 응수는 ${t.nat.move}(AI 첫인상 ${pct1(t.nat.prior)})인데, 이렇게 받으면 ${t.gap.toFixed(1)}집 손해입니다.`,
       `올바른 응수는 ${t.nb.move}(첫인상 ${pct1(t.nb.prior)})입니다.`);
     if (t.fell === "fell") sum.push(`실전에서 ${opp}은 ${t.nat.move}로 받아 함정에 걸렸습니다.`);
