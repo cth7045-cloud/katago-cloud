@@ -2126,7 +2126,7 @@ const LIB_LATEST_SUB = { pro: "가장 최근 프로 대국", ai: "가장 최근 
 // where the member is: kind ('pro' | 'ai' | 'vs'), then year ('latest' = 최신 대국 50판, '2026'), then tour
 // (null = the year's 대회 cards, '*' = the whole year, else one 대회). All three kinds use the same hierarchy (2026-10-25).
 let libKind = LIB_HOME, libYear = null, libTour = null;
-let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libYears = {}, libTours = {}, libFindCache = new Map();
+let libRows = [], libLoaded = false, libSeq = 0, libTimer = 0, libShownQ = "", libYears = {}, libTours = {}, libFindCache = new Map();
 const libSource = () => (LIB_SHOWN.includes(libKind) ? libKind : LIB_HOME);
 const libLatest = () => libYear === "latest";
 // 찾기 (사용자 2026-10-23 "검색 기능은 프로기보, ai기보 위에 별도로"): the box above the tabs searches the whole 기보실
@@ -2175,6 +2175,13 @@ function libGo(year, tour = null, kind = libKind) {
 }
 async function libShow() {
   const seq = ++libSeq, kind = libSource(), finding = !!libFindQ(), listing = finding || libListing();
+  libShownQ = libFindQ();
+  const view = $("libraryView");
+  if (finding && !$("libKind").classList.contains("hidden") && document.activeElement === $("libFind")) {
+    // the page must not get shorter under the box while the keyboard is up (the place it was scrolled to stays)
+    const top = view.getBoundingClientRect().top + scrollY;
+    view.style.minHeight = Math.max(0, Math.ceil(scrollY + Math.max(innerHeight, document.documentElement.clientHeight) - top)) + "px";
+  } else if (!finding) view.style.minHeight = "";
   $("libKind").classList.toggle("hidden", finding);
   if (kind === "famous" && libYear && !libFamous) { try { await libFamousList(); } catch {} if (seq !== libSeq) return; }
   const kindName = LIB_KINDS[kind];
@@ -2289,13 +2296,15 @@ $("libCrumb").onclick = (ev) => {
   if (b.dataset.crumb === "root") libGo(null); else libGo(libYear, null);
 };
 // 찾기 is one step too: a search adds a history entry, back clears the box and shows the place again.
-// Nothing happens while a Korean syllable is being put together (user 2026-11-17: iPhone KakaoTalk browser, the iOS Korean
-// keyboard typed consonants but no vowels): the list is redrawn when the IME is done (compositionend), and the history
-// step is added only once typing stops — the box loses focus, Enter, or 1.2 s with no syllable open — since an in-app
-// browser redraws its back button on pushState and that broke the syllable being typed.
-let libComposing = false, libMarkTimer = 0;
+// Nothing happens while a Korean syllable is being put together (user 2026-11-17: iPhone KakaoTalk browser — with that
+// keyboard the consonant came out but not the vowel, then "첫글자만 안돼"): no search while the box ends in a lone jamo
+// (ㅅ, or the ㆍ/ᆢ strokes of 천지인 keyboards: the vowel still has to join it — iOS keyboards often send no composition
+// events, so this is the check that holds), none during a composition either, and the history step is added only when
+// typing is over (the box loses focus, or Enter) — the first search used to change the history and the whole page at
+// the first consonant, which is what the first syllable alone went through.
+const LIB_JAMO = /[\u1100-\u11ff\u3131-\u318e\ua960-\ua97f\ud7b0-\ud7ff\u2025]$/;
+let libComposing = false;
 function libFindMark() {   // the history step for the search in the box (added, or dropped when it was emptied)
-  clearTimeout(libMarkTimer);
   if (libComposing || curPage !== "libraryView") return;
   const on = !!libFindQ(), marked = !!(history.state && history.state.libFind);
   if (on && !marked) history.pushState({ libFind: 1 }, "", location.href);
@@ -2303,19 +2312,25 @@ function libFindMark() {   // the history step for the search in the box (added,
 }
 function libFindChanged() {
   const q = libFindQ(), on = !!q, marked = !!(history.state && history.state.libFind);
-  clearTimeout(libTimer); clearTimeout(libMarkTimer);
-  if (!on && marked) libFindMark();
-  else if (on && !marked) libMarkTimer = setTimeout(libFindMark, 1200);
+  clearTimeout(libTimer);
+  if (!on && marked) libFindMark();   // emptied: nothing is being typed now
+  if (on && LIB_JAMO.test(q)) return;   // a syllable not finished yet: the list stays as it is
   const hit = on ? libFindCache.get(q) : null;
   if (!on || (hit && Date.now() - hit.at < 300000)) { libShow(); return; }
   libTimer = setTimeout(libShow, 120);
 }
-$("libFind").addEventListener("compositionstart", () => { libComposing = true; clearTimeout(libTimer); clearTimeout(libMarkTimer); });
+function libFindDone() {   // typing is over: the list shows what the box says, then the history step
+  libComposing = false;
+  if (curPage !== "libraryView") return;
+  if (libFindQ() !== libShownQ) { clearTimeout(libTimer); libShow(); }
+  libFindMark();
+}
+$("libFind").addEventListener("compositionstart", () => { libComposing = true; clearTimeout(libTimer); });
 $("libFind").addEventListener("compositionend", () => { libComposing = false; libFindChanged(); });
 $("libFind").oninput = (ev) => { if (!libComposing && !(ev && ev.isComposing)) libFindChanged(); };
-$("libFind").addEventListener("blur", () => { libComposing = false; libFindMark(); });
+$("libFind").addEventListener("blur", () => { libFindDone(); $("libraryView").style.minHeight = ""; });
 $("libFind").onkeydown = (ev) => {
-  if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); clearTimeout(libTimer); libShow(); libFindMark(); }
+  if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); libFindDone(); }
 };
 addEventListener("popstate", () => {
   if (curPage !== "libraryView" || (history.state && history.state.libFind) || !$("libFind").value) return;
