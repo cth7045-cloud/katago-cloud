@@ -765,6 +765,15 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-k { background: #171a22; color: #fff; border-radius: 6px; padding: 2px 9px; font-size: 12.5px; font-weight: 700; }
 .rv-loss { border-radius: 999px; padding: 2px 10px; font-weight: 800; font-size: 13px; color: #fff; }
 .rv-loss.mistake { background: #f07a2a; } .rv-loss.blunder { background: #e0484d; }
+/* 묘수·함정수·꼼수·변칙수 (2026-11-17): 보라 · 청록 · 분홍 · 회색 */
+.rv-loss.brilliant { background: #7c3aed; } .rv-loss.trap { background: #0e9f8e; } .rv-loss.trick { background: #d63384; }
+.rv-dot.brilliant { fill: #7c3aed; } .rv-dot.trap { fill: #0e9f8e; } .rv-dot.trick { fill: #d63384; }
+.rv-legend .t-brilliant::before, .rv-legend .t-trap::before, .rv-legend .t-trick::before { border-radius: 50%; }
+.rv-legend .t-brilliant::before { background: #7c3aed; } .rv-legend .t-trap::before { background: #0e9f8e; } .rv-legend .t-trick::before { background: #d63384; }
+.rv-list td.t-brilliant { color: #6d28d9; font-weight: 700; } .rv-list td.t-trap { color: #0b8577; font-weight: 700; }
+.rv-list td.t-trick { color: #c02675; font-weight: 700; } .rv-list td.t-odd { color: #55627a; font-weight: 700; }
+.rv-tricks th, .rv-tricks td { white-space: nowrap; } .rv-tricks td:nth-child(5) { white-space: normal; }
+.rv-svg .rv-ring.brilliant { stroke: #7c3aed; } .rv-svg .rv-ring.trap { stroke: #0e9f8e; } .rv-svg .rv-ring.trick { stroke: #d63384; }
 .rv-go { margin-left: auto; min-height: 30px; font-size: 13px; background: #eef1f7; color: #171a22; }
 .rv-go:hover { background: #e2e7f1; }
 .rv-scene p { margin: 6px 0; }
@@ -5566,6 +5575,86 @@ function rvScenes() {   // the main line's 실수·악수: [{n, grade, loss}]
   }
   return out;
 }
+// 묘수·함정수·꼼수·변칙수 (user 2026-11-17 "복기 리포트 기능에 꼼수나 함정수, 변칙수들도"): from the analysis already saved — each
+// position's candidates carry KataGo's first impression of them (the policy prior), their points and lines; nothing more is
+// asked of the engine. 묘수 = a move KataGo hardly looked at first (prior < 5%) that turned out best and clearly better than
+// anything else (2+ points); 함정수 = a move after which the opponent's most natural answer (the highest prior, near the move)
+// loses 3+ points while the right answer looks less natural — 꼼수 when the move itself gave up 1~2.5 points for it;
+// 변칙수 = a move KataGo hardly looks at (prior < 1%) that costs almost nothing. Decided games (under 5% or over 95%) and
+// moves already shown as 실수·악수 are left out, and so are positions read under 50 visits; how the numbers were set: 작업기록 2026-11-17.
+const TRICK = {minRead: 50, minV: 5, good: .7, brillPrior: .05, brillGap: 2, natPrior: .3, trapGap: 3, trickLoss: 1, trickMax: 2.5, near: 3, oddPrior: .01, oddLoss: .7};
+const TRICK_KINDS = [["brilliant", "묘수"], ["trap", "함정수"], ["trick", "꼼수"], ["odd", "변칙수"]];
+const trickLabel = k => TRICK_KINDS.find(x => x[0] === k)[1];
+function rvTricks(skip) {   // [{n, kind, ...}] along the main line; skip = the nodes already a 실수·악수 scene
+  const out = [], far = (a, b) => { const p = parseGtp(a), q = parseGtp(b); return p && q ? Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1])) : 99; };
+  for (const n of lineThrough(root)) {
+    if (!n.move || n.move.pass || skip.has(n)) continue;
+    const p = n.parent, pc = candidates(p), nc = candidates(n), before = nodeStats(p), loss = moveLoss(n);
+    if (!pc.length || !nc.length || !before || !loss || before.wr < DECIDED_WR || before.wr > 100 - DECIDED_WR) continue;
+    // too little reading (즉시: 1~11 visits a position) says nothing about first impressions against what reading finds
+    if (p.analysis.rootInfo.visits < TRICK.minRead || n.analysis.rootInfo.visits < TRICK.minRead) continue;
+    const played = noteMove(n), me = pc.find(m => m.move === played), best = pc[0], L = Math.max(0, loss.points);
+    const enough = (m, ref) => m.visits >= Math.max(TRICK.minV, ref.visits * .02);
+    if (me && me.prior < TRICK.brillPrior && L <= TRICK.good) {   // 묘수
+      const alt = pc.filter(m => m !== me && m.move !== "pass" && enough(m, best)).reduce((a, m) => !a || moverLead(p, m.scoreLead) > moverLead(p, a.scoreLead) ? m : a, null);
+      const gap = alt ? moverLead(p, me.scoreLead) - moverLead(p, alt.scoreLead) : 0;
+      if (gap >= TRICK.brillGap) { out.push({n, kind: "brilliant", prior: me.prior, gap, alt, me}); continue; }
+    }
+    const nat = nc.reduce((a, m) => m.prior > a.prior ? m : a, nc[0]), nb = nc[0];   // 함정수·꼼수
+    if (nat !== nb && nat.move !== "pass" && nat.prior >= TRICK.natPrior && nb.prior < nat.prior && enough(nat, nb) && L <= TRICK.trickMax && far(nat.move, played) <= TRICK.near) {
+      const gap = moverLead(n, nb.scoreLead) - moverLead(n, nat.scoreLead);
+      if (gap >= TRICK.trapGap) {
+        const reply = n.children[0], rm = reply && reply.move && !reply.move.pass ? noteMove(reply) : null;
+        out.push({n, kind: L >= TRICK.trickLoss ? "trick" : "trap", nat, nb, gap, loss: L, fell: !rm ? "" : rm === nat.move ? "fell" : rm === nb.move ? "dodged" : "other", reply});
+        continue;
+      }
+    }
+    if ((me ? me.prior < TRICK.oddPrior : pc.length >= 10) && L <= TRICK.oddLoss) out.push({n, kind: "odd", prior: me ? me.prior : null, loss: L});   // 변칙수
+  }
+  return out;
+}
+const pct1 = v => v < .001 ? "0.1% 미만" : `${(v * 100).toFixed(v < .1 ? 1 : 0)}%`;
+function rvTrickScene(t, k) {   // a 묘수·함정수·꼼수: the move on the whole board, then the two lines that tell it
+  const {n} = t, p = n.parent, c = n.move.c, side = colorName(c), opp = colorName(other(c)), played = noteMove(n), label = trickLabel(t.kind);
+  const where = st => rvRegion([st.xy]);
+  const board = (line, ring) => rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), rvCrop(line.map(st => st.xy)));
+  const note = (title, tag, sub, says, notes = []) => `<div class="rv-note"><b>${title}${tag ? ` <em>${tag}</em>` : ""}</b><span class="rv-sub">${escHtml(sub)}</span>` +
+    says.map(s => `<p>${escHtml(s)}</p>`).join("") + (notes.length ? `<p class="rv-notes">${escHtml(notes.join(" · "))}</p>` : "") + `</div>`;
+  const lead = (node, m) => moverLead(node, m.scoreLead), wr = m => Math.round((c === "B" ? m.winrate : 1 - m.winrate) * 100);
+  const mine = (v, w) => `이 수순이면 ${side}이 ${Math.abs(v).toFixed(1)}집 ${v >= 0 ? "유리합니다" : "불리합니다"} (승률 ${w}%).`;
+  const R = rvBoard(p.grid, [{xy: parseGtp(played), color: c, no: n.depth, ring: t.kind}], [0, N - 1, 0, N - 1]);
+  const sum = [], refs = []; let badge;
+  if (t.kind === "brilliant") {
+    badge = `+${t.gap.toFixed(1)}집`;
+    sum.push(`${side} ${n.depth}수(${played})는 AI도 처음엔 거의 보지 않던 수(첫인상 ${pct1(t.prior)})인데, 읽어 보니 최선이었습니다.`,
+      `다른 어떤 수보다 ${t.gap.toFixed(1)}집 낫습니다.`);
+    const nb = candidates(n)[0], lineA = rvLine(p, [played, ...(nb ? rvPv(nb) : [])]), lineB = t.alt ? rvLine(p, rvPv(t.alt)) : [];
+    if (lineA.length) { const B = board(lineA, "brilliant"), m = t.me;
+      refs.push(`<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note("참고도 1", "묘수 이후", `1 = ${played} · ${where(lineA[0])}`, [mine(lead(p, m), wr(m))], B.notes)}</div>`); }
+    if (lineB.length) { const B = board(lineB, "best"), m = t.alt;
+      refs.push(`<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note("참고도 2", "다른 수였다면", `AI 다음 후보 ${m.move} · ${where(lineB[0])}`,
+        [mine(lead(p, m), wr(m)), `묘수보다 ${t.gap.toFixed(1)}집 손해입니다.`], B.notes)}</div>`); }
+  } else {
+    badge = `함정 ${t.gap.toFixed(1)}집`;
+    sum.push(t.kind === "trick" ? `${side} ${n.depth}수(${played})는 정수보다 약 ${t.loss.toFixed(1)}집 손해지만, 함정이 숨어 있는 꼼수입니다.`
+      : `${side} ${n.depth}수(${played})는 손해가 거의 없으면서 함정이 숨어 있는 수입니다.`,
+      `${opp}이 가장 두고 싶어지는 자연스러운 응수는 ${t.nat.move}(AI 첫인상 ${pct1(t.nat.prior)})인데, 이렇게 받으면 ${t.gap.toFixed(1)}집 손해입니다.`,
+      `올바른 응수는 ${t.nb.move}(첫인상 ${pct1(t.nb.prior)})입니다.`);
+    if (t.fell === "fell") sum.push(`실전에서 ${opp}은 ${t.nat.move}로 받아 함정에 걸렸습니다.`);
+    else if (t.fell === "dodged") sum.push(`실전에서 ${opp}은 ${t.nb.move}로 받아 함정을 피했습니다.`);
+    else if (t.fell === "other") sum.push(`실전에서 ${opp}은 ${t.reply.depth}수(${noteMove(t.reply)})로 받았습니다.`);
+    const lineA = rvLine(p, [played, ...rvPv(t.nat)]), lineB = rvLine(p, [played, ...rvPv(t.nb)]);
+    const oppSay = m => { const v = -lead(n, m), w = wr(m); return mine(v, w); };
+    if (lineA.length > 1) { const B = board(lineA, t.kind);
+      refs.push(`<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note("참고도 1", "걸려드는 수", `2 = ${t.nat.move} · ${where(lineA[1])}`, [oppSay(t.nat)], B.notes)}</div>`); }
+    if (lineB.length > 1) { const B = board(lineB, "best");
+      refs.push(`<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note("참고도 2", "올바른 응수", `2 = ${t.nb.move} · ${where(lineB[1])}`, [oppSay(t.nb)], B.notes)}</div>`); }
+  }
+  const main = `<div class="rv-main"><figure class="rv-fig big">${R.svg}</figure>` + note("실전", "", `${side} ${n.depth} ${played} · ${rvRegion([parseGtp(played)])}`, sum) + `</div>`;
+  return `<section class="rv-scene" id="rv-s${k}"><header><span class="rv-k">장면 ${k}</span><b>${escHtml([`${n.depth}수째`, side, label].join(" · "))}</b>` +
+    `<span class="rv-loss ${t.kind}">${escHtml(badge)}</span><button type="button" class="rv-go" data-go="${n.depth}">판에서 보기</button></header>` +
+    main + (refs.length ? `<div class="rv-refs n${refs.length}">${refs.join("")}</div>` : "") + `</section>`;
+}
 const rvGradeLabel = g => GRADES.find(x => x[0] === g)[1];
 function rvScene(s, k) {
   const {n} = s, p = n.parent, c = n.move.c, side = colorName(c), opp = colorName(other(c));
@@ -5651,7 +5740,19 @@ function rvGraph(line, scenes) {   // black's win rate (grey area) and lead (blu
   for (const s of scenes) { const ss = st[s.n.depth]; if (ss) g += `<circle cx="${X(s.n.depth).toFixed(1)}" cy="${Yw(ss.blackWr).toFixed(1)}" r="${s.grade === "blunder" ? 5 : 4}" class="rv-dot ${s.grade}"/>`; }
   return g + "</svg>";
 }
-function rvCover(line, scenes) {
+function rvTrickLegend(ts) {   // the legend entries of the kinds there are
+  return TRICK_KINDS.filter(([k]) => k !== "odd" && ts.some(t => t.kind === k)).map(([k, label]) => `<span class="t-${k}">${label}</span>`).join("");
+}
+function rvTrickList(ts, kt) {   // the cover's list: what each one is in a few words; 묘수·함정수·꼼수 open their scene
+  const says = t => t.kind === "brilliant" ? `첫인상 ${pct1(t.prior)} · 다른 수보다 +${t.gap.toFixed(1)}집`
+    : t.kind === "odd" ? `첫인상 ${t.prior === null ? "목록 밖" : pct1(t.prior)} · 손해 ${t.loss.toFixed(1)}집`
+    : `${t.nat.move}로 받으면 −${t.gap.toFixed(1)}집 · 정답 ${t.nb.move}`;
+  const res = t => t.fell === "fell" ? "걸림" : t.fell === "dodged" ? "피함" : t.kind === "trap" || t.kind === "trick" ? "다른 수" : "";
+  return `<table class="rv-list rv-tricks"><thead><tr><th>장면</th><th>수</th><th></th><th>종류</th><th>내용</th><th>실전</th></tr></thead><tbody>` +
+    ts.map(t => `<tr${t.kind === "odd" ? "" : ` data-to="${kt(t)}"`}><td>${t.kind === "odd" ? "—" : kt(t)}</td><td>${t.n.depth}</td><td><i class="rv-st ${t.n.move.c === "B" ? "b" : "w"}"></i></td>` +
+      `<td class="t-${t.kind}">${trickLabel(t.kind)}</td><td>${escHtml(says(t))}</td><td>${res(t)}</td></tr>`).join("") + `</tbody></table>`;
+}
+function rvCover(line, scenes, tricks = [], kt = () => 0) {
   const i = root.info, moves = line.length - 1, an = line.filter(n => n.analysis && n.analysis.rootInfo);
   const vis = an.length ? Math.round(an.reduce((a, n) => a + n.analysis.rootInfo.visits, 0) / an.length) : 0;
   const models = analysisModels();
@@ -5707,8 +5808,9 @@ function rvCover(line, scenes) {
     `<div class="rv-players"><span><i class="rv-st b"></i>${escHtml(i.PB || "흑")}</span><em>vs</em><span><i class="rv-st w"></i>${escHtml(i.PW || "백")}</span></div>` +
     `<div class="rv-meta">${escHtml(meta.join(" · "))}</div>` +
     (models.length ? `<div class="rv-meta">분석 모델 ${models.map(m => `<b>${escHtml(m)}</b>`).join(", ")}</div>` : "") +
-    `<h2>흐름</h2>${rvGraph(line, scenes)}<div class="rv-legend"><span class="a">흑 승률</span><span class="l">흑 집 차이</span><span class="m">실수</span><span class="k">악수</span></div>` +
-    `<h2>요약</h2>${table}<h2>등급별 수</h2>${gradeTable}<h2>단계별</h2>${stageTable}<div class="rv-notes-sum">${notes}</div><h2>실수·악수 장면</h2>${list}</div>`;
+    `<h2>흐름</h2>${rvGraph(line, scenes.concat(tricks.filter(t => t.kind !== "odd").map(t => ({n: t.n, grade: t.kind}))))}<div class="rv-legend"><span class="a">흑 승률</span><span class="l">흑 집 차이</span><span class="m">실수</span><span class="k">악수</span>${rvTrickLegend(tricks.filter(t => t.kind !== "odd"))}</div>` +
+    `<h2>요약</h2>${table}<h2>등급별 수</h2>${gradeTable}<h2>단계별</h2>${stageTable}<div class="rv-notes-sum">${notes}</div><h2>실수·악수 장면</h2>${list}` +
+    (tricks.length ? `<h2>묘수·함정수·변칙수</h2>${rvTrickList(tricks, kt)}` : "") + `</div>`;
 }
 function rvFigures(line, scenes) {
   const ring = new Map(scenes.map(s => [s.n, s.grade]));
@@ -5727,9 +5829,14 @@ function rvFigures(line, scenes) {
 function renderReview() {
   const line = lineThrough(root), all = rvScenes(), scenes = all.filter(s => !rvState.side || s.n.move.c === rvState.side);
   const k0 = s => all.indexOf(s) + 1;   // a scene keeps its number when one side is picked
-  $("rvPages").innerHTML = rvCover(line, all) +
+  // 묘수·함정수·꼼수 scenes are numbered after the 실수·악수 ones; 변칙수 are only listed on the cover
+  const tricks = rvTricks(new Set(all.map(s => s.n))), tScenes = tricks.filter(t => t.kind !== "odd");
+  const kt = t => all.length + tScenes.indexOf(t) + 1, shownT = tScenes.filter(t => !rvState.side || t.n.move.c === rvState.side);
+  const marks = all.concat(tScenes.map(t => ({n: t.n, grade: t.kind})));
+  $("rvPages").innerHTML = rvCover(line, all, tricks, kt) +
     `<div class="rv-page"><h2 class="rv-sec">실수·악수 장면</h2>${scenes.length ? scenes.map(s => rvScene(s, k0(s))).join("") : `<p class="rv-none">실수·악수가 없습니다.</p>`}</div>` +
-    `<div class="rv-page"><h2 class="rv-sec">기보도</h2><div class="rv-legend"><span class="m">실수</span><span class="k">악수</span></div><div class="rv-figs whole">${rvFigures(line, all)}</div></div>`;
+    (tScenes.length ? `<div class="rv-page"><h2 class="rv-sec">묘수·함정수 장면</h2>${shownT.length ? shownT.map(t => rvTrickScene(t, kt(t))).join("") : `<p class="rv-none">묘수·함정수가 없습니다.</p>`}</div>` : "") +
+    `<div class="rv-page"><h2 class="rv-sec">기보도</h2><div class="rv-legend"><span class="m">실수</span><span class="k">악수</span>${rvTrickLegend(tScenes)}</div><div class="rv-figs whole">${rvFigures(line, marks)}</div></div>`;
   for (const b of $("rvSide").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === rvState.side);
 }
 // PDF 저장 (user 2026-11-16 "pdf로 저장 누르면 바로 저장이 되게"): no print window. A copy of the pages at an A4 width, off
