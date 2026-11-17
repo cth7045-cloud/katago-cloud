@@ -765,15 +765,15 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-k { background: #171a22; color: #fff; border-radius: 6px; padding: 2px 9px; font-size: 12.5px; font-weight: 700; }
 .rv-loss { border-radius: 999px; padding: 2px 10px; font-weight: 800; font-size: 13px; color: #fff; }
 .rv-loss.mistake { background: #f07a2a; } .rv-loss.blunder { background: #e0484d; }
-/* 묘수·함정수·꼼수·변칙수 (2026-11-17): 보라 · 청록 · 분홍 · 회색 */
-.rv-loss.brilliant { background: #7c3aed; } .rv-loss.trap { background: #0e9f8e; } .rv-loss.trick { background: #d63384; }
-.rv-dot.brilliant { fill: #7c3aed; } .rv-dot.trap { fill: #0e9f8e; } .rv-dot.trick { fill: #d63384; }
-.rv-legend .t-brilliant::before, .rv-legend .t-trap::before, .rv-legend .t-trick::before { border-radius: 50%; }
+/* 묘수·함정수·꼼수·변칙수 (2026-11-17): 보라 · 청록 · 분홍 · 회색(변칙수도 장면·점·테두리) */
+.rv-loss.brilliant { background: #7c3aed; } .rv-loss.trap { background: #0e9f8e; } .rv-loss.trick { background: #d63384; } .rv-loss.odd { background: #64748b; }
+.rv-dot.brilliant { fill: #7c3aed; } .rv-dot.trap { fill: #0e9f8e; } .rv-dot.trick { fill: #d63384; } .rv-dot.odd { fill: #64748b; }
+.rv-legend .t-brilliant::before, .rv-legend .t-trap::before, .rv-legend .t-trick::before, .rv-legend .t-odd::before { border-radius: 50%; } .rv-legend .t-odd::before { background: #64748b; }
 .rv-legend .t-brilliant::before { background: #7c3aed; } .rv-legend .t-trap::before { background: #0e9f8e; } .rv-legend .t-trick::before { background: #d63384; }
 .rv-list td.t-brilliant { color: #6d28d9; font-weight: 700; } .rv-list td.t-trap { color: #0b8577; font-weight: 700; }
 .rv-list td.t-trick { color: #c02675; font-weight: 700; } .rv-list td.t-odd { color: #55627a; font-weight: 700; }
 .rv-tricks th, .rv-tricks td { white-space: nowrap; } .rv-tricks td:nth-child(5) { white-space: normal; }
-.rv-svg .rv-ring.brilliant { stroke: #7c3aed; } .rv-svg .rv-ring.trap { stroke: #0e9f8e; } .rv-svg .rv-ring.trick { stroke: #d63384; }
+.rv-svg .rv-ring.brilliant { stroke: #7c3aed; } .rv-svg .rv-ring.trap { stroke: #0e9f8e; } .rv-svg .rv-ring.trick { stroke: #d63384; } .rv-svg .rv-ring.odd { stroke: #64748b; }
 .rv-go { margin-left: auto; min-height: 30px; font-size: 13px; background: #eef1f7; color: #171a22; }
 .rv-go:hover { background: #e2e7f1; }
 .rv-scene p { margin: 6px 0; }
@@ -5609,12 +5609,12 @@ function rvTricks(skip) {   // [{n, kind, ...}] along the main line; skip = the 
         continue;
       }
     }
-    if ((me ? me.prior < TRICK.oddPrior : pc.length >= 10) && L <= TRICK.oddLoss) out.push({n, kind: "odd", prior: me ? me.prior : null, loss: L});   // 변칙수
+    if ((me ? me.prior < TRICK.oddPrior : pc.length >= 10) && L <= TRICK.oddLoss) out.push({n, kind: "odd", prior: me ? me.prior : null, loss: L, me, best});   // 변칙수
   }
   return out;
 }
 const pct1 = v => v < .001 ? "0.1% 미만" : `${(v * 100).toFixed(v < .1 ? 1 : 0)}%`;
-function rvTrickScene(t, k) {   // a 묘수·함정수·꼼수: the move on the whole board, then the two lines that tell it
+function rvTrickScene(t, k) {   // a 묘수·함정수·꼼수·변칙수: the move on the whole board, then the two lines that tell it
   const {n} = t, p = n.parent, c = n.move.c, side = colorName(c), opp = colorName(other(c)), played = noteMove(n), label = trickLabel(t.kind);
   const where = st => rvRegion([st.xy]);
   const board = (line, ring) => rvBoard(p.grid, line.map((st, j) => ({...st, no: j + 1, ring: j ? "" : ring})), rvCrop(line.map(st => st.xy)));
@@ -5624,7 +5624,18 @@ function rvTrickScene(t, k) {   // a 묘수·함정수·꼼수: the move on the 
   const mine = (v, w) => `이 수순이면 ${side}이 ${Math.abs(v).toFixed(1)}집 ${v >= 0 ? "유리합니다" : "불리합니다"} (승률 ${w}%).`;
   const R = rvBoard(p.grid, [{xy: parseGtp(played), color: c, no: n.depth, ring: t.kind}], [0, N - 1, 0, N - 1]);
   const sum = [], refs = []; let badge;
-  if (t.kind === "brilliant") {
+  if (t.kind === "odd") {   // 변칙수 (user 2026-11-17 "묘수,함정수,변칙수도 이렇게도"): the move, how play goes on after it, and the AI's own move
+    badge = `−${t.loss.toFixed(1)}집`;
+    const best = t.best, nb = candidates(n)[0];
+    sum.push(`${side} ${n.depth}수(${played})는 AI가 거의 두지 않는 수(첫인상 ${t.prior === null ? "목록 밖" : pct1(t.prior)})지만, 손해는 약 ${t.loss.toFixed(1)}집뿐인 변칙수입니다.`);
+    if (best && best.move !== played) sum.push(`AI 1순위는 ${best.move}(첫인상 ${pct1(best.prior)})입니다.`);
+    const lineA = rvLine(p, [played, ...(nb ? rvPv(nb) : [])]), lineB = best && best.move !== played ? rvLine(p, rvPv(best)) : [];
+    if (lineA.length) { const B = board(lineA, "odd"), v = -lead(n, nb || {scoreLead: 0}), w = nb ? wr(nb) : 50;
+      refs.push(`<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note("참고도 1", "변칙수 이후", `1 = ${played} · ${where(lineA[0])}`, [mine(v, w)], B.notes)}</div>`); }
+    if (lineB.length) { const B = board(lineB, "best"), d = lead(p, best) - (-lead(n, nb || {scoreLead: 0}));
+      refs.push(`<div class="rv-ref"><figure class="rv-fig">${B.svg}</figure>${note("참고도 2", "AI의 수", `AI 1순위 ${best.move} · ${where(lineB[0])}`,
+        [mine(lead(p, best), wr(best))].concat(d >= .1 ? [`변칙수보다 ${d.toFixed(1)}집 낫습니다.`] : []), B.notes)}</div>`); }
+  } else if (t.kind === "brilliant") {
     badge = `+${t.gap.toFixed(1)}집`;
     sum.push(`${side} ${n.depth}수(${played})는 AI도 처음엔 거의 보지 않던 수(첫인상 ${pct1(t.prior)})인데, 읽어 보니 최선이었습니다.`,
       `다른 어떤 수보다 ${t.gap.toFixed(1)}집 낫습니다.`);
@@ -5741,15 +5752,15 @@ function rvGraph(line, scenes) {   // black's win rate (grey area) and lead (blu
   return g + "</svg>";
 }
 function rvTrickLegend(ts) {   // the legend entries of the kinds there are
-  return TRICK_KINDS.filter(([k]) => k !== "odd" && ts.some(t => t.kind === k)).map(([k, label]) => `<span class="t-${k}">${label}</span>`).join("");
+  return TRICK_KINDS.filter(([k]) => ts.some(t => t.kind === k)).map(([k, label]) => `<span class="t-${k}">${label}</span>`).join("");
 }
-function rvTrickList(ts, kt) {   // the cover's list: what each one is in a few words; 묘수·함정수·꼼수 open their scene
+function rvTrickList(ts, kt) {   // the cover's list: what each one is in a few words; a row opens its scene
   const says = t => t.kind === "brilliant" ? `첫인상 ${pct1(t.prior)} · 다른 수보다 +${t.gap.toFixed(1)}집`
     : t.kind === "odd" ? `첫인상 ${t.prior === null ? "목록 밖" : pct1(t.prior)} · 손해 ${t.loss.toFixed(1)}집`
     : `${t.nat.move}로 받으면 −${t.gap.toFixed(1)}집 · 정답 ${t.nb.move}`;
   const res = t => t.fell === "fell" ? "걸림" : t.fell === "dodged" ? "피함" : t.kind === "trap" || t.kind === "trick" ? "다른 수" : "";
   return `<table class="rv-list rv-tricks"><thead><tr><th>장면</th><th>수</th><th></th><th>종류</th><th>내용</th><th>실전</th></tr></thead><tbody>` +
-    ts.map(t => `<tr${t.kind === "odd" ? "" : ` data-to="${kt(t)}"`}><td>${t.kind === "odd" ? "—" : kt(t)}</td><td>${t.n.depth}</td><td><i class="rv-st ${t.n.move.c === "B" ? "b" : "w"}"></i></td>` +
+    ts.map(t => `<tr data-to="${kt(t)}"><td>${kt(t)}</td><td>${t.n.depth}</td><td><i class="rv-st ${t.n.move.c === "B" ? "b" : "w"}"></i></td>` +
       `<td class="t-${t.kind}">${trickLabel(t.kind)}</td><td>${escHtml(says(t))}</td><td>${res(t)}</td></tr>`).join("") + `</tbody></table>`;
 }
 function rvCover(line, scenes, tricks = [], kt = () => 0) {
@@ -5808,7 +5819,7 @@ function rvCover(line, scenes, tricks = [], kt = () => 0) {
     `<div class="rv-players"><span><i class="rv-st b"></i>${escHtml(i.PB || "흑")}</span><em>vs</em><span><i class="rv-st w"></i>${escHtml(i.PW || "백")}</span></div>` +
     `<div class="rv-meta">${escHtml(meta.join(" · "))}</div>` +
     (models.length ? `<div class="rv-meta">분석 모델 ${models.map(m => `<b>${escHtml(m)}</b>`).join(", ")}</div>` : "") +
-    `<h2>흐름</h2>${rvGraph(line, scenes.concat(tricks.filter(t => t.kind !== "odd").map(t => ({n: t.n, grade: t.kind}))))}<div class="rv-legend"><span class="a">흑 승률</span><span class="l">흑 집 차이</span><span class="m">실수</span><span class="k">악수</span>${rvTrickLegend(tricks.filter(t => t.kind !== "odd"))}</div>` +
+    `<h2>흐름</h2>${rvGraph(line, scenes.concat(tricks.map(t => ({n: t.n, grade: t.kind}))))}<div class="rv-legend"><span class="a">흑 승률</span><span class="l">흑 집 차이</span><span class="m">실수</span><span class="k">악수</span>${rvTrickLegend(tricks)}</div>` +
     `<h2>요약</h2>${table}<h2>등급별 수</h2>${gradeTable}<h2>단계별</h2>${stageTable}<div class="rv-notes-sum">${notes}</div><h2>실수·악수 장면</h2>${list}` +
     (tricks.length ? `<h2>묘수·함정수·변칙수</h2>${rvTrickList(tricks, kt)}` : "") + `</div>`;
 }
@@ -5829,13 +5840,13 @@ function rvFigures(line, scenes) {
 function renderReview() {
   const line = lineThrough(root), all = rvScenes(), scenes = all.filter(s => !rvState.side || s.n.move.c === rvState.side);
   const k0 = s => all.indexOf(s) + 1;   // a scene keeps its number when one side is picked
-  // 묘수·함정수·꼼수 scenes are numbered after the 실수·악수 ones; 변칙수 are only listed on the cover
-  const tricks = rvTricks(new Set(all.map(s => s.n))), tScenes = tricks.filter(t => t.kind !== "odd");
+  // 묘수·함정수·꼼수·변칙수 scenes are numbered after the 실수·악수 ones
+  const tricks = rvTricks(new Set(all.map(s => s.n))), tScenes = tricks;
   const kt = t => all.length + tScenes.indexOf(t) + 1, shownT = tScenes.filter(t => !rvState.side || t.n.move.c === rvState.side);
   const marks = all.concat(tScenes.map(t => ({n: t.n, grade: t.kind})));
   $("rvPages").innerHTML = rvCover(line, all, tricks, kt) +
     `<div class="rv-page"><h2 class="rv-sec">실수·악수 장면</h2>${scenes.length ? scenes.map(s => rvScene(s, k0(s))).join("") : `<p class="rv-none">실수·악수가 없습니다.</p>`}</div>` +
-    (tScenes.length ? `<div class="rv-page"><h2 class="rv-sec">묘수·함정수 장면</h2>${shownT.length ? shownT.map(t => rvTrickScene(t, kt(t))).join("") : `<p class="rv-none">묘수·함정수가 없습니다.</p>`}</div>` : "") +
+    (tScenes.length ? `<div class="rv-page"><h2 class="rv-sec">묘수·함정수·변칙수 장면</h2>${shownT.length ? shownT.map(t => rvTrickScene(t, kt(t))).join("") : `<p class="rv-none">묘수·함정수·변칙수가 없습니다.</p>`}</div>` : "") +
     `<div class="rv-page"><h2 class="rv-sec">기보도</h2><div class="rv-legend"><span class="m">실수</span><span class="k">악수</span>${rvTrickLegend(tScenes)}</div><div class="rv-figs whole">${rvFigures(line, marks)}</div></div>`;
   for (const b of $("rvSide").querySelectorAll("button")) b.classList.toggle("on", b.dataset.v === rvState.side);
 }
