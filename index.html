@@ -2288,18 +2288,34 @@ $("libCrumb").onclick = (ev) => {
   const b = ev.target.closest("[data-crumb]"); if (!b) return;
   if (b.dataset.crumb === "root") libGo(null); else libGo(libYear, null);
 };
-// 찾기 is one step too: the first word typed adds a history entry, back clears the box and shows the place again
-$("libFind").oninput = (ev) => {
-  const q = libFindQ(), on = !!q, marked = !!(history.state && history.state.libFind);
+// 찾기 is one step too: a search adds a history entry, back clears the box and shows the place again.
+// Nothing happens while a Korean syllable is being put together (user 2026-11-17: iPhone KakaoTalk browser, the iOS Korean
+// keyboard typed consonants but no vowels): the list is redrawn when the IME is done (compositionend), and the history
+// step is added only once typing stops — the box loses focus, Enter, or 1.2 s with no syllable open — since an in-app
+// browser redraws its back button on pushState and that broke the syllable being typed.
+let libComposing = false, libMarkTimer = 0;
+function libFindMark() {   // the history step for the search in the box (added, or dropped when it was emptied)
+  clearTimeout(libMarkTimer);
+  if (libComposing || curPage !== "libraryView") return;
+  const on = !!libFindQ(), marked = !!(history.state && history.state.libFind);
   if (on && !marked) history.pushState({ libFind: 1 }, "", location.href);
   else if (!on && marked) history.back();   // emptied by hand: drop the step (popstate finds the box empty)
-  clearTimeout(libTimer);
+}
+function libFindChanged() {
+  const q = libFindQ(), on = !!q, marked = !!(history.state && history.state.libFind);
+  clearTimeout(libTimer); clearTimeout(libMarkTimer);
+  if (!on && marked) libFindMark();
+  else if (on && !marked) libMarkTimer = setTimeout(libFindMark, 1200);
   const hit = on ? libFindCache.get(q) : null;
   if (!on || (hit && Date.now() - hit.at < 300000)) { libShow(); return; }
-  libTimer = setTimeout(libShow, ev && ev.isComposing && /^[ㄱ-ㅎㅏ-ㅣ]$/.test(q) ? 220 : 120);
-};
+  libTimer = setTimeout(libShow, 120);
+}
+$("libFind").addEventListener("compositionstart", () => { libComposing = true; clearTimeout(libTimer); clearTimeout(libMarkTimer); });
+$("libFind").addEventListener("compositionend", () => { libComposing = false; libFindChanged(); });
+$("libFind").oninput = (ev) => { if (!libComposing && !(ev && ev.isComposing)) libFindChanged(); };
+$("libFind").addEventListener("blur", () => { libComposing = false; libFindMark(); });
 $("libFind").onkeydown = (ev) => {
-  if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); clearTimeout(libTimer); libShow(); }
+  if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); clearTimeout(libTimer); libShow(); libFindMark(); }
 };
 addEventListener("popstate", () => {
   if (curPage !== "libraryView" || (history.state && history.state.libFind) || !$("libFind").value) return;
