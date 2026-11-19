@@ -649,7 +649,10 @@ async function load() {
     // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
     const rate = Number(s.usd_krw), admins = new Set(d.members.filter(op).map((m) => m.id));
     const cost = (x) => x.vast_cost_usd == null ? null : Math.round(Number(x.vast_cost_usd) * rate);
-    const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id));
+    // 최근 3일 (user 2026-11-19 "최근 3일 차익이 이상한 거 같은데"): d.sessions is the latest 100 rentals (8~9 days then),
+    // so the card counted all of them under the 3-day label — only rentals started in the last 3 days now
+    const since3 = Date.now() - 3 * 24 * 3600_000;
+    const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id) && new Date(x.created_at).getTime() >= since3);
     const net = (x) => x.charged_krw - (x.refunded_krw || 0);   // a failed setup is refunded in full (2026-09-29)
     const paid = paidRows.reduce((a, x) => a + net(x), 0), spent = paidRows.reduce((a, x) => a + cost(x), 0);
     $("kMargin").textContent = paidRows.length ? won(paid - spent) : "–";
