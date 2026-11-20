@@ -966,7 +966,7 @@ async function refreshNow(light) {
   $("dashBalLabel").textContent = op ? "Vast 잔액" : "내 잔액";
   $("dashCharge").classList.toggle("hidden", !!op);
   $("balanceLabel").textContent = !(op && vastBalance?.totalKrw != null) ? "내 잔액"
-    : `Vast 잔액 · $${vastBalance.usd.toFixed(2)} · 회원 잔액 ${won(vastBalance.membersKrw)} 포함`;
+    : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;
   $("helloName").textContent = `${p.is_admin && p.admin_limited ? "관리자 " : ""}${p.name || "회원"}님`;   // 제한 관리자만 "관리자 홍길동님", 운영 관리자는 이름만 (user 2026-11-04)
   $("meTitle").textContent = p.name || p.email; $("meNameVal").textContent = p.name || "";
   $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();

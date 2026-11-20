@@ -641,12 +641,12 @@ async function load() {
     $("kLiveSub").textContent = live.length ? live.map((x) => `${whoName(x.user_id, x.former_member)} ${x.gpu_name || ""}`).join(", ") : "켜진 GPU 없음";
     // Vast 잔액 (user 2026-11-20): the admin's GPUs run on it while it lasts; the members' prepaid money is part of it
     $("kFunds").textContent = funds?.totalKrw != null ? won(funds.totalKrw) : "확인 불가";
-    $("kFundsSub").textContent = funds?.totalKrw != null ? `$${Number(funds.usd).toFixed(2)} · 회원 잔액 ${won(funds.membersKrw)} 포함` : "관리자 GPU는 여기서 나갑니다";
+    $("kFundsSub").textContent = funds?.totalKrw != null ? `$${Number(funds.usd).toFixed(2)}` : "관리자 GPU는 여기서 나갑니다";
     $("kMembers").textContent = won(plain.reduce((a, m) => a + Number(m.balance_krw || 0), 0));
     $("kMembersSub").textContent = `회원 ${plain.length}명`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
       `<td class="muted small">${esc(m.email)}</td><td class="num">${op(m) && funds?.totalKrw != null
-        ? `<span title="Vast 잔액 (회원 잔액 ${won(funds.membersKrw)} 포함)">${won(funds.totalKrw)}</span>` : won(m.balance_krw)}</td>` +
+        ? `<span title="Vast 잔액">${won(funds.totalKrw)}</span>` : won(m.balance_krw)}</td>` +
       `<td>${when(m.created_at)}</td></tr>`).join("");
     // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
     const rate = Number(s.usd_krw), admins = new Set(d.members.filter(op).map((m) => m.id));
