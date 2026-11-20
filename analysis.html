@@ -5588,6 +5588,7 @@ function rvScenes() {   // the main line's 실수·악수: [{n, grade, loss}]
 // Decided games (under 5% or over 95%), moves already shown as 실수·악수 and positions read under 50 visits are left out.
 const TRICK = {minRead: 50, minV: 5, good: .7, brillPrior: .05, brillGap: 2, natPrior: .3, rightPrior: .15, trapGap: 3, trapNet: 2,
   trapMin: .5, trickLoss: 1.5, near: 3, oddPrior: .01};
+const SHOW_TRICKS = false;   // 2026-11-20: hidden, kept (rvTricks and its scenes stay as they were)
 const TRICK_KINDS = [["brilliant", "묘수"], ["trap", "함정수"], ["trick", "꼼수"], ["odd", "변칙수"]];
 const trickLabel = k => TRICK_KINDS.find(x => x[0] === k)[1];
 function rvTricks(skip) {   // [{n, kind, ...}] along the main line; skip = the nodes already a 실수·악수 scene
@@ -5852,7 +5853,8 @@ function renderReview() {
   const line = lineThrough(root), all = rvScenes(), scenes = all.filter(s => !rvState.side || s.n.move.c === rvState.side);
   const k0 = s => all.indexOf(s) + 1;   // a scene keeps its number when one side is picked
   // 묘수·함정수·꼼수·변칙수 scenes are numbered after the 실수·악수 ones
-  const tricks = rvTricks(new Set(all.map(s => s.n))), tScenes = tricks;
+  // 묘수·함정수·꼼수·변칙수는 숨김 보관 (user 2026-11-20 "다 없애 기존대로 실수 악수만 나오게"): SHOW_TRICKS = true면 다시 나옴
+  const tricks = SHOW_TRICKS ? rvTricks(new Set(all.map(s => s.n))) : [], tScenes = tricks;
   const kt = t => all.length + tScenes.indexOf(t) + 1, shownT = tScenes.filter(t => !rvState.side || t.n.move.c === rvState.side);
   const marks = all.concat(tScenes.map(t => ({n: t.n, grade: t.kind})));
   $("rvPages").innerHTML = rvCover(line, all, tricks, kt) +
