@@ -192,7 +192,7 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
     <!-- 한눈에 보기: 누르면 그 탭으로 -->
     <div class="kpis">
       <button class="kpi" data-go="gpu"><span>사용 중 GPU</span><b id="kLive">–</b><small id="kLiveSub"></small></button>
-      <button class="kpi" data-go="members"><span>관리자 잔액</span><b id="kFunds">–</b><small id="kFundsSub">Vast 잔액 − 회원 잔액</small></button>
+      <button class="kpi" data-go="members"><span>Vast 잔액</span><b id="kFunds">–</b><small id="kFundsSub">관리자 GPU는 여기서 나갑니다</small></button>
       <button class="kpi" data-go="members"><span>회원 잔액 합계</span><b id="kMembers">–</b><small id="kMembersSub"></small></button>
       <button class="kpi" data-go="gpu"><span>최근 3일 차익</span><b id="kMargin">–</b><small id="kMarginSub"></small></button>
     </div>
@@ -639,12 +639,14 @@ async function load() {
     $("memberCount").textContent = `${d.members.length}명`;
     $("kLive").textContent = `${live.length}대`;
     $("kLiveSub").textContent = live.length ? live.map((x) => `${whoName(x.user_id, x.former_member)} ${x.gpu_name || ""}`).join(", ") : "켜진 GPU 없음";
-    $("kFunds").textContent = funds?.krw != null ? won(funds.krw) : "확인 불가";
+    // Vast 잔액 (user 2026-11-20): the admin's GPUs run on it while it lasts; the members' prepaid money is part of it
+    $("kFunds").textContent = funds?.totalKrw != null ? won(funds.totalKrw) : "확인 불가";
+    $("kFundsSub").textContent = funds?.totalKrw != null ? `$${Number(funds.usd).toFixed(2)} · 회원 잔액 ${won(funds.membersKrw)} 포함` : "관리자 GPU는 여기서 나갑니다";
     $("kMembers").textContent = won(plain.reduce((a, m) => a + Number(m.balance_krw || 0), 0));
     $("kMembersSub").textContent = `회원 ${plain.length}명`;
     $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
-      `<td class="muted small">${esc(m.email)}</td><td class="num">${op(m) && funds?.krw != null
-        ? `<span title="Vast ${won(funds.totalKrw)} − 회원 잔액 ${won(funds.membersKrw)}">${won(funds.krw)}</span>` : won(m.balance_krw)}</td>` +
+      `<td class="muted small">${esc(m.email)}</td><td class="num">${op(m) && funds?.totalKrw != null
+        ? `<span title="Vast 잔액 (회원 잔액 ${won(funds.membersKrw)} 포함)">${won(funds.totalKrw)}</span>` : won(m.balance_krw)}</td>` +
       `<td>${when(m.created_at)}</td></tr>`).join("");
     // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
     const rate = Number(s.usd_krw), admins = new Set(d.members.filter(op).map((m) => m.id));
@@ -827,7 +829,7 @@ $("tuneRows").onclick = async (ev) => {
   // admins pay Vast's cost: the member price ÷ markup, for about 10 minutes (setup + benchmark, then it stops by itself)
   const cost = Math.max(10, Math.round(Number(b.dataset.krw) / (Number(capSettings?.markup) || 1.5) / 6 / 10) * 10);
   if (!confirm(`${b.dataset.gpu} + ${b.dataset.name}\n\n지금 목록에서 이 종류(${b.dataset.gpu}) 중 가장 싼 GPU를 빌려 KataGo 벤치마크로 탐색 스레드를 잰 뒤 자동으로 끕니다.\n` +
-    `보통 5~10분, 관리자 잔액에서 원가 약 ${won(cost)}이 나갑니다(처음 빌리는 기계면 조금 더). 한 번에 한 대만 잴 수 있습니다.\n\n시작할까요?`)) return;
+    `보통 5~10분, Vast 잔액에서 원가 약 ${won(cost)}이 나갑니다(처음 빌리는 기계면 조금 더). 한 번에 한 대만 잴 수 있습니다.\n\n시작할까요?`)) return;
   b.disabled = true;
   try {
     await api("/admin/engine-test", { gpu: b.dataset.gpu, model_id: b.dataset.model });
@@ -912,7 +914,7 @@ const rpc = async (fn, args, done) => {
   await loadEngine(); return true;
 };
 async function testRental(body, what) {
-  if (!confirm(`${what}\n\n지금 목록에서 가장 싼 GPU를 빌려 설치하고 KataGo 벤치마크로 속도를 잰 뒤 자동으로 끕니다.\n보통 5~10분, 관리자 잔액에서 원가(수십 원)가 나갑니다. 진행은 위 'GPU 목록'과 홈 화면에 보입니다.\n\n시작할까요?`)) return;
+  if (!confirm(`${what}\n\n지금 목록에서 가장 싼 GPU를 빌려 설치하고 KataGo 벤치마크로 속도를 잰 뒤 자동으로 끕니다.\n보통 5~10분, Vast 잔액에서 원가(수십 원)가 나갑니다. 진행은 위 'GPU 목록'과 홈 화면에 보입니다.\n\n시작할까요?`)) return;
   try { await api("/admin/engine-test", body); toast("시험 대여를 시작했습니다. 끝나면 결과가 여기에 나타납니다."); load(); }
   catch (e) { toast(e.message, true); }
 }

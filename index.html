@@ -955,19 +955,18 @@ async function refreshNow(light) {
     vastAt = Date.now();
     api("/admin/vast").then((v) => { vastBalance = v; refresh(); }).catch(() => {});
   }
-  const balance = op && vastBalance?.krw != null ? vastBalance.krw : p.balance_krw;
-  // an admin's balance is 관리자 잔액 (Vast − members), which takes a moment to fetch: until then "-", not their unused
-  // profile balance (user report 2026-10-09: every reload showed that number for about a second)
-  const known = !op || vastBalance?.krw != null, shown = known ? won(balance) : "-";
+  // an admin's balance is the Vast balance (user 2026-11-20; 관리자 잔액 = Vast − members before), which takes a moment
+  // to fetch: until then "-", not their unused profile balance (user report 2026-10-09: every reload showed that number)
+  const balance = op && vastBalance?.totalKrw != null ? vastBalance.totalKrw : p.balance_krw;
+  const known = !op || vastBalance?.totalKrw != null, shown = known ? won(balance) : "-";
   if (known) { countTo($("balance"), balance); countTo($("dashBalance"), balance); }
   else for (const id of ["balance", "dashBalance"]) { $(id).textContent = "-"; delete $(id).dataset.v; }
   document.querySelectorAll("[data-bal]").forEach((el) => { el.textContent = shown; });
   document.querySelectorAll("[data-bal-link]").forEach((a) => { a.href = op ? "#gpu" : "#charge"; });
-  $("dashBalLabel").textContent = op ? "관리자 잔액" : "내 잔액";
+  $("dashBalLabel").textContent = op ? "Vast 잔액" : "내 잔액";
   $("dashCharge").classList.toggle("hidden", !!op);
-  $("balanceLabel").textContent = !(op && vastBalance?.krw != null) ? "내 잔액"
-    : vastBalance.totalKrw != null ? `관리자 잔액 · Vast ${won(vastBalance.totalKrw)}($${vastBalance.usd.toFixed(2)}) − 회원 잔액 ${won(vastBalance.membersKrw)}`
-    : `Vast 잔액 · $${vastBalance.usd.toFixed(2)}`;   // a server before 2026-09-27 sends only the Vast balance
+  $("balanceLabel").textContent = !(op && vastBalance?.totalKrw != null) ? "내 잔액"
+    : `Vast 잔액 · $${vastBalance.usd.toFixed(2)} · 회원 잔액 ${won(vastBalance.membersKrw)} 포함`;
   $("helloName").textContent = `${p.is_admin && p.admin_limited ? "관리자 " : ""}${p.name || "회원"}님`;   // 제한 관리자만 "관리자 홍길동님", 운영 관리자는 이름만 (user 2026-11-04)
   $("meTitle").textContent = p.name || p.email; $("meNameVal").textContent = p.name || "";
   $("meAvatar").textContent = (p.name || p.email || "?").trim().charAt(0).toUpperCase();
@@ -2431,7 +2430,7 @@ function updatePick() {   // the chosen GPU in the bar fixed at the bottom (2026
 $("startButton").onclick = async () => {
   if (!picked) return;
   const free = picked.priceKrw === 0;
-  const pay = opAdmin(profile) ? `시간당 ${won(picked.priceKrw)}, 관리자 잔액(Vast 잔액 − 회원 잔액)에서 원가로 나갑니다.`
+  const pay = opAdmin(profile) ? `시간당 ${won(picked.priceKrw)}, Vast 잔액에서 원가로 나갑니다.`
     : free ? "무료 개방 GPU입니다 — 잔액이 차감되지 않습니다."
     : `시간당 ${won(picked.priceKrw)}, 1분 단위로 잔액에서 차감됩니다.`;
   const prep = free ? "분석 준비를 마치는 데 보통 1~3분 걸립니다."
