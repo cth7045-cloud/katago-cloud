@@ -468,6 +468,13 @@ dialog.sheet input:not([type=checkbox]):not([type=radio]) { min-width: 0; }
 dialog.sheet .row > h2.grow { flex: 1 1 0; min-width: 0; }   /* 좁으면 제목이 두 줄이 되고 '닫기'는 오른쪽 위 그대로 */
 @media (max-width: 400px) { .fox-list td:nth-child(5) { white-space: normal; } }   /* 결과(·좁으면 날짜)도 줄바꿈 — 흑·백 이름이 한 글자씩 세로로 쪼개지지 않게 */
 @media (max-width: 359px) { .fox-list td:nth-child(2) { white-space: normal; } }
+/* 기보 고르기 창은 창 전체가 아니라 목록만 스크롤(2026-11-22, 사용자 "위 아래로 스크롤이 돼. 이것도 고정되게"): 창 높이가 모자라면
+   목록 칸이 줄어듦 — 제목·검색·아래 버튼은 그대로. 목록 120px도 안 남는 낮은 화면에서만 창이 스크롤 */
+dialog.fox-dlg[open] { display: flex; flex-direction: column; }
+dialog.fox-dlg > .stack { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+dialog.fox-dlg > .stack > * { flex: none; }
+dialog.fox-dlg > .stack > .scroll-box { flex: 0 1 auto; min-height: 120px; }
+dialog.lvl-dlg { width: min(380px, calc(100vw - 32px)); }
 .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--soft); border-radius: 999px; }
 .seg button { background: transparent; color: var(--muted); min-height: 38px; padding: 7px 16px; box-shadow: none; }
 .seg button:hover { background: transparent; color: var(--ink); }

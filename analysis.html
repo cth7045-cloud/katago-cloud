@@ -3767,7 +3767,8 @@ async function handBatch(files, notes, folder, autoStop) {   // → "handed" | "
   tellAll("handFail", {text: batchStop ? "취소했습니다" : answer && answer.batchRefused ? answer.batchRefused : "GPU에 기보를 넘기지 못했습니다. GPU 연결을 확인한 뒤 다시 시작하세요."});
   return "failed";
 }
-async function runBatch(files, lvl, notes, folder = null, gpu = null) {
+async function runBatch(files, lvl, notes, folder = null, gpu = null, custom = null) {
+  if (lvl === "custom" && Number.isInteger(custom) && custom >= 1 && custom <= CUSTOM_MAX) LEVELS.custom = custom;   // the website's 직접 (2026-11-22)
   if (LEVELS[lvl]) level = lvl;   // not setLevel(): the member's own 세기 on the analysis screen stays as it was
   batchStop = false;
   if (gpu) {   // the website asks for the GPU to run it; an older GPU (no batch in its hello) is run from here as before
@@ -3812,7 +3813,7 @@ async function runBatch(files, lvl, notes, folder = null, gpu = null) {
 }
 if (batchMode) addEventListener("message", ev => {
   if (ev.source !== parent || ev.origin !== location.origin || !ev.data) return;
-  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes, /^[0-9a-f-]{36}$/.test(ev.data.folder || "") ? ev.data.folder : null, ev.data.gpu || null);
+  if (ev.data.batch === "run") runBatch(ev.data.files || [], ev.data.level, ev.data.notes, /^[0-9a-f-]{36}$/.test(ev.data.folder || "") ? ev.data.folder : null, ev.data.gpu || null, ev.data.custom);
   if (ev.data.batch === "cancel") { batchStop = true; batchEnd(false); }
 });
 // A long 자동분석 / 대국 리포트 / 여러 기보 분석 is one request: without another one the GPU's guard would count it as idle

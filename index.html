@@ -304,6 +304,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
               <option value="fast" data-l="빠름" data-s="250">빠름 · 한 수 250 visits</option>
               <option value="normal" data-l="보통" data-s="500" selected>보통 · 한 수 500 visits</option>
               <option value="precise" data-l="정밀" data-s="1000">정밀 · 한 수 1000 visits</option>
+              <option value="custom" data-l="직접" data-s="2000">직접</option>
             </select>
           </div>
           <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류(내 기보에서 고른 기보는 원래 분류 그대로)"><option value="">분류 없음</option></select></label>
@@ -668,6 +669,16 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
       </div>
       <div class="row"><span class="muted small grow" id="foxCount"></span><button class="primary" id="foxAdd" disabled>선택한 기보 추가</button></div>
     </div>
+  </dialog>
+
+  <!-- 기보 분석 세기 '직접'(2026-11-22, 사용자 "세기 직접설정이 여기엔 없다"): 분석 화면의 직접과 같은 값(localStorage kgv.levelCustom, 1~20000) -->
+  <dialog id="lvlDlg" class="sheet lvl-dlg" aria-label="분석 세기 직접 설정">
+    <form class="stack" id="lvlForm" novalidate>
+      <h2 style="margin:0">분석 세기 직접 설정</h2>
+      <label class="fld"><span class="lab">한 수 visits</span><input type="number" id="lvlVisits" min="1" max="20000" step="1" inputmode="numeric" autocomplete="off"></label>
+      <p class="small" id="lvlNote" style="margin:0;color:var(--bad)" hidden></p>
+      <div class="row" style="justify-content:flex-end"><button type="button" id="lvlCancel">취소</button><button type="submit" class="primary">확인</button></div>
+    </form>
   </dialog>
 
   <!-- 내 기보에서 고르기: games already in 내 기보 go into the 기보 분석 list; analysed, each is saved over its own row -->
@@ -1391,6 +1402,11 @@ function batchLeft(p) {   // "약 N분 남음" once there is enough to go on, el
   return min < 1 ? "1분 안에 끝남" : min < 60 ? `약 ${min}분 남음` : `약 ${Math.floor(min / 60)}시간 ${min % 60}분 남음`;
 }   // 분석 시작 pressed while the GPU was still getting ready: starts by itself once it is ready
 try { const v = localStorage.getItem("kgv.level"); if ([...$("batchLevel").options].some((o) => o.value === v)) $("batchLevel").value = v; } catch { /* storage blocked */ }
+// 직접: visits per move as the analysis screen's 직접 keeps them on this device (kgv.levelCustom) — one value for both
+const CUSTOM_MAX = 20000;
+let levelCustom = 2000;
+try { const v = Math.round(+localStorage.getItem("kgv.levelCustom")); if (v >= 1 && v <= CUSTOM_MAX) levelCustom = v; } catch { /* storage blocked */ }
+$("batchLevel").querySelector('option[value="custom"]').dataset.s = String(levelCustom);
 const BATCH_FORM = ["batchNotes", "batchNoteSide", "batchNoteName", "batchNoteLevel", "batchAutoStop"];   // remembered in kgv.batchForm
 try {
   const v = JSON.parse(localStorage.getItem("kgv.batchForm") || "{}");
@@ -1620,7 +1636,7 @@ function startBatch() {
   fr.style.cssText = "position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden";
   fr.setAttribute("aria-hidden", "true"); fr.tabIndex = -1;
   const notes = $("batchNotes").checked ? { side: $("batchNoteSide").value, name: $("batchNoteName").value, level: $("batchNoteLevel").value } : null;
-  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.mine ? { name: f.file.name, mine: f.mine.id } : f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, notes, folder: $("batchFolder").value || null, gpu: { autoStop: $("batchAutoStop").checked } }, location.origin);
+  fr.onload = () => fr.contentWindow.postMessage({ batch: "run", files: batchRun.map((f) => (f.mine ? { name: f.file.name, mine: f.mine.id } : f.fox ? { name: f.file.name, text: f.fox.sgf, main: true, info: f.fox.info } : f.file)), level: $("batchLevel").value, custom: levelCustom, notes, folder: $("batchFolder").value || null, gpu: { autoStop: $("batchAutoStop").checked } }, location.origin);
   fr.src = `analysis.html?v=${Date.now()}#u=${encodeURIComponent(session.web_url)}&t=${encodeURIComponent(session.web_token)}&batch=1`;
   document.body.appendChild(fr); batchFrame = fr; batchShow();
 }
@@ -2431,6 +2447,25 @@ function segSync(box, sel) {
 const batchSegs = [...document.querySelectorAll("[data-seg-for]")].map((box) => [box, $(box.dataset.segFor)]);
 batchSegs.forEach(([box, sel]) => segBuild(box, sel));
 function segSyncAll() { batchSegs.forEach(([box, sel]) => segSync(box, sel)); }
+// 기보 분석 '직접': the button opens a number box (also when 직접 is on already: to change the number); OK sets and picks it
+const lvlSeg = document.querySelector('[data-seg-for="batchLevel"]');
+lvlSeg.addEventListener("click", (ev) => {
+  const b = ev.target.closest('button[data-v="custom"]'); if (!b || b.disabled) return;
+  ev.stopPropagation();   // capture: the buttons' own handler would pick 직접 before a number is set
+  $("lvlVisits").value = levelCustom; $("lvlNote").hidden = true;
+  $("lvlDlg").showModal(); $("lvlVisits").select();
+}, true);
+$("lvlForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const v = Number($("lvlVisits").value);
+  if (!Number.isInteger(v) || v < 1 || v > CUSTOM_MAX) { $("lvlNote").textContent = `1~${CUSTOM_MAX} 사이의 정수를 넣으세요`; $("lvlNote").hidden = false; return; }
+  levelCustom = v; try { localStorage.setItem("kgv.levelCustom", String(v)); } catch { /* storage blocked */ }
+  const sel = $("batchLevel");
+  sel.querySelector('option[value="custom"]').dataset.s = String(v);
+  sel.value = "custom"; segBuild(lvlSeg, sel); sel.dispatchEvent(new Event("change", { bubbles: true }));
+  $("lvlDlg").close();
+});
+$("lvlCancel").onclick = () => $("lvlDlg").close();
 const modelWord = (name) => name.replace(/^KataGo\s*\((.+)\)$/, "$1");
 $("model").addEventListener("change", () => { modelTouched = true; });
 async function loadOffers() {
@@ -2611,7 +2646,7 @@ async function busy(form, fn) {
 }
 // ------------------------------------------------------------------ 잔액 충전 요청 (2026-09-30)
 // charge_request / charge_cancel / my_charge_requests are DB functions; /charge/notify tells the admin's phone at once
-const CH_STATE = { pending: ["확인 중", "warn"], approved: ["충전됨", "good"], rejected: ["거절", "bad"], canceled: ["취소", ""], expired: ["만료", ""] };
+const CH_STATE = { pending: ["확인 중", "warn"], approved: ["충전됨", "good"], rejected: ["거절", "bad"], canceled: ["취소됨", ""], expired: ["만료", ""] };
 let chargeOpen = null, chargeAt = 0;
 const shortWhen = (iso) => { const d = new Date(iso), p = (n) => String(n).padStart(2, "0"); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 async function loadCharge() {
