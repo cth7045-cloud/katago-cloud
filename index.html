@@ -1667,8 +1667,11 @@ function watchJob(id) {
 async function batchPoll() {   // the GPU's job as the database has it
   if (!batchJob || batchJob.busy) return;   // one read at a time on a slow network
   const job = batchJob; job.busy = true;
-  const { data: j, error } = await sb.from("gpu_batches").select("status,progress,saved,failed,auto_stop,created_at,finished_at").eq("id", job.id).maybeSingle()
-    .finally(() => { job.busy = false; });
+  // try/finally, not .finally(): a supabase-js query is only thenable (no .finally / .catch) — .finally threw here, busy stayed
+  // true and the page sat at 0% while the GPU went on (2026-11-21, a member's report: 여러 판이 안 돌아간다)
+  let j, error;
+  try { ({ data: j, error } = await sb.from("gpu_batches").select("status,progress,saved,failed,auto_stop,created_at,finished_at").eq("id", job.id).maybeSingle()); }
+  finally { job.busy = false; }
   if (error || !j || batchJob !== job) return;   // asked again in 3 s (or the job is no longer shown)
   batchStartedAt = new Date(j.created_at).getTime();
   const p = j.progress || {};
