@@ -657,6 +657,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <button type="submit">검색</button>
       </form>
       <p class="muted small" id="foxMsg" style="margin:0">닉네임을 검색하면 최근 대국 약 100판이 나옵니다. 분석할 대국을 여러 개 고르세요.</p>
+      <div class="row fox-alt hidden" id="foxAlt"></div>
       <div class="scroll-box fox-list hidden" id="foxTable">
         <table><thead><tr><th><input type="checkbox" id="foxAll" aria-label="모두 고르기"></th><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th class="num hide-sm">수</th></tr></thead>
           <tbody id="foxRows"></tbody></table>
@@ -1452,18 +1453,28 @@ $("foxOpen").onclick = () => {
 };
 $("foxClose").onclick = () => $("foxDlg").close();
 $("foxDlg").addEventListener("click", (e) => { if (e.target === $("foxDlg")) $("foxDlg").close(); });   // backdrop
+// A pro's name in Korean also finds their 한큐 account (server: the name list's hanzi, pro accounts first, 2026-11-21);
+// the other accounts with that name stay one tap away (exact: that nickname only).
+async function foxSearch(name, exact = false) {
+  $("foxMsg").textContent = "찾는 중…"; $("foxMsg").style.color = ""; $("foxAlt").classList.add("hidden");
+  try {
+    const r = await api(`/kifu/fox/user?name=${encodeURIComponent(name)}${exact ? "&exact=1" : ""}`);
+    foxGames = r.games || [];
+    $("foxMsg").textContent = foxGames.length ? `${r.user.name} (${r.user.dan}) · ${foxGames.length}판 · 분석할 대국을 고르세요.` : `${r.user.name}: 공개된 대국이 없습니다.`;
+    const other = (r.accounts || []).slice(1);
+    $("foxAlt").innerHTML = other.length ? `<span class="muted small">다른 계정</span>` + other.map((a) =>
+      `<button type="button" data-fox="${esc(a.name)}">${esc(a.name)} ${esc(a.dan)}</button>`).join("") : "";
+    $("foxAlt").classList.toggle("hidden", !other.length);
+  } catch (err) { foxGames = []; $("foxMsg").textContent = err.message; $("foxMsg").style.color = "var(--bad)"; }
+  foxShow();
+}
 $("foxForm").onsubmit = async (e) => {
   e.preventDefault();
   const name = $("foxName").value.trim(); if (!name) return;
   try { localStorage.setItem("kgv.foxName", name); } catch { /* storage blocked */ }
-  $("foxMsg").textContent = "찾는 중…"; $("foxMsg").style.color = "";
-  try {
-    const r = await api(`/kifu/fox/user?name=${encodeURIComponent(name)}`);
-    foxGames = r.games || [];
-    $("foxMsg").textContent = foxGames.length ? `${r.user.name} (${r.user.dan}) · ${foxGames.length}판 · 분석할 대국을 고르세요.` : `${r.user.name}: 공개된 대국이 없습니다.`;
-  } catch (err) { foxGames = []; $("foxMsg").textContent = err.message; $("foxMsg").style.color = "var(--bad)"; }
-  foxShow();
+  await foxSearch(name);
 };
+$("foxAlt").addEventListener("click", (e) => { const b = e.target.closest("[data-fox]"); if (b) foxSearch(b.dataset.fox, true); });
 $("foxRows").addEventListener("click", (e) => {   // the whole row toggles its box
   const tr = e.target.closest("tr"); if (!tr) return;
   const box = tr.querySelector("input"); if (box.disabled) return;

@@ -401,6 +401,8 @@ dialog[open] { animation: arrive .35s var(--ease); }
 .dlg-row { display: flex; align-items: center; gap: 8px; padding: 14px 18px; flex-wrap: wrap; }
 .dlg-row b { font-size: 18px; font-weight: 750; letter-spacing: -.02em; }
 .dlg-row .spacer { flex: 1; }
+.dlg-row.fox-alt { padding-top: 0; gap: 6px; }
+.dlg-row.fox-alt button { padding: 4px 10px; font-size: 13px; }
 #foxName { flex: 1 1 160px; min-width: 0; }
 #mineFindRow { padding-top: 0; padding-bottom: 6px; }
 #mineFindRow[hidden] { display: none; }
@@ -986,6 +988,7 @@ button.primary:hover { background: var(--blue-deep); }
     <span class="muted">최근 대국 약 100판</span>
   </form>
   <div class="dlg-msg" id="kifuMsg"></div>
+  <div class="dlg-row fox-alt" id="foxAlt" hidden></div>
   <div class="dlg-list"><table><thead><tr><th>날짜</th><th>흑</th><th>백</th><th>결과</th><th>수</th></tr></thead><tbody id="kifuRows"></tbody></table></div>
 </dialog>
 
@@ -3272,13 +3275,25 @@ $("kifuOpen").onclick = () => {
 };
 $("kifuClose").onclick = () => $("kifuDlg").close();
 $("kifuDlg").addEventListener("click", ev => { if (ev.target === $("kifuDlg")) $("kifuDlg").close(); });   // backdrop
+// A pro's name in Korean also finds their 한큐 account (server: the name list's hanzi, pro accounts first, 2026-11-21);
+// the other accounts with that name stay one tap away (exact: that nickname only).
+async function foxSearch(name, exact = false) {
+  $("foxAlt").hidden = true;
+  const r = await kifuRun("찾는 중…", () => kifuGet(`/fox/user?name=${encodeURIComponent(name)}${exact ? "&exact=1" : ""}`));
+  if (!r) return;
+  showKifuList(r.games); kifuMsg(r.games.length ? `${r.user.name} (${r.user.dan}) · ${r.games.length}판 · 대국을 누르면 불러옵니다.` : `${r.user.name}: 공개된 대국이 없습니다.`);
+  const other = (r.accounts || []).slice(1);
+  $("foxAlt").innerHTML = other.length ? `<span class="muted">다른 계정</span>` + other.map(a =>
+    `<button type="button" data-fox="${escHtml(a.name)}">${escHtml(a.name)} ${escHtml(a.dan)}</button>`).join("") : "";
+  $("foxAlt").hidden = !other.length;
+}
 $("foxForm").onsubmit = async ev => {
   ev.preventDefault();
   const name = $("foxName").value.trim(); if (!name) return;
   try { localStorage.setItem("kgv.foxName", name); } catch { /* storage blocked */ }
-  const r = await kifuRun("찾는 중…", () => kifuGet(`/fox/user?name=${encodeURIComponent(name)}`));
-  if (r) { showKifuList(r.games); kifuMsg(r.games.length ? `${r.user.name} (${r.user.dan}) · ${r.games.length}판 · 대국을 누르면 불러옵니다.` : `${r.user.name}: 공개된 대국이 없습니다.`); }
+  await foxSearch(name);
 };
+$("foxAlt").addEventListener("click", ev => { const b = ev.target.closest("[data-fox]"); if (b) foxSearch(b.dataset.fox, true); });
 $("kifuRows").addEventListener("click", async ev => {
   const tr = ev.target.closest("tr"); const g = tr && kifuList[+tr.dataset.i]; if (!g) return;
   const r = await kifuRun("기보 받는 중…", () => kifuGet(`/fox/game?id=${encodeURIComponent(g.id)}`));
