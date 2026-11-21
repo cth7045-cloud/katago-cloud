@@ -13,6 +13,7 @@ panels) so it looks the same as the desktop program.
   LizzieFrame.java, WinrateGraph.java and VariationTree.java (GPL-3.0).
   Therefore remote/webui.html is distributed under the GNU GPL v3.0 as well.
   The full license text is in LICENSE-GPL-3.0.txt next to this file.
-* OpenSans-Semibold.ttf
-  Open Sans, Copyright Google Inc., Apache License 2.0
-  (bundled with LizzieYzy Next as its win-rate font).
+* Open Sans (the win-rate numbers; LizzieYzy Next uses OpenSans-Semibold.ttf)
+  Not bundled here: loaded from Google Fonts (fonts.googleapis.com), whose
+  current Open Sans is licensed under the SIL Open Font License 1.1,
+  Copyright The Open Sans Project Authors.

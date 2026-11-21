@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
+<title>요금 안내 · KataGo Cloud</title>
+<meta name="description" content="KataGo Cloud의 GPU 분석 요금(1분 단위)과 충전, 무료로 쓰는 기능.">
+<link rel="canonical" href="https://katago-cloud.onrender.com/pricing.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="KataGo Cloud">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="요금 안내 · KataGo Cloud">
+<meta property="og:description" content="KataGo Cloud의 GPU 분석 요금(1분 단위)과 충전, 무료로 쓰는 기능.">
+<meta property="og:url" content="https://katago-cloud.onrender.com/pricing.html">
+<meta property="og:image" content="https://katago-cloud.onrender.com/icons/icon-light-512-maskable.png">
+<meta name="twitter:card" content="summary">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-dark-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icons/icon-light-32.png" sizes="32x32" type="image/png" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="icons/icon-light-180.png">
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+<script src="i18n.js"></script>   <!-- 화면 언어 -->
+<script src="biz.js" defer></script>   <!-- 사업자 정보 (아래쪽) -->
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="./"><span class="mark" aria-hidden="true"></span>KataGo Cloud</a>
+    <a href="./">홈으로</a>
+  </div>
+</header>
+
+<!-- 요금 안내 (2026-11-21, 사업자등록·결제사 심사 전 사이트 준비): 로그인 없이 보는 요금. GPU 요금은 DB public_gpu_prices()
+     (최근 2주 한국에서 실제로 준비된 대여의 회원 요금·KataGo(최강) 속도)에서 바로 읽는다 — 값을 이 파일에 적어 두면 금방 틀려진다. -->
+<main class="wrap legal">
+  <nav class="toc" aria-label="목차">
+    <ol>
+      <li><a href="#gpu">GPU 분석 요금</a></li>
+      <li><a href="#calc">요금 계산</a></li>
+      <li><a href="#charge">충전</a></li>
+      <li><a href="#free">무료로 쓰는 것</a></li>
+    </ol>
+  </nav>
+
+  <article>
+    <h1>요금 안내</h1>
+    <p class="meta">GPU 분석은 쓴 만큼만, 1분 단위로 냅니다. 그 밖의 기능은 무료입니다.</p>
+
+    <h2 id="gpu">GPU 분석 요금</h2>
+    <div class="price-table">
+      <table>
+        <thead><tr><th>GPU</th><th class="num">시간당</th><th class="num hide-sm">최근 2주 범위</th><th class="num">1초에 읽는 수</th></tr></thead>
+        <tbody id="priceRows"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="note">최근 2주 동안 한국 GPU로 실제로 분석을 시작한 대여의 회원 요금 가운데 값입니다. 요금은 그때그때 비어 있는 GPU에 따라 달라지고, 빌리기 전 GPU 목록에 그 시점의 요금이 나옵니다.</p>
+    <p class="note">1초에 읽는 수는 KataGo(최강) 모델로 회원들이 분석한 속도의 가운데 값입니다. 많이 읽을수록 분석이 깊고 빠릅니다.</p>
+
+    <h2 id="calc">요금 계산</h2>
+    <ul>
+      <li>요금은 분석 준비가 끝난 순간부터 나갑니다. GPU를 빌려 KataGo를 설치하는 준비 시간은 무료입니다.</li>
+      <li>쓴 시간은 1분 단위로 계산합니다. 예를 들어 시간당 1,160원인 GPU를 5분 쓰면 97원입니다.</li>
+      <li>준비하지 못한 대여는 요금이 나가지 않습니다.</li>
+      <li>'GPU 종료'를 누르면 그 자리에서 요금이 멈춥니다. 10분 동안 아무 입력이 없으면 저절로 꺼지고(내 정보에서 끌 수 있음), 한 번에 최대 6시간까지 켤 수 있습니다.</li>
+      <li>GPU를 켜려면 잔액이 그 GPU의 15분 치 이상 있어야 합니다. 미리 떼어 가지는 않습니다.</li>
+    </ul>
+
+    <h2 id="charge">충전</h2>
+    <ul>
+      <li>잔액을 충전해 두고 씁니다. 1,000원부터 50,000원까지 1,000원 단위로 충전할 수 있습니다.</li>
+      <li>지금은 계좌 입금으로 충전하며, 입금이 확인되면 잔액에 들어갑니다.</li>
+    </ul>
+
+    <h2 id="free">무료로 쓰는 것</h2>
+    <ul>
+      <li><b>내 기기로 분석</b><span class="dash">GPU를 빌리지 않고 폰·PC 안에서 KataGo로 분석합니다.</span></li>
+      <li><b>기보실</b><span class="dash">명국과 AI 기보를 봅니다.</span></li>
+      <li><b>내 기보</b> · <b>오답노트</b><span class="dash">기보와 분석을 저장하고, 실수한 장면을 문제로 다시 풉니다.</span></li>
+      <li><b>역대 기보 수순 탐색</b><span class="dash">같은 수순으로 둔 기보들의 다음 수와 승률을 봅니다.</span></li>
+      <li><b>복기 리포트</b><span class="dash">분석해 저장한 기보는 GPU 없이 다시 엽니다.</span></li>
+    </ul>
+    <p class="meta" style="margin-top:28px"><a href="./">홈으로</a></p>
+  </article>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <a href="guide.html">사용 가이드</a>
+    <a href="pricing.html">요금 안내</a>
+    <a href="licenses.html">오픈소스 고지</a>
+    <span class="grow"></span>
+    <span class="muted">© 2026 KataGo Cloud</span>
+    <p class="foot-note">KataGo Cloud는 KataGo 개발자와 관계없는 개인 서비스입니다.</p>
+    <p class="foot-biz" data-biz hidden></p>
+  </div>
+</footer>
+
+<script type="module">
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
+const rows = document.getElementById("priceRows");
+const won = (n) => `${Number(n).toLocaleString("ko-KR")}원`;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+try {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/public_gpu_prices`, { method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" }, body: "{}" });
+  if (!r.ok) throw new Error(String(r.status));
+  const list = await r.json();
+  rows.innerHTML = list.length ? list.map((g) => `<tr><td><b>${esc(g.gpu)}</b></td><td class="num">${won(g.price_med)}</td>` +
+    `<td class="num muted hide-sm">${g.price_min === g.price_max ? won(g.price_min) : `${won(g.price_min)} ~ ${won(g.price_max)}`}</td>` +
+    `<td class="num">${g.vps_med ? `약 ${Number(Math.round(g.vps_med / 10) * 10).toLocaleString("ko-KR")}번` : "-"}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="muted">최근 2주 대여 기록이 없습니다.</td></tr>`;
+} catch {
+  rows.innerHTML = `<tr><td colspan="4" class="muted">요금을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</td></tr>`;
+}
+</script>
+</body>
+</html>

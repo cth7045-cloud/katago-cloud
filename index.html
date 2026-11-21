@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script src="i18n.js" data-names></script>   <!-- 화면 언어 (2026-11-13): 한국어 외 언어면 사전을 붙이고 화면을 바꾼다 -->
+<script src="biz.js" defer></script>   <!-- 사업자 정보: 아래쪽 data-biz 칸 (2026-11-21) -->
 <meta name="theme-color" content="#fafbfd" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0c1222" media="(prefers-color-scheme: dark)">
 <title>KataGo Cloud · 카타고 바둑 AI 분석 (전용 GPU)</title>
@@ -55,8 +56,10 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <label class="field hidden" id="nameField">이름<input id="realName" autocomplete="name" minlength="2" maxlength="30"></label>
           <label class="field">이메일<input id="email" type="email" autocomplete="email" required></label>
           <label class="field">비밀번호<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+          <label class="check age-check hidden" id="ageField"><input type="checkbox" id="ageOk"> 만 14세 이상입니다</label>
           <button class="primary" id="authButton" type="submit">로그인</button>
           <div class="error" id="authError"></div>
+          <button type="button" class="link-btn hidden" id="forgotPw">비밀번호를 잊으셨나요?</button>
         </form>
       </div>
     </div>
@@ -67,7 +70,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <li style="--i:1"><span class="move white">2</span><div><b>1~3분 기다리기</b><p>GPU가 KataGo를 스스로 설치하고 실제로 한 수 두어 검증합니다.</p></div></li>
         <li style="--i:2"><span class="move black">3</span><div><b>분석 화면 열기</b><p>다 쓰면 GPU 종료를 누르세요. 요금이 그 자리에서 멈춥니다.</p></div></li>
       </ol>
-      <p class="how-more"><a href="guide.html">자세한 사용법 보기</a></p>
+      <p class="how-more"><a href="guide.html">자세한 사용법 보기</a> · <a href="pricing.html">요금 안내</a></p>
       <!-- 앱으로 설치: always here (a member who removed the app can install it again); hidden only inside the app -->
       <div class="panel install-card" id="installAuth">
         <span class="app-icon" aria-hidden="true"></span>
@@ -615,6 +618,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <div class="item hidden" id="pcVerItem"><span class="ic" style="background:#e8eefe;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="grow">PC 앱 버전<span class="item-note" id="pcVerNote"></span></span><button type="button" class="primary hidden" data-app-update>업데이트</button></div>
         <button type="button" class="item" data-tut-open><span class="ic" style="background:#e6f0fd;color:#2c5cf6" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span class="grow">사용법 보기</span><span class="chev" aria-hidden="true">›</span></button>
         <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
+        <a class="item" href="pricing.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c-.4-1-1.6-1.6-3-1.6-1.7 0-3 .9-3 2.1s1.3 1.8 3 2.1 3 .9 3 2.1-1.3 2.1-3 2.1c-1.4 0-2.6-.6-3-1.6"/></svg></span><span class="grow">요금 안내</span><span class="chev" aria-hidden="true">›</span></a>
         <a class="item" href="licenses.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg></span><span class="grow">오픈소스 고지</span><span class="chev" aria-hidden="true">›</span></a>
       </div>
 
@@ -770,12 +774,26 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     </div>
   </dialog>
 
+  <!-- 비밀번호 찾기 메일의 링크로 돌아왔을 때 (2026-11-21) -->
+  <dialog id="pwResetDlg" class="sheet" aria-label="새 비밀번호">
+    <form class="stack" id="pwResetForm">
+      <h2 style="margin:0">새 비밀번호</h2>
+      <label class="field">새 비밀번호<input id="pwResetNew" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="field">한 번 더<input id="pwResetAgain" type="password" autocomplete="new-password" minlength="8" required></label>
+      <div class="error" id="pwResetError"></div>
+      <button class="primary" type="submit">새 비밀번호 저장</button>
+    </form>
+  </dialog>
+
   <footer class="site-foot">
     <div class="wrap">
       <a href="guide.html">사용 가이드</a>
+      <a href="pricing.html">요금 안내</a>
       <a href="licenses.html">오픈소스 고지</a>
       <span class="grow"></span>
       <span class="muted">© 2026 KataGo Cloud</span>
+      <p class="foot-note">KataGo Cloud는 KataGo 개발자와 관계없는 개인 서비스입니다.</p>
+      <p class="foot-biz" data-biz hidden></p>
     </div>
   </footer>
 </main>
@@ -826,6 +844,8 @@ function setMode(m) {
   $("tabLogin").classList.toggle("on", m === "login"); $("tabSignup").classList.toggle("on", m === "signup");
   $("nameField").classList.toggle("hidden", m === "login");
   $("realName").required = m === "signup";   // a hidden required field would block signing in
+  $("ageField").classList.toggle("hidden", m === "login"); $("ageOk").required = m === "signup";   // 만 14세 이상 (2026-11-21)
+  $("forgotPw").classList.toggle("hidden", m !== "login" || !RESET_MAIL);
   $("authButton").textContent = m === "login" ? "로그인" : "회원가입";
   $("password").autocomplete = m === "login" ? "current-password" : "new-password";
   $("authError").textContent = "";
@@ -838,6 +858,7 @@ $("authForm").onsubmit = async (ev) => {
   const email = $("email").value.trim().toLowerCase(), password = $("password").value;
   try {
     if (mode === "signup") {
+      if (!$("ageOk").checked) { $("authError").textContent = "만 14세 이상만 가입할 수 있습니다."; return; }
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name: $("realName").value.trim() } } });
       if (error) throw error;
       if (!data.session) { $("authError").textContent = "가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인하세요."; return; }
@@ -853,8 +874,29 @@ $("authForm").onsubmit = async (ev) => {
   } finally { $("authButton").disabled = false; }
 };
 $("logout").onclick = () => sb.auth.signOut();
+// 비밀번호 찾기 (2026-11-21): 메일의 링크로 돌아오면 새 비밀번호를 정한다. Supabase 기본 메일은 프로젝트 팀원 주소로만 가서,
+// 메일 발송 서비스(SMTP)를 붙이기 전에는 버튼을 숨겨 둔다 — 붙이면 RESET_MAIL = true.
+const RESET_MAIL = false;
+$("forgotPw").onclick = async () => {
+  const email = $("email").value.trim().toLowerCase();
+  if (!email) { $("authError").textContent = "이메일을 먼저 입력하세요."; $("email").focus(); return; }
+  $("forgotPw").disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  $("forgotPw").disabled = false;
+  $("authError").textContent = error ? String(error.message || error) : "비밀번호를 바꾸는 메일을 보냈습니다. 메일의 링크를 눌러 주세요.";
+};
+$("pwResetForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const pw = $("pwResetNew").value;
+  if (pw.length < 8) { $("pwResetError").textContent = "비밀번호는 8자 이상으로 정해 주세요."; return; }
+  if (pw !== $("pwResetAgain").value) { $("pwResetError").textContent = "두 비밀번호가 다릅니다."; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { $("pwResetError").textContent = String(error.message || error); return; }
+  $("pwResetDlg").close(); toast("비밀번호를 바꿨습니다.");
+};
 let entered = false;
 sb.auth.onAuthStateChange((_event, s) => {
+  if (_event === "PASSWORD_RECOVERY") { $("pwResetError").textContent = ""; $("pwResetDlg").showModal(); }
   if (s && !entered) { entered = true; setTimeout(enter, 0); }   // INITIAL_SESSION / SIGNED_IN
   else if (!s) leave();                                            // no session / SIGNED_OUT
 });
