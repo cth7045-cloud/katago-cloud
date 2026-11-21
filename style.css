@@ -461,6 +461,13 @@ dialog.fox-dlg { width: min(720px, calc(100vw - 32px)); }
 .fox-alt button { padding: 5px 11px; font-size: 13px; }
 .fox-list td:nth-child(3), .fox-list td:nth-child(4) { white-space: normal; }
 @media (max-width: 640px) { .fox-list td, .fox-list th { padding: 8px 4px; font-size: 13px; } }
+/* 창 안 칸이 창보다 넓어지지 않게(2026-11-22, 사용자 "짤린다"): 입력칸의 기본 최소 폭(약 276px)이 칸을 벌려, 폰 글자 크게(화면 확대)로
+   폭이 360px 아래가 되면 창 오른쪽(닫기·입력칸·표)이 잘렸음 — 칸은 창 폭에 맞추고 입력칸은 그만큼 줄어듦 */
+dialog.sheet .stack { grid-template-columns: minmax(0, 1fr); }
+dialog.sheet input:not([type=checkbox]):not([type=radio]) { min-width: 0; }
+dialog.sheet .row > h2.grow { flex: 1 1 0; min-width: 0; }   /* 좁으면 제목이 두 줄이 되고 '닫기'는 오른쪽 위 그대로 */
+@media (max-width: 400px) { .fox-list td:nth-child(5) { white-space: normal; } }   /* 결과(·좁으면 날짜)도 줄바꿈 — 흑·백 이름이 한 글자씩 세로로 쪼개지지 않게 */
+@media (max-width: 359px) { .fox-list td:nth-child(2) { white-space: normal; } }
 .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--soft); border-radius: 999px; }
 .seg button { background: transparent; color: var(--muted); min-height: 38px; padding: 7px 16px; box-shadow: none; }
 .seg button:hover { background: transparent; color: var(--ink); }
