@@ -304,7 +304,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
               <option value="fast" data-l="빠름" data-s="250">빠름 · 한 수 250 visits</option>
               <option value="normal" data-l="보통" data-s="500" selected>보통 · 한 수 500 visits</option>
               <option value="precise" data-l="정밀" data-s="1000">정밀 · 한 수 1000 visits</option>
-              <option value="custom" data-l="직접" data-s="2000">직접</option>
+              <option value="custom" data-l="직접">직접</option>
             </select>
           </div>
           <label class="fld" id="batchFolderField"><span class="lab">저장할 분류</span><select id="batchFolder" aria-label="저장할 분류" title="분석한 기보를 저장할 내 기보 분류(내 기보에서 고른 기보는 원래 분류 그대로)"><option value="">분류 없음</option></select></label>
@@ -671,11 +671,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     </div>
   </dialog>
 
-  <!-- 기보 분석 세기 '직접'(2026-11-22, 사용자 "세기 직접설정이 여기엔 없다"): 분석 화면의 직접과 같은 값(localStorage kgv.levelCustom, 1~20000) -->
+  <!-- 기보 분석 세기 '직접'(2026-11-22, 사용자 "세기 직접설정이 여기엔 없다"): 분석 화면의 직접과 같은 값(localStorage kgv.levelCustom, 1~100000 — 2026-11-22 사용자 "10만까지") -->
   <dialog id="lvlDlg" class="sheet lvl-dlg" aria-label="분석 세기 직접 설정">
     <form class="stack" id="lvlForm" novalidate>
       <h2 style="margin:0">분석 세기 직접 설정</h2>
-      <label class="fld"><span class="lab">한 수 visits</span><input type="number" id="lvlVisits" min="1" max="20000" step="1" inputmode="numeric" autocomplete="off"></label>
+      <label class="fld"><span class="lab">한 수 visits</span><input type="number" id="lvlVisits" min="1" max="100000" step="1" inputmode="numeric" autocomplete="off"></label>
       <p class="small" id="lvlNote" style="margin:0;color:var(--bad)" hidden></p>
       <div class="row" style="justify-content:flex-end"><button type="button" id="lvlCancel">취소</button><button type="submit" class="primary">확인</button></div>
     </form>
@@ -1403,10 +1403,9 @@ function batchLeft(p) {   // "약 N분 남음" once there is enough to go on, el
 }   // 분석 시작 pressed while the GPU was still getting ready: starts by itself once it is ready
 try { const v = localStorage.getItem("kgv.level"); if ([...$("batchLevel").options].some((o) => o.value === v)) $("batchLevel").value = v; } catch { /* storage blocked */ }
 // 직접: visits per move as the analysis screen's 직접 keeps them on this device (kgv.levelCustom) — one value for both
-const CUSTOM_MAX = 20000;
+const CUSTOM_MAX = 100000;   // = analysis.html (2026-11-22 사용자 "직접의 세기 한도를 10만까지")
 let levelCustom = 2000;
 try { const v = Math.round(+localStorage.getItem("kgv.levelCustom")); if (v >= 1 && v <= CUSTOM_MAX) levelCustom = v; } catch { /* storage blocked */ }
-$("batchLevel").querySelector('option[value="custom"]').dataset.s = String(levelCustom);
 const BATCH_FORM = ["batchNotes", "batchNoteSide", "batchNoteName", "batchNoteLevel", "batchAutoStop"];   // remembered in kgv.batchForm
 try {
   const v = JSON.parse(localStorage.getItem("kgv.batchForm") || "{}");
@@ -1436,10 +1435,10 @@ function batchShow() {
   $("batchProg").setAttribute("aria-valuenow", String(pct));
   const waiting = batchFiles.filter((f) => f.state !== "saved").length;
   $("batchSum").textContent = running ? `분석 중 ${pct}%` : waiting ? `기보 ${waiting}판` : batchFiles.length ? "모두 저장했습니다" : "기보를 넣어 주세요";
-  const lvl = $("batchLevel").selectedOptions[0];
+  const lvl = $("batchLevel").selectedOptions[0];   // 직접 shows its visits here, not on its button (user 2026-11-22)
   $("batchSumSub").textContent = running ? [`${done}/${batchRun.length}판 저장`, left].filter(Boolean).join(" · ")
     : [ready ? `켜진 GPU(${session.gpu_name || "GPU"})로` : session ? "GPU 준비 중" : "GPU를 먼저 켜 주세요",
-      lvl ? (lvl.dataset.s ? `${lvl.dataset.l}(${lvl.dataset.s})` : lvl.dataset.l) : "", $("batchNotes").checked ? "오답노트 만들기" : "", $("batchAutoStop").checked ? "끝나면 GPU 끄기" : ""].filter(Boolean).join(" · ");
+      lvl ? (lvl.value === "custom" ? `${lvl.dataset.l}(${levelCustom})` : lvl.dataset.s ? `${lvl.dataset.l}(${lvl.dataset.s})` : lvl.dataset.l) : "", $("batchNotes").checked ? "오답노트 만들기" : "", $("batchAutoStop").checked ? "끝나면 GPU 끄기" : ""].filter(Boolean).join(" · ");
   const todo = batchFiles.some((f) => f.state !== "saved");
   $("batchStart").textContent = batchJob && batchJob.cancelling ? "취소하는 중…" : running ? "분석 취소" : batchQueued ? "예약 취소" : ready || !session ? "분석 시작" : "준비되면 분석 시작";
   $("batchStart").className = running ? "danger" : batchQueued ? "" : "primary";
@@ -2461,8 +2460,7 @@ $("lvlForm").addEventListener("submit", (ev) => {
   if (!Number.isInteger(v) || v < 1 || v > CUSTOM_MAX) { $("lvlNote").textContent = `1~${CUSTOM_MAX} 사이의 정수를 넣으세요`; $("lvlNote").hidden = false; return; }
   levelCustom = v; try { localStorage.setItem("kgv.levelCustom", String(v)); } catch { /* storage blocked */ }
   const sel = $("batchLevel");
-  sel.querySelector('option[value="custom"]').dataset.s = String(v);
-  sel.value = "custom"; segBuild(lvlSeg, sel); sel.dispatchEvent(new Event("change", { bubbles: true }));
+  sel.value = "custom"; segSync(lvlSeg, sel); sel.dispatchEvent(new Event("change", { bubbles: true }));
   $("lvlDlg").close();
 });
 $("lvlCancel").onclick = () => $("lvlDlg").close();

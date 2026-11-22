@@ -1134,7 +1134,7 @@ button.primary:hover { background: var(--blue-deep); }
 <dialog id="customLvlDlg" aria-label="분석 세기 직접 설정">
   <form class="gd" id="customLvlForm" novalidate>
     <h2>분석 세기 직접 설정</h2>
-    <div class="gd-row"><span>한 수 visits</span><input type="number" id="customLvlVisits" min="1" max="20000" step="1" inputmode="numeric" autocomplete="off"></div>
+    <div class="gd-row"><span>한 수 visits</span><input type="number" id="customLvlVisits" min="1" max="100000" step="1" inputmode="numeric" autocomplete="off"></div>
     <p class="gd-note" id="customLvlNote"></p>
     <div class="gd-actions"><button type="button" id="customLvlCancel">취소</button><button type="submit" class="primary">확인</button></div>
   </form>
@@ -1897,7 +1897,7 @@ const LEVELS = {instant: 1, fast: 250, normal: 500, precise: 1000, custom: 2000}
 const INSTANT_S = 5, INSTANT_CAP = 1000;   // a short line ends sooner: no position goes past 정밀's visits
 // 직접 (user 2026-11-16 "분석 세기를 직접 설정할 수 있는 버튼도 추가해줘"): the member's own visits per move, 1 to CUSTOM_MAX,
 // kept on this device (kgv.levelCustom) and used everywhere the four levels are
-const CUSTOM_MAX = 20000;
+const CUSTOM_MAX = 100000;   // 20000 until 2026-11-22 (user "직접의 세기 한도를 10만까지"); = index.html
 try { const v = Math.round(+localStorage.getItem("kgv.levelCustom")); if (v >= 1 && v <= CUSTOM_MAX) LEVELS.custom = v; } catch { /* storage blocked */ }
 let level = "normal";
 try { const v = localStorage.getItem("kgv.level"); if (LEVELS[v]) level = v; } catch { /* storage blocked */ }
