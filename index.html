@@ -1172,7 +1172,7 @@ function showSession(s) {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(s.ready_at || s.instance_created_at || s.created_at).getTime()) / 60000));
   $("sessionMeta").innerHTML = (free
     ? `<b>무료 개방</b> · ${live ? `${minutes}분 경과 · ` : ""}잔액 차감 없음`
-    : `시간당 <b>${won(s.price_krw_per_hour)}</b> · ${live ? `${minutes}분 경과 · ` : ""}지금까지 <b>${won(s.charged_krw)}</b>`) +
+    : `시간당 <b>${won(s.price_krw_per_hour)}</b> · ${live ? `${minutes}분 경과 · ` : ""}지금까지 <b>${won(s.charged_krw - (s.refunded_krw || 0))}</b>`) +
     (s.tuning?.visitsPerSecond ? ` · 초당 약 ${Math.round(s.tuning.visitsPerSecond)}번 탐색` : "");
   const open = $("openAnalysis");
   open.classList.toggle("hidden", !(ready && s.web_url && s.web_token));
@@ -1180,7 +1180,7 @@ function showSession(s) {
   $("stopButton").classList.toggle("hidden", !live || st === "stopping");
   $("notifyRow").classList.toggle("hidden", !(live && !ready && st !== "stopping" && notifyState() === "default"));
   $("sessionError").textContent = (s.error && s.error !== "offer gone" ? s.error : "") +
-    (s.refunded_krw > 0 ? ` · 준비에 실패해 요금 ${won(s.refunded_krw)}을 돌려드렸습니다.` : "");
+    (s.refunded_krw > 0 ? (s.ready_at ? ` · 응답이 끊긴 뒤 요금 ${won(s.refunded_krw)}을 돌려드렸습니다.` : ` · 준비에 실패해 요금 ${won(s.refunded_krw)}을 돌려드렸습니다.`) : "");
 }
 
 $("stopButton").onclick = async () => {

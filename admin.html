@@ -655,7 +655,7 @@ async function load() {
     // so the card counted all of them under the 3-day label — only rentals started in the last 3 days now
     const since3 = Date.now() - 3 * 24 * 3600_000;
     const paidRows = d.sessions.filter((x) => cost(x) != null && x.user_id && !admins.has(x.user_id) && new Date(x.created_at).getTime() >= since3);
-    const net = (x) => x.charged_krw - (x.refunded_krw || 0);   // a failed setup is refunded in full (2026-09-29)
+    const net = (x) => x.charged_krw - (x.refunded_krw || 0);   // a failed setup is refunded in full (2026-09-29), a silent GPU after its last call (2026-11-22)
     const paid = paidRows.reduce((a, x) => a + net(x), 0), spent = paidRows.reduce((a, x) => a + cost(x), 0);
     $("kMargin").textContent = paidRows.length ? won(paid - spent) : "–";
     $("kMarginSub").textContent = paidRows.length ? `받은 ${won(paid)} · 원가 ${won(spent)}` : "기록 없음";
@@ -689,7 +689,7 @@ async function load() {
       const margin = c == null || mine ? "" : `<span style="color:${net(x) - c < 0 ? "var(--bad)" : "var(--good)"}">${won(net(x) - c)}</span>`;
       const [label, pill] = STATE[x.status] ?? [x.status, ""];
       const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
-                    !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `준비 실패 환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
+                    !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `${x.ready_at ? "" : "준비 실패 "}환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
       // 준비 시간 (user 2026-10-18): from the rental request to 분석 준비 완료 (ready_at), what the member waited; a rental
       // that ended before it was ready (시간 초과, 회원 종료) shows how long it was preparing ('offer gone' rows: none)
@@ -701,7 +701,7 @@ async function load() {
         `<td>${esc([x.gpu_name, x.region].filter(Boolean).join(" · "))}<span class="sub">${esc(models[x.id] ? models[x.id].model_name || MODEL_NAMES[models[x.id].model_id] : "")}</span></td>` +
         `<td class="num">${!mine && x.instance_id && Number(x.price_krw_per_hour) === 0 ? '<span class="pill good">무료</span>' : won(x.price_krw_per_hour)}<span class="sub">$${Number(x.vast_price_usd).toFixed(3)}</span></td>` +
         `<td title="${x.stopped_at ? "종료 " + when(x.stopped_at) : ""}">${when(x.created_at)}<span class="sub">${[used + (live ? " (사용 중)" : ""), prep].filter(Boolean).join(" · ")}</span></td>` +
-        `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> 0원` : won(x.charged_krw)}</td>` +
+        `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> ${won(net(x))}` : won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td class="note">${esc(note)}</td>` +
         `<td style="white-space:nowrap">${x.status === "ready" && x.web_url && x.web_token && !mine
@@ -1610,7 +1610,7 @@ function drawStats() {
   const card = (label, value, sub, cls = "", hl = false) => `<div class="kpi${hl ? " hl" : ""}"><span>${label}</span><b class="${cls}">${value}</b><small>${sub}</small></div>`;
   $("stKpis").innerHTML = [
     card("유료 충전 (매출)", won(s.topup), `${s.topups}건 · 유료 회원 ${s.paying}명${freeSub}`),
-    card("회원 사용 요금", won(s.charged), `준비 실패 환불 ${won(s.refund)} 뺀 값`),
+    card("회원 사용 요금", won(s.charged), `환불 ${won(s.refund)} 뺀 값`),
     card("회원 GPU 원가", won(cost), `Vast $${Number(s.cost_usd).toFixed(2)}`),
     card("차익 (사용 기준)", won(margin), `마진율 ${pct(margin, s.charged)} · 원가의 ${cost > 0 ? (s.charged / cost).toFixed(2) : "–"}배`, margin < 0 ? "bad" : "good", true),
     card("관리자 시험 원가", won(adminCost), `${s.admin_rentals}회 · ${hrs(s.admin_hours)} · 시험 빼면 ${won(net)}`),
