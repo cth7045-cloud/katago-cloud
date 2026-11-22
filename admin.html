@@ -55,6 +55,15 @@ td.note { white-space: normal; min-width: 160px; max-width: 280px; font-size: 13
 .card .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .card .btns button { min-height: 36px; padding: 6px 14px; }
 .card .pill { font-size: 12px; padding: 1px 9px; }
+/* 기보 분석 on a GPU row (2026-11-22): the state, the progress button and the games' list under the row — the list sticks to
+   the left of the visible part, so it shows even when the wide table is scrolled to its buttons (phones) */
+.pill.batch { background: #e8eefe; color: var(--blue); }
+button.batch-btn { color: var(--blue); }
+button.batch-btn.on { background: #e8eefe; }
+tr.jobrow > td { background: var(--soft); padding: 6px 8px 10px; }
+.job-list { position: sticky; left: 8px; box-sizing: border-box; width: min(620px, calc(100vw - 56px)); margin: 0; padding: 4px 0 0 24px;
+  display: grid; gap: 5px; font-size: 13px; white-space: normal; }
+.job-list li span { word-break: break-all; }
 .card.model .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; }
 .card.model input.name { flex: 1 1 140px; width: 0; min-width: 0; max-width: 260px; }
 .card.model select { min-width: 0; }
@@ -583,6 +592,7 @@ const standalone = matchMedia("(display-mode: standalone)").matches || navigator
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
 const PAGE = 10, pages = { session: 1, ledger: 1, speed: 1 }, lists = { session: [], ledger: [], speed: [] };
 const render = { session: null, ledger: null, speed: null };
+const openJobs = new Set();   // GPU rows whose 기보 분석 list is open (kept across the 1-minute refresh)
 function showPage(key) {
   const rows = lists[key], last = Math.max(1, Math.ceil(rows.length / PAGE));
   const cur = pages[key] = Math.min(Math.max(1, pages[key]), last);
@@ -668,6 +678,19 @@ async function load() {
       return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
     };
     // 내 기기로 분석 (2026-10-15): the members' own-device runs between the rentals, newest first (no charge, no length)
+    // 기보 분석 (user 2026-11-22 "이거 기보분석으로 쓰고있을땐 다른식으로 뜨게 해줘"): the rental's batch jobs, newest first
+    const jobsOf = {};
+    for (const j of d.batches || []) (jobsOf[j.session_id] ||= []).push(j);
+    const jobLine = (j) => {   // "2/5판 · 47%" while it runs
+      const run = j.games.find((g) => g.s === "run"), done = j.games.filter((g) => g.s === "saved").length;
+      return `${done}/${j.games.length}판` + (run && run.t ? ` · ${Math.floor((run.d / run.t) * 100)}%` : "");
+    };
+    const jobRows = (j) => j.games.map((g, k) => {   // one line per game, like the member's own list
+      const st = g.s === "saved" ? [`저장함${g.m ? ` · ${g.m}수` : ""}`, "var(--good)"] : g.s === "error" ? [g.x || "분석하지 못함", "var(--bad)"]
+        : g.s === "run" ? [`분석 중 ${g.t ? Math.floor((g.d / g.t) * 100) : 0}%`, "var(--blue)"]
+        : [j.status === "cancel" ? "취소됨" : j.status === "stopped" ? "GPU가 꺼져 멈춤" : "대기", "var(--muted)"];
+      return `<li><span>${esc(g.name)}</span> <b style="color:${st[1]};font-weight:600">${esc(st[0])}</b></li>`;
+    }).join("");
     lists.session = [...d.sessions.filter((x) => x.error !== "offer gone"), ...(d.devices || []).map((r) => ({ ...r, dev: true }))]   // not a failure (2026-11-05)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     render.session = (list) => { $("sessionRows").innerHTML = list.map((x) => {
@@ -687,8 +710,12 @@ async function load() {
       const c = cost(x), mine = x.user_id && admins.has(x.user_id), dt = x.vast_cost_detail || {};
       const costTip = c == null ? "" : `GPU $${dt.gpu ?? 0} · 디스크 $${dt.disk ?? 0} · 다운로드 $${dt.download ?? 0} · 업로드 $${dt.upload ?? 0}`;
       const margin = c == null || mine ? "" : `<span style="color:${net(x) - c < 0 ? "var(--bad)" : "var(--good)"}">${won(net(x) - c)}</span>`;
-      const [label, pill] = STATE[x.status] ?? [x.status, ""];
-      const note = [x.progress && live ? x.progress : "", x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
+      const jobs = jobsOf[x.id] || [], job = live ? jobs.find((j) => j.status === "queued" || j.status === "running") : null;
+      const [label, pill] = job && x.status === "ready" ? ["기보 분석 중", "batch"] : STATE[x.status] ?? [x.status, ""];
+      const savedAll = jobs.reduce((a, j) => a + (j.saved || 0), 0), failedAll = jobs.reduce((a, j) => a + (j.failed || 0), 0);
+      const jobNote = !jobs.length || job ? "" : `기보 분석 ${savedAll}판 저장` + (failedAll ? ` · 실패 ${failedAll}판` : "") +
+        (jobs.some((j) => j.status === "cancel") ? " · 회원이 취소" : "");
+      const note = [x.progress && live && !job ? x.progress : "", jobNote, x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `${x.ready_at ? "" : "준비 실패 "}환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
       // 준비 시간 (user 2026-10-18): from the rental request to 분석 준비 완료 (ready_at), what the member waited; a rental
@@ -704,12 +731,17 @@ async function load() {
         `<td class="num">${x.refunded_krw > 0 ? `<s class="muted">${won(x.charged_krw)}</s> ${won(net(x))}` : won(x.charged_krw)}</td>` +
         `<td class="num" title="${esc(costTip)}">${c == null ? "" : won(c)}</td><td class="num">${mine && c != null ? '<span class="muted small">원가 사용</span>' : margin}</td>` +
         `<td class="note">${esc(note)}</td>` +
-        `<td style="white-space:nowrap">${x.status === "ready" && x.web_url && x.web_token && !mine
+        `<td style="white-space:nowrap">${jobs.length
+          // 기보 분석: the GPU works alone (no member screen to watch) — its progress instead, the games' list under the row
+          ? `<button type="button" class="quiet batch-btn${openJobs.has(x.id) ? " on" : ""}" data-jobs="${x.id}" aria-expanded="${openJobs.has(x.id)}">` +
+            `기보 분석 ${esc(job ? jobLine(job) : `${savedAll}판`)}</button> `
+          : x.status === "ready" && x.web_url && x.web_token && !mine
           // the member's own analysis screen, watch only (analysis.html #view=1 blocks every input and sends nothing).
           // In the installed app the same window, like the member pages: a new window there has no page to go back to,
           // so the back button closed the whole app (user report 2026-10-11).
           ? `<a class="btn"${standalone ? "" : ' target="_blank" rel="noopener"'} href="analysis.html?v=${Date.now()}#u=${encodeURIComponent(x.web_url)}&t=${encodeURIComponent(x.web_token)}&view=1">화면 보기</a> ` : ""}` +
-        `${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>`;
+        `${live ? `<button class="danger" data-stop="${x.id}">강제 종료</button>` : ""}</td></tr>` +
+        (jobs.length && openJobs.has(x.id) ? `<tr class="jobrow"><td colspan="10"><ol class="job-list">${jobRows(job || jobs[0])}</ol></td></tr>` : "");
     }).join("") || `<tr><td colspan="10" class="muted">없음</td></tr>`; };
     showPage("session");
     // what an admin did by hand: 충전(topup, +) and 회수(adjust, −)
@@ -1446,6 +1478,12 @@ $("topupForm").onsubmit = async (ev) => {
   } catch (e) { toast(e.message, true); }
 };
 $("sessionRows").onclick = async (ev) => {
+  const jb = ev.target.closest?.("[data-jobs]");
+  if (jb) {   // 기보 분석: open/close the games' list under that GPU row
+    const k = jb.dataset.jobs;
+    openJobs.has(k) ? openJobs.delete(k) : openJobs.add(k);
+    return showPage("session");
+  }
   const id = ev.target.dataset?.stop; if (!id) return;
   if (!confirm("이 GPU를 강제로 종료(삭제)할까요?")) return;
   ev.target.disabled = true;
