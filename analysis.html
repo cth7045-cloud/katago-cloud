@@ -220,6 +220,16 @@ details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right:
 .toolbar button.mv svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .toolbar details.menu { display: inline-block; vertical-align: middle; }   /* 넓은 화면의 아래 바는 줄글 흐름(block)이라 details가 새 줄로 내려가던 것 */
 .toolbar details.menu > summary { font-size: 13px; padding: 5px 12px; }
+/* 편집 laid out as buttons when the bottom bar has room (user 2026-11-22 "가로 모드에선 하단이 많이 남는데 굳이 편집으로 버튼을 묶을
+   필요가 없어보이는데 … 펼쳐놔"): fitEditRow() opens it with class flat while the bar stays one line, else the 편집 ▾ menu as before */
+.toolbar #editSep[hidden] { display: none; }
+.toolbar details.menu.flat > summary { display: none; }
+.toolbar details.menu.flat .items { position: static; display: inline-flex; align-items: center; gap: 4px; padding: 0; min-width: 0;
+  background: none; box-shadow: none; border-radius: 0; }
+.toolbar details.menu.flat .items button { background: var(--soft); border-radius: 999px; min-height: 34px; padding: 5px 11px; text-align: center; }
+.toolbar details.menu.flat .items button:hover { background: #e7ebf3; }
+.toolbar details.menu.flat .items button.pink { background: #fdeced; }
+.toolbar details.menu.flat .items button.pink:hover { background: #fbdcde; }
 /* 낮은 가로 화면(폰 가로): 폰 세로처럼 나머지 도구는 ☰ 메뉴 시트로(placeMenuItems) — 두 바가 한 줄씩만 차지해 바둑판이 커짐 */
 @media (orientation: landscape) and (max-height: 520px) {
   .menubar { flex-wrap: nowrap; padding: 5px 10px; gap: 6px; }
@@ -865,6 +875,9 @@ button.primary:hover { background: var(--blue-deep); }
   button.on { box-shadow: inset 0 0 0 1px rgba(34, 199, 224, .45); }
   button.pink { background: #3a1d22; }
   button.pink:hover { background: #4a2329; }
+  .toolbar details.menu.flat .items button:hover { background: #253049; }
+  .toolbar details.menu.flat .items button.pink { background: #3a1d22; }
+  .toolbar details.menu.flat .items button.pink:hover { background: #4a2329; }
   #analyze:hover, button.primary:hover { background: #3d69f0; }
   #analyze.on { background: var(--ink); color: var(--paper); }
   .menubar, .toolbar { background: rgba(21, 28, 46, .82); border-color: rgba(255, 255, 255, .06); }
@@ -1246,6 +1259,7 @@ button.primary:hover { background: var(--blue-deep); }
   <button id="pass">패스</button>
   <button id="gameScore" title="지금 국면을 셉니다: AI가 죽은 돌을 판정하고, 돌을 눌러 고칠 수 있습니다">계가</button>
   <button id="gameResign" class="pink" hidden title="돌을 던지고 대국을 끝냅니다">기권</button>
+  <span class="sep" id="editSep" hidden></span>
   <details class="menu up" id="editMenu">
     <summary>편집</summary>
     <div class="items">
@@ -2885,10 +2899,11 @@ async function readSgfFile(file) {
 }
 // 드롭다운(기보 · 바둑판 · 보기 · 편집): 하나만 열림, 바깥을 누르거나 Esc면 닫힘, 일을 하는 버튼을 누르면 닫힘(켜고 끄는 것은 열린 채)
 const dropMenus = [...document.querySelectorAll("details.menu")];
-dropMenus.forEach(d => d.addEventListener("toggle", () => { if (d.open) dropMenus.forEach(o => { if (o !== d) o.open = false; }); }));
-document.addEventListener("pointerdown", ev => dropMenus.forEach(d => { if (d.open && !d.contains(ev.target)) d.open = false; }));
-document.addEventListener("keydown", ev => { if (ev.key === "Escape") dropMenus.forEach(d => d.open = false); });
-dropMenus.forEach(d => d.querySelector(".items").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && b.id !== "nums" && b.id !== "coords" && !b.closest(".lvl, .stone-seg")) d.open = false; }));
+const flatMenu = d => d.classList.contains("flat");   // 편집 laid out as buttons (fitEditRow): stays open
+dropMenus.forEach(d => d.addEventListener("toggle", () => { if (d.open) dropMenus.forEach(o => { if (o !== d && !flatMenu(o)) o.open = false; }); }));
+document.addEventListener("pointerdown", ev => dropMenus.forEach(d => { if (d.open && !flatMenu(d) && !d.contains(ev.target)) d.open = false; }));
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") dropMenus.forEach(d => { if (!flatMenu(d)) d.open = false; }); });
+dropMenus.forEach(d => d.querySelector(".items").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b && !flatMenu(d) && b.id !== "nums" && b.id !== "coords" && !b.closest(".lvl, .stone-seg")) d.open = false; }));
 $("openSgf").onclick = () => { $("fileMenu").open = false; $("fileInput").click(); };
 async function openSgfFile(f) { try { loadSgf(await readSgfFile(f)); } catch (err) { $("err").textContent = "기보 파일 오류: " + err.message; } }
 $("fileInput").onchange = async e => { const f = e.target.files[0]; if (!f) return; await openSgfFile(f); e.target.value = ""; };
@@ -3379,7 +3394,7 @@ function mineDefaultTitle() {
   if (i.DT) return ("기보 " + i.DT).slice(0, 100);   // no names: the game's date (as 오답노트 titles it)
   return "기보 " + new Date().toLocaleString("ko-KR", {dateStyle: "short", timeStyle: "short"});
 }
-function closeMenus() { document.querySelectorAll("details.menu").forEach(d => d.open = false); if ($("menuDlg").open) $("menuDlg").close(); }
+function closeMenus() { document.querySelectorAll("details.menu:not(.flat)").forEach(d => d.open = false); if ($("menuDlg").open) $("menuDlg").close(); }
 $("saveMine").onclick = async () => {
   closeMenus();
   if (!await mineClient()) { $("err").textContent = "로그인한 사이트에서만 저장할 수 있습니다"; return; }
@@ -7117,7 +7132,9 @@ function schedule() {
 }
 function render() {
   if (boardG && boardG.n !== N) { layout(); return; }   // the board size changed: its lines and margins are laid out anew
-  if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide(); }
+  if (touchCursor) hover = hoverFor(touchCursor); drawMain(); drawMini(); drawCaptured(); drawStatistics(); drawGraph(); drawTree(); drawSide();
+  if ($("editMenu").classList.contains("flat")) studyStartShow();   // 편집 as buttons: '여기서 열리게 하기' / '시작 수 해제' follows the move
+}
 // Re-lay out only when the window (or a bar's height, now that the bars wrap) really changes;
 // text/table updates must not clear the canvases.
 let lastSize = "";
@@ -7132,8 +7149,21 @@ function fitVps() {
   const kids = [...bar.children].filter(e => e.offsetParent), top = Math.min(...kids.map(e => e.offsetTop));
   if (bar.scrollWidth > bar.clientWidth + 1 || kids.some(e => e.offsetTop > top + 20)) v.classList.add("nofit");
 }
+// 편집 as buttons while the bottom bar keeps one line with them (wide screens), else the 편집 ▾ menu; tried afresh on every
+// size change (same width = same answer, so it does not swing back and forth)
+function fitEditRow() {
+  const m = $("editMenu"), bar = bars[1];
+  let flat = !isPortrait();
+  if (flat) {
+    m.classList.add("flat"); m.open = true; $("editSep").hidden = false;
+    const kids = [...bar.children].filter(e => e.offsetParent), top = Math.min(...kids.map(e => e.offsetTop));
+    flat = kids.length > 0 && !kids.some(e => e.offsetTop > top + 20);
+  }
+  if (!flat && m.classList.contains("flat")) { m.classList.remove("flat"); m.open = false; }
+  $("editSep").hidden = !flat;
+}
 const sizeObserver = new ResizeObserver(() => {
-  requestAnimationFrame(fitVps);   // next frame: hiding it here would resize the bar inside this callback
+  requestAnimationFrame(() => { fitVps(); fitEditRow(); });   // next frame: hiding it here would resize the bar inside this callback
   const s = [innerWidth, innerHeight, dpr(), ...bars.map(b => b.offsetHeight)].join("x");
   if (s !== lastSize) { lastSize = s; layout(); }
 });
