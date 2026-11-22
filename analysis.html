@@ -330,10 +330,8 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #capBox { flex: 0 0 11%; min-height: 80px; }
 #statBox { flex: 0 0 10%; min-height: 70px; }
 #graphBox { flex: 1 1 0; min-height: 90px; cursor: pointer; }
-/* 흐름 = the game's win-rate graph, 생각 = how the engine's view of this position moved as the search deepened (2026-11-08) */
-.graph-seg { position: absolute; top: 6px; right: 6px; z-index: 1; padding: 2px; opacity: .78; }
-.graph-seg:hover, .graph-think .graph-seg { opacity: 1; }   /* over the game graph's top corner: the line shows through */
-.graph-seg button { min-height: 24px; padding: 2px 9px; font-size: 12px; }
+/* the 흐름 | 생각 switch on the graph was taken out (user 2026-11-22 "이거 생각 버튼 빼자"): the graph is always the game's
+   win-rate graph; the 생각 chart (drawThink) is only drawn when a tool calls setGraphMode("think") (tools/longform) */
 .graph-think #graphBox { cursor: default; }
 /* game info takes the height it needs (on a short tablet screen it used to share it with the graph and cut its own
    last lines, with no scrollbar to show it); the graph gets the rest, and a long move comment scrolls inside */
@@ -1168,7 +1166,7 @@ button.primary:hover { background: var(--blue-deep); }
   <aside class="left">
     <div class="cv-box" id="capBox"><canvas id="cap"></canvas></div>
     <div class="cv-box" id="statBox"><canvas id="stat"></canvas></div>
-    <div class="cv-box" id="graphBox"><canvas id="graph" aria-label="승률 그래프"></canvas><div class="seg graph-seg" id="graphSeg" role="group" aria-label="그래프 종류"><button data-m="flow">흐름</button><button data-m="think">생각</button></div></div>
+    <div class="cv-box" id="graphBox"><canvas id="graph" aria-label="승률 그래프"></canvas></div>
     <div class="comment">
       <div id="gameInfo"></div>
       <div class="engine-line"><span id="engineName">KataGo</span><span id="hint">생각 멈춤 · 단축키=Space</span></div>
@@ -6767,8 +6765,8 @@ graphCv.addEventListener("click", ev => {
 // which move is on top); the chart puts them on a log scale of visits, so it shows where a deeper search changed its
 // mind: the line bends, and a mark with the move's name where the top move changed. Kept per position for this visit
 // of the screen only (not saved). A new search that starts lower (a fresh query, not one going on) starts a new trace.
-let graphMode = "flow";
-try { if (localStorage.getItem("kgv.graphMode") === "think") graphMode = "think"; } catch { /* storage blocked */ }
+let graphMode = "flow";   // no switch on the screen any more (2026-11-22): a stored "think" is dropped
+try { localStorage.removeItem("kgv.graphMode"); } catch { /* storage blocked */ }
 const TRACE_MAX = 400;
 function traceAdd(node, msg) {
   if (!node || !msg.rootInfo || !(msg.moveInfos || []).length) return;
@@ -6780,16 +6778,12 @@ function traceAdd(node, msg) {
   t.push({v, wr: top.winrate * 100, lead: top.scoreLead, top: top.move});
   if (t.length > TRACE_MAX) t.splice(1, 1);
 }
-function setGraphMode(m, draw = true) {
+function setGraphMode(m, draw = true) {   // for tools only (the video's 'AI reads deeper' scene) — not saved, no button
   graphMode = m;
-  try { localStorage.setItem("kgv.graphMode", m); } catch { /* storage blocked */ }
-  $("graphSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
   document.body.classList.toggle("graph-think", m === "think");
   $("graph").setAttribute("aria-label", m === "think" ? "탐색 깊이에 따른 판단 변화" : "승률 그래프");
   if (draw) render();
 }
-$("graphSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return; setGraphMode(b.dataset.m); if (ev.detail) b.blur(); });   // a click leaves no focus ring
-setGraphMode(graphMode, false);   // the rest of the screen is not set up yet here
 function drawThink() {
   const g = graphCtx; let posx = 8, posy = 0, width = graphW, height = graphH;
   g.clearRect(0, 0, width, height);
