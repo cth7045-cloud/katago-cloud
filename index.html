@@ -2930,7 +2930,7 @@ function showIdleStop() {
 $("idleStopSwitch").onclick = async () => {
   const sw = $("idleStopSwitch"), on = !idleStopOn();
   if (!on && !confirm("GPU 자동 종료를 끌까요?\n\n끄면 분석을 하지 않고 탭을 닫거나 깜빡해도 GPU가 꺼지지 않고, 그동안 요금이 계속 나갑니다.\n" +
-    "직접 GPU 종료를 누르거나, 잔액이 다 떨어지거나, 최대 사용 시간이 될 때까지 켜져 있습니다.\n무료 GPU는 이 설정과 상관없이 10분 동안 입력이 없으면 꺼집니다.\n\n다 쓰면 꼭 GPU 종료를 눌러 주세요.")) return;
+    "직접 GPU 종료를 누르거나 잔액이 다 떨어질 때까지 켜져 있습니다.\n무료 GPU는 이 설정과 상관없이 10분 동안 입력이 없으면 꺼집니다.\n\n다 쓰면 꼭 GPU 종료를 눌러 주세요.")) return;
   sw.disabled = true;
   try {
     const { error } = await sb.rpc("set_idle_stop", { p_on: on });

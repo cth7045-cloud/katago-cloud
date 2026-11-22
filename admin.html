@@ -632,7 +632,7 @@ async function load() {
     drawCapState();
     $("settingsLine").textContent = `지금: 환율 ${Number(s.usd_krw).toLocaleString()}원 × 배율 ${s.markup}배` +
       (Number(s.free_cost_krw) > 0 ? ` · 원가 ${won(s.free_cost_krw)} 이하 무료 개방 중` : "") +
-      ` · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대 · 1회 최대 ${s.max_session_hours}시간`;
+      ` · 시작하려면 ${s.min_start_minutes}분치 잔액 · 동시 GPU 최대 ${s.max_active_sessions}대`;   // 1회 최대 시간은 2026-11-22에 없앰
     // 운영 관리자 pay cost from Vast; a 제한 관리자 pays from their own balance like a member (2026-11-04)
     const op = (m) => m.is_admin && !m.admin_limited;
     const plain = d.members.filter((m) => !op(m)), live = d.sessions.filter((x) => ACTIVE.includes(x.status));
