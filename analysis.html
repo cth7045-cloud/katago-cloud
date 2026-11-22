@@ -3743,7 +3743,8 @@ async function handBatch(files, notes, folder, autoStop) {   // → "handed" | "
   let id;
   try {
     ({id} = await api("/batch", {games: files.map(f => ({name: f.name, mine: typeof f.mine === "string" ? f.mine : null})),
-      folder, notes: notes && NOTE_LEVELS[notes.level] ? notes.level : null, autoStop: !!autoStop}));
+      folder, notes: notes && NOTE_LEVELS[notes.level] ? notes.level : null, autoStop: !!autoStop,
+      level, visits: level === "instant" ? null : levelVisits()}));   // 세기, for the admin GPU tab (2026-11-22)
   } catch (err) { tellAll("handFail", {text: err.message}); return "failed"; }
   const games = [], errors = {};
   for (let k = 0; k < files.length && !batchStop; k++) {

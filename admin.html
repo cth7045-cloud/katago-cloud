@@ -64,6 +64,7 @@ tr.jobrow > td { background: var(--soft); padding: 6px 8px 10px; }
 .job-list { position: sticky; left: 8px; box-sizing: border-box; width: min(620px, calc(100vw - 56px)); margin: 0; padding: 4px 0 0 24px;
   display: grid; gap: 5px; font-size: 13px; white-space: normal; }
 .job-list li span { word-break: break-all; }
+.job-list li.job-level { list-style: none; margin-left: -24px; font-weight: 700; color: var(--ink); }
 .card.model .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; }
 .card.model input.name { flex: 1 1 140px; width: 0; min-width: 0; max-width: 260px; }
 .card.model select { min-width: 0; }
@@ -685,7 +686,11 @@ async function load() {
       const run = j.games.find((g) => g.s === "run"), done = j.games.filter((g) => g.s === "saved").length;
       return `${done}/${j.games.length}판` + (run && run.t ? ` · ${Math.floor((run.d / run.t) * 100)}%` : "");
     };
-    const jobRows = (j) => j.games.map((g, k) => {   // one line per game, like the member's own list
+    // 세기 (user 2026-11-22 "이거 몇 visit으로 한건지도 표시해줘"): saved with the job since 2026-11-22 (DB 20261122c)
+    const LEVEL_NAME = { instant: "즉시", fast: "빠름", normal: "보통", precise: "정밀", custom: "직접" };
+    const jobLevel = (j) => !j.level ? "세기 기록 없음" : `세기 ${LEVEL_NAME[j.level] || j.level}` +
+      (j.level === "instant" ? " · 시간으로 나눠 읽음" : j.visits ? ` · 한 수 ${Number(j.visits).toLocaleString("ko-KR")} visits` : "");
+    const jobRows = (j) => `<li class="job-level">${esc(jobLevel(j))}</li>` + j.games.map((g, k) => {   // one line per game, like the member's own list
       const st = g.s === "saved" ? [`저장함${g.m ? ` · ${g.m}수` : ""}`, "var(--good)"] : g.s === "error" ? [g.x || "분석하지 못함", "var(--bad)"]
         : g.s === "run" ? [`분석 중 ${g.t ? Math.floor((g.d / g.t) * 100) : 0}%`, "var(--blue)"]
         : [j.status === "cancel" ? "취소됨" : j.status === "stopped" ? "GPU가 꺼져 멈춤" : "대기", "var(--muted)"];
@@ -713,8 +718,8 @@ async function load() {
       const jobs = jobsOf[x.id] || [], job = live ? jobs.find((j) => j.status === "queued" || j.status === "running") : null;
       const [label, pill] = job && x.status === "ready" ? ["기보 분석 중", "batch"] : STATE[x.status] ?? [x.status, ""];
       const savedAll = jobs.reduce((a, j) => a + (j.saved || 0), 0), failedAll = jobs.reduce((a, j) => a + (j.failed || 0), 0);
-      const jobNote = !jobs.length || job ? "" : `기보 분석 ${savedAll}판 저장` + (failedAll ? ` · 실패 ${failedAll}판` : "") +
-        (jobs.some((j) => j.status === "cancel") ? " · 회원이 취소" : "");
+      const jobNote = !jobs.length ? "" : job ? jobLevel(job) : `기보 분석 ${savedAll}판 저장` + (failedAll ? ` · 실패 ${failedAll}판` : "") +
+        (jobs.some((j) => j.status === "cancel") ? " · 회원이 취소" : "") + (jobs[0].level ? ` · ${jobLevel(jobs[0])}` : "");
       const note = [x.progress && live && !job ? x.progress : "", jobNote, x.stop_reason, x.error && x.error !== "offer gone" ? x.error : "",
                     !live && x.verified_stop === false ? "삭제 미확인!" : "", x.refunded_krw > 0 ? `${x.ready_at ? "" : "준비 실패 "}환불 ${won(x.refunded_krw)}` : ""].filter(Boolean).join(" · ");
       const used = live ? span(x.created_at, Date.now()) : x.stopped_at ? span(x.created_at, x.stopped_at) : "";
