@@ -136,49 +136,253 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
 .memo-cell { max-width: 240px; }
 .memo-cell button { padding: 2px 8px; min-height: 0; font-size: 13px; }
 .wrap-row { flex-wrap: wrap; }
-/* 통계 탭 (2026-11-02): 수익·원가, 월별·일별 추이, 기능별 사용률, 회원별 이용, GPU·모델·사유별 */
-.st-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.st-head h2 { margin: 0; flex: 1 1 auto; }
-.st-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 8px; }
-.st-kpis .kpi { cursor: default; background: var(--soft); box-shadow: none; border-radius: 16px; }
-.st-kpis .kpi:hover { box-shadow: none; }
-.st-kpis .kpi.hl { background: #e8eefe; }
-.st-kpis .kpi b.good { color: var(--good); } .st-kpis .kpi b.bad { color: var(--bad); }
-.st-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.st-grid > .panel { margin: 0; min-width: 0; }
-.st-table td, .st-table th { white-space: nowrap; }
-#stStops td:first-child, #stFails td:first-child { white-space: normal; }
+/* 통계 탭 v2 (2026-11-23): GPT 스타일 대시보드 + 52주 히트맵 + 4종 시각 인사이트 + 4탭 통합 탐색기 */
+.st-dash { position: relative; display: grid; gap: 20px; padding: 6px 0 8px; min-width: 0; font-variant-numeric: tabular-nums;
+  --st-a1: #ddd6fe; --st-a2: #a78bfa; --st-a3: #7c3aed; --st-a4: #5b21b6; --st-atxt: #6d28d9;
+  --st-grad: linear-gradient(90deg, #7c3aed, #a78bfa); --st-glow: rgba(124, 58, 237, .10); --st-dot0: #eaedf4; --st-dot0-bd: rgba(23, 26, 34, .06);
+  --st-surface: var(--panel); --st-soft: var(--soft); --st-bd: var(--line); --st-rose: #e11d48; --st-rose-soft: rgba(225, 29, 72, .72); }
+.st-dash > * { min-width: 0; }
+.st-dash.st-pal-blue {
+  --st-a1: #bfdbfe; --st-a2: #60a5fa; --st-a3: #2563eb; --st-a4: #1d4ed8; --st-atxt: #1d4ed8;
+  --st-grad: linear-gradient(90deg, #2563eb, #38bdf8); --st-glow: rgba(37, 99, 235, .10); }
+.st-dash.st-pal-green {
+  --st-a1: #bbf7d0; --st-a2: #4ade80; --st-a3: #16a34a; --st-a4: #15803d; --st-atxt: #15803d;
+  --st-grad: linear-gradient(90deg, #16a34a, #34d399); --st-glow: rgba(22, 163, 74, .10); }
+.st-glow { position: absolute; inset: -8px 0 auto; height: 190px; pointer-events: none; border-radius: 28px;
+  background: radial-gradient(560px 180px at 50% 0%, var(--st-glow), transparent 72%); }
+.st-topbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; font-size: 12px; color: var(--muted); }
+.st-topbar-r { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.st-pals { display: inline-flex; align-items: center; gap: 6px; }
+.st-pal-btn { width: 15px; height: 15px; min-height: 0; padding: 0; border-radius: 999px; border: 2px solid transparent; opacity: .45; cursor: pointer; background: transparent; }
+.st-pal-btn:hover { opacity: .9; background: transparent; }
+.st-pal-btn.on { opacity: 1; border-color: var(--ink); transform: scale(1.08); }
+.st-pal-btn[data-pal="purple"] { background: #8b5cf6; }
+.st-pal-btn[data-pal="blue"] { background: #3b82f6; }
+.st-pal-btn[data-pal="green"] { background: #22c55e; }
+.st-reload { min-height: 0; padding: 4px 11px; font-size: 12px; font-weight: 600; border-radius: 999px; background: var(--st-surface); border: 1px solid var(--st-bd); color: var(--muted); }
+.st-reload:hover { color: var(--ink); background: var(--st-soft); }
+.st-header { position: relative; text-align: center; display: grid; gap: 6px; justify-items: center; }
+.st-header .st-subline { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.st-header h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.03em; line-height: 1.2; }
+.st-ranges { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
+.st-pill { min-height: 0; padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 999px; border: 1px solid var(--st-bd);
+  background: var(--st-surface); color: var(--muted); line-height: 1.35; cursor: pointer; }
+.st-pill:hover { color: var(--ink); background: var(--st-soft); }
+.st-pill.on { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.st-pill-sm { padding: 3px 10px; font-size: 12px; }
+.st-tab-btn { min-height: 0; padding: 4px 2px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.3; cursor: pointer; }
+.st-tab-btn:hover { background: transparent; color: var(--ink); }
+.st-tab-btn.on { color: var(--ink); font-weight: 700; }
+.st-tab-btn .cnt { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.st-card { background: var(--st-surface); border: 1px solid var(--st-bd); border-radius: 20px; padding: 18px 20px; min-width: 0; box-shadow: 0 1px 2px rgba(23, 26, 34, .03); }
+.st-soft { background: var(--st-soft); border: 1px solid var(--st-bd); border-radius: 14px; }
+.st-good { color: var(--good); } .st-bad { color: var(--bad); } .st-warn { color: var(--warn); } .st-accent { color: var(--st-atxt); }
+.st-hero-wrap { display: grid; gap: 10px; }
+.st-hero { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--st-surface); border: 1px solid var(--st-bd); border-radius: 20px; overflow: hidden; box-shadow: 0 1px 2px rgba(23, 26, 34, .03); }
+.st-hero-cell { padding: 16px 12px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; border-right: 1px solid var(--st-bd); }
+.st-hero-cell:last-child { border-right: 0; }
+.st-hero-val { font-size: 20px; font-weight: 800; letter-spacing: -.025em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-hero-lbl { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 3px; }
+.st-hero-mid { height: 24px; display: flex; align-items: center; justify-content: center; margin-top: 4px; }
+.st-hero-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--st-soft); }
+.st-hero-sub { font-size: 11px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-streak { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 16px; font-size: 12px; }
+.st-streak-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.st-streak-list b { margin-left: 4px; font-weight: 700; }
+.st-more-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 16px 18px; font-size: 12px; }
+.st-more-item .k { font-size: 11px; color: var(--muted); }
+.st-more-item .v { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.st-more-item .s { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.st-sec-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.st-sec-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.st-sec-title h3, .st-card-head h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.st-card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.st-card-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.st-card-badge { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.st-metric-tabs { display: flex; flex-wrap: wrap; gap: 5px; transition: opacity .15s; }
+.st-metric-tabs.dim { opacity: .35; pointer-events: none; }
+.st-view-tabs { display: flex; align-items: center; gap: 16px; }
+.st-hm-scroll { overflow-x: auto; padding-bottom: 4px; }
+.st-hm-wrap { display: flex; gap: 8px; min-width: 780px; }
+.st-hm-days { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: var(--muted); padding: 2px 2px 20px 0; user-select: none; flex-shrink: 0; }
+.st-hm-main { flex: 1 1 auto; min-width: 0; }
+.st-hm-grid { display: grid; grid-template-columns: repeat(52, minmax(0, 1fr)); gap: 4px; }
+.st-hm-col { display: grid; gap: 4px; }
+.st-dot { width: 100%; aspect-ratio: 1; min-width: 10px; max-width: 13px; border-radius: 3px; transition: transform .12s, outline-color .12s; cursor: pointer; }
+.st-dot:hover { transform: scale(1.28); outline: 1.5px solid var(--ink); z-index: 4; position: relative; }
+.st-dot.sel { outline: 2px solid #f59e0b; transform: scale(1.22); z-index: 5; position: relative; }
+.st-dot.pad { opacity: .45; cursor: default; }
+.st-dot.fut { opacity: .22; cursor: default; }
+.st-dot.pad:hover, .st-dot.fut:hover { transform: none; outline: none; }
+.st-d0 { background: var(--st-dot0); border: 1px solid var(--st-dot0-bd); }
+.st-d1 { background: var(--st-a1); }
+.st-d2 { background: var(--st-a2); }
+.st-d3 { background: var(--st-a3); }
+.st-d4 { background: var(--st-a4); box-shadow: 0 0 8px rgba(139, 92, 246, .35); }
+.st-dneg { background: #ef4444; opacity: .82; }
+.st-hm-months { display: grid; grid-template-columns: repeat(52, minmax(0, 1fr)); gap: 4px; margin-top: 7px; font-size: 11px; color: var(--muted); }
+.st-hm-months span { white-space: nowrap; overflow: visible; }
+.st-hm-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.st-hm-scale { display: inline-flex; align-items: center; gap: 4px; }
+.st-hm-scale i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.st-drill { margin-top: 12px; padding: 13px 15px; }
+.st-drill-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.st-drill-title { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 13px; }
+.st-drill-dot { width: 8px; height: 8px; border-radius: 999px; background: #f59e0b; flex-shrink: 0; }
+.st-drill-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--st-surface); border: 1px solid var(--st-bd); color: var(--muted); }
+.st-drill-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; font-size: 12px; }
+.st-drill-grid .k { font-size: 11px; color: var(--muted); }
+.st-drill-grid .v { font-weight: 700; margin-top: 2px; }
+.st-weekly { height: 200px; display: flex; align-items: flex-end; gap: 10px; padding: 22px 4px 0; }
+.st-wcol { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; }
+.st-wcol-lbl { font-size: 10px; font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
+.st-wbars { width: 100%; max-width: 44px; height: 84%; display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
+.st-wbars i { flex: 1 1 0; display: block; border-radius: 5px 5px 0 0; transition: opacity .15s; }
+.st-wbars i.ch { background: var(--st-grad); opacity: .9; }
+.st-wbars i.co { background: var(--st-rose-soft); }
+.st-wcol:hover .st-wbars i { opacity: 1; }
+.st-waxis { display: flex; gap: 10px; padding: 6px 4px 0; font-size: 11px; color: var(--muted); text-align: center; }
+.st-waxis span { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-wfoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--st-bd); font-size: 12px; color: var(--muted); }
+.st-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.st-sw { display: inline-flex; align-items: center; gap: 5px; }
+.st-sw i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.st-sw i.line { height: 3px; border-radius: 2px; }
+.st-cum-svg { display: block; width: 100%; height: 204px; overflow: visible; cursor: crosshair; touch-action: none; }
+.st-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.st-grid-12 { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; }
+.st-donut-row { display: flex; align-items: center; gap: 18px; }
+.st-donut-box { position: relative; width: 160px; height: 160px; flex-shrink: 0; }
+.st-donut-box.sm { width: 132px; height: 132px; }
+.st-donut-box svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.st-donut-seg { transition: stroke-width .18s ease, opacity .18s ease; cursor: pointer; }
+.st-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; padding: 14px; }
+.st-donut-center .k { font-size: 11px; color: var(--muted); line-height: 1.2; }
+.st-donut-center .v { font-size: 14px; font-weight: 800; margin-top: 2px; line-height: 1.2; }
+.st-donut-center .s { font-size: 11px; font-weight: 600; margin-top: 2px; }
+.st-donut-leg { flex: 1 1 auto; min-width: 0; display: grid; gap: 6px; font-size: 12px; }
+.st-leg-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 10px; cursor: pointer; transition: background-color .15s; }
+.st-leg-row:hover { background: var(--st-soft); }
+.st-leg-l { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.st-leg-l i { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
+.st-leg-l .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-leg-l .d { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-leg-r { text-align: right; flex-shrink: 0; }
+.st-leg-r .v { font-weight: 700; }
+.st-leg-r .p { font-size: 11px; color: var(--muted); }
+.st-receipt { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px 14px; margin-top: 14px; font-size: 12px; }
+.st-receipt > div:last-child { border-left: 1px solid var(--st-bd); padding-left: 12px; }
+.st-receipt .k { font-size: 11px; color: var(--muted); }
+.st-receipt .v { font-weight: 700; margin-top: 2px; }
+.st-receipt .s { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.st-funnel { display: grid; gap: 10px; }
+.st-fstep-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+.st-fstep-l { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+.st-fnum { width: 18px; height: 18px; border-radius: 999px; background: var(--st-soft); border: 1px solid var(--st-bd); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+.st-track { height: 9px; width: 100%; border-radius: 999px; background: var(--st-soft); overflow: hidden; }
+.st-track.sm { height: 6px; }
+.st-track.xs { height: 4px; }
+.st-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
+.st-fill-acc { background: var(--st-grad); }
+.st-fill-rose { background: var(--st-rose-soft); }
+.st-fconv { text-align: right; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.st-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--st-bd); font-size: 11px; color: var(--muted); }
+.st-mx-scroll { overflow-x: auto; }
+.st-mx { min-width: 400px; display: grid; gap: 3px; }
+.st-mx-row { display: grid; grid-template-columns: 20px repeat(24, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.st-mx-head { font-size: 10px; color: var(--muted); text-align: center; padding-bottom: 3px; }
+.st-mx-day { font-size: 11px; font-weight: 600; color: var(--muted); }
+.st-mx-cell { height: 18px; border-radius: 4px; cursor: pointer; transition: transform .12s; }
+.st-mx-cell:hover { transform: scale(1.18); outline: 1.5px solid var(--ink); z-index: 4; position: relative; }
+.st-bubble-svg { display: block; width: 100%; height: 205px; overflow: visible; }
+.st-bubble-node { cursor: pointer; transition: transform .15s ease; transform-box: fill-box; transform-origin: center; }
+.st-bubble-node:hover { transform: scale(1.15); }
+.st-months { display: grid; gap: 10px; }
+.st-mcard { padding: 12px 14px; display: grid; gap: 8px; }
+.st-mcard-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; font-size: 12px; }
+.st-mcard-l { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; flex: 1 1 220px; min-width: 0; }
+.st-mcard-l b { font-size: 14px; }
+.st-mcard-r { white-space: nowrap; margin-left: auto; font-weight: 700; }
+.st-mcard-bars { display: grid; gap: 4px; }
+.st-mcard-bot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; font-size: 11px; color: var(--muted); }
+.st-dt-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--st-bd); }
+.st-dt-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+.st-dt-tabs .st-tab-btn { font-size: 14px; position: relative; padding-bottom: 6px; }
+.st-dt-tabs .st-tab-btn.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -11px; height: 2px; border-radius: 2px; background: var(--st-atxt); }
+.st-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; font-size: 12px; }
+.st-tools-l { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.st-tools input[type=search] { min-height: 0; padding: 6px 11px; font-size: 12px; width: 200px; max-width: 100%; border-radius: 10px; }
+.st-table td, .st-table th { white-space: nowrap; font-size: 13px; }
 .st-table th[data-sort] { cursor: pointer; user-select: none; }
 .st-table th[data-sort]:hover { color: var(--ink); }
 .st-table th.sorted::after { content: " ▾"; } .st-table th.sorted.asc::after { content: " ▴"; }
-.st-table tfoot td { font-weight: 800; border-top: 2px solid var(--line); }
+.st-table tfoot td { font-weight: 800; border-top: 2px solid var(--st-bd); }
 .st-table .good { color: var(--good); } .st-table .bad { color: var(--bad); }
-.st-meter { display: flex; align-items: center; gap: 8px; min-width: 160px; }
-.st-meter i { display: block; height: 8px; border-radius: 4px; background: var(--blue); min-width: 2px; }
-.st-meter span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.st-chart { display: flex; align-items: flex-end; gap: 2px; height: 180px; padding: 8px 0 0; border-bottom: 1px solid var(--line); }
-.st-chart .col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 1px; position: relative; }
-.st-chart .col:hover { background: var(--soft); }
-.st-chart .col i { display: block; flex: 1 1 0; max-width: 14px; border-radius: 3px 3px 0 0; background: var(--blue); min-height: 0; }
-.st-chart .col i.b { background: #b8c2d6; } .st-chart .col i.c { background: var(--good); }
-.st-axis { display: flex; gap: 2px; font-size: 11px; color: var(--muted); margin-top: 4px; }
-.st-axis span { flex: 1 1 0; min-width: 0; text-align: center; overflow: visible; white-space: nowrap; }
-.st-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 8px; }
-.st-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--blue); }
-.st-legend i.b { background: #b8c2d6; } .st-legend i.c { background: var(--good); }
-.st-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-.st-tools input[type=search] { flex: 0 1 240px; min-width: 0; }
-.st-tools label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); cursor: pointer; }
-.st-tools label input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: var(--blue); }
-.st-paid-in { width: 92px; min-height: 28px; padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); }
-.st-paid-box { display: grid; gap: 5px; padding: 6px; margin-top: 4px; border-radius: 10px; background: var(--soft); border: 1px solid var(--line); text-align: right; min-width: 175px; }
+.st-paid-in { width: 92px; min-height: 28px; padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; border: 1px solid var(--st-bd); border-radius: 7px; background: var(--panel); color: var(--ink); }
+.st-paid-box { display: grid; gap: 5px; padding: 8px; margin-top: 4px; border-radius: 10px; background: var(--st-soft); border: 1px solid var(--st-bd); text-align: right; min-width: 180px; }
 .st-paid-row { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .st-paid-btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 .st-paid-btns button { min-height: 26px; padding: 2px 8px; font-size: 11px; }
-.st-edit-link { display: inline-block; margin-top: 2px; padding: 1px 6px; font-size: 11px; border-radius: 6px; background: var(--soft); color: var(--blue); border: 1px solid var(--line); cursor: pointer; }
-.st-edit-link:hover { filter: brightness(.96); }
-@media (max-width: 860px) { .st-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .st-grid { grid-template-columns: minmax(0, 1fr); } .st-chart { height: 140px; } }
-@media (prefers-color-scheme: dark) { .st-kpis .kpi.hl { background: #1c2a4d; } .st-chart .col i.b, .st-legend i.b { background: #4a5570; } }
+.st-edit-link { display: inline-block; margin-top: 2px; padding: 2px 7px; min-height: 0; font-size: 11px; font-weight: 600; border-radius: 6px; background: var(--st-soft); color: var(--st-atxt); border: 1px solid var(--st-bd); cursor: pointer; }
+.st-edit-link:hover { filter: brightness(.95); }
+.st-fg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.st-fg-card { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+.st-fg-cat { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.st-fg-item { display: grid; gap: 4px; font-size: 12px; }
+.st-fg-item .top, .st-fg-item .bot { display: flex; justify-content: space-between; gap: 8px; }
+.st-fg-item .bot { font-size: 11px; color: var(--muted); }
+.st-health-wrap { display: grid; gap: 16px; }
+.st-health-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.st-health-list { display: grid; gap: 10px; font-size: 12px; }
+.st-health-row { display: grid; gap: 4px; }
+.st-health-row .top { display: flex; justify-content: space-between; gap: 8px; }
+.st-charge-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.st-charge-box { padding: 10px 12px; }
+.st-charge-box .k { font-size: 11px; color: var(--muted); }
+.st-charge-box .v { font-size: 15px; font-weight: 800; margin-top: 2px; }
+.st-charge-box .s { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.st-footnote { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.55; }
+.st-tip { position: fixed; pointer-events: none; z-index: 120; background: #1c1d24; color: #f4f4f6; border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 10px; padding: 8px 12px; font-size: 12px; line-height: 1.5; box-shadow: 0 14px 34px rgba(0, 0, 0, .42);
+  opacity: 0; transform: translate(-50%, -100%) translateY(-10px); transition: opacity .1s ease; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.st-tip.show { opacity: 1; }
+@media (max-width: 860px) {
+  .st-hero { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .st-hero-cell { border-bottom: 1px solid var(--st-bd); }
+  .st-hero-cell:nth-child(2n) { border-right: 0; }
+  .st-hero-cell:last-child { grid-column: span 2; border-right: 0; border-bottom: 0; }
+  .st-more-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .st-drill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .st-grid-2, .st-grid-12, .st-fg-grid, .st-health-grid { grid-template-columns: minmax(0, 1fr); }
+  .st-donut-row { flex-direction: column; align-items: stretch; }
+  .st-donut-box { margin: 0 auto; }
+}
+@media (max-width: 520px) {
+  .st-card { padding: 14px; border-radius: 16px; }
+  .st-header h2 { font-size: 22px; }
+  .st-hero-val { font-size: 18px; }
+  .st-receipt { grid-template-columns: minmax(0, 1fr); }
+  .st-receipt > div:last-child { border-left: 0; border-top: 1px solid var(--st-bd); padding-left: 0; padding-top: 10px; }
+  .st-dt-tabs { gap: 12px; }
+  .st-tools input[type=search] { width: 100%; }
+}
+@media (prefers-color-scheme: dark) {
+  .st-dash {
+    --st-a1: #472c82; --st-a2: #6b45c7; --st-a3: #9466ff; --st-a4: #cbb2ff; --st-atxt: #b794ff;
+    --st-grad: linear-gradient(90deg, #7c4dff, #c4a5ff); --st-glow: rgba(155, 108, 255, .18);
+    --st-dot0: #22293d; --st-dot0-bd: rgba(255, 255, 255, .04);
+    --st-surface: #151c2e; --st-soft: #1c2438; --st-bd: rgba(255, 255, 255, .08); --st-rose: #fb7185; --st-rose-soft: rgba(251, 113, 133, .72); }
+  .st-dash.st-pal-blue {
+    --st-a1: #1e3a8a; --st-a2: #2563eb; --st-a3: #3b82f6; --st-a4: #7dd3fc; --st-atxt: #60a5fa;
+    --st-grad: linear-gradient(90deg, #2563eb, #38bdf8); --st-glow: rgba(59, 130, 246, .20); }
+  .st-dash.st-pal-green {
+    --st-a1: #14532d; --st-a2: #15803d; --st-a3: #22c55e; --st-a4: #86efac; --st-atxt: #4ade80;
+    --st-grad: linear-gradient(90deg, #16a34a, #4ade80); --st-glow: rgba(34, 197, 94, .18); }
+  .st-pill.on { background: #eef2ff; color: #0c1222; border-color: #eef2ff; }
+  .st-d4 { box-shadow: 0 0 9px rgba(203, 178, 255, .45); }
+  .st-dash.st-pal-blue .st-d4 { box-shadow: 0 0 9px rgba(125, 211, 252, .42); }
+  .st-dash.st-pal-green .st-d4 { box-shadow: 0 0 9px rgba(134, 239, 172, .40); }
+}
 @media (prefers-color-scheme: dark) {
   .atabs { background: #1c2438; }
   .atabs button.on { box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
@@ -216,66 +420,287 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
       <button data-tab="bank" role="tab">문제 은행</button><button data-tab="stats" role="tab">통계</button>
     </nav>
 
-    <!-- 통계 (2026-11-02): DB 함수 admin_stats 한 번으로 다 읽는다. 회원 = 운영 관리자 제외(탈퇴 회원 기록 포함), GPU 대여 = 실패 뺀 횟수 -->
+    <!-- 통계 v2 (2026-11-23): DB 함수 admin_stats 한 번으로 다 읽는다. 회원 = 운영 관리자 제외(탈퇴 회원·제한 관리자 포함), GPU 대여 = 실패 뺀 횟수 -->
     <section class="tab" data-tab="stats" hidden>
-    <div class="panel">
-      <div class="st-head"><h2>수익·원가</h2><span class="muted small" id="stAt"></span><button class="quiet" type="button" id="stReload">다시 계산</button></div>
-      <div class="kpis st-kpis" id="stKpis"><div class="empty">불러오는 중…</div></div>
-      <p class="muted small" id="stNote" style="margin:8px 0 0"></p>
-    </div>
-    <div class="panel">
-      <h2>월별 추이</h2>
-      <div class="table-wrap"><table class="st-table">
-        <thead><tr><th>월</th><th class="num">가입</th><th class="num">충전</th><th class="num" title="실패 뺀 횟수">GPU 대여</th><th class="num">쓴 회원</th><th class="num">사용 시간</th><th class="num">받은 요금</th><th class="num">원가</th><th class="num">차익</th><th class="num">마진율</th><th class="num" title="관리자 시험 대여의 Vast 원가">관리자 원가</th></tr></thead>
-        <tbody id="stMonthly"></tbody>
-      </table></div>
-    </div>
-    <div class="panel">
-      <div class="st-head"><h2>최근 60일</h2>
-        <div class="seg" id="stDailyMode" role="group" aria-label="그래프 종류">
-          <button type="button" data-m="money" aria-pressed="true">요금·원가</button><button type="button" data-m="rentals" aria-pressed="false">GPU 대여</button><button type="button" data-m="users" aria-pressed="false">이용 회원</button><button type="button" data-m="topup" aria-pressed="false">충전·가입</button>
+      <div class="st-dash" id="stDash">
+        <div class="st-glow" aria-hidden="true"></div>
+
+        <!-- 상단 상태 바 -->
+        <div class="st-topbar">
+          <span id="stAt">불러오는 중…</span>
+          <div class="st-topbar-r">
+            <div class="st-pals" id="stPals" title="강조색 전환">
+              <button type="button" class="st-pal-btn on" data-pal="purple" aria-label="보라 강조색"></button>
+              <button type="button" class="st-pal-btn" data-pal="blue" aria-label="파랑 강조색"></button>
+              <button type="button" class="st-pal-btn" data-pal="green" aria-label="에메랄드 강조색"></button>
+            </div>
+            <button type="button" class="st-reload" id="stReload">다시 계산</button>
+          </div>
         </div>
+
+        <!-- 1. GPT 스타일 상단 헤더 + 기간 필터 -->
+        <header class="st-header">
+          <div class="st-subline" id="stPeriodDesc">전체 누적</div>
+          <h2>운영 대시보드</h2>
+          <div class="st-ranges" id="stRanges" role="group" aria-label="집계 기간">
+            <button type="button" class="st-pill on" data-range="all">전체</button>
+            <button type="button" class="st-pill" data-range="month" id="stRangeMonth">이번 달</button>
+            <button type="button" class="st-pill" data-range="30d">최근 30일</button>
+            <button type="button" class="st-pill" data-range="7d">최근 7일</button>
+          </div>
+        </header>
+
+        <!-- 2. 5칸 통합 히어로 스트립 + 연속 가동 스트릭 바 + 보조 지표 -->
+        <div class="st-hero-wrap">
+          <div class="st-hero" id="stHero"><div class="empty" style="grid-column:1/-1;padding:24px;text-align:center">불러오는 중…</div></div>
+          <div class="st-soft st-streak">
+            <div class="st-streak-list" id="stStreakList"></div>
+            <button type="button" class="st-tab-btn" id="stMoreToggle" aria-expanded="false">보조 지표 <span id="stMoreArrow">▾</span></button>
+          </div>
+          <div class="st-card hidden" id="stMoreWrap" style="padding:0">
+            <div class="st-more-grid" id="stMoreGrid"></div>
+          </div>
+        </div>
+
+        <!-- 3. GPT 스타일 운영 활동 (일별 52주 히트맵 | 주간 듀얼차트 | 누적 크로스헤어 곡선) -->
+        <div>
+          <div class="st-sec-head">
+            <div class="st-sec-title">
+              <h3>운영 활동</h3>
+              <div class="st-metric-tabs" id="stMetricTabs" role="group" aria-label="활동 지표">
+                <button type="button" class="st-pill st-pill-sm on" data-metric="charged">사용 요금</button>
+                <button type="button" class="st-pill st-pill-sm" data-metric="margin">순차익</button>
+                <button type="button" class="st-pill st-pill-sm" data-metric="rentals">GPU 대여</button>
+                <button type="button" class="st-pill st-pill-sm" data-metric="topup">유료 충전</button>
+                <button type="button" class="st-pill st-pill-sm" data-metric="users">활동 회원</button>
+              </div>
+            </div>
+            <div class="st-view-tabs" id="stViewTabs" role="tablist" aria-label="활동 보기">
+              <button type="button" class="st-tab-btn on" data-view="daily">일별</button>
+              <button type="button" class="st-tab-btn" data-view="weekly">주간</button>
+              <button type="button" class="st-tab-btn" data-view="cumulative">누적</button>
+            </div>
+          </div>
+
+          <div class="st-card">
+            <div id="stViewDaily">
+              <div class="st-hm-scroll">
+                <div class="st-hm-wrap">
+                  <div class="st-hm-days" aria-hidden="true"><span>일</span><span>화</span><span>목</span><span>토</span></div>
+                  <div class="st-hm-main">
+                    <div class="st-hm-grid" id="stHmGrid"></div>
+                    <div class="st-hm-months" id="stHmMonths"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="st-hm-foot">
+                <span id="stHmHint">칸을 클릭하면 그날의 매출·원가·대여 상세가 펼쳐집니다.</span>
+                <div class="st-hm-scale">
+                  <span>적음</span>
+                  <i class="st-d0"></i><i class="st-d1"></i><i class="st-d2"></i><i class="st-d3"></i><i class="st-d4"></i>
+                  <span>많음</span>
+                </div>
+              </div>
+              <div class="st-soft st-drill hidden" id="stDayDrill">
+                <div class="st-drill-head">
+                  <div class="st-drill-title">
+                    <span class="st-drill-dot"></span>
+                    <b id="stDrillDate"></b>
+                    <span class="st-drill-badge" id="stDrillBadge"></span>
+                  </div>
+                  <button type="button" class="st-tab-btn" id="stDrillClose">닫기</button>
+                </div>
+                <div class="st-drill-grid" id="stDrillStats"></div>
+              </div>
+            </div>
+
+            <div id="stViewWeekly" class="hidden">
+              <div class="st-weekly" id="stWeeklyChart"></div>
+              <div class="st-waxis" id="stWeeklyAxis"></div>
+              <div class="st-wfoot" id="stWeeklySummary"></div>
+            </div>
+
+            <div id="stViewCum" class="hidden">
+              <div id="stCumWrap"></div>
+              <div class="st-wfoot" id="stCumLegend"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 2x2 시각 인사이트 (자금 도넛 · 전환 퍼널 · 요일×시간 피크 맵 · GPU 버블 맵) -->
+        <div class="st-grid-2">
+          <div class="st-card">
+            <div class="st-card-head">
+              <div>
+                <h3>자금 · 수익 구조</h3>
+                <p>조각에 마우스를 올리면 비중이 표시됩니다</p>
+              </div>
+              <span class="st-card-badge" id="stMoneyMarginBadge"></span>
+            </div>
+            <div class="st-donut-row">
+              <div class="st-donut-box" id="stMoneyDonut"></div>
+              <div class="st-donut-leg" id="stMoneyLegend"></div>
+            </div>
+            <div class="st-soft st-receipt" id="stMoneyReceipt"></div>
+          </div>
+
+          <div class="st-card" style="display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div class="st-card-head">
+                <div>
+                  <h3>회원 전환 퍼널</h3>
+                  <p>가입부터 유료 결제까지의 단계별 유지율</p>
+                </div>
+                <span class="st-card-badge st-accent" id="stFunnelBadge"></span>
+              </div>
+              <div class="st-funnel" id="stFunnelWrap"></div>
+            </div>
+            <div class="st-card-foot" id="stFunnelFoot"></div>
+          </div>
+
+          <div class="st-card">
+            <div class="st-card-head">
+              <div>
+                <h3>요일 × 시간대 피크 맵</h3>
+                <p>어느 요일 몇 시에 GPU 대여가 몰리는지 한눈에</p>
+              </div>
+              <span class="st-card-badge st-accent" id="stPeakBadge"></span>
+            </div>
+            <div class="st-mx-scroll">
+              <div class="st-mx" id="stPeakMatrix"></div>
+            </div>
+            <div class="st-card-foot" id="stPeakFoot"></div>
+          </div>
+
+          <div class="st-card">
+            <div class="st-card-head">
+              <div>
+                <h3>GPU 수익성 버블 맵</h3>
+                <p>가로: 대여 횟수 · 세로: 순차익 · 크기: 사용 시간</p>
+              </div>
+              <span class="st-card-badge st-good" id="stBubbleBadge"></span>
+            </div>
+            <div id="stBubbleWrap"></div>
+            <div class="st-card-foot">
+              <div class="st-swatches">
+                <span class="st-sw"><i style="background:#a78bfa;border-radius:999px"></i>수익 GPU</span>
+                <span class="st-sw"><i style="background:#fb7185;border-radius:999px"></i>무료개방/적자 GPU</span>
+              </div>
+              <span>원에 마우스를 올리면 상세 표시</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. 월별 수익 추이 + AI 모델 점유율 -->
+        <div class="st-grid-12">
+          <div class="st-card">
+            <div class="st-card-head">
+              <div><h3>월별 수익 추이</h3></div>
+              <span class="muted" style="font-size:12px">서비스 지급은 100원 단위 원금 기준</span>
+            </div>
+            <div class="st-months" id="stMonthlyCards"></div>
+          </div>
+
+          <div class="st-card">
+            <div class="st-card-head">
+              <div><h3>AI 모델 점유율</h3></div>
+              <span class="muted" style="font-size:12px" id="stModelTotal"></span>
+            </div>
+            <div class="st-donut-row" style="margin-top:6px">
+              <div class="st-donut-box sm" id="stModelDonut"></div>
+              <div class="st-donut-leg" id="stModelLegend"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. 하단 4탭 통합 상세 탐색기 -->
+        <div style="display:grid;gap:12px;min-width:0">
+          <div class="st-dt-bar">
+            <div class="st-dt-tabs" id="stDetailTabs" role="tablist" aria-label="상세 통계">
+              <button type="button" class="st-tab-btn on" data-dt="members">회원별 현황 <span class="cnt" id="stCntMembers"></span></button>
+              <button type="button" class="st-tab-btn" data-dt="features">기능별 사용률 <span class="cnt" id="stCntFeatures">9</span></button>
+              <button type="button" class="st-tab-btn" data-dt="gpus">GPU 전체 표 <span class="cnt" id="stCntGpus"></span></button>
+              <button type="button" class="st-tab-btn" data-dt="health">운영 건강도</button>
+            </div>
+            <span class="muted" style="font-size:12px">필요한 상세 표만 골라 볼 수 있습니다</span>
+          </div>
+
+          <!-- 서브 탭 1: 회원별 현황 (기존 전체 컬럼 + 정렬 + 합계 + 인라인 금액 설정 100% 유지) -->
+          <div class="st-card" id="stDtMembers">
+            <div class="st-tools">
+              <div class="st-tools-l">
+                <input type="search" id="stSearch" placeholder="이름·이메일 검색…">
+                <div class="st-metric-tabs" id="stMemFilter" role="group" aria-label="회원 필터">
+                  <button type="button" class="st-pill st-pill-sm on" data-mf="active">이용 기록 있음</button>
+                  <button type="button" class="st-pill st-pill-sm" data-mf="paying">유료 회원만</button>
+                  <button type="button" class="st-pill st-pill-sm" data-mf="balance">잔액 보유만</button>
+                  <button type="button" class="st-pill st-pill-sm" data-mf="all">전체</button>
+                </div>
+              </div>
+              <span class="muted"><b id="stMemberCount"></b> · 제목 클릭 시 정렬</span>
+            </div>
+            <div class="table-wrap"><table class="st-table" id="stMemberTable">
+              <thead><tr><th data-sort="name">회원</th><th data-sort="joined">가입</th><th class="num" data-sort="topup">충전</th><th class="num" data-sort="balance">잔액</th><th class="num" data-sort="rentals" title="실패 뺀 횟수">GPU 대여</th><th class="num" data-sort="hours">사용 시간</th><th class="num" data-sort="charged">받은 요금</th><th class="num" data-sort="cost">원가</th><th class="num" data-sort="margin">차익</th><th class="num" data-sort="device">내 기기</th><th class="num" data-sort="kifu">기보</th><th class="num" data-sort="notes">오답노트</th><th class="num" data-sort="bank">문제 은행</th><th data-sort="last_seen">마지막 활동</th></tr></thead>
+              <tbody id="stMembers"></tbody>
+              <tfoot id="stMembersFoot"></tfoot>
+            </table></div>
+          </div>
+
+          <!-- 서브 탭 2: 기능별 사용률 -->
+          <div class="st-card hidden" id="stDtFeatures">
+            <div class="st-fg-grid" id="stFeatureGroups"></div>
+          </div>
+
+          <!-- 서브 탭 3: GPU 전체 표 -->
+          <div class="st-card hidden" id="stDtGpus">
+            <div class="st-tools">
+              <div class="st-metric-tabs" id="stGpuSort" role="group" aria-label="GPU 정렬">
+                <button type="button" class="st-pill st-pill-sm on" data-gs="rentals">대여 많은 순</button>
+                <button type="button" class="st-pill st-pill-sm" data-gs="margin">차익 높은 순</button>
+                <button type="button" class="st-pill st-pill-sm" data-gs="loss">무료/적자 순</button>
+                <button type="button" class="st-pill st-pill-sm" data-gs="hours">사용 시간 순</button>
+              </div>
+              <span class="muted">무료 개방으로 원가만 발생한 GPU는 음수 차익으로 표시</span>
+            </div>
+            <div class="table-wrap"><table class="st-table">
+              <thead><tr><th>GPU</th><th class="num">대여 (실패)</th><th class="num">회원</th><th class="num">사용 시간</th><th class="num">평균 시간당</th><th class="num">받은 요금</th><th class="num">원가</th><th class="num">차익 · 마진율</th></tr></thead>
+              <tbody id="stGpuRows"></tbody>
+            </table></div>
+          </div>
+
+          <!-- 서브 탭 4: 운영 건강도 (종료 사유 · 실패 사유 · 충전 신청 현황) -->
+          <div class="st-health-wrap hidden" id="stDtHealth">
+            <div class="st-health-grid">
+              <div class="st-card">
+                <div class="st-card-head">
+                  <div><h3>정상 종료 사유</h3></div>
+                  <span class="muted" style="font-size:12px" id="stStopTotal"></span>
+                </div>
+                <div class="st-health-list" id="stStopReasons"></div>
+              </div>
+              <div class="st-card" style="display:flex;flex-direction:column;justify-content:space-between">
+                <div>
+                  <div class="st-card-head">
+                    <div><h3>준비 실패 사유</h3></div>
+                    <span class="st-card-badge st-bad" id="stFailSummary"></span>
+                  </div>
+                  <div class="st-health-list" id="stFailReasons"></div>
+                </div>
+                <div class="st-card-foot" id="stFailFoot"></div>
+              </div>
+            </div>
+            <div class="st-card">
+              <div class="st-card-head">
+                <div><h3>충전 신청 현황</h3><p>회원이 신청한 충전 요청의 상태별 집계</p></div>
+              </div>
+              <div class="st-charge-row" id="stChargeCards"></div>
+            </div>
+          </div>
+        </div>
+
+        <p class="st-footnote" id="stNote"></p>
       </div>
-      <div class="st-chart" id="stDaily"></div>
-      <div class="st-axis" id="stDailyAxis"></div>
-      <div class="st-legend" id="stDailyLegend"></div>
-    </div>
-    <div class="panel">
-      <h2>기능별 사용률</h2>
-      <p class="muted small lead">쓴 회원 = 그 기능을 한 번이라도 쓴 회원 수(전체 회원 대비). 관리자는 뺍니다.</p>
-      <div class="table-wrap"><table class="st-table">
-        <thead><tr><th>기능</th><th>쓴 회원</th><th class="num">사용 횟수</th><th class="num">최근 30일 회원</th><th class="num">최근 30일 횟수</th></tr></thead>
-        <tbody id="stFeatures"></tbody>
-      </table></div>
-    </div>
-    <div class="panel">
-      <h2>회원별 이용 현황 <span class="muted small" id="stMemberCount"></span></h2>
-      <div class="st-tools">
-        <input type="search" id="stSearch" placeholder="이름·이메일 찾기">
-        <label><input type="checkbox" id="stActiveOnly" checked>이용 기록 있는 회원만</label>
-        <span class="muted small">제목을 누르면 정렬</span>
-      </div>
-      <div class="table-wrap"><table class="st-table" id="stMemberTable">
-        <thead><tr><th data-sort="name">회원</th><th data-sort="joined">가입</th><th class="num" data-sort="topup">충전</th><th class="num" data-sort="balance">잔액</th><th class="num" data-sort="rentals" title="실패 뺀 횟수 (괄호 = 실패)">GPU 대여</th><th class="num" data-sort="hours">사용 시간</th><th class="num" data-sort="charged">받은 요금</th><th class="num" data-sort="cost">원가</th><th class="num" data-sort="margin">차익</th><th class="num" data-sort="device">내 기기</th><th class="num" data-sort="kifu">기보</th><th class="num" data-sort="notes">오답노트</th><th class="num" data-sort="bank">문제 은행</th><th data-sort="last_seen">마지막 활동</th></tr></thead>
-        <tbody id="stMembers"></tbody>
-        <tfoot id="stMembersFoot"></tfoot>
-      </table></div>
-    </div>
-    <div class="panel">
-      <h2>GPU 종류별</h2>
-      <div class="table-wrap"><table class="st-table">
-        <thead><tr><th>GPU</th><th class="num">대여</th><th class="num">실패</th><th class="num">회원</th><th class="num">사용 시간</th><th class="num">평균 시간당</th><th class="num">받은 요금</th><th class="num">원가</th><th class="num">차익</th><th class="num">마진율</th></tr></thead>
-        <tbody id="stGpus"></tbody>
-      </table></div>
-    </div>
-    <div class="st-grid">
-      <div class="panel"><h2>모델별</h2><div class="table-wrap"><table class="st-table"><thead><tr><th>모델</th><th class="num">대여</th><th class="num">회원</th><th class="num">사용 시간</th></tr></thead><tbody id="stModels"></tbody></table></div></div>
-      <div class="panel"><h2>충전 신청</h2><div class="table-wrap"><table class="st-table"><thead><tr><th>상태</th><th class="num">건수</th><th class="num">금액</th></tr></thead><tbody id="stCharges"></tbody></table></div></div>
-      <div class="panel"><h2>종료 사유 <span class="muted small">정상 대여</span></h2><div class="table-wrap"><table class="st-table"><thead><tr><th>사유</th><th>건수</th></tr></thead><tbody id="stStops"></tbody></table></div></div>
-      <div class="panel"><h2>실패 사유</h2><div class="table-wrap"><table class="st-table"><thead><tr><th>사유</th><th>건수</th></tr></thead><tbody id="stFails"></tbody></table></div></div>
-      <div class="panel"><h2>시간대별 GPU 대여 <span class="muted small">한국 시간</span></h2><div class="st-chart" id="stHourly" style="height:120px"></div><div class="st-axis" id="stHourlyAxis"></div></div>
-      <div class="panel"><h2>요일별 GPU 대여</h2><div class="st-chart" id="stWeekday" style="height:120px"></div><div class="st-axis" id="stWeekdayAxis"></div></div>
-    </div>
+      <div class="st-tip" id="stTip" role="tooltip"></div>
     </section>
 
     <section class="tab" data-tab="gpu">
@@ -1609,27 +2034,73 @@ $("pushTest").onclick = async () => {
   finally { $("pushTest").disabled = false; }
 };
 
-// ── 통계 (2026-11-02, 2026-11-03 개편) ────────────────────────────────────────────────────────────
+// ── 통계 v2 (2026-11-23 개편) ─────────────────────────────────────────────────────────────────────
 // one read of the database function admin_stats; costs come in dollars and are shown at today's exchange rate.
-// GPU 대여 counts leave out the failed ones (user 2026-11-02); 회원 = everyone but the operating admins, deleted accounts included.
-// 기능별 사용률 (user 2026-11-03): GPU 2가지 + 카테고리 '기보'(3가지)·'학습'(4가지)의 7가지 기능만 표시.
+// GPU 대여 counts leave out the failed ones; 회원 = everyone but the operating admins (탈퇴 회원·제한 관리자 포함).
+// 기능별 사용률: GPU 2가지 + 카테고리 '기보'(3가지)·'학습'(4가지)의 9가지 기능.
 const FEATURES = {
-  gpu: ["GPU 대여 분석", "GPU · 실패 뺀 대여"],
-  device: ["내 기기로 분석", "GPU · 내 기기에서 실행"],
-  analyze: ["기보 분석", "기보 · 여러 기보 GPU 분석"],
-  library: ["기보실", "기보 · 프로·AI 기보 열람"],
-  mine: ["내 기보", "기보 · 저장한 내 기보"],
-  notes: ["오답노트", "학습 · 모은 실수 문제"],
-  research: ["내 연구", "학습 · 정석·포석 연구 저장"],
-  bank: ["문제 은행", "학습 · 푼 사활·수상전 문제"],
-  tree: ["역대 기보 수순 탐색", "학습 · 수순별 프로·AI 기보 탐색"],
+  gpu: ["GPU 대여 분석", "GPU"],
+  device: ["내 기기로 분석", "GPU"],
+  mine: ["내 기보", "기보"],
+  library: ["기보실", "기보"],
+  analyze: ["기보 분석", "기보"],
+  bank: ["문제 은행", "학습"],
+  tree: ["역대 기보 수순 탐색", "학습"],
+  notes: ["오답노트", "학습"],
+  research: ["내 연구", "학습"],
 };
-const CHARGE_STATE = { pending: "대기", approved: "승인", rejected: "거절", canceled: "취소" };
-let stData = null, stSort = { key: "topup", asc: false }, stMode = "money", stBusy = false, stEditWho = null;
+const CHARGE_STATE = { approved: "승인", pending: "대기", rejected: "거절", canceled: "취소" };
+const MODEL_COLORS = ["#a78bfa", "#38bdf8", "#34d399", "#fbbf24", "#fb7185", "#818cf8", "#2dd4bf", "#f97316"];
+let stData = null, stBusy = false, stEditWho = null;
+const stState = {
+  range: "all", metric: "charged", view: "daily", dt: "members", mf: "active", gs: "rentals",
+  sort: { key: "topup", asc: false }, selectedDay: undefined, moreOpen: false,
+  pal: (() => { try { const v = localStorage.getItem("kgv.stPal"); return ["purple", "blue", "green"].includes(v) ? v : "purple"; } catch { return "purple"; } })(),
+};
 const pct = (a, b) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : "–");
 const hrs = (h) => { const m = Math.round(Number(h || 0) * 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
-const signed = (n) => `<span class="${n < 0 ? "bad" : n > 0 ? "good" : ""}">${won(n)}</span>`;
-const day = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${d.getMonth() + 1}/${d.getDate()}`; };
+const minsFmt = (m) => { const v = Math.max(0, Math.round(Number(m || 0))); return v >= 60 ? `${Math.floor(v / 60)}시간 ${v % 60}분` : `${v}분`; };
+const signedWon = (n) => { const v = Math.round(Number(n || 0)); return `${v > 0 ? "+" : ""}${won(v)}`; };
+const signed = (n) => `<span class="${n < 0 ? "bad" : n > 0 ? "good" : ""}">${signedWon(n)}</span>`;
+const shortDate = (iso) => { if (!iso) return "–"; const p = String(iso).split("-"); return p.length === 3 ? `${Number(p[1])}/${Number(p[2])}` : String(iso); };
+const fmtIsoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const kFmt = (n) => {
+  const v = Math.round(Number(n || 0)), abs = Math.abs(v), sign = v > 0 ? "+" : v < 0 ? "-" : "";
+  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(abs >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  return `${sign}${abs}`;
+};
+const stRate = () => Number(stData?.rate) || 1500;
+const stKrw = (usd) => Math.round(Number(usd || 0) * stRate());
+
+function applyStPal(pal) {
+  stState.pal = pal;
+  const root = $("stDash");
+  root.classList.remove("st-pal-blue", "st-pal-green");
+  if (pal !== "purple") root.classList.add(`st-pal-${pal}`);
+  $("stPals").querySelectorAll("[data-pal]").forEach((b) => b.classList.toggle("on", b.dataset.pal === pal));
+  try { localStorage.setItem("kgv.stPal", pal); } catch {}
+}
+applyStPal(stState.pal);
+
+function showStTip(ev, html) {
+  const tip = $("stTip");
+  tip.innerHTML = html;
+  tip.classList.add("show");
+  const w = tip.offsetWidth || 200, half = Math.ceil(w / 2) + 10;
+  const cx = ev.clientX ?? ev.touches?.[0]?.clientX ?? window.innerWidth / 2;
+  const cy = ev.clientY ?? ev.touches?.[0]?.clientY ?? 120;
+  tip.style.left = `${Math.min(window.innerWidth - half, Math.max(half, cx))}px`;
+  tip.style.top = `${Math.max(76, cy)}px`;
+}
+function hideStTip() { $("stTip")?.classList.remove("show"); }
+addEventListener("scroll", hideStTip, { passive: true });
+
+function stSparkSvg(vals, stroke) {
+  if (!vals || vals.length < 2) return `<div class="st-hero-mid"></div>`;
+  const w = 68, h = 18, min = Math.min(...vals), max = Math.max(...vals, min + 1);
+  const pts = vals.map((v, i) => `${((i / (vals.length - 1)) * w).toFixed(1)},${(h - 2 - ((v - min) / (max - min)) * (h - 4)).toFixed(1)}`).join(" ");
+  return `<div class="st-hero-mid"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" points="${pts}"/></svg></div>`;
+}
 
 async function loadStats() {
   if (stBusy) return; stBusy = true;
@@ -1637,75 +2108,742 @@ async function loadStats() {
   try {
     const { data, error } = await sb.rpc("admin_stats");
     if (error) throw error;
-    stData = data; drawStats();
+    stData = data;
+    if (stState.selectedDay === undefined) {
+      stState.selectedDay = data.summary?.max_day_date || data.daily?.[data.daily.length - 1]?.d || null;
+    }
+    drawStats();
   } catch (e) {
     $("stAt").textContent = "";
-    $("stKpis").innerHTML = `<div class="empty">통계를 불러오지 못했습니다: ${esc(e.message || e)}${/admin_stats/.test(e.message || "") ? " (DB 함수 admin_stats가 아직 배포되지 않았습니다)" : ""}</div>`;
+    $("stHero").innerHTML = `<div class="empty" style="grid-column:1/-1;padding:24px;text-align:center">통계를 불러오지 못했습니다: ${esc(e.message || e)}${/admin_stats/.test(e.message || "") ? " (DB 함수 admin_stats가 아직 배포되지 않았습니다)" : ""}</div>`;
   } finally { stBusy = false; }
 }
 $("stReload").onclick = () => loadStats();
 
-function drawStats() {
-  const d = stData, s = d.summary, rate = Number(d.rate) || 1500, krw = (usd) => Math.round(Number(usd || 0) * rate);
-  const cost = krw(s.cost_usd), adminCost = krw(s.admin_cost_usd), margin = s.charged - cost, net = margin - adminCost;
-  const cashLeft = s.topup - cost, freeSub = s.free_topup ? ` · 서비스 ${won(s.free_topup)} 별도` : "";
-  $("stAt").textContent = `${when(d.at)} 기준 · 환율 ${rate.toLocaleString()}원/$`;
-  const card = (label, value, sub, cls = "", hl = false) => `<div class="kpi${hl ? " hl" : ""}"><span>${label}</span><b class="${cls}">${value}</b><small>${sub}</small></div>`;
-  $("stKpis").innerHTML = [
-    card("유료 충전 (매출)", won(s.topup), `${s.topups}건 · 유료 회원 ${s.paying}명${freeSub}`),
-    card("회원 사용 요금", won(s.charged), `환불 ${won(s.refund)} 뺀 값`),
-    card("회원 GPU 원가", won(cost), `Vast $${Number(s.cost_usd).toFixed(2)}`),
-    card("차익 (사용 기준)", won(margin), `마진율 ${pct(margin, s.charged)} · 원가의 ${cost > 0 ? (s.charged / cost).toFixed(2) : "–"}배`, margin < 0 ? "bad" : "good", true),
-    card("관리자 시험 원가", won(adminCost), `${s.admin_rentals}회 · ${hrs(s.admin_hours)} · 시험 빼면 ${won(net)}`),
-    card("현금 잔여 (유료 충전 − 원가)", won(cashLeft), `시험 원가까지 빼면 ${won(cashLeft - adminCost)}`, cashLeft < 0 ? "bad" : "good", true),
-    card("회원 잔액 합계", won(s.balance), `아직 안 쓴 예치금 (조정 ${won(s.adjust)})`),
-    card("회원", `${s.members}명`, `30일 가입 ${s.new30} · 30일 활동 ${s.active30} · 탈퇴 ${s.former}`),
-    card("GPU 대여", `${s.rentals.toLocaleString()}회`, `실패 ${s.failed}회 제외 · 성공률 ${pct(s.rentals, s.tries)}`),
-    card("GPU 사용 시간", hrs(s.hours), `준비 시간 중앙값 ${s.prep_median_s != null ? `${Math.floor(s.prep_median_s / 60)}분 ${s.prep_median_s % 60}초` : "–"}`),
-    card("GPU 쓴 회원", `${s.gpu_users}명`, `전체 회원의 ${pct(s.gpu_users, s.members)}`),
-    card("1회 평균", won(s.rentals ? s.charged / s.rentals : 0), `${hrs(s.rentals ? s.hours / s.rentals : 0)} · 원가 ${won(s.rentals ? cost / s.rentals : 0)}`),
+function stRangeStats() {
+  const d = stData, s = d.summary, daily = d.daily || [];
+  const lastD = daily.length ? daily[daily.length - 1].d : "";
+  const monthKey = lastD ? lastD.slice(0, 7) : (d.monthly?.[0]?.m || "");
+  if (monthKey) $("stRangeMonth").textContent = `이번 달 (${Number(monthKey.slice(5))}월)`;
+  if (stState.range === "all") {
+    const cost = stKrw(s.cost_usd), adminCost = stKrw(s.admin_cost_usd), margin = s.charged - cost;
+    const first = s.first_day || daily[0]?.d || "";
+    const label = first && lastD ? `전체 누적 (${first.replaceAll("-", ".")} ~ ${lastD.slice(5).replace("-", ".")})` : "전체 누적";
+    return {
+      label, isSub: false, days: daily,
+      topup: Number(s.topup || 0), freeTopup: Number(s.free_topup || 0),
+      charged: Number(s.charged || 0), cost, costUsd: Number(s.cost_usd || 0),
+      margin, cashLeft: Number(s.topup || 0) - cost, adminCost,
+      balance: Number(s.balance || 0), members: Number(s.members || 0), paying: Number(s.paying || 0),
+      rentals: Number(s.rentals || 0), failed: Number(s.failed || 0), hours: Number(s.hours || 0),
+    };
+  }
+  let sub = daily, label = "";
+  if (stState.range === "month") {
+    sub = daily.filter((x) => x.d.startsWith(monthKey));
+    label = sub.length ? `이번 달 (${sub[0].d.replaceAll("-", ".")} ~ ${sub[sub.length - 1].d.slice(5).replace("-", ".")})` : "이번 달";
+  } else if (stState.range === "30d") {
+    sub = daily.slice(-30);
+    label = sub.length ? `최근 30일 (${shortDate(sub[0].d)} ~ ${shortDate(sub[sub.length - 1].d)})` : "최근 30일";
+  } else {
+    sub = daily.slice(-7);
+    label = sub.length ? `최근 7일 (${shortDate(sub[0].d)} ~ ${shortDate(sub[sub.length - 1].d)})` : "최근 7일";
+  }
+  const sum = (f) => sub.reduce((a, x) => a + Number(f(x) || 0), 0);
+  const topup = sum((x) => x.topup), freeTopup = sum((x) => x.free_topup), charged = sum((x) => x.charged);
+  const costUsd = sum((x) => x.cost_usd), cost = stKrw(costUsd), adminCost = stKrw(sum((x) => x.admin_cost_usd));
+  const rentals = sum((x) => x.rentals), failed = sum((x) => x.failed), hours = sum((x) => x.hours), signups = sum((x) => x.signups);
+  return {
+    label, isSub: true, days: sub,
+    topup, freeTopup, charged, cost, costUsd, margin: charged - cost, cashLeft: topup - cost, adminCost,
+    balance: Number(s.balance || 0), members: signups, paying: Number(s.paying || 0),
+    rentals, failed, hours,
+  };
+}
+
+function drawStHero() {
+  const s = stData.summary, r = stRangeStats(), rate = stRate();
+  $("stPeriodDesc").textContent = `${r.label} · 환율 ${rate.toLocaleString()}원/$`;
+  const recent = r.days.slice(-14);
+  const paidRefund = Number(s.paid_refund || 0), freeReclaim = Number(s.free_reclaim || 0);
+  const grossPaid = Number(s.gross_paid_topup ?? (Number(s.topup || 0) + paidRefund));
+  const expectedBal = Number(s.topup || 0) + Number(s.free_topup || 0) + Number(s.adjust || 0) + paidRefund - (Number(s.usage || 0) - Number(s.refund || 0));
+  const balDiff = Number(s.balance || 0) - expectedBal;
+  const balBadge = balDiff === 0
+    ? `<div class="st-hero-mid"><span class="st-hero-tag st-good">예치금 100% 일치</span></div>`
+    : `<div class="st-hero-mid"><span class="st-hero-tag st-warn">원장 차이 ${signedWon(balDiff)}</span></div>`;
+
+  const cells = [
+    { val: won(r.topup), lbl: "순 유료 매출", sub: `서비스 지급 ${won(r.freeTopup)}`, mid: stSparkSvg(recent.map((x) => x.topup), "#a78bfa") },
+    { val: signedWon(r.margin), lbl: "사용 순차익", cls: r.margin >= 0 ? "st-good" : "st-bad",
+      sub: `${r.cost > 0 ? (r.charged / r.cost).toFixed(2) : "–"}배 · 요금 ${won(r.charged)}`, mid: stSparkSvg(recent.map((x) => x.charged - stKrw(x.cost_usd)), "#34d399") },
+    { val: signedWon(r.cashLeft), lbl: "현금 잔여", cls: r.cashLeft < 0 ? "st-bad" : "",
+      sub: `매출 − 원가 ${won(r.cost)} · 시험 후 ${won(r.cashLeft - r.adminCost)}`, mid: stSparkSvg(recent.map((x) => x.charged), "#38bdf8") },
+    { val: won(r.balance), lbl: "회원 잔액 합계", sub: r.isSub ? `기간 신규 가입 +${r.members}명` : `${r.members}명 · 유료 ${r.paying}명`, mid: balBadge },
+    { val: `${r.rentals.toLocaleString()}회`, lbl: "GPU 대여", sub: `${hrs(r.hours)} · 실패 ${r.failed}`, mid: stSparkSvg(recent.map((x) => x.rentals), "#fbbf24") },
+  ];
+  $("stHero").innerHTML = cells.map((c) => `
+    <div class="st-hero-cell">
+      <div>
+        <div class="st-hero-val ${c.cls || ""}">${c.val}</div>
+        <div class="st-hero-lbl">${c.lbl}</div>
+      </div>
+      ${c.mid}
+      <div class="st-hero-sub" title="${esc(c.sub)}">${c.sub}</div>
+    </div>`).join("");
+
+  const prepTxt = s.prep_median_s != null ? `${Math.floor(s.prep_median_s / 60)}분 ${s.prep_median_s % 60}초` : "–";
+  const curStreak = Number(s.current_streak || 0), longStreak = Number(s.longest_streak || 0);
+  const maxDayTxt = s.max_day_date ? `${shortDate(s.max_day_date)} (${won(s.max_day_charged)})` : "–";
+  $("stStreakList").innerHTML = [
+    `<span><span class="muted">최장 연속 가동</span><b>${longStreak}일</b></span>`,
+    `<span><span class="muted">현재 연속</span><b class="${curStreak > 0 ? "st-accent" : ""}">${curStreak > 0 ? `${curStreak}일 진행 중` : "0일"}</b></span>`,
+    `<span><span class="muted">최장 단일 세션</span><b>${minsFmt(s.max_session_min)}</b></span>`,
+    `<span><span class="muted">준비 중앙값</span><b>${prepTxt}</b></span>`,
+    `<span><span class="muted">최고 사용일</span><b>${maxDayTxt}</b></span>`,
   ].join("");
-  $("stNote").textContent = `회원 = 운영 관리자를 뺀 계정(탈퇴 회원 기록 포함). GPU 대여 횟수는 실패한 ${s.failed}회를 뺀 값입니다(실패 대여 원가 ${won(krw(s.fail_cost_usd))}는 원가에 포함). ` +
-    `유료 충전(${won(s.topup)}, ${s.paying}명)만 매출·현금 잔여에 넣으며, 서비스 충전(${won(s.free_topup || 0)}, ${s.free_users || 0}명)은 매출에서 제외되어 따로 표시됩니다(아래 '회원별 이용 현황'의 '금액 설정' 버튼으로 그 자리에서 직접 조정 가능).`;
 
-  $("stMonthly").innerHTML = d.monthly.map((m) => {
-    const c = krw(m.cost_usd), g = m.charged - c;
-    return `<tr><td><b>${esc(m.m)}</b></td><td class="num">${m.signups}</td><td class="num">${won(m.topup)}${m.free_topup ? `<span class="sub">서비스 ${won(m.free_topup)}</span>` : ""}</td>` +
-      `<td class="num">${m.rentals}<span class="sub">실패 ${m.failed}</span></td><td class="num">${m.gpu_users}명</td><td class="num">${hrs(m.hours)}</td>` +
-      `<td class="num">${won(m.charged)}</td><td class="num">${won(c)}</td><td class="num">${signed(g)}</td><td class="num">${pct(g, m.charged)}</td>` +
-      `<td class="num muted">${won(krw(m.admin_cost_usd))}</td></tr>`;
-  }).join("") || `<tr><td colspan="11" class="empty">기록 없음</td></tr>`;
+  const avg = r.rentals ? Math.round(r.charged / r.rentals) : 0;
+  const more = [
+    ["총 유료 입금", won(grossPaid), paidRefund ? `환불 −${won(paidRefund)}` : `${s.topups || 0}건`],
+    ["서비스 지급 (100원 단위)", won(s.free_topup || 0), freeReclaim ? `미사용 회수 −${won(freeReclaim)}` : `${s.free_users || 0}명`],
+    ["회원 GPU 원가", won(r.cost), `Vast $${r.costUsd.toFixed(2)}`],
+    ["관리자 시험 원가", won(r.adminCost), `${s.admin_rentals || 0}회 · ${hrs(s.admin_hours)}`],
+    ["1회 평균 사용", won(avg), `${hrs(r.rentals ? r.hours / r.rentals : 0)} · 원가 ${won(r.rentals ? r.cost / r.rentals : 0)}`],
+    ["최근 30일 활동", `${s.active30 || 0}명`, `30일 가입 +${s.new30 || 0}명${s.former ? ` · 탈퇴 ${s.former}명` : ""}`],
+    ["실패 대여 원가", won(stKrw(s.fail_cost_usd)), `전체 원가에 포함${s.no_cost ? ` · 미집계 ${s.no_cost}건` : ""}`],
+    ["저장 기보 · 오답노트", `${Number(s.kifu || 0).toLocaleString()}판`, `오답노트 ${Number(s.notes || 0).toLocaleString()} · 내 기기 ${Number(s.device_runs || 0).toLocaleString()}`],
+  ];
+  $("stMoreGrid").innerHTML = more.map(([k, v, sub]) => `<div class="st-more-item"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join("");
+}
 
-  drawDaily();
+const ST_METRICS = {
+  charged: { label: "사용 요금", get: (x) => Number(x.charged || 0), fmt: (v) => won(v) },
+  margin:  { label: "순차익",   get: (x) => Number(x.charged || 0) - stKrw(x.cost_usd), fmt: (v) => signedWon(v) },
+  rentals: { label: "GPU 대여", get: (x) => Number(x.rentals || 0), fmt: (v) => `${v}회` },
+  topup:   { label: "유료 충전", get: (x) => Number(x.topup || 0), fmt: (v) => won(v) },
+  users:   { label: "활동 회원", get: (x) => Number(x.users || 0), fmt: (v) => `${v}명` },
+};
 
-  const total = s.members || 1;
-  $("stFeatures").innerHTML = d.features.map((f) => {
-    const [label, unit] = FEATURES[f.k] || [f.k, ""], w = f.users > 0 ? Math.max(2, Math.round((f.users / total) * 100)) : 0;
-    return `<tr><td><b>${esc(label)}</b><span class="sub">${esc(unit)}</span></td>` +
-      `<td><div class="st-meter"><i style="width:${Math.min(100, w)}px"></i><span>${f.users}명 · ${pct(f.users, total)}</span></div></td>` +
-      `<td class="num">${f.count.toLocaleString()}</td><td class="num">${f.users30}명</td><td class="num">${f.count30.toLocaleString()}</td></tr>`;
-  }).join("") || `<tr><td colspan="5" class="empty">기록 없음</td></tr>`;
+function drawStHeatmap() {
+  const daily = stData.daily || [], meta = ST_METRICS[stState.metric];
+  const byDate = new Map(daily.map((x) => [x.d, x]));
+  const vals = daily.map((x) => Math.max(0, meta.get(x))).filter((v) => v > 0);
+  const maxV = Math.max(1, ...vals);
+  const endIso = daily.length ? daily[daily.length - 1].d : fmtIsoLocal(new Date());
+  const [ey, em, ed] = endIso.split("-").map(Number);
+  const end = new Date(ey, em - 1, ed);
+  const endSun = new Date(ey, em - 1, ed - end.getDay());
+  const startSun = new Date(endSun.getFullYear(), endSun.getMonth(), endSun.getDate() - 51 * 7);
 
+  const cols = [], monthLabels = new Array(52).fill("");
+  let prevMonth = -1;
+  for (let w = 0; w < 52; w++) {
+    const colDate = new Date(startSun.getFullYear(), startSun.getMonth(), startSun.getDate() + w * 7);
+    const weekEnd = new Date(colDate.getFullYear(), colDate.getMonth(), colDate.getDate() + 6);
+    const m = weekEnd.getMonth();
+    if (m !== prevMonth) {
+      if (w > 0 || weekEnd.getDate() <= 14) monthLabels[w] = `${m + 1}월`;
+      prevMonth = m;
+    }
+    let cells = "";
+    for (let dow = 0; dow < 7; dow++) {
+      const cur = new Date(colDate.getFullYear(), colDate.getMonth(), colDate.getDate() + dow);
+      const iso = fmtIsoLocal(cur), rec = byDate.get(iso), isFut = cur > end;
+      if (!rec || isFut) {
+        cells += `<div class="st-dot st-d0 ${isFut ? "fut" : "pad"}"></div>`;
+      } else {
+        const raw = meta.get(rec);
+        let lv = 0;
+        if (raw > 0) { const ratio = raw / maxV; lv = ratio > 0.68 ? 4 : ratio > 0.36 ? 3 : ratio > 0.13 ? 2 : 1; }
+        const negCls = raw < 0 ? " st-dneg" : "";
+        const selCls = stState.selectedDay === iso ? " sel" : "";
+        cells += `<div class="st-dot st-d${lv}${negCls}${selCls}" data-day="${iso}"></div>`;
+      }
+    }
+    cols.push(`<div class="st-hm-col">${cells}</div>`);
+  }
+  $("stHmGrid").innerHTML = cols.join("");
+  $("stHmMonths").innerHTML = monthLabels.map((m) => `<span>${m}</span>`).join("");
+  const hmScroll = $("stHmGrid").closest(".st-hm-scroll");
+  if (hmScroll && !hmScroll.dataset.scrolled) {
+    requestAnimationFrame(() => {
+      if (hmScroll.scrollWidth > hmScroll.clientWidth) {
+        hmScroll.scrollLeft = hmScroll.scrollWidth;
+        hmScroll.dataset.scrolled = "1";
+      }
+    });
+  }
+  $("stHmHint").textContent = stState.metric === "margin"
+    ? "칸을 클릭하면 상세가 펼쳐집니다 (빨간 칸 = 무료 개방·적자일)."
+    : "칸을 클릭하면 그날의 매출·원가·대여 상세가 아래에 펼쳐집니다.";
+
+  $("stHmGrid").querySelectorAll("[data-day]").forEach((el) => {
+    const iso = el.dataset.day, rec = byDate.get(iso);
+    const [y, mo, da] = iso.split("-").map(Number);
+    const wd = "일월화수목금토"[new Date(y, mo - 1, da).getDay()];
+    const cost = stKrw(rec.cost_usd), margin = Number(rec.charged || 0) - cost;
+    el.addEventListener("mousemove", (ev) => showStTip(ev,
+      `<div style="font-weight:700;margin-bottom:2px">${mo}월 ${da}일 (${wd})</div>` +
+      `<div>${meta.label}: <b>${meta.fmt(meta.get(rec))}</b></div>` +
+      `<div style="opacity:.78;font-size:11px;margin-top:2px">대여 ${rec.rentals}회 · ${hrs(rec.hours)} · 차익 ${signedWon(margin)}</div>`
+    ));
+    el.addEventListener("mouseleave", hideStTip);
+    el.addEventListener("click", () => {
+      stState.selectedDay = stState.selectedDay === iso ? null : iso;
+      drawStHeatmap();
+    });
+  });
+  drawStDrill();
+}
+
+function drawStDrill() {
+  const wrap = $("stDayDrill"), daily = stData.daily || [];
+  if (!stState.selectedDay) { wrap.classList.add("hidden"); return; }
+  const rec = daily.find((x) => x.d === stState.selectedDay);
+  if (!rec) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const [y, mo, da] = rec.d.split("-").map(Number);
+  const wd = "일월화수목금토"[new Date(y, mo - 1, da).getDay()];
+  const cost = stKrw(rec.cost_usd), margin = Number(rec.charged || 0) - cost;
+  $("stDrillDate").textContent = `${y}년 ${mo}월 ${da}일 (${wd}) 상세`;
+  $("stDrillBadge").textContent = rec.d === stData.summary?.max_day_date ? "최고 사용일" : margin < 0 ? "무료 개방/적자일" : `${hrs(rec.hours)} 사용`;
+  const items = [
+    ["사용 요금", won(rec.charged)],
+    ["GPU 원가", won(cost)],
+    ["순차익", signedWon(margin), margin >= 0 ? "st-good" : "st-bad"],
+    ["GPU 대여", `${rec.rentals}회 (실패 ${rec.failed})`],
+    ["충전 · 서비스", `${rec.topup ? won(rec.topup) : "0원"}${rec.free_topup ? ` · 서 ${won(rec.free_topup)}` : ""}`],
+    ["활동 · 가입", `${rec.users}명 · +${rec.signups}명`],
+  ];
+  $("stDrillStats").innerHTML = items.map(([k, v, cls]) => `<div><div class="k">${k}</div><div class="v ${cls || ""}">${v}</div></div>`).join("");
+}
+
+function drawStWeekly() {
+  const daily = stData.daily || [];
+  if (!daily.length) { $("stWeeklyChart").innerHTML = `<div class="empty">기록 없음</div>`; $("stWeeklyAxis").innerHTML = ""; $("stWeeklySummary").innerHTML = ""; return; }
+  const recent = daily.slice(-84); // 최근 최대 12주
+  const weeks = [];
+  for (let i = recent.length; i > 0; i -= 7) {
+    const chunk = recent.slice(Math.max(0, i - 7), i);
+    const ch = chunk.reduce((a, x) => a + Number(x.charged || 0), 0);
+    const cost = stKrw(chunk.reduce((a, x) => a + Number(x.cost_usd || 0), 0));
+    const r = chunk.reduce((a, x) => a + Number(x.rentals || 0), 0);
+    const tp = chunk.reduce((a, x) => a + Number(x.topup || 0), 0);
+    weeks.unshift({ label: `${shortDate(chunk[0].d)}~`, full: `${shortDate(chunk[0].d)} ~ ${shortDate(chunk[chunk.length - 1].d)} (${chunk.length}일)`, ch, cost, margin: ch - cost, r, tp });
+  }
+  const maxV = Math.max(1, ...weeks.map((w) => Math.max(w.ch, w.cost)));
+  $("stWeeklyChart").innerHTML = weeks.map((w, idx) => {
+    const hCh = Math.max(3, Math.round((w.ch / maxV) * 100));
+    const hCo = Math.max(3, Math.round((w.cost / maxV) * 100));
+    return `<div class="st-wcol" data-widx="${idx}">` +
+      `<div class="st-wcol-lbl ${w.margin >= 0 ? "st-good" : "st-bad"}">${kFmt(w.margin)}</div>` +
+      `<div class="st-wbars"><i class="ch" style="height:${hCh}%"></i><i class="co" style="height:${hCo}%"></i></div>` +
+      `</div>`;
+  }).join("");
+  $("stWeeklyAxis").innerHTML = weeks.map((w) => `<span>${w.label}</span>`).join("");
+  const last = weeks[weeks.length - 1], prev = weeks[weeks.length - 2];
+  $("stWeeklySummary").innerHTML =
+    `<div class="st-swatches">` +
+    `<span class="st-sw"><i style="background:var(--st-grad)"></i>주간 사용 요금</span>` +
+    `<span class="st-sw"><i style="background:var(--st-rose-soft)"></i>주간 GPU 원가</span>` +
+    `</div>` +
+    `<span>최근 7일 차익 <b class="${last.margin >= 0 ? "st-good" : "st-bad"}">${signedWon(last.margin)}</b>${prev ? ` · 직전 7일 <b>${signedWon(prev.margin)}</b>` : ""}</span>`;
+  $("stWeeklyChart").querySelectorAll("[data-widx]").forEach((el) => {
+    const w = weeks[Number(el.dataset.widx)];
+    el.addEventListener("mousemove", (ev) => showStTip(ev,
+      `<div style="font-weight:700;margin-bottom:2px">${w.full}</div>` +
+      `<div>사용 요금: <b>${won(w.ch)}</b> · 원가: <b>${won(w.cost)}</b></div>` +
+      `<div style="margin-top:2px">주간 차익: <b style="color:${w.margin >= 0 ? "#34d399" : "#fb7185"}">${signedWon(w.margin)}</b> · 대여 ${w.r}회</div>`
+    ));
+    el.addEventListener("mouseleave", hideStTip);
+  });
+}
+
+function drawStCumulative() {
+  const daily = stData.daily || [];
+  if (daily.length < 2) { $("stCumWrap").innerHTML = `<div class="empty">누적 그래프를 그릴 기록이 부족합니다.</div>`; $("stCumLegend").innerHTML = ""; return; }
+  let cTopup = 0, cCharged = 0, cCost = 0;
+  const pts = daily.map((x) => {
+    cTopup += Number(x.topup || 0); cCharged += Number(x.charged || 0); cCost += stKrw(x.cost_usd);
+    return { d: x.d, topup: cTopup, charged: cCharged, cost: cCost, margin: cCharged - cCost };
+  });
+  const W = 880, H = 204, P = 16;
+  const maxY = Math.max(1, ...pts.map((p) => Math.max(p.topup, p.charged, p.cost)));
+  const toX = (i) => P + (i / (pts.length - 1)) * (W - P * 2);
+  const toY = (v) => H - P - (v / maxY) * (H - P * 2);
+  const path = (k) => pts.map((p, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(p[k]).toFixed(1)}`).join(" ");
+  const area = (k) => `${path(k)} L${toX(pts.length - 1).toFixed(1)},${H - P} L${P},${H - P} Z`;
+  $("stCumWrap").innerHTML = `
+    <svg id="stCumSvg" viewBox="0 0 ${W} ${H}" class="st-cum-svg">
+      <defs>
+        <linearGradient id="stGTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a78bfa" stop-opacity=".28"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/></linearGradient>
+        <linearGradient id="stGCh" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#38bdf8" stop-opacity=".22"/><stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/></linearGradient>
+      </defs>
+      <line x1="${P}" y1="${toY(maxY * 0.5).toFixed(1)}" x2="${W - P}" y2="${toY(maxY * 0.5).toFixed(1)}" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="3 3"/>
+      <path d="${area("topup")}" fill="url(#stGTop)"/>
+      <path d="${path("topup")}" fill="none" stroke="#a78bfa" stroke-width="2.4"/>
+      <path d="${area("charged")}" fill="url(#stGCh)"/>
+      <path d="${path("charged")}" fill="none" stroke="#38bdf8" stroke-width="2"/>
+      <path d="${path("cost")}" fill="none" stroke="#fb7185" stroke-width="1.6" stroke-dasharray="4 3"/>
+      <line id="stCumLine" x1="0" y1="${P}" x2="0" y2="${H - P}" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="2 2" visibility="hidden"/>
+      <circle id="stCumDot1" r="4" fill="#a78bfa" stroke="var(--panel)" stroke-width="1.6" visibility="hidden"/>
+      <circle id="stCumDot2" r="3.5" fill="#38bdf8" stroke="var(--panel)" stroke-width="1.6" visibility="hidden"/>
+    </svg>`;
+  const svg = $("stCumSvg");
+  const move = (ev) => {
+    const rect = svg.getBoundingClientRect(); if (!rect.width) return;
+    const cx = ev.clientX ?? ev.touches?.[0]?.clientX; if (cx == null) return;
+    const rx = ((cx - rect.left) / rect.width) * W;
+    const idx = Math.max(0, Math.min(pts.length - 1, Math.round(((rx - P) / (W - P * 2)) * (pts.length - 1))));
+    const p = pts[idx], x = toX(idx);
+    $("stCumLine").setAttribute("x1", x); $("stCumLine").setAttribute("x2", x); $("stCumLine").setAttribute("visibility", "visible");
+    $("stCumDot1").setAttribute("cx", x); $("stCumDot1").setAttribute("cy", toY(p.topup)); $("stCumDot1").setAttribute("visibility", "visible");
+    $("stCumDot2").setAttribute("cx", x); $("stCumDot2").setAttribute("cy", toY(p.charged)); $("stCumDot2").setAttribute("visibility", "visible");
+    showStTip(ev,
+      `<div style="font-weight:700;margin-bottom:2px">${p.d} 누적</div>` +
+      `<div>유료 매출: <b style="color:#c4b5fd">${won(p.topup)}</b></div>` +
+      `<div>사용 요금: <b style="color:#7dd3fc">${won(p.charged)}</b> · 원가 ${won(p.cost)}</div>` +
+      `<div>누적 차익: <b style="color:${p.margin >= 0 ? "#34d399" : "#fb7185"}">${signedWon(p.margin)}</b></div>`
+    );
+  };
+  const leave = () => {
+    ["stCumLine", "stCumDot1", "stCumDot2"].forEach((id) => $(id)?.setAttribute("visibility", "hidden"));
+    hideStTip();
+  };
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerleave", leave);
+  svg.addEventListener("pointercancel", leave);
+
+  const last = pts[pts.length - 1];
+  $("stCumLegend").innerHTML =
+    `<div class="st-swatches">` +
+    `<span class="st-sw"><i style="background:#a78bfa;border-radius:999px"></i>누적 유료 매출 <b>${won(last.topup)}</b></span>` +
+    `<span class="st-sw"><i style="background:#38bdf8;border-radius:999px"></i>누적 사용 요금 <b>${won(last.charged)}</b></span>` +
+    `<span class="st-sw"><i class="line" style="background:#fb7185"></i>누적 GPU 원가 <b>${won(last.cost)}</b></span>` +
+    `</div><span>그래프 위를 움직여 일자별 누적 확인</span>`;
+}
+
+function drawStActivity() {
+  $("stViewDaily").classList.toggle("hidden", stState.view !== "daily");
+  $("stViewWeekly").classList.toggle("hidden", stState.view !== "weekly");
+  $("stViewCum").classList.toggle("hidden", stState.view !== "cumulative");
+  $("stMetricTabs").classList.toggle("dim", stState.view !== "daily");
+  if (stState.view === "daily") drawStHeatmap();
+  else if (stState.view === "weekly") drawStWeekly();
+  else drawStCumulative();
+}
+
+function drawStMoneyDonut() {
+  const s = stData.summary, cost = stKrw(s.cost_usd), margin = Number(s.charged || 0) - cost;
+  const paidRefund = Number(s.paid_refund || 0), freeReclaim = Number(s.free_reclaim || 0);
+  const grossPaid = Number(s.gross_paid_topup ?? (Number(s.topup || 0) + paidRefund));
+  const netFree = Math.max(0, Number(s.free_topup || 0) - freeReclaim);
+  const expectedBal = Number(s.topup || 0) + Number(s.free_topup || 0) + Number(s.adjust || 0) + paidRefund - (Number(s.usage || 0) - Number(s.refund || 0));
+  const balDiff = Number(s.balance || 0) - expectedBal;
+
+  const badge = $("stMoneyMarginBadge");
+  badge.textContent = `순차익 ${signedWon(margin)}`;
+  badge.className = `st-card-badge ${margin >= 0 ? "st-good" : "st-bad"}`;
+
+  const segs = margin >= 0 ? [
+    { label: "회원 미사용 잔액", val: Math.max(0, Number(s.balance || 0)), color: "#38bdf8", desc: "예치금 (회원 소유)" },
+    { label: "회원 GPU 원가", val: Math.max(0, cost), color: "#fb7185", desc: `Vast $${Number(s.cost_usd || 0).toFixed(2)} 지출` },
+    { label: "사용 순차익", val: margin, color: "#34d399", desc: `마진율 ${pct(margin, s.charged)}` },
+  ] : [
+    { label: "회원 미사용 잔액", val: Math.max(0, Number(s.balance || 0)), color: "#38bdf8", desc: "예치금 (회원 소유)" },
+    { label: "회원 사용 요금", val: Math.max(0, Number(s.charged || 0)), color: "#a78bfa", desc: `GPU 원가 ${won(cost)} (적자 ${won(margin)})` },
+  ];
+  const total = Math.max(1, segs.reduce((a, x) => a + x.val, 0));
+  const R = 60, C = 2 * Math.PI * R;
+  let offset = 0;
+  const centerDefault = `<div class="k">총 운용 자금</div><div class="v">${won(segs.reduce((a, x) => a + x.val, 0))}</div>` +
+    `<div class="s ${balDiff === 0 ? "st-good" : "st-warn"}">${balDiff === 0 ? "오차 0원" : `차이 ${signedWon(balDiff)}`}</div>`;
+
+  $("stMoneyDonut").innerHTML = `
+    <svg viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".08" stroke-width="18"/>
+      ${segs.map((x, i) => {
+        const dash = (x.val / total) * C, gap = Math.max(0, dash - 3);
+        const el = `<circle class="st-donut-seg" data-dseg="${i}" cx="80" cy="80" r="${R}" fill="none" stroke="${x.color}" stroke-width="18" stroke-dasharray="${gap.toFixed(1)} ${(C - gap).toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}"/>`;
+        offset += dash; return el;
+      }).join("")}
+    </svg>
+    <div class="st-donut-center" id="stDonutCenter">${centerDefault}</div>`;
+
+  $("stMoneyLegend").innerHTML = segs.map((x, i) => `
+    <div class="st-leg-row" data-dleg="${i}">
+      <div class="st-leg-l"><i style="background:${x.color}"></i><div style="min-width:0"><div class="t">${x.label}</div><div class="d">${x.desc}</div></div></div>
+      <div class="st-leg-r"><div class="v">${won(x.val)}</div><div class="p">${pct(x.val, total)}</div></div>
+    </div>`).join("");
+
+  const hl = (idx) => {
+    const c = $("stDonutCenter");
+    if (idx == null) {
+      c.innerHTML = centerDefault;
+      $("stMoneyDonut").querySelectorAll("[data-dseg]").forEach((el) => { el.setAttribute("stroke-width", "18"); el.style.opacity = "1"; });
+      return;
+    }
+    const x = segs[idx];
+    c.innerHTML = `<div class="k">${x.label}</div><div class="v">${won(x.val)}</div><div class="s" style="color:${x.color}">${pct(x.val, total)}</div>`;
+    $("stMoneyDonut").querySelectorAll("[data-dseg]").forEach((el, k) => {
+      el.setAttribute("stroke-width", k === idx ? "22" : "16"); el.style.opacity = k === idx ? "1" : ".38";
+    });
+  };
+  $("stMoneyDonut").querySelectorAll("[data-dseg]").forEach((el) => {
+    el.addEventListener("mouseenter", () => hl(Number(el.dataset.dseg)));
+    el.addEventListener("mouseleave", () => hl(null));
+  });
+  $("stMoneyLegend").querySelectorAll("[data-dleg]").forEach((el) => {
+    el.addEventListener("mouseenter", () => hl(Number(el.dataset.dleg)));
+    el.addEventListener("mouseleave", () => hl(null));
+  });
+
+  $("stMoneyReceipt").innerHTML = `
+    <div>
+      <div class="k">유료 충전 (매출)</div>
+      <div class="v">${won(grossPaid)}${paidRefund ? ` <span class="st-bad" style="font-weight:500">− 환불 ${won(paidRefund)}</span>` : ""}</div>
+      <div class="s">순 유료 매출 <b>${won(s.topup)}</b></div>
+    </div>
+    <div>
+      <div class="k">서비스 지급 (100원 단위)</div>
+      <div class="v">${won(s.free_topup || 0)}${freeReclaim ? ` <span class="st-warn" style="font-weight:500">− 회수 ${won(freeReclaim)}</span>` : ""}</div>
+      <div class="s">실제 제공분 <b>${won(netFree)}</b></div>
+    </div>`;
+}
+
+function drawStFunnel() {
+  const f = stData.funnel || {}, s = stData.summary;
+  const total = Number(f.total_members ?? (Number(s.members || 0) + Number(s.former || 0)));
+  const anyF = Number(f.any_feature_users ?? s.active30 ?? 0);
+  const gpuU = Number(f.gpu_users ?? s.gpu_users ?? 0);
+  const repU = Number(f.repeat_gpu_users ?? 0);
+  const payU = Number(f.paying_users ?? s.paying ?? 0);
+  const steps = [
+    { label: "전체 가입", n: total, color: "#818cf8" },
+    { label: "기능 1회+ 이용", n: anyF, color: "#9466ff" },
+    { label: "GPU 대여 경험", n: gpuU, color: "#a78bfa" },
+    { label: "GPU 재이용 (3회+)", n: repU, color: "#38bdf8" },
+    { label: "유료 결제 회원", n: payU, color: "#34d399" },
+  ];
+  const maxN = Math.max(1, total);
+  $("stFunnelBadge").textContent = `유료 전환 ${pct(payU, total)}`;
+  $("stFunnelWrap").innerHTML = steps.map((st, i) => {
+    const w = st.n > 0 ? Math.max(8, Math.round((st.n / maxN) * 100)) : 0;
+    const conv = i > 0 ? `이전 단계 대비 ${pct(st.n, steps[i - 1].n)}` : "전체 기준";
+    return `<div>` +
+      `<div class="st-fstep-top"><div class="st-fstep-l"><span class="st-fnum">${i + 1}</span><span>${st.label}</span></div>` +
+      `<div><b>${st.n}명</b> <span class="muted">(${pct(st.n, total)})</span></div></div>` +
+      `<div class="st-track"><div class="st-fill" style="width:${w}%;background:${st.color}"></div></div>` +
+      `<div class="st-fconv">${conv}</div></div>`;
+  }).join("");
+  $("stFunnelFoot").innerHTML =
+    `<span>GPU 체험 중 재이용(3회+) <b>${pct(repU, gpuU)}</b></span>` +
+    `<span>GPU 체험 중 유료 결제 <b>${pct(payU, gpuU)}</b></span>`;
+}
+
+function drawStPeakMatrix() {
+  const raw = stData.matrix || [], days = ["월", "화", "수", "목", "금", "토", "일"];
+  const map = new Map();
+  let maxN = 1, peakD = 1, peakH = 0, peakVal = 0;
+  for (const r of raw) {
+    const n = Number(r.n || 0);
+    map.set(`${r.d}-${r.h}`, n);
+    if (n > maxN) maxN = n;
+    if (n > peakVal) { peakVal = n; peakD = r.d; peakH = r.h; }
+  }
+  $("stPeakBadge").textContent = peakVal > 0 ? `피크 · ${days[peakD - 1]} ${peakH}시 (${peakVal}회)` : "기록 없음";
+  const head = `<div class="st-mx-row st-mx-head"><span></span>${Array.from({ length: 24 }, (_, h) => `<span>${h % 3 === 0 ? h : ""}</span>`).join("")}</div>`;
+  const body = days.map((dn, idx) => {
+    const dow = idx + 1;
+    const cells = Array.from({ length: 24 }, (_, h) => {
+      const n = map.get(`${dow}-${h}`) || 0;
+      const lv = n === 0 ? 0 : n / maxN > 0.7 ? 4 : n / maxN > 0.45 ? 3 : n / maxN > 0.2 ? 2 : 1;
+      return `<div class="st-mx-cell st-d${lv}" data-mx="${dn}|${h}|${n}"></div>`;
+    }).join("");
+    return `<div class="st-mx-row"><span class="st-mx-day">${dn}</span>${cells}</div>`;
+  }).join("");
+  $("stPeakMatrix").innerHTML = head + body;
+  $("stPeakMatrix").querySelectorAll("[data-mx]").forEach((el) => {
+    const [dn, h, n] = el.dataset.mx.split("|");
+    el.addEventListener("mousemove", (ev) => showStTip(ev, `<b>${dn}요일 ${h}시대</b> · GPU 대여 <b>${n}회</b>`));
+    el.addEventListener("mouseleave", hideStTip);
+  });
+  const wdArr = stData.weekday || [], hrArr = stData.hourly || [];
+  let topWd = 0, topWdV = 0, topHr = 0, topHrV = 0;
+  wdArr.forEach((v, i) => { if (v > topWdV) { topWdV = v; topWd = i; } });
+  hrArr.forEach((v, i) => { if (v > topHrV) { topHrV = v; topHr = i; } });
+  $("stPeakFoot").innerHTML =
+    `<span>최다 요일: <b>${topWdV ? `${days[topWd]}요일 ${topWdV}회` : "–"}</b> · 최다 시간: <b>${topHrV ? `${topHr}시 ${topHrV}회` : "–"}</b></span>` +
+    `<span>한국 시간(KST)</span>`;
+}
+
+function drawStBubbleMap() {
+  const gpus = (stData.gpus || []).filter((g) => Number(g.rentals || 0) > 0 || Number(g.cost_usd || 0) > 0);
+  if (!gpus.length) { $("stBubbleBadge").textContent = ""; $("stBubbleWrap").innerHTML = `<div class="empty">기록 없음</div>`; return; }
+  const items = gpus.slice(0, 15).map((g) => {
+    const cost = stKrw(g.cost_usd);
+    return { ...g, cost, margin: Number(g.charged || 0) - cost };
+  });
+  const best = [...items].sort((a, b) => b.margin - a.margin)[0];
+  $("stBubbleBadge").textContent = best && best.margin > 0 ? `효자 1위 · ${best.gpu}` : "";
+  const labelSet = new Set();
+  [...items].sort((a, b) => b.margin - a.margin).slice(0, 3).forEach((g) => labelSet.add(g.gpu));
+  [...items].sort((a, b) => b.rentals - a.rentals).slice(0, 2).forEach((g) => labelSet.add(g.gpu));
+  [...items].filter((g) => g.margin < 0).sort((a, b) => a.margin - b.margin).slice(0, 2).forEach((g) => labelSet.add(g.gpu));
+
+  const W = 440, H = 205, PL = 46, PR = 20, PT = 20, PB = 26;
+  const maxX = Math.max(1, ...items.map((g) => Number(g.rentals || 0))) * 1.1;
+  const minY = Math.min(-1000, ...items.map((g) => g.margin * 1.15));
+  const maxY = Math.max(1000, ...items.map((g) => g.margin * 1.15));
+  const maxH = Math.max(0.1, ...items.map((g) => Number(g.hours || 0)));
+  const sx = (x) => PL + (Math.sqrt(Math.max(0, x)) / Math.sqrt(maxX)) * (W - PL - PR);
+  const sy = (y) => H - PB - ((y - minY) / Math.max(1, maxY - minY)) * (H - PT - PB);
+  const zeroY = sy(0);
+
+  const circles = items.map((g, i) => {
+    const cx = sx(g.rentals), cy = sy(g.margin);
+    const r = Math.max(5.5, Math.min(20, 4.5 + Math.sqrt(Math.max(0, g.hours) / maxH) * 15.5));
+    const fill = g.margin >= 0 ? "#a78bfa" : "#fb7185";
+    const lblY = Math.max(11, cy - r - 3);
+    const shortName = g.gpu.replace(/^RTX\s+/i, "");
+    return `<g class="st-bubble-node" data-bidx="${i}">` +
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${fill}" fill-opacity=".35" stroke="${fill}" stroke-width="1.6"/>` +
+      `${labelSet.has(g.gpu) ? `<text x="${cx.toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="middle" fill="currentColor" font-size="9.5" opacity=".82">${esc(shortName)}</text>` : ""}` +
+      `</g>`;
+  }).join("");
+
+  $("stBubbleWrap").innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="st-bubble-svg">
+      <line x1="${PL}" y1="${zeroY.toFixed(1)}" x2="${W - PR}" y2="${zeroY.toFixed(1)}" stroke="#fb7185" stroke-opacity=".48" stroke-dasharray="3 3"/>
+      <text x="${PL - 6}" y="${(zeroY + 3).toFixed(1)}" text-anchor="end" fill="currentColor" opacity=".55" font-size="9.5">0원</text>
+      <text x="${PL - 6}" y="${(PT + 3).toFixed(1)}" text-anchor="end" fill="#34d399" opacity=".85" font-size="9.5">${kFmt(maxY)}</text>
+      <text x="${PL - 6}" y="${(H - PB).toFixed(1)}" text-anchor="end" fill="#fb7185" opacity=".85" font-size="9.5">${kFmt(minY)}</text>
+      <line x1="${PL}" y1="${H - PB}" x2="${W - PR}" y2="${H - PB}" stroke="currentColor" stroke-opacity=".14"/>
+      <text x="${W - PR}" y="${H - 8}" text-anchor="end" fill="currentColor" opacity=".52" font-size="9.5">대여 횟수 →</text>
+      ${circles}
+    </svg>`;
+  $("stBubbleWrap").querySelectorAll("[data-bidx]").forEach((el) => {
+    const g = items[Number(el.dataset.bidx)];
+    el.addEventListener("mousemove", (ev) => showStTip(ev,
+      `<div style="font-weight:700;margin-bottom:2px">${esc(g.gpu)}</div>` +
+      `<div>대여 <b>${g.rentals}회</b> · ${hrs(g.hours)} · 실패 ${g.failed}회</div>` +
+      `<div style="margin-top:2px">요금 ${won(g.charged)} · 원가 ${won(g.cost)} · <b style="color:${g.margin >= 0 ? "#34d399" : "#fb7185"}">${signedWon(g.margin)}</b></div>`
+    ));
+    el.addEventListener("mouseleave", hideStTip);
+  });
+}
+
+function drawStMonthly() {
+  const rows = stData.monthly || [];
+  if (!rows.length) { $("stMonthlyCards").innerHTML = `<div class="empty">기록 없음</div>`; return; }
+  const maxCh = Math.max(1, ...rows.map((m) => Math.max(Number(m.charged || 0), stKrw(m.cost_usd))));
+  $("stMonthlyCards").innerHTML = rows.map((m, i) => {
+    const cost = stKrw(m.cost_usd), margin = Number(m.charged || 0) - cost, adminCost = stKrw(m.admin_cost_usd);
+    const wCh = Math.max(m.charged > 0 ? 2 : 0, Math.round((Number(m.charged || 0) / maxCh) * 100));
+    const wCo = Math.max(cost > 0 ? 2 : 0, Math.round((cost / maxCh) * 100));
+    const prev = rows[i + 1];
+    let growthHtml = "";
+    if (prev && Number(prev.charged) > 0) {
+      const g = Math.round(((Number(m.charged || 0) - Number(prev.charged)) / Number(prev.charged)) * 100);
+      growthHtml = `<span class="${g >= 0 ? "st-good" : "st-bad"}" style="font-size:11px;font-weight:600">${g >= 0 ? "+" : ""}${g}%</span>`;
+    }
+    return `<div class="st-soft st-mcard">` +
+      `<div class="st-mcard-top">` +
+      `<div class="st-mcard-l"><b>${esc(m.m)}</b>${growthHtml}<span class="muted">가입 +${m.signups} · 대여 ${m.rentals}회${m.failed ? ` (실패 ${m.failed})` : ""} · ${m.gpu_users}명 · ${hrs(m.hours)}</span></div>` +
+      `<div class="st-mcard-r ${margin >= 0 ? "st-good" : "st-bad"}">${signedWon(margin)} <span class="muted" style="font-weight:400">(${pct(margin, m.charged)})</span></div>` +
+      `</div>` +
+      `<div class="st-mcard-bars">` +
+      `<div class="st-track sm"><div class="st-fill st-fill-acc" style="width:${wCh}%"></div></div>` +
+      `<div class="st-track xs"><div class="st-fill st-fill-rose" style="width:${wCo}%"></div></div>` +
+      `</div>` +
+      `<div class="st-mcard-bot">` +
+      `<span>유료 충전 <b>${won(m.topup)}</b>${m.free_topup ? ` · 서비스 지급 <b>${won(m.free_topup)}</b>` : ""}</span>` +
+      `<span>요금 ${won(m.charged)} · 원가 ${won(cost)}${adminCost ? ` · 시험 ${won(adminCost)}` : ""}</span>` +
+      `</div></div>`;
+  }).join("");
+}
+
+function drawStModelDonut() {
+  const models = (stData.models || []).map((m, i) => ({
+    ...m, label: MODEL_NAMES?.[m.model] || m.model, color: MODEL_COLORS[i % MODEL_COLORS.length],
+  }));
+  const tot = models.reduce((a, m) => a + Number(m.rentals || 0), 0);
+  $("stModelTotal").textContent = `총 ${tot.toLocaleString()}회 대여`;
+  if (!models.length || !tot) {
+    $("stModelDonut").innerHTML = "";
+    $("stModelLegend").innerHTML = `<div class="empty">기록 없음</div>`;
+    return;
+  }
+  const R = 48, C = 2 * Math.PI * R;
+  let offset = 0;
+  $("stModelDonut").innerHTML = `
+    <svg viewBox="0 0 132 132">
+      <circle cx="66" cy="66" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".08" stroke-width="15"/>
+      ${models.map((m) => {
+        const dash = (m.rentals / tot) * C, gap = Math.max(1, dash - 2);
+        const el = `<circle cx="66" cy="66" r="${R}" fill="none" stroke="${m.color}" stroke-width="15" stroke-dasharray="${gap.toFixed(1)} ${(C - gap).toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}"/>`;
+        offset += dash; return el;
+      }).join("")}
+    </svg>
+    <div class="st-donut-center"><div class="k">1위 비중</div><div class="v">${pct(models[0].rentals, tot)}</div></div>`;
+  $("stModelLegend").innerHTML = models.map((m) => `
+    <div class="st-leg-row" style="cursor:default;padding:4px 6px" title="${esc(`${m.label}: ${m.users}명 · ${hrs(m.hours)}`)}">
+      <div class="st-leg-l"><i style="background:${m.color}"></i><div class="t">${esc(m.label)}</div></div>
+      <div class="st-leg-r"><span class="v">${m.rentals}회</span> <span class="muted">(${pct(m.rentals, tot)})</span></div>
+    </div>`).join("");
+}
+
+function drawStatMembers() {
+  const rate = stRate(), q = $("stSearch").value.trim().toLowerCase(), mf = stState.mf;
+  const rows = (stData.members || []).map((m) => {
+    const cost = Math.round(Number(m.cost_usd || 0) * rate);
+    return { ...m, cost, margin: Number(m.charged || 0) - cost };
+  })
+    .filter((m) => !q || `${m.name || ""} ${m.email || ""}`.toLowerCase().includes(q))
+    .filter((m) => {
+      if (mf === "paying") return Number(m.topup || 0) > 0;
+      if (mf === "balance") return Number(m.balance || 0) > 0;
+      if (mf === "active") return m.topup || m.free_topup || m.raw_topup || m.rentals || m.failed || m.last_seen;
+      return true;
+    });
+  const k = stState.sort.key, dir = stState.sort.asc ? 1 : -1;
+  rows.sort((a, b) => {
+    const x = a[k], y = b[k];
+    if (k === "name") return dir * String(x || a.email || "").localeCompare(String(y || b.email || ""), "ko");
+    if (k === "joined" || k === "last_seen") return dir * ((x ? new Date(x) : 0) - (y ? new Date(y) : 0));
+    return dir * ((Number(x) || 0) - (Number(y) || 0));
+  });
+  for (const th of $("stMemberTable").querySelectorAll("th[data-sort]")) {
+    th.classList.toggle("sorted", th.dataset.sort === k);
+    th.classList.toggle("asc", th.dataset.sort === k && stState.sort.asc);
+  }
+  $("stMemberCount").textContent = `${rows.length}명`;
+  const topupCell = (m) => {
+    const paid = Number(m.topup || 0), free = Number(m.free_topup || 0), raw = Number(m.raw_topup ?? paid + free), adj = Number(m.adjust || 0);
+    const hasTopup = Number(m.topup_rows || 0) > 0 || raw > 0 || paid + free > 0;
+    if (stEditWho === m.id) {
+      const net = Math.max(0, raw + adj);
+      const hint = adj < 0 ? `원장 ${won(raw)} · 조정 ${won(adj)} (순 ${won(net)})` : `원장 충전 ${won(raw)}`;
+      return `<div class="st-paid-box" data-edit-box="${esc(m.id)}">` +
+        `<div class="muted" style="font-size:11px">${esc(hint)}</div>` +
+        `<label class="st-paid-row"><span>유료</span><input type="number" class="st-paid-in" data-role="paid" min="0" step="100" value="${paid}"><span>원</span></label>` +
+        `<label class="st-paid-row"><span>서비스</span><input type="number" class="st-paid-in" data-role="free" min="0" step="100" value="${free}"><span>원</span></label>` +
+        `<div class="st-paid-btns">` +
+        `<button type="button" class="primary" data-save-who="${esc(m.id)}">저장</button>` +
+        `<button type="button" class="quiet" data-set-who="${esc(m.id)}" data-paid="${net}" data-free="0" title="유료=${won(net)}, 서비스=0원">전액 유료</button>` +
+        `<button type="button" class="quiet" data-set-who="${esc(m.id)}" data-paid="0" data-free="${net}" title="유료=0원, 서비스=${won(net)}">전액 서비스</button>` +
+        `<button type="button" class="quiet" data-cancel-who="${esc(m.id)}">닫기</button>` +
+        `</div></div>`;
+    }
+    return `${paid ? won(paid) : free || hasTopup ? '<span class="muted">0원</span>' : '<span class="muted">–</span>'}` +
+      `${free ? `<span class="sub">서비스 ${won(free)}</span>` : ""}` +
+      `${hasTopup && money ? `<div><button type="button" class="st-edit-link" data-edit-paid="${esc(m.id)}">금액 설정</button></div>` : ""}`;
+  };
+  $("stMembers").innerHTML = rows.map((m) => `<tr><td><b>${esc(m.name || "(이름 없음)")}</b>` +
+    `${m.former ? ' <span class="pill">탈퇴</span>' : ""}${m.admin_limited ? ' <span class="pill">제한 관리자</span>' : ""}` +
+    `<span class="sub">${esc(m.email || "")}</span></td>` +
+    `<td>${when(m.joined)}</td><td class="num">${topupCell(m)}</td><td class="num">${won(m.balance)}</td>` +
+    `<td class="num">${m.rentals}${m.failed ? `<span class="sub">실패 ${m.failed}</span>` : ""}</td><td class="num">${m.hours > 0 ? hrs(m.hours) : "–"}</td>` +
+    `<td class="num">${won(m.charged)}</td><td class="num">${won(m.cost)}</td><td class="num">${m.charged || m.cost ? `${signed(m.margin)}<span class="sub">${pct(m.margin, m.charged)}</span>` : "–"}</td>` +
+    `<td class="num">${m.device || "–"}</td><td class="num">${m.kifu || "–"}</td><td class="num">${m.notes || "–"}</td><td class="num">${m.bank || "–"}</td>` +
+    `<td>${m.last_seen ? when(m.last_seen) : '<span class="muted">없음</span>'}</td></tr>`).join("")
+    || `<tr><td colspan="14" class="empty">해당 회원 없음</td></tr>`;
+  const sum = (f) => rows.reduce((a, m) => a + (Number(m[f]) || 0), 0), ch = sum("charged"), mg = sum("margin");
+  $("stMembersFoot").innerHTML = rows.length > 1 ? `<tr><td>합계 ${rows.length}명</td><td></td><td class="num">${won(sum("topup"))}${sum("free_topup") ? `<span class="sub">서비스 ${won(sum("free_topup"))}</span>` : ""}</td><td class="num">${won(sum("balance"))}</td>` +
+    `<td class="num">${sum("rentals")}<span class="sub">실패 ${sum("failed")}</span></td><td class="num">${hrs(sum("hours"))}</td><td class="num">${won(ch)}</td><td class="num">${won(sum("cost"))}</td>` +
+    `<td class="num">${signed(mg)}<span class="sub">${pct(mg, ch)}</span></td><td class="num">${sum("device")}</td><td class="num">${sum("kifu")}</td><td class="num">${sum("notes")}</td><td class="num">${sum("bank")}</td><td></td></tr>` : "";
+}
+
+function drawStFeatures() {
+  const total = Number(stData.summary?.members || 0) || 1;
+  const byCat = { GPU: [], 기보: [], 학습: [] };
+  for (const f of stData.features || []) {
+    const [label, cat] = FEATURES[f.k] || [f.k, "학습"];
+    (byCat[cat] || byCat.학습).push({ ...f, label });
+  }
+  $("stFeatureGroups").innerHTML = Object.entries(byCat).map(([cat, list]) => `
+    <div class="st-soft st-fg-card">
+      <div class="st-fg-cat">${cat}</div>
+      ${list.map((f) => {
+        const w = f.users > 0 ? Math.max(4, Math.min(100, Math.round((f.users / total) * 100))) : 0;
+        return `<div class="st-fg-item">` +
+          `<div class="top"><span><b>${esc(f.label)}</b></span><span><b>${f.users}명</b> <span class="muted">(${pct(f.users, total)})</span></span></div>` +
+          `<div class="st-track sm"><div class="st-fill st-fill-acc" style="width:${w}%"></div></div>` +
+          `<div class="bot"><span>누적 ${Number(f.count || 0).toLocaleString()}회</span><span>30일 ${f.users30}명 · ${Number(f.count30 || 0).toLocaleString()}회</span></div>` +
+          `</div>`;
+      }).join("") || `<div class="empty">기록 없음</div>`}
+    </div>`).join("");
+}
+
+function drawStGpus() {
+  const list = [...(stData.gpus || [])].map((g) => {
+    const cost = stKrw(g.cost_usd);
+    return { ...g, cost, margin: Number(g.charged || 0) - cost };
+  }).sort((a, b) => {
+    if (stState.gs === "margin") return b.margin - a.margin;
+    if (stState.gs === "loss") return a.margin - b.margin;
+    if (stState.gs === "hours") return Number(b.hours || 0) - Number(a.hours || 0);
+    return Number(b.rentals || 0) - Number(a.rentals || 0) || Number(b.charged || 0) - Number(a.charged || 0);
+  });
+  $("stGpuRows").innerHTML = list.map((g) => `<tr>` +
+    `<td><b>${esc(g.gpu)}</b>${g.price === 0 ? ' <span class="st-warn" style="font-size:11px;font-weight:700;margin-left:4px">무료개방</span>' : ""}</td>` +
+    `<td class="num">${g.rentals}회${g.failed ? ` <span class="muted">(${g.failed})</span>` : ""}</td>` +
+    `<td class="num">${g.users}명</td>` +
+    `<td class="num">${hrs(g.hours)}</td>` +
+    `<td class="num muted">${g.price === 0 ? "무료" : g.price != null ? won(g.price) : "–"}</td>` +
+    `<td class="num">${won(g.charged)}</td>` +
+    `<td class="num muted">${won(g.cost)}</td>` +
+    `<td class="num">${signed(g.margin)} <span class="muted">(${pct(g.margin, g.charged)})</span></td>` +
+    `</tr>`).join("") || `<tr><td colspan="8" class="empty">기록 없음</td></tr>`;
+}
+
+function drawStHealth() {
+  const s = stData.summary;
+  const drawBars = (id, rows, fillCls) => {
+    const sum = rows.reduce((a, r) => a + Number(r.n || 0), 0);
+    $(id).innerHTML = rows.map((r) => `
+      <div class="st-health-row">
+        <div class="top"><span>${esc(r.reason)}</span><span><b>${r.n}건</b> <span class="muted">(${pct(r.n, sum)})</span></span></div>
+        <div class="st-track sm"><div class="st-fill ${fillCls}" style="width:${sum ? Math.max(3, Math.round((r.n / sum) * 100)) : 0}%"></div></div>
+      </div>`).join("") || `<div class="empty">기록 없음</div>`;
+    return sum;
+  };
+  const stopSum = drawBars("stStopReasons", stData.stops || [], "st-fill-acc");
+  const failSum = drawBars("stFailReasons", stData.fails || [], "st-fill-rose");
+  $("stStopTotal").textContent = `총 ${stopSum.toLocaleString()}건`;
+  $("stFailSummary").textContent = `${failSum}건 · 실패 원가 ${won(stKrw(s.fail_cost_usd))}`;
+  const prepTxt = s.prep_median_s != null ? `${Math.floor(s.prep_median_s / 60)}분 ${s.prep_median_s % 60}초` : "–";
+  $("stFailFoot").innerHTML = `<span>준비 성공률 <b class="st-good">${pct(s.rentals, s.tries)}</b></span><span>준비 시간 중앙값 <b>${prepTxt}</b></span>`;
+  $("stChargeCards").innerHTML = (stData.charges || []).map((c) => `
+    <div class="st-soft st-charge-box">
+      <div class="k">${esc(CHARGE_STATE[c.status] || c.status)}</div>
+      <div class="v">${won(c.krw)}</div>
+      <div class="s">${Number(c.n || 0).toLocaleString()}건</div>
+    </div>`).join("") || `<div class="empty">충전 신청 기록 없음</div>`;
+}
+
+function drawStats() {
+  const d = stData, s = d.summary, rate = stRate();
+  $("stAt").textContent = `${when(d.at)} 기준 · 환율 ${rate.toLocaleString()}원/$`;
+  $("stCntMembers").textContent = String((d.members || []).length);
+  $("stCntFeatures").textContent = String((d.features || []).length);
+  $("stCntGpus").textContent = String((d.gpus || []).length);
+  drawStHero();
+  drawStActivity();
+  drawStMoneyDonut();
+  drawStFunnel();
+  drawStPeakMatrix();
+  drawStBubbleMap();
+  drawStMonthly();
+  drawStModelDonut();
   drawStatMembers();
-
-  $("stGpus").innerHTML = d.gpus.map((g) => {
-    const c = krw(g.cost_usd), m = g.charged - c;
-    return `<tr><td><b>${esc(g.gpu)}</b></td><td class="num">${g.rentals}</td><td class="num">${g.failed}<span class="sub">${pct(g.failed, g.rentals + g.failed)}</span></td>` +
-      `<td class="num">${g.users}</td><td class="num">${hrs(g.hours)}</td><td class="num">${g.price != null ? won(g.price) : "–"}</td>` +
-      `<td class="num">${won(g.charged)}</td><td class="num">${won(c)}</td><td class="num">${signed(m)}</td><td class="num">${pct(m, g.charged)}</td></tr>`;
-  }).join("") || `<tr><td colspan="10" class="empty">기록 없음</td></tr>`;
-
-  $("stModels").innerHTML = d.models.map((m) => `<tr><td>${esc(MODEL_NAMES?.[m.model] || m.model)}</td><td class="num">${m.rentals}</td><td class="num">${m.users}</td><td class="num">${hrs(m.hours)}</td></tr>`).join("")
-    || `<tr><td colspan="4" class="empty">기록 없음</td></tr>`;
-  $("stCharges").innerHTML = d.charges.map((c) => `<tr><td>${esc(CHARGE_STATE[c.status] || c.status)}</td><td class="num">${c.n}</td><td class="num">${won(c.krw)}</td></tr>`).join("")
-    || `<tr><td colspan="3" class="empty">기록 없음</td></tr>`;
-  const reasons = (rows) => { const max = Math.max(1, ...rows.map((r) => r.n)), sum = rows.reduce((a, r) => a + r.n, 0);
-    return rows.map((r) => `<tr><td>${esc(r.reason)}</td><td><div class="st-meter"><i style="width:${Math.round((r.n / max) * 120)}px"></i><span>${r.n} · ${pct(r.n, sum)}</span></div></td></tr>`).join("")
-      || `<tr><td colspan="2" class="empty">기록 없음</td></tr>`; };
-  $("stStops").innerHTML = reasons(d.stops);
-  $("stFails").innerHTML = reasons(d.fails);
-  bars("stHourly", "stHourlyAxis", d.hourly, d.hourly.map((_, h) => (h % 3 === 0 ? `${h}시` : "")), (n, i) => `${i}시대 ${n}회`);
-  bars("stWeekday", "stWeekdayAxis", d.weekday, ["월", "화", "수", "목", "금", "토", "일"], (n, i) => `${"월화수목금토일"[i]}요일 ${n}회`);
+  drawStFeatures();
+  drawStGpus();
+  drawStHealth();
+  $("stNote").textContent =
+    `회원 = 운영 관리자를 뺀 계정(탈퇴 회원·제한 관리자 포함). GPU 대여 횟수는 실패한 ${s.failed}회를 뺀 값입니다(실패 대여 원가 ${won(stKrw(s.fail_cost_usd))}는 원가에 포함). ` +
+    `유료 충전(${won(s.topup)}, ${s.paying}명)만 매출·현금 잔여에 넣으며, 서비스 지급(${won(s.free_topup || 0)}, 100원 단위)과 미사용 회수(${won(s.free_reclaim || 0)})는 매출과 분리 표시됩니다.`;
 }
 
 async function saveMemberPaid(whoKey, paidVal, freeVal, btn) {
@@ -1720,86 +2858,53 @@ async function saveMemberPaid(whoKey, paidVal, freeVal, btn) {
   } catch (e) { toast(e.message || String(e), true); if (btn) btn.disabled = false; }
 }
 
-function bars(id, axisId, values, labels, tip) {   // a simple one-series bar chart
-  const max = Math.max(1, ...values);
-  $(id).innerHTML = values.map((n, i) => `<div class="col" title="${esc(tip(n, i))}"><i style="height:${(n / max) * 100}%"></i></div>`).join("");
-  $(axisId).innerHTML = labels.map((l) => `<span>${esc(l)}</span>`).join("");
-}
-
-function drawDaily() {
-  const rows = stData.daily, rate = Number(stData.rate) || 1500;
-  const series = {
-    money: [["c", "받은 요금", (r) => r.charged], ["b", "원가", (r) => Math.round(r.cost_usd * rate)]],
-    rentals: [["", "GPU 대여", (r) => r.rentals], ["b", "실패", (r) => r.failed]],
-    users: [["c", "이용 회원(기능 하나라도)", (r) => r.users]],
-    topup: [["", "유료 충전", (r) => r.topup], ["b", "서비스 충전", (r) => r.free_topup || 0]],
-  }[stMode];
-  const unit = (v) => (stMode === "money" || stMode === "topup" ? won(v) : `${v}`);
-  const max = Math.max(1, ...rows.flatMap((r) => series.map(([, , f]) => f(r))));
-  $("stDaily").innerHTML = rows.map((r) => {
-    const tip = `${r.d}\n` + series.map(([, n, f]) => `${n} ${unit(f(r))}`).join("\n") + (stMode === "topup" ? `\n가입 ${r.signups}명` : "") +
-      (stMode === "money" ? `\n차익 ${won(r.charged - Math.round(r.cost_usd * rate))}` : "");
-    return `<div class="col" title="${esc(tip)}">${series.map(([c, , f]) => `<i class="${c}" style="height:${(f(r) / max) * 100}%"></i>`).join("")}</div>`;
-  }).join("");
-  $("stDailyAxis").innerHTML = rows.map((r, i) => `<span>${i % 7 === 0 || i === rows.length - 1 ? day(r.d) : ""}</span>`).join("");
-  const sums = series.map(([c, n, f]) => `<span><i class="${c}"></i>${n} 합계 ${unit(rows.reduce((a, r) => a + f(r), 0))}</span>`);
-  if (stMode === "topup") sums.push(`<span>가입 합계 ${rows.reduce((a, r) => a + r.signups, 0)}명</span>`);
-  $("stDailyLegend").innerHTML = sums.join("");
-}
-$("stDailyMode").onclick = (ev) => {
-  const b = ev.target.closest("button"); if (!b || !stData) return;
-  stMode = b.dataset.m;
-  for (const x of $("stDailyMode").children) x.setAttribute("aria-pressed", x === b);
-  drawDaily();
+$("stPals").onclick = (ev) => { const b = ev.target.closest("[data-pal]"); if (b) applyStPal(b.dataset.pal); };
+$("stRanges").onclick = (ev) => {
+  const b = ev.target.closest("[data-range]"); if (!b || !stData) return;
+  stState.range = b.dataset.range;
+  $("stRanges").querySelectorAll("[data-range]").forEach((x) => x.classList.toggle("on", x === b));
+  drawStHero();
 };
-
-function drawStatMembers() {
-  const rate = Number(stData.rate) || 1500, q = $("stSearch").value.trim().toLowerCase(), activeOnly = $("stActiveOnly").checked;
-  const rows = stData.members.map((m) => { const cost = Math.round(Number(m.cost_usd || 0) * rate); return { ...m, cost, margin: m.charged - cost }; })
-    .filter((m) => !q || `${m.name || ""} ${m.email || ""}`.toLowerCase().includes(q))
-    .filter((m) => !activeOnly || m.topup || m.free_topup || m.raw_topup || m.rentals || m.failed || m.last_seen);
-  const k = stSort.key, dir = stSort.asc ? 1 : -1;
-  rows.sort((a, b) => {
-    const x = a[k], y = b[k];
-    if (k === "name") return dir * String(x || a.email).localeCompare(String(y || b.email), "ko");
-    if (k === "joined" || k === "last_seen") return dir * ((x ? new Date(x) : 0) - (y ? new Date(y) : 0));
-    return dir * ((Number(x) || 0) - (Number(y) || 0));
+$("stMoreToggle").onclick = () => {
+  stState.moreOpen = !stState.moreOpen;
+  $("stMoreWrap").classList.toggle("hidden", !stState.moreOpen);
+  $("stMoreArrow").textContent = stState.moreOpen ? "▴" : "▾";
+  $("stMoreToggle").setAttribute("aria-expanded", String(stState.moreOpen));
+};
+$("stMetricTabs").onclick = (ev) => {
+  const b = ev.target.closest("[data-metric]"); if (!b || !stData) return;
+  stState.metric = b.dataset.metric;
+  $("stMetricTabs").querySelectorAll("[data-metric]").forEach((x) => x.classList.toggle("on", x === b));
+  drawStActivity();
+};
+$("stViewTabs").onclick = (ev) => {
+  const b = ev.target.closest("[data-view]"); if (!b || !stData) return;
+  stState.view = b.dataset.view;
+  $("stViewTabs").querySelectorAll("[data-view]").forEach((x) => x.classList.toggle("on", x === b));
+  hideStTip();
+  drawStActivity();
+};
+$("stDrillClose").onclick = () => { stState.selectedDay = null; if (stData) drawStHeatmap(); };
+$("stDetailTabs").onclick = (ev) => {
+  const b = ev.target.closest("[data-dt]"); if (!b) return;
+  stState.dt = b.dataset.dt;
+  $("stDetailTabs").querySelectorAll("[data-dt]").forEach((x) => x.classList.toggle("on", x === b));
+  [["members", "stDtMembers"], ["features", "stDtFeatures"], ["gpus", "stDtGpus"], ["health", "stDtHealth"]].forEach(([k, id]) => {
+    $(id).classList.toggle("hidden", k !== stState.dt);
   });
-  for (const th of $("stMemberTable").querySelectorAll("th[data-sort]")) { th.classList.toggle("sorted", th.dataset.sort === k); th.classList.toggle("asc", th.dataset.sort === k && stSort.asc); }
-  $("stMemberCount").textContent = `${rows.length}명`;
-  const topupCell = (m) => {
-    const paid = Number(m.topup || 0), free = Number(m.free_topup || 0), raw = Number(m.raw_topup ?? paid + free), adj = Number(m.adjust || 0);
-    const hasTopup = Number(m.topup_rows || 0) > 0 || raw > 0 || paid + free > 0;
-    if (stEditWho === m.id) {
-      const net = Math.max(0, raw + adj);
-      const hint = adj < 0 ? `원장 ${won(raw)} · 회수 ${won(adj)} (순 ${won(net)})` : `원장 충전 ${won(raw)}`;
-      return `<div class="st-paid-box" data-edit-box="${esc(m.id)}">` +
-        `<div class="muted small">${esc(hint)}</div>` +
-        `<label class="st-paid-row"><span>유료</span><input type="number" class="st-paid-in" data-role="paid" min="0" step="100" value="${paid}"><span>원</span></label>` +
-        `<label class="st-paid-row"><span>서비스</span><input type="number" class="st-paid-in" data-role="free" min="0" step="100" value="${free}"><span>원</span></label>` +
-        `<div class="st-paid-btns">` +
-        `<button type="button" class="primary" data-save-who="${esc(m.id)}">저장</button>` +
-        `<button type="button" class="quiet" data-set-who="${esc(m.id)}" data-paid="${net}" data-free="0" title="유료=${won(net)}, 서비스=0원">전액 유료</button>` +
-        `<button type="button" class="quiet" data-set-who="${esc(m.id)}" data-paid="0" data-free="${net}" title="유료=0원, 서비스=${won(net)}">전액 서비스</button>` +
-        `<button type="button" class="quiet" data-cancel-who="${esc(m.id)}">닫기</button>` +
-        `</div></div>`;
-    }
-    return `${paid ? won(paid) : free || hasTopup ? '<span class="muted">0원</span>' : '<span class="muted">–</span>'}` +
-      `${free ? `<span class="sub">서비스 ${won(free)}</span>` : ""}` +
-      `${hasTopup && money ? `<div><button type="button" class="st-edit-link" data-edit-paid="${esc(m.id)}">금액 설정</button></div>` : ""}`;
-  };
-  $("stMembers").innerHTML = rows.map((m) => `<tr><td><b>${esc(m.name || "(이름 없음)")}</b>${m.former ? ' <span class="pill">탈퇴</span>' : ""}<span class="sub">${esc(m.email || "")}</span></td>` +
-    `<td>${when(m.joined)}</td><td class="num">${topupCell(m)}</td><td class="num">${won(m.balance)}</td>` +
-    `<td class="num">${m.rentals}${m.failed ? `<span class="sub">실패 ${m.failed}</span>` : ""}</td><td class="num">${m.hours > 0 ? hrs(m.hours) : "–"}</td>` +
-    `<td class="num">${won(m.charged)}</td><td class="num">${won(m.cost)}</td><td class="num">${m.charged || m.cost ? `${signed(m.margin)}<span class="sub">${pct(m.margin, m.charged)}</span>` : "–"}</td>` +
-    `<td class="num">${m.device || "–"}</td><td class="num">${m.kifu || "–"}</td><td class="num">${m.notes || "–"}</td><td class="num">${m.bank || "–"}</td>` +
-    `<td>${m.last_seen ? when(m.last_seen) : '<span class="muted">없음</span>'}</td></tr>`).join("")
-    || `<tr><td colspan="14" class="empty">해당 회원 없음</td></tr>`;
-  const sum = (f) => rows.reduce((a, m) => a + (Number(m[f]) || 0), 0), ch = sum("charged"), mg = sum("margin");
-  $("stMembersFoot").innerHTML = rows.length > 1 ? `<tr><td>합계 ${rows.length}명</td><td></td><td class="num">${won(sum("topup"))}${sum("free_topup") ? `<span class="sub">서비스 ${won(sum("free_topup"))}</span>` : ""}</td><td class="num">${won(sum("balance"))}</td>` +
-    `<td class="num">${sum("rentals")}<span class="sub">실패 ${sum("failed")}</span></td><td class="num">${hrs(sum("hours"))}</td><td class="num">${won(ch)}</td><td class="num">${won(sum("cost"))}</td>` +
-    `<td class="num">${signed(mg)}<span class="sub">${pct(mg, ch)}</span></td><td class="num">${sum("device")}</td><td class="num">${sum("kifu")}</td><td class="num">${sum("notes")}</td><td class="num">${sum("bank")}</td><td></td></tr>` : "";
-}
+};
+$("stMemFilter").onclick = (ev) => {
+  const b = ev.target.closest("[data-mf]"); if (!b || !stData) return;
+  stState.mf = b.dataset.mf;
+  $("stMemFilter").querySelectorAll("[data-mf]").forEach((x) => x.classList.toggle("on", x === b));
+  drawStatMembers();
+};
+$("stGpuSort").onclick = (ev) => {
+  const b = ev.target.closest("[data-gs]"); if (!b || !stData) return;
+  stState.gs = b.dataset.gs;
+  $("stGpuSort").querySelectorAll("[data-gs]").forEach((x) => x.classList.toggle("on", x === b));
+  drawStGpus();
+};
 $("stMembers").onclick = (ev) => {
   const editBtn = ev.target.closest("[data-edit-paid]");
   if (editBtn) {
@@ -1832,11 +2937,10 @@ $("stMembers").onkeydown = (ev) => {
   }
 };
 $("stSearch").oninput = () => stData && drawStatMembers();
-$("stActiveOnly").onchange = () => stData && drawStatMembers();
 $("stMemberTable").querySelector("thead").onclick = (ev) => {
   const th = ev.target.closest("th[data-sort]"); if (!th || !stData) return;
   const k = th.dataset.sort;
-  stSort = stSort.key === k ? { key: k, asc: !stSort.asc } : { key: k, asc: k === "name" };
+  stState.sort = stState.sort.key === k ? { key: k, asc: !stState.sort.asc } : { key: k, asc: k === "name" };
   drawStatMembers();
 };
 
