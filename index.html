@@ -1614,6 +1614,8 @@ $("batchStart").onclick = () => {
   }
   if (batchFrame) { batchFrame.contentWindow.postMessage({ batch: "cancel" }, location.origin); return; }
   if (batchQueued) { batchQueued = false; batchShow(); return; }
+  const room = batchRoomMsg();
+  if (room) { toast(room, true); return; }
   if (!(session && session.status === "ready" && session.web_url)) {   // still renting / booting / installing: start when ready
     batchQueued = true; batchShow();
     toast("GPU가 준비되면 분석을 시작합니다. 다른 화면으로 가도 되지만, 이 창(탭)은 열어 두세요.");
@@ -1627,7 +1629,18 @@ function batchAutoOk() {
   if ($("batchNotes").checked && $("batchNoteSide").value === "name" && !$("batchNoteName").value.trim()) return 0;
   return batchFiles.filter((f) => f.state !== "saved").length;
 }
+// 내 기보 300판(회원, DB saved_kifu_guard): new games this run would save (a game picked from 내 기보 is written over its own row)
+// against the room left → the message to show, or "" (user 2026-11-23: the GPU used to analyse the extra games, then fail to save them)
+function batchRoomMsg() {
+  if (profile?.is_admin) return "";
+  const add = batchFiles.filter((f) => f.state !== "saved" && !f.mine).length, left = Math.max(0, 300 - mine.filter((k) => !k.source).length);
+  if (add <= left) return "";
+  return left ? `내 기보에 ${left}판만 더 저장할 수 있는데 새로 저장할 기보가 ${add}판입니다. 기보를 줄이거나 내 기보에서 필요 없는 기보를 지운 뒤 시작하세요.`
+    : "내 기보가 300판으로 가득 찼습니다. 필요 없는 기보를 지운 뒤 시작하세요.";
+}
 function startBatch() {
+  const room = batchRoomMsg();
+  if (room) { toast(room, true); batchShow(); return; }
   batchRun = batchFiles.filter((f) => f.state !== "saved");
   batchRun.forEach((f) => { f.state = "wait"; f.text = "대기"; f.done = f.todo = 0; });
   batchStartedAt = Date.now();
@@ -2527,15 +2540,16 @@ $("startButton").onclick = async () => {
   const msg = `${picked.gpu}\n${pay}\n${prep}\n` +
     (free && !opAdmin(profile) ? "무료 GPU는 자동 종료가 늘 켜져 있어 10분 동안 입력이 없으면 자동으로 꺼집니다."   // (user 2026-11-05)
       : idleStopOn() ? "10분 동안 입력이 없으면 자동으로 꺼집니다." : "자동 종료가 꺼져 있습니다(내 정보). 직접 끄거나 한도에 도달할 때까지 계속 켜져 있습니다.");
-  const autoBatch = batchAutoOk();
-  if (!confirm(msg + (autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
+  const autoBatch = batchAutoOk(), autoRoom = autoBatch && batchRoomMsg();
+  if (!confirm(msg + (autoRoom ? "\n넣어 둔 기보는 내 기보에 저장할 자리가 모자라 자동으로 분석하지 않습니다."
+    : autoBatch ? `\n넣어 둔 기보 ${autoBatch}판은 GPU가 준비되면 자동으로 분석합니다.` : "") + "\n\n시작할까요?")) return;
   $("startButton").disabled = true; $("startError").textContent = "";
   try {
     askNotify();   // 준비 알림: asked once, while the member is clicking
     await api("/start", { offer_id: picked.id, machine_id: picked.machineId, seen_price_usd: picked.price, gpu: picked.gpu, region: picked.region, model_id: $("model").value,
       ...($("testEngine").checked ? { test_engine: true } : {}) });
     // 기보를 넣어 두고 GPU를 켜면 준비되자마자 알아서 분석 (user request 2026-10-08): the same as pressing 준비되면 분석 시작
-    if (autoBatch && batchAutoOk()) { batchQueued = true; toast(`GPU가 준비되면 기보 ${autoBatch}판 분석을 자동으로 시작합니다.`); }
+    if (autoBatch && !autoRoom && batchAutoOk()) { batchQueued = true; toast(`GPU가 준비되면 기보 ${autoBatch}판 분석을 자동으로 시작합니다.`); }
     else toast("GPU를 빌렸습니다. 준비되면 '분석 화면 열기'가 나타납니다.");
     stopLocalForGpu();
     await refresh();
