@@ -396,6 +396,23 @@ td { text-align: center; padding: 0 4px; cursor: pointer; line-height: 26px; bor
 tbody tr:hover td { background: var(--soft); }
 tr.sel td { background: var(--cyan-soft); }
 .mini-box { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; }
+/* 가로·세로가 비슷한 창(회원 화면 2026-11-23: 노트북에서 Edge 창을 화면 절반에 붙인 767×758, 폴드를 펼친 가로 약 900×700 등,
+   사용자 "어떤기기이길래 화면이 이렇게 되있어 수정좀 하자"): 세 칸이면 바둑판이 폭에 묶여(767px에서 347px, 높이는 640px 남음)
+   작아지므로 바둑판 | 오른쪽 한 칸(위: 승률 막대·그래프·대국 정보, 아래: 변화도·후보수 표). 폰 세로처럼 사석 칸·미리보기 판은 숨김 */
+@media (orientation: landscape) and (min-height: 521px) and (max-aspect-ratio: 4/3) {
+  .main { grid-template-columns: minmax(0, 1fr) clamp(200px, 26vw, 300px); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .center { grid-column: 1; grid-row: 1 / span 2; }
+  .left { grid-column: 2; grid-row: 1; }
+  .right { grid-column: 2; grid-row: 2; }
+  #capBox, #miniBox { display: none; }
+  .right .table-box { flex: 1 1 auto; height: auto; }
+  /* the graph and the game info share the top half; the info card scrolls as a whole (its engine line was cut off) */
+  .left .comment { flex: 1 1 0; overflow-y: auto; }
+  .left .comment #comment { flex: none; overflow: visible; }
+  /* 수순 탐색: its list takes the whole bottom half (half of it was too short), as on a phone */
+  .xp-open .right > :not(#xpBox) { display: none; }
+  .xp-open #xpBox { flex: 1 1 auto; }
+}
 #mini { display: block; }
 
 /* dialogs: white sheets like the website's panels */
