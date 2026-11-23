@@ -412,6 +412,10 @@ tr.sel td { background: var(--cyan-soft); }
   /* 수순 탐색: its list takes the whole bottom half (half of it was too short), as on a phone */
   .xp-open .right > :not(#xpBox) { display: none; }
   .xp-open #xpBox { flex: 1 1 auto; }
+  /* AI 대국 with analysis hidden: no empty 'hidden' boxes — 사석·덤 instead of the graph, the 변화도 takes the bottom half */
+  .play-hide #capBox { display: block; }
+  .play-hide #graphBox, .play-hide .right .table-box { display: none; }
+  .play-hide #treeBox { flex: 1 1 auto; }
 }
 #mini { display: block; }
 
@@ -653,6 +657,10 @@ button.primary:hover { background: var(--blue-deep); }
 #photoCv { display: block; max-width: 100%; touch-action: none; border-radius: 10px; background: #111; }
 /* 대국 시계 (AI대국 with a time limit) and the 계가 card */
 #clocks { display: flex; gap: 6px; flex: none; }
+/* top bar on two lines (narrow window, AI 대국): clocks at the left of the second line, visits/s·GPU·연결 at its right end, as on
+   one line (user 2026-11-23 "오른쪽이 많이 비는데 적절히 배치"); on one line the spacer before them takes the room, so no change */
+.menubar #clocks { margin-right: auto; }
+@media (orientation: landscape) and (min-height: 521px) { .menubar { justify-content: flex-end; } }   /* a second line of statuses only: at the right */
 #clocks[hidden] { display: none; }
 #clocks span { padding: 6px 11px; border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #clocks span.turn { color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 2px var(--blue); }
@@ -6991,6 +6999,9 @@ function drawSide() {
     : graphMode === "think" ? ((cur.trace || []).length > 1 ? "" : "분석을 시작하면 탐색이 깊어지며 바뀌는 판단이 표시됩니다")
     : lineThrough(cur).some(n => n.analysis || n.pdaAn) ? "" : "분석을 시작하면 승률 그래프가 표시됩니다");
   emptyHint($("treeBox"), root.children.length ? "" : "수를 두면 변화도가 표시됩니다");
+  // AI 대국 with all analysis hidden: on a narrow window (CSS) the 사석 칸 takes the hidden graph's place and the 변화도 the candidate table's
+  const playHide = !!game && game.root === root && !game.show.B && !game.show.W && !game.show.wr && !quiz;
+  if (document.body.classList.contains("play-hide") !== playHide) { document.body.classList.toggle("play-hide", playHide); requestAnimationFrame(layout); }
   emptyHint($("candRows").closest(".table-box"), cands.length ? "" : $("hideEval").checked ? "승률 가리기 중입니다" : quiz && !quiz.shown ? "답을 고르면 AI 후보수가 보입니다"
     : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
 }
@@ -7163,8 +7174,11 @@ let vpsFitAt = 0;
 function fitVps() {
   const bar = bars[0], v = $("vps"); v.classList.remove("nofit");
   if (!v.offsetParent || matchMedia("(orientation: portrait)").matches) return;
-  const kids = [...bar.children].filter(e => e.offsetParent), top = Math.min(...kids.map(e => e.offsetTop));
-  if (bar.scrollWidth > bar.clientWidth + 1 || kids.some(e => e.offsetTop > top + 20)) v.classList.add("nofit");
+  // it gives way only when it overflows or adds a line: a bar already on two lines (AI 대국's clocks on a narrow window)
+  // keeps it where the second line has room (user 2026-11-23 "위에 화면 많이 남는데 visit도 나오게 해줘")
+  const over = bar.scrollWidth > bar.clientWidth + 1, h = bar.offsetHeight;
+  v.classList.add("nofit");
+  if (!over && h <= bar.offsetHeight) v.classList.remove("nofit");
 }
 // 편집 as buttons while the bottom bar keeps one line with them (wide screens), else the 편집 ▾ menu; tried afresh on every
 // size change (same width = same answer, so it does not swing back and forth)
