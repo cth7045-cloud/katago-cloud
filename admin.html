@@ -216,7 +216,7 @@ button.pill.ledger-paid:hover { filter: brightness(.94); }
       <button data-tab="bank" role="tab">문제 은행</button><button data-tab="stats" role="tab">통계</button>
     </nav>
 
-    <!-- 통계 (2026-11-02): DB 함수 admin_stats 한 번으로 다 읽는다. 회원 = 관리자 제외(탈퇴 회원 기록 포함), GPU 대여 = 실패 뺀 횟수 -->
+    <!-- 통계 (2026-11-02): DB 함수 admin_stats 한 번으로 다 읽는다. 회원 = 운영 관리자 제외(탈퇴 회원 기록 포함), GPU 대여 = 실패 뺀 횟수 -->
     <section class="tab" data-tab="stats" hidden>
     <div class="panel">
       <div class="st-head"><h2>수익·원가</h2><span class="muted small" id="stAt"></span><button class="quiet" type="button" id="stReload">다시 계산</button></div>
@@ -1611,7 +1611,7 @@ $("pushTest").onclick = async () => {
 
 // ── 통계 (2026-11-02, 2026-11-03 개편) ────────────────────────────────────────────────────────────
 // one read of the database function admin_stats; costs come in dollars and are shown at today's exchange rate.
-// GPU 대여 counts leave out the failed ones (user 2026-11-02); 회원 = everyone but the admins, deleted accounts included.
+// GPU 대여 counts leave out the failed ones (user 2026-11-02); 회원 = everyone but the operating admins, deleted accounts included.
 // 기능별 사용률 (user 2026-11-03): GPU 2가지 + 카테고리 '기보'(3가지)·'학습'(4가지)의 7가지 기능만 표시.
 const FEATURES = {
   gpu: ["GPU 대여 분석", "GPU · 실패 뺀 대여"],
@@ -1665,7 +1665,7 @@ function drawStats() {
     card("GPU 쓴 회원", `${s.gpu_users}명`, `전체 회원의 ${pct(s.gpu_users, s.members)}`),
     card("1회 평균", won(s.rentals ? s.charged / s.rentals : 0), `${hrs(s.rentals ? s.hours / s.rentals : 0)} · 원가 ${won(s.rentals ? cost / s.rentals : 0)}`),
   ].join("");
-  $("stNote").textContent = `회원 = 관리자를 뺀 계정(탈퇴 회원 기록 포함). GPU 대여 횟수는 실패한 ${s.failed}회를 뺀 값입니다(실패 대여 원가 ${won(krw(s.fail_cost_usd))}는 원가에 포함). ` +
+  $("stNote").textContent = `회원 = 운영 관리자를 뺀 계정(탈퇴 회원 기록 포함). GPU 대여 횟수는 실패한 ${s.failed}회를 뺀 값입니다(실패 대여 원가 ${won(krw(s.fail_cost_usd))}는 원가에 포함). ` +
     `유료 충전(${won(s.topup)}, ${s.paying}명)만 매출·현금 잔여에 넣으며, 서비스 충전(${won(s.free_topup || 0)}, ${s.free_users || 0}명)은 매출에서 제외되어 따로 표시됩니다(아래 '회원별 이용 현황'의 '금액 설정' 버튼으로 그 자리에서 직접 조정 가능).`;
 
   $("stMonthly").innerHTML = d.monthly.map((m) => {
