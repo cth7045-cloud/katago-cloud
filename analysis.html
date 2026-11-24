@@ -916,6 +916,99 @@ button.primary:hover { background: var(--blue-deep); }
   .mark { background-image: url(icons/icon-dark-192.png); }
   .stone-seg i.b, .stone-seg i.bw::before, .gi-stone.b { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
 }
+
+/* 온라인 대국실 UI (시안 5번 적용 · AI분석 보기 켜면 승률 막대+그래프 표시, 소리 탑재 없음) */
+#gmPanel, #gmMobTop, #gmMobBot, #gmMobDock, #gmTopMeta { display: none; }
+#gmTopMeta { align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--soft); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
+#gmTopMeta b { color: var(--ink); font-weight: 700; }
+body.playing #gmTopMeta { display: inline-flex; }
+body.playing #clocks { display: none !important; }
+body.playing .menubar #fileMenu, body.playing .menubar #boardMenu, body.playing .menubar #viewMenu,
+body.playing .menubar #newGame, body.playing .menubar #strengthOpen, body.playing .menubar #strengthLevel,
+body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: none !important; }
+
+@keyframes gmLowPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--bad); }
+  50%      { box-shadow: 0 0 0 5px rgba(224, 72, 77, .16); }
+}
+.gm-card { background: var(--panel); border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+.gm-kicker { font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+.gm-pcard { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); border: 1.5px solid transparent; transition: border-color .18s var(--ease), background-color .18s; min-width: 0; }
+.gm-pcard.turn { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 9%, var(--panel)); }
+.gm-pcard.low { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, var(--panel)); animation: gmLowPulse .95s infinite; }
+.gm-pleft { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 1; }
+.gm-pstone { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.gm-pstone.b { background: radial-gradient(circle at 35% 30%, #5b606c, #121419 70%); box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+.gm-pstone.w { background: radial-gradient(circle at 35% 30%, #fff, #d8dce4 85%); box-shadow: 0 0 0 1px rgba(23,26,34,.22); }
+.gm-pinfo { min-width: 0; display: grid; gap: 2px; }
+.gm-pname { display: flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 750; color: var(--ink); min-width: 0; }
+.gm-pname > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-ptag { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--panel); color: var(--muted); flex: none; }
+.gm-pmeta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gm-pips { display: inline-flex; gap: 3px; align-items: center; }
+.gm-pip { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; display: inline-block; }
+.gm-pip.used { opacity: .25; background: var(--muted); }
+.gm-pright { text-align: right; flex: none; min-width: 70px; }
+.gm-ptime { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); }
+.gm-ptime.sm { font-size: 13px; color: var(--muted); }
+.gm-pcard.low .gm-ptime { color: var(--bad); }
+.gm-pstate { font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.gm-pcard.turn .gm-pstate { color: var(--blue); }
+.gm-pcard.low .gm-pstate { color: var(--bad); }
+
+.gm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gm-grid button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; min-height: 38px; padding: 6px 8px; font-size: 13px; }
+.gm-grid button svg, #gmStopBtn svg, #gmMobDock button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+#gmConfirmBtn, #gmStopBtn { width: 100%; border-radius: 12px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13.5px; }
+#gmMsg { font-size: 12.5px; color: var(--muted); line-height: 1.45; min-height: 0; }
+#gmMsg:empty { display: none; }
+
+@media (orientation: landscape) {
+  body.playing #err { display: none !important; }
+  body.playing .toolbar { display: none !important; }
+  body.playing .main { grid-template-columns: minmax(0, 1fr) clamp(296px, 27vw, 360px) !important; grid-template-rows: auto minmax(0, 1fr) !important; }
+  body.playing .center { grid-column: 1 !important; grid-row: 1 / -1 !important; }
+  body.playing .right { grid-column: 2 !important; grid-row: 1 !important; display: flex !important; flex-direction: column; overflow: visible; }
+  body.playing .right > :not(#gmPanel) { display: none !important; }
+  body.playing #gmPanel { display: flex; flex-direction: column; gap: 10px; }
+  body.playing:not(.playing-an) .left { display: none !important; }
+  body.playing.playing-an .left { display: flex !important; grid-column: 2 !important; grid-row: 2 !important; min-height: 0 !important; gap: 10px; }
+  body.playing.playing-an .left > :not(#statBox):not(#graphBox) { display: none !important; }
+  body.playing.playing-an #statBox { display: block !important; flex: none !important; height: 68px !important; min-height: 68px !important; }
+  body.playing.playing-an #graphBox { display: block !important; flex: 1 1 0 !important; min-height: 76px !important; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  body.playing .right { overflow-y: auto !important; min-height: 0 !important; }
+}
+
+@media (orientation: portrait) {
+  body.playing #gmTopMeta { max-width: 72vw; font-size: 12px; padding: 3px 9px; }
+  body.playing #err { padding: 6px 14px; font-size: 12.5px; border-radius: 999px; }
+  body.playing #gmPanel { display: none !important; }
+  body.playing #gmMobTop, body.playing #gmMobBot { display: block; width: 100%; padding: 6px 8px 0; }
+  body.playing #gmMobTop { order: 0; padding: 6px 8px 6px; }
+  body.playing .center { order: 1; }
+  body.playing #gmMobBot { order: 2; padding: 6px 8px 0; display: grid; gap: 6px; }
+  body.playing .left { order: 3; padding: 6px 8px 0; }
+  body.playing:not(.playing-an) .left { display: none !important; }
+  body.playing.playing-an .left { display: flex !important; }
+  body.playing.playing-an .left > :not(#statBox):not(#graphBox) { display: none !important; }
+  body.playing.playing-an #statBox { display: block !important; flex: none; height: 64px; }
+  body.playing.playing-an #graphBox { display: block !important; flex: none; height: 110px; margin-top: 6px; }
+  .gm-pcard.mob { padding: 7px 11px; border-radius: 13px; }
+  .gm-pcard.mob .gm-ptime { font-size: 18px; }
+  body.playing .toolbar { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  body.playing .toolbar > :not(#gmMobDock):not(#menuOpen):not(.error) { display: none !important; }
+  body.playing #gmMobDock { display: contents !important; }
+  body.playing #gmMobDock button { min-height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; padding: 4px; }
+  body.playing #menuOpen { grid-column: auto !important; order: 5 !important; border-radius: 12px; }
+  #gmMobConfirmBtn { width: 100%; min-height: 40px; border-radius: 12px; font-size: 13.5px; }
+}
+
+#gmEndDlg { width: min(410px, calc(100vw - 24px)); text-align: center; }
+#gmEndDlg .gd { gap: 14px; justify-items: center; }
+.gm-end-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; margin-top: 4px; }
+.gm-end-actions button { min-height: 40px; padding: 6px 14px; }
 </style>
 <script>
 // 화면 밝기(2026-09-30): 내 정보에서 고른 값(localStorage "kc-theme" = "light" | "dark", 없으면 기기 설정)을 적용한다.
@@ -953,6 +1046,7 @@ button.primary:hover { background: var(--blue-deep); }
 <body>
 <header class="menubar">
   <span class="brand"><span class="mark"></span><span>KataGo Cloud</span></span>
+  <span id="gmTopMeta" hidden></span>
   <details class="menu" id="fileMenu">
     <summary>기보</summary>
     <div class="items">
@@ -1200,7 +1294,21 @@ button.primary:hover { background: var(--blue-deep); }
   <div class="rv-pages" id="rvPages"></div>
 </div>
 
+<dialog id="gmEndDlg" aria-label="대국 종료">
+  <div class="gd">
+    <div class="gm-kicker">AI대국 종료</div>
+    <h2 id="gmEndTitle" style="margin:0;">대국 종료</h2>
+    <p id="gmEndSub" class="gd-note"></p>
+    <div class="gm-end-actions">
+      <button id="gmEndReview" class="primary">복기 리포트</button>
+      <button id="gmEndNew">새 대국</button>
+      <button id="gmEndStay">분석 화면으로</button>
+    </div>
+  </div>
+</dialog>
+
 <div class="main">
+  <div id="gmMobTop" hidden></div>
   <aside class="left">
     <div class="cv-box" id="capBox"><canvas id="cap"></canvas></div>
     <div class="cv-box" id="statBox"><canvas id="stat"></canvas></div>
@@ -1213,8 +1321,31 @@ button.primary:hover { background: var(--blue-deep); }
   </aside>
 
   <section class="center" id="boardBox"><canvas id="board" aria-label="바둑판"></canvas></section>
+  <div id="gmMobBot" hidden>
+    <div id="gmMobBotSlot"></div>
+    <button id="gmMobConfirmBtn" class="primary" hidden></button>
+  </div>
 
   <aside class="right">
+    <div id="gmPanel">
+      <section class="gm-card" id="gmPlayersCard">
+        <div class="gm-kicker">대국 시계 · 대국자</div>
+        <div id="gmPlayerTop"></div>
+        <div id="gmPlayerBot"></div>
+      </section>
+      <section class="gm-card" id="gmControlCard">
+        <div class="gm-kicker">대국 제어</div>
+        <div class="gm-grid">
+          <button id="gmPassBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg><span>한 수 쉼</span></button>
+          <button id="gmScoreBtn" type="button" title="지금 국면을 셉니다: AI가 죽은 돌을 판정하고, 돌을 눌러 고칠 수 있습니다"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h4M15 12h1M8 16h8"/></svg><span>계가</span></button>
+          <button id="gmConfirmToggle" type="button"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg><span>착수 확인</span></button>
+          <button id="gmResignBtn" type="button" class="pink" title="돌을 던지고 대국을 끝냅니다"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>기권</span></button>
+        </div>
+        <button id="gmConfirmBtn" type="button" class="primary" hidden></button>
+        <button id="gmStopBtn" type="button"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span>대국 중지</span></button>
+        <div id="gmMsg" role="status"></div>
+      </section>
+    </div>
     <div id="xpBox" aria-label="역대 기보 수순 탐색">
       <div class="xp-head"><span id="xpNow"></span><div class="lvl" id="xpSrc" role="group" aria-label="기보"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
       <div class="xp-body" id="xpBody">
@@ -1295,6 +1426,12 @@ button.primary:hover { background: var(--blue-deep); }
     </div>
   </details>
   <span class="error" id="err"></span>
+  <div id="gmMobDock" hidden>
+    <button id="gmMobPass" type="button">한 수 쉼</button>
+    <button id="gmMobScore" type="button">계가</button>
+    <button id="gmMobConfirmToggle" type="button">착수확인</button>
+    <button id="gmMobResign" type="button" class="pink">기권</button>
+  </div>
   <button id="menuOpen" aria-haspopup="dialog">☰ 메뉴</button>
 </footer>
 
@@ -2159,10 +2296,120 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
   const resignScore = -adv * (toCatchUp - spent) / toCatchUp - 5 - adv * .15;
   return moverScore <= resignScore;
 }
+// 착수 확인 · 온라인 대국실 상태 (소리 탑재 없음)
+let gmConfirmOn = false, gmPending = null, gmHoverXY = null, gmLastSyncKey = "";
+try { gmConfirmOn = localStorage.getItem("kgv.confirmMove") === "1"; } catch {}
+
+function gmFormatClock(c, s, activeTurn) {
+  if (!c) return { main: "시간 없음", cls: "gm-ptime sm", low: false, pips: "" };
+  const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const isTurn = c.side === s && activeTurn;
+  const maxP = c.perMax || 0;
+  let pips = "";
+  if (maxP > 0 && c.byo) {
+    for (let i = 0; i < maxP; i++) pips += `<span class="gm-pip${i >= c.per[s] ? " used" : ""}"></span>`;
+  }
+  if (c.left[s] > 0) {
+    const low = isTurn && !c.per[s] && c.left[s] <= 10;
+    return { main: mmss(Math.ceil(c.left[s])), cls: "gm-ptime", low, pips };
+  }
+  const now = isTurn ? Math.max(0, Math.ceil(c.byo - c.used)) : c.byo;
+  const low = isTurn && (c.byo - c.used <= 10);
+  return { main: `0:${String(now).padStart(2, "0")}`, cls: "gm-ptime", low, pips };
+}
+
+function gmRenderPlayerCard(side, roleTag, name, mob) {
+  const c = game && game.root === root && game.clock;
+  const isTurn = !!(game && game.root === root && !scoring && cur.toPlay === side);
+  const clk = gmFormatClock(c, side, isTurn);
+  const caps = cur.caps[side] || 0;
+  const byoLeft = c && c.perMax > 0 && c.byo ? ` · ${c.per[side]}회` : "";
+  const stText = !isTurn ? "대기" : game && game.ai[side] ? "AI 생각 중…" : "착수 차례";
+  const pipHtml = clk.pips ? `<span class="gm-pips">${clk.pips}</span>` : "";
+  return `<div class="gm-pcard${mob ? " mob" : ""}${isTurn ? " turn" : ""}${clk.low ? " low" : ""}">
+    <div class="gm-pleft">
+      <i class="gm-pstone ${side.toLowerCase()}"></i>
+      <div class="gm-pinfo">
+        <div class="gm-pname"><b>${escHtml(name)}</b><span class="gm-ptag">${escHtml(roleTag)}</span></div>
+        <div class="gm-pmeta"><span>사석 ${caps}</span>${pipHtml}${byoLeft ? `<span>${escHtml(byoLeft)}</span>` : ""}</div>
+      </div>
+    </div>
+    <div class="gm-pright">
+      <div class="${clk.cls}">${clk.main}</div>
+      <div class="gm-pstate">${stText}</div>
+    </div>
+  </div>`;
+}
+
+function syncGameUi() {
+  const active = !!(game && game.root === root && !quiz);
+  const showAn = active && !analysisHidden();
+  const key = (active ? 1 : 0) + ":" + (showAn ? 1 : 0);
+  document.body.classList.toggle("playing", active);
+  document.body.classList.toggle("playing-an", showAn);
+  if (key !== gmLastSyncKey) {
+    gmLastSyncKey = key;
+    if (!active) gmPending = null;
+    requestAnimationFrame(layout);
+  }
+  const hasHuman = !!(active && humanSide());
+  if ($("gmTopMeta")) $("gmTopMeta").hidden = !active;
+  if ($("gmMobTop")) $("gmMobTop").hidden = !active;
+  if ($("gmMobBot")) $("gmMobBot").hidden = !active;
+  if ($("gmMobDock")) $("gmMobDock").hidden = !active;
+  if (!active) return;
+
+  const info = root.info || {};
+  const hc = +$("handicap").value;
+  const hcTxt = hc >= 2 ? `접바둑 ${hc}점` : hc === 1 ? "정선" : "호선";
+  const pb = info.PB || "흑", pw = info.PW || "백";
+  const topHtml = `<b>${escHtml(pb)} vs ${escHtml(pw)}</b> · ${hcTxt} · ${komiText()} · ${cur.depth}수`;
+  if ($("gmTopMeta").innerHTML !== topHtml) $("gmTopMeta").innerHTML = topHtml;
+
+  // Opponent on top, player on bottom
+  const mySide = !game.ai.W && game.ai.B ? "W" : "B";
+  const topSide = other(mySide);
+  const tagOf = s => game.ai[s] ? "AI" : "나";
+  const nameOf = s => (s === "B" ? pb : pw);
+
+  const pcTop = gmRenderPlayerCard(topSide, tagOf(topSide), nameOf(topSide), false);
+  const pcBot = gmRenderPlayerCard(mySide, tagOf(mySide), nameOf(mySide), false);
+  const mbTop = gmRenderPlayerCard(topSide, tagOf(topSide), nameOf(topSide), true);
+  const mbBot = gmRenderPlayerCard(mySide, tagOf(mySide), nameOf(mySide), true);
+  if ($("gmPlayerTop").innerHTML !== pcTop) $("gmPlayerTop").innerHTML = pcTop;
+  if ($("gmPlayerBot").innerHTML !== pcBot) $("gmPlayerBot").innerHTML = pcBot;
+  if ($("gmMobTop").innerHTML !== mbTop) $("gmMobTop").innerHTML = mbTop;
+  if ($("gmMobBotSlot").innerHTML !== mbBot) $("gmMobBotSlot").innerHTML = mbBot;
+
+  $("gmPassBtn").hidden = $("gmMobPass").hidden = !hasHuman;
+  $("gmConfirmToggle").hidden = $("gmMobConfirmToggle").hidden = !hasHuman;
+  $("gmResignBtn").hidden = $("gmMobResign").hidden = !hasHuman;
+  $("gmScoreBtn").classList.toggle("on", !!scoring);
+  $("gmMobScore").classList.toggle("on", !!scoring);
+  $("gmConfirmToggle").classList.toggle("on", gmConfirmOn);
+  $("gmMobConfirmToggle").classList.toggle("on", gmConfirmOn);
+
+  const pendTxt = gmPending ? `${gtp(gmPending[0], gmPending[1])} 착수 확정` : "";
+  for (const id of ["gmConfirmBtn", "gmMobConfirmBtn"]) {
+    const b = $(id); b.hidden = !gmPending || !!game.ai[cur.toPlay];
+    if (!b.hidden && b.textContent !== pendTxt) b.textContent = pendTxt;
+  }
+  const errTxt = $("err").textContent || "";
+  if ($("gmMsg").textContent !== errTxt) $("gmMsg").textContent = errTxt;
+}
+
+function gmShowEndDialog(title, sub) {
+  if (!$("gmEndDlg")) return;
+  $("gmEndTitle").textContent = title || "대국 종료";
+  $("gmEndSub").textContent = sub || "";
+  if (!$("gmEndDlg").open) $("gmEndDlg").showModal();
+}
+
 function gameButton() {
   $("newGame").classList.toggle("on", !!game); $("newGame").textContent = game ? "■ 대국 중지" : "AI대국";
   $("gameResign").hidden = !game || !humanSide();   // AI against AI: nobody to resign
   if (!game) closeScoring();
+  syncGameUi();
 }
 // 계가 / 기권 while playing (user request 2026-10-05). The member's colour: the one no AI plays (both: the side to move).
 function humanSide() {
@@ -2189,12 +2436,12 @@ function startScoring() {
   if (!send({...baseQuery(), id: scoring.id, moves: movesOf(cur), maxVisits: 400, includeOwnership: true, priority: 20})) {
     queries.delete(scoring.id); scoring.waiting = false;
   }
-  hover = null; schedule();
+  hover = null; gmPending = null; syncGameUi(); schedule();
 }
 function closeScoring() {
   if (!scoring) return;
   if (scoring.waiting) { send({id: "t" + (++qn), action: "terminate", terminateId: scoring.id}); queries.delete(scoring.id); }
-  scoring = null; $("scoreBox").hidden = true; schedule();
+  scoring = null; $("scoreBox").hidden = true; syncGameUi(); schedule();
 }
 function scoreAnswer(msg) {
   if (!scoring || scoring.id !== msg.id) return;
@@ -2276,7 +2523,7 @@ $("scoreEnd").onclick = () => {
   const re = $("scoreBox").dataset.re;
   if (!confirm(`${resultText(re)}${eulo(resultText(re))} 대국을 끝낼까요?`)) return;
   root.info.RE = re; publish(); closeScoring();
-  stopGame(`계가로 대국이 끝났습니다 · ${resultText(re)}`);
+  stopGame(`계가로 대국이 끝났습니다 · ${resultText(re)}`, true);
 };
 $("scoreRecord").onclick = () => {
   if (!scoring) return;
@@ -2290,7 +2537,7 @@ $("scoreRecord").onclick = () => {
 function makeClock(v) {
   const m = /^(\d+)\/(\d+)\/(\d+)$/.exec(v || ""); if (!m) return null;
   const [main, byo, per] = [+m[1], +m[2], +m[3]];
-  return {left: {B: main, W: main}, per: {B: per, W: per}, byo, used: 0, side: null, last: performance.now(), budget: null};
+  return {left: {B: main, W: main}, per: {B: per, W: per}, perMax: per, byo, used: 0, side: null, last: performance.now(), budget: null};
 }
 function aiBudget(c, s) {
   const movesLeft = Math.max(8, (N * N * .7 - cur.depth) / 2), byo = c.per[s] > 0 ? c.byo : 0;
@@ -2305,19 +2552,22 @@ function clockText(c, s) {
 }
 function drawClocks() {
   const c = game && game.root === root && game.clock;
-  $("clocks").hidden = !c; if (!c) return;
-  for (const s of ["B", "W"]) {
-    const el = $("clock" + s), low = c.side === s && (c.left[s] <= 0 ? c.byo - c.used <= 10 : c.left[s] <= 10 && !c.per[s]);
-    el.textContent = `${colorName(s)} ${clockText(c, s)}`;
-    el.classList.toggle("turn", c.side === s); el.classList.toggle("low", low);
+  $("clocks").hidden = !c || document.body.classList.contains("playing");
+  if (c) {
+    for (const s of ["B", "W"]) {
+      const el = $("clock" + s), low = c.side === s && (c.left[s] <= 0 ? c.byo - c.used <= 10 : c.left[s] <= 10 && !c.per[s]);
+      el.textContent = `${colorName(s)} ${clockText(c, s)}`;
+      el.classList.toggle("turn", c.side === s); el.classList.toggle("low", low);
+    }
   }
+  syncGameUi();
 }
 function timeUp(s) {
   root.info.RE = other(s) + "+T"; publish();
-  stopGame(`${colorName(s)}의 시간이 다 됐습니다 · ${resultText(root.info.RE)}`);
+  stopGame(`${colorName(s)}의 시간이 다 됐습니다 · ${resultText(root.info.RE)}`, true);
 }
 setInterval(() => {
-  const c = game && game.clock; if (!c) { $("clocks").hidden = true; return; }
+  const c = game && game.clock; if (!c) { $("clocks").hidden = true; syncGameUi(); return; }
   const now = performance.now(), dt = (now - c.last) / 1000; c.last = now;
   if (scoring || game.root !== root) return drawClocks();   // counting: the clocks stop
   const s = cur.toPlay;
@@ -2335,9 +2585,15 @@ $("gameResign").onclick = () => {
   if (!confirm(`${colorName(side)}이 돌을 던집니다(기권). 대국을 끝낼까요?`)) return;
   if (!game) return;
   root.info.RE = other(side) + "+R"; publish();
-  stopGame(`${colorName(side)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`);
+  stopGame(`${colorName(side)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`, true);
 };
-function stopGame(message) { game = null; gameButton(); if (message) $("err").textContent = message; requestLive(); schedule(); }   // PDA turns change
+function stopGame(message, ended) {
+  const re = root.info.RE, pb = root.info.PB || "흑", pw = root.info.PW || "백", movesCnt = cur.depth;
+  game = null; gmPending = null; gmHoverXY = null; gameButton();
+  if (message) $("err").textContent = message;
+  requestLive(); schedule();
+  if (ended) gmShowEndDialog(resultText(re) || "대국 종료", `${pb} vs ${pw} · 총 ${movesCnt}수${message ? " · " + message : ""}`);
+}
 const candsShown = () => $("showCands").checked && (!game || game.show[cur.toPlay]) && !(quiz && !quiz.shown) && !$("hideEval").checked;
 // AI대국 with "AI분석 보기" off for both colours: no win rate anywhere (board, bar, graph, table, comment) — unless 승률만
 // (show.wr, user 2026-11-15 "승률그래프만 볼 수 있게"): the win rate bar, graph and comment, but never a candidate (board,
@@ -2354,7 +2610,7 @@ setInterval(() => {
   if (cur.move && cur.move.pass && cur.parent.move && cur.parent.move.pass) {   // both passed: the game is over
     const s = [cur, cur.parent, cur.parent.parent].map(n => n && nodeStats(n)).find(Boolean);
     if (s) { root.info.RE = countedRE(s.blackLead); publish(); }
-    return stopGame("양쪽이 패스해 대국이 끝났습니다" + (s ? ` · ${resultText(root.info.RE)} (AI 판정)` : ""));
+    return stopGame("양쪽이 패스해 대국이 끝났습니다" + (s ? ` · ${resultText(root.info.RE)} (AI 판정)` : ""), true);
   }
   const mover = cur.toPlay, rule = game.ai[mover];
   const an = shownAnalysis(cur);
@@ -2368,7 +2624,7 @@ setInterval(() => {
   if (game.resign && cur.depth >= RESIGN_MOVE && moverWr(cur, best.winrate) < RESIGN_WR && handicapAllowsResign(mover, moverLead(cur, best.scoreLead))) {
     if (++game.low[mover] >= RESIGN_COUNT) {
       root.info.RE = other(mover) + "+R"; publish();
-      return stopGame(`${colorName(mover)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`);
+      return stopGame(`${colorName(mover)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`, true);
     }
   } else game.low[mover] = 0;
   let pick = best;
@@ -2448,7 +2704,31 @@ $("gdGo").onclick = () => {
   if (!analyzing) setAnalyzing(true);
   reachedAt = performance.now(); requestLive(); publish(); gameButton(); schedule();
   $("err").textContent = vsHuman ? `AI 대국 시작 · 나는 ${colorName(mine)}` : "AI끼리 대국을 시작했습니다";
+  syncGameUi();
 };
+$("gmPassBtn").onclick = $("gmMobPass").onclick = () => {
+  if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; syncGameUi(); return; }
+  gmPending = null;
+  $("pass").click();
+};
+$("gmScoreBtn").onclick = $("gmMobScore").onclick = startScoring;
+$("gmConfirmToggle").onclick = $("gmMobConfirmToggle").onclick = () => {
+  gmConfirmOn = !gmConfirmOn; gmPending = null;
+  try { localStorage.setItem("kgv.confirmMove", gmConfirmOn ? "1" : ""); } catch {}
+  syncGameUi(); schedule();
+};
+$("gmConfirmBtn").onclick = $("gmMobConfirmBtn").onclick = () => {
+  if (!gmPending) return;
+  const p = gmPending; gmPending = null;
+  const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c);
+  syncGameUi();
+};
+$("gmResignBtn").onclick = $("gmMobResign").onclick = () => $("gameResign").click();
+$("gmStopBtn").onclick = () => $("newGame").click();
+$("gmEndReview").onclick = () => { $("gmEndDlg").close(); $("reviewOpen").click(); };
+$("gmEndNew").onclick = () => { $("gmEndDlg").close(); $("newGame").click(); };
+$("gmEndStay").onclick = () => $("gmEndDlg").close();
+$("gmEndDlg").addEventListener("click", ev => { if (ev.target === $("gmEndDlg")) $("gmEndDlg").close(); });
 // 편집: each says what it did on the message card (user 2026-10-24 "편집에 있는 버튼 누르면 안내문 뜨게")
 $("promote").onclick = () => {
   let main = true;
@@ -6505,6 +6785,19 @@ function drawMain() {
   else if (quiz && quiz.shown && cur === quiz.node && !hover) drawQuizMarks(boardCtx, boardG);
   else if (xp && !quiz && !sc) drawXpMarks(boardCtx, boardG);
   if (!hover && !sc && cur.labels && cur.labels.length) drawSgfLabels(boardCtx, boardG, cur);
+  if (game && game.root === root && !quiz && !sc && !game.ai[cur.toPlay]) {
+    const {margin: m, sq, r} = boardG, col = (placeColor || cur.toPlay) === "B" ? 1 : 2;
+    if (gmPending && !cur.grid[idx(gmPending[0], gmPending[1])]) {
+      const cx = m + sq * gmPending[0], cy = m + sq * gmPending[1];
+      boardCtx.save(); boardCtx.globalAlpha = .72; drawStone(boardCtx, cx, cy, r, col);
+      boardCtx.globalAlpha = 1; boardCtx.strokeStyle = "#f59e0b"; strokeCircle(boardCtx, cx, cy, r + 1.5, Math.max(2, r * .14));
+      boardCtx.restore();
+    } else if (gmHoverXY && !hover && !cur.grid[idx(gmHoverXY[0], gmHoverXY[1])]) {
+      boardCtx.save(); boardCtx.globalAlpha = .34;
+      drawStone(boardCtx, m + sq * gmHoverXY[0], m + sq * gmHoverXY[1], r, col);
+      boardCtx.restore();
+    }
+  }
   if (sc) drawScoreMarks(boardCtx, boardG);
   boardCtx.setTransform(1, 0, 0, 1, 0, 0);
   updateScoreBox();
@@ -6520,10 +6813,18 @@ function boardPoint(ev) {
   return (x >= 0 && y >= 0 && x < N && y < N) ? [x, y] : null;
 }
 function placeAt(pt) {
-  const p = boardPoint(pt); if (!p) return; hover = null;
+  const p = boardPoint(pt); if (!p) return; hover = null; gmHoverXY = null;
   if (scoring) { toggleDead(p); return; }   // 계가: a stone pressed = its group dead / alive
   if (quiz) { quiz.bank ? answerBank(p) : answerQuiz(p); return; }   // a problem: the click is the answer
-  if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; return; } const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c); }
+  if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; syncGameUi(); return; }
+  if (game && game.root === root && !quiz && gmConfirmOn && !cur.grid[idx(p[0], p[1])]) {
+    if (!gmPending || gmPending[0] !== p[0] || gmPending[1] !== p[1]) {
+      gmPending = p; syncGameUi(); schedule(); return;
+    }
+  }
+  gmPending = null;
+  const c = play(cur, placeColor || cur.toPlay, p); if (c) goTo(c);
+}
 let placeColor = "";   // "" = alternate, "B" / "W" = only that colour (life-and-death, set positions)
 $("placeSeg").addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
@@ -6544,8 +6845,12 @@ function hoverAt(pt) {  // pt: anything with clientX/clientY
 boardCv.addEventListener("mousemove", ev => {
   if (touchCursor) return;   // pinned by a long press: it stays until the next press anywhere, as on the phone
   hoverAt(ev);
+  if (game && game.root === root && !quiz && !scoring && !game.ai[cur.toPlay]) {
+    const p = boardPoint(ev), chg = (p?.[0] ?? -1) !== (gmHoverXY?.[0] ?? -1) || (p?.[1] ?? -1) !== (gmHoverXY?.[1] ?? -1);
+    if (chg) { gmHoverXY = p; schedule(); }
+  } else if (gmHoverXY) { gmHoverXY = null; schedule(); }
 });
-boardCv.addEventListener("mouseleave", () => { if (hover) { hover = null; schedule(); } });
+boardCv.addEventListener("mouseleave", () => { if (hover || gmHoverXY) { hover = null; gmHoverXY = null; schedule(); } });
 // Laptop touchpad (and mouse): some of the phone's touch gestures, translated (the phone's own handling is further down).
 // - a press on the board plays at once, however light or long (user decision 2026-10-05: no long press on a touchpad;
 //   the preview shows by just moving over a candidate). It is played when the button comes up: a light touchpad tap
@@ -7004,6 +7309,7 @@ function drawSide() {
   if (document.body.classList.contains("play-hide") !== playHide) { document.body.classList.toggle("play-hide", playHide); requestAnimationFrame(layout); }
   emptyHint($("candRows").closest(".table-box"), cands.length ? "" : $("hideEval").checked ? "승률 가리기 중입니다" : quiz && !quiz.shown ? "답을 고르면 AI 후보수가 보입니다"
     : candsShown() || !game ? "분석을 시작하면 후보수가 표시됩니다" : "대국 중에는 후보수를 숨깁니다");
+  syncGameUi();
 }
 function emptyHint(el, text) { if (text) el.dataset.empty = text; else delete el.dataset.empty; }
 function resultText(re) {
@@ -7134,8 +7440,11 @@ function layout() {
   // portrait: as wide as the screen, leaving room for the win-rate bar and what is under it: the buttons, a message
   // line, the 오답노트 answer bar. Measured, not assumed (user report 2026-09-28: a fixed 110 px cut the bottom off on a
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
+  const gmMobH = document.body.classList.contains("playing")
+    ? ($("gmMobTop") ? $("gmMobTop").offsetHeight : 0) + ($("gmMobBot") ? $("gmMobBot").offsetHeight : 0)
+    : 0;
   const side = matchMedia("(orientation: portrait)").matches
-    ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - document.querySelector(".menubar").offsetHeight
+    ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - gmMobH - document.querySelector(".menubar").offsetHeight
         - document.querySelector(".left").offsetHeight - (xpShown() ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
