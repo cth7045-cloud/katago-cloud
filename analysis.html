@@ -19,7 +19,10 @@ if (!(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "M
   document.querySelector('meta[name="viewport"]').content = "width=device-width, initial-scale=1";
 // The page's height is the window's measured height, not 100dvh: an installed app on a Samsung tablet (landscape) laid
 // the bottom buttons out under the taskbar (user report 2026-09-30). Long-press the connection status for the numbers.
-function setAppHeight() { document.documentElement.style.setProperty("--app-h", (visualViewport ? visualViewport.height : innerHeight) + "px"); }
+function setAppHeight() {
+  document.documentElement.style.setProperty("--app-h", (visualViewport ? visualViewport.height : innerHeight) + "px");
+  if (typeof layout === "function") requestAnimationFrame(layout);
+}
 setAppHeight(); addEventListener("resize", setAppHeight); if (window.visualViewport) visualViewport.addEventListener("resize", setAppHeight);
 </script>
 <title>KataGo 분석</title>
@@ -49,8 +52,8 @@ setAppHeight(); addEventListener("resize", setAppHeight); if (window.visualViewp
   --ui-font: "SUIT Variable", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
-body { font: 14px/1.4 var(--ui-font); color: var(--ink); overflow: hidden; background: var(--paper);
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { position: fixed; inset: 0; font: 14px/1.4 var(--ui-font); color: var(--ink); overflow: hidden; background: var(--paper);
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: var(--app-h, 100dvh); -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
 button, select, input { font: inherit; color: var(--ink); }
 button { font-weight: 600; background: var(--soft); border: 0; border-radius: 999px; padding: 5px 14px; min-height: 34px; white-space: nowrap; cursor: pointer;
@@ -98,7 +101,7 @@ label.check { display: inline-flex; align-items: center; gap: 6px; white-space: 
 div.lvl button { min-height: 28px; height: 28px; padding: 0 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
 div.lvl button:hover { background: rgba(255, 255, 255, .7); }
 div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 4px rgba(23, 26, 34, .16); }
-#menuBody section > .lvl { margin: 0 0 6px 48px; flex-wrap: wrap; max-width: calc(100% - 48px); border-radius: 17px; }   /* 5 levels in a long language: two rows */
+#menuBody section > .lvl { margin: 0 0 6px 36px; flex-wrap: wrap; max-width: calc(100% - 36px); border-radius: 17px; }   /* 5 levels in a long language: two rows */
 /* landscape: no buttons beside 자동분석 / 대국 리포트 — pressing them asks for the level instead (portrait keeps them in the menu) */
 .toolbar #autoLevel, .menubar #strengthLevel { display: none; }
 .level-pop { position: fixed; z-index: 40; display: grid; gap: 2px; min-width: 230px; padding: 6px; background: var(--panel); border-radius: 14px;
@@ -116,7 +119,7 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
 #placeRow > span { display: none; }
 #menuBody #placeRow { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='10' cy='13' r='6'/><path d='M19 3v6M16 6h6'/></svg>"); }
 #menuBody #placeRow > span { display: inline; }
-#menuBody section > #placeRow { display: flex; width: 100%; gap: 14px; min-height: 48px; padding: 0 12px; border-radius: 14px;
+#menuBody section > #placeRow { display: flex; flex-wrap: wrap; width: 100%; min-width: 0; gap: 8px 12px; min-height: 48px; padding: 0 12px; border-radius: 14px;
   color: var(--ink); font-size: 15px; font-weight: 600; }
 #menuBody #placeRow .stone-seg { margin-left: auto; }
 .stone-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--soft); border-radius: 999px; }
@@ -133,14 +136,12 @@ div.lvl button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1
 .status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .status:not(:empty) { background: var(--soft); border-radius: 999px; padding: 5px 12px; }
 .status:empty { display: none; }
-/* visits/s: a fixed width with same-width digits. Its width followed the number, so on a phone the top bar wrapped
-   onto a second line and back as the speed changed and the board jumped up and down (user report 2026-09-29). */
-#vps { font-variant-numeric: tabular-nums; min-width: calc(13ch + 24px); justify-content: center; }
-/* the connection and the GPU time·요금 the same way: "GPU 연결됨 · 95 ms" changes every ping (5 s), and at a width where the
-   top bar just fits (태블릿 가로 966px) 92 ms ↔ 105 ms wrapped it onto a second line and back, so the board kept moving
-   (user report 2026-10-07). Same-width digits and room for a 3-digit ping keep the bar the same. */
+/* visits/s: a fixed width when shown so changing digits never shifts siblings or wraps the top bar. */
+#vps:not(:empty), body.playing #vps:empty { display: inline-block; text-align: center; font-variant-numeric: tabular-nums; width: calc(16ch + 24px); min-width: calc(16ch + 24px); max-width: calc(16ch + 24px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the connection and the GPU time·요금 the same way: fixed minimum width prevents jitter as ping or cost changes. */
 #conn, #gpuUse { font-variant-numeric: tabular-nums; }
-#conn { min-width: 9.4em; }   /* = "GPU 연결됨 · 999 ms" */
+#conn { min-width: 10.2em; }   /* = "GPU 연결됨 · 999 ms" */
+#gpuUse { display: inline-block; min-width: 7.2em; text-align: center; }
 #conn.slow { color: #f08a24; }   /* 연결이 느립니다 (slowNet) */
 /* 연결이 느립니다 (user 2026-10-23): a small card above the bottom buttons, only its own area takes clicks */
 #slowNote { position: fixed; left: 50%; bottom: 12px; z-index: 60; width: min(420px, calc(100vw - 24px)); box-sizing: border-box;
@@ -196,13 +197,13 @@ details.menu .items #placeRow .stone-seg { margin-left: auto; }
 /* 작은 태블릿 가로(iPad 1024·mini 1133·966px): visits/s가 빠지지 않게 위 바 버튼·상태 칸의 안쪽 여백만 줄임(2026-10-16) */
 @media (orientation: landscape) and (max-width: 1200px) and (min-height: 521px) {
   .menubar > button, .menubar details.menu > summary { padding-inline: 10px; }
-  .menubar .status:not(:empty) { padding-inline: 9px; }
-  .menubar #vps { min-width: calc(13ch + 18px); }
+  .menubar .status:not(:empty), body.playing .menubar #vps:empty { padding-inline: 9px; }
+  .menubar #vps:not(:empty), body.playing .menubar #vps:empty { width: calc(16ch + 16px); min-width: calc(16ch + 16px); max-width: calc(16ch + 16px); }
   .menubar #gpuMeter { gap: 4px; padding-right: 4px; }
   .menubar .brand { margin-right: 0; }
 }
 @media (orientation: landscape) and (max-width: 1100px) and (min-height: 521px) {
-  #conn:has(.conn-word) { min-width: 4.6em; }   /* = "999 ms" */
+  #conn:has(.conn-word) { min-width: 5.6em; }   /* = "9999 ms" */
   .conn-word { display: none; }
 }
 /* 폴드를 펼쳐 가로로 든 폭(약 900px, 회원 화면 2026-10-16): AI 대국 중('■ 대국 중지')에도 visits/s가 남게 사이·여백을 더 줄이고
@@ -210,8 +211,8 @@ details.menu .items #placeRow .stone-seg { margin-left: auto; }
 @media (orientation: landscape) and (max-width: 1023px) and (min-height: 521px) {
   .menubar { gap: 4px; padding-inline: 8px; }
   .menubar > button, .menubar details.menu > summary { padding-inline: 8px; }
-  .menubar .status:not(:empty) { padding-inline: 6px; }
-  .menubar #vps { min-width: calc(13ch + 12px); }
+  .menubar .status:not(:empty), body.playing .menubar #vps:empty { padding-inline: 6px; }
+  .menubar #vps:not(:empty), body.playing .menubar #vps:empty { width: calc(15ch + 12px); min-width: calc(15ch + 12px); max-width: calc(15ch + 12px); }
   .menubar #saveMine::before { display: none; }
 }
 details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; }
@@ -232,11 +233,17 @@ details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right:
 .toolbar details.menu.flat .items button.pink:hover { background: #fbdcde; }
 /* 낮은 가로 화면(폰 가로): 폰 세로처럼 나머지 도구는 ☰ 메뉴 시트로(placeMenuItems) — 두 바가 한 줄씩만 차지해 바둑판이 커짐 */
 @media (orientation: landscape) and (max-height: 520px) {
-  .menubar { flex-wrap: nowrap; padding: 5px 10px; gap: 6px; }
+  .menubar { flex-wrap: nowrap; padding: 4px 10px; gap: 6px; height: 40px; min-height: 40px; max-height: 40px; overflow: hidden; }
+  .menubar #vps:not(:empty), body.playing .menubar #vps:empty { width: calc(14ch + 12px); min-width: calc(14ch + 12px); max-width: calc(14ch + 12px); padding: 5px 6px; }
   #fileMenu, #boardMenu, #viewMenu, #editMenu { display: none; }
+  .main { grid-template-columns: minmax(150px, 23%) minmax(0, 1fr) minmax(182px, 28%); gap: 8px; padding: 8px; }
   .toolbar { flex-wrap: nowrap; padding-top: 5px; padding-bottom: calc(5px + env(safe-area-inset-bottom)); }
   .toolbar #menuOpen { display: inline-flex; align-items: center; margin-left: auto; }
-}
+  #miniBox { display: none; }
+  #treeBox { flex: 0 0 34%; min-height: 70px; }
+  .right .table-box { flex: 1 1 auto; height: auto; min-height: 80px; }
+  th { white-space: nowrap; font-size: 11px; padding: 4px 2px; }
+  td { padding: 0 2px; font-size: 11.5px; line-height: 22px; white-space: nowrap; }
 }
 .toolbar { display: flex; gap: 6px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(23, 26, 34, .06);
   flex-wrap: wrap; align-items: center; }
@@ -252,22 +259,23 @@ details.menu.up .items { top: auto; bottom: calc(100% + 6px); left: auto; right:
 #menuOpen { display: none; }
 
 /* menu sheet (portrait only): the tools that don't fit under the board, moved here by placeMenuItems() */
-dialog.sheet { margin: 0 0 0 auto; width: min(340px, 88vw); height: var(--app-h, 100dvh); max-height: var(--app-h, 100dvh); border-radius: 24px 0 0 24px; }
+dialog.sheet { margin: 0 0 0 auto; width: min(340px, 88vw); height: var(--app-h, 100dvh); max-height: var(--app-h, 100dvh); border-radius: 24px 0 0 24px; overflow-x: hidden; }
 dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .35s var(--ease); }
 @keyframes slideIn { from { opacity: 0; transform: translateX(48px); } }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: calc(14px + env(safe-area-inset-top)) 14px 6px 22px; }
 .sheet-head b { font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
-#menuBody { overflow: auto; padding: 0 10px calc(16px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+#menuBody { overflow-y: auto; overflow-x: hidden; padding: 0 10px calc(16px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
 #menuBody section { padding: 6px 0; }
 #menuBody section + section { border-top: 1px solid var(--line); }
 #menuBody h3 { margin: 8px 12px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
-#menuBody section > button, #menuBody section > label { display: flex; width: 100%; align-items: center; justify-content: flex-start; gap: 14px;
+#menuBody section > button, #menuBody section > label { display: flex; width: 100%; min-width: 0; max-width: 100%; align-items: center; justify-content: flex-start; gap: 14px;
   min-height: 48px; padding: 0 12px; border-radius: 14px; background: transparent; box-shadow: none; color: var(--ink); font-size: 15px; font-weight: 600; cursor: pointer; }
 #menuBody section > :hover { background: var(--soft); }
-#menuBody section > .status { display: flex; justify-content: flex-start; gap: 10px; min-height: 44px; margin: 2px 0; padding: 0 12px;
+#menuBody section > .status { display: flex; flex-wrap: wrap; min-width: 0; max-width: 100%; justify-content: flex-start; gap: 10px; min-height: 44px; margin: 2px 0; padding: 0 12px;
   border-radius: 14px; background: var(--soft); font-size: 14px; color: var(--ink); }
 #menuBody section > .status::before { display: none; }
 #menuBody #gpuStop, #menuBody #localStop { margin-left: auto; }
+#menuBody #conn, #menuBody #gpuUse { min-width: 0; }
 /* 대국 정보 on a phone (user 2026-10-24 "컴퓨터 화면에만 있는 대국정보를 폰에도 메뉴에 gpu아래 칸에"): the PC's card, moved in */
 #menuBody #gameInfo { margin: 2px 0; padding: 10px 12px; border: 0; border-radius: 14px; background: var(--soft); cursor: pointer; }
 #menuBody #gameInfo::before { display: none; }
@@ -276,9 +284,9 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
   -webkit-mask: var(--i) center / 22px no-repeat; mask: var(--i) center / 22px no-repeat; }
 #menuBody section > button.on { background: var(--cyan-soft); color: var(--blue-deep); }
 /* 보기: 켜고 끄는 것들은 두 줄 칩으로(목록이 길어지지 않게) */
-#menuBody section.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 2px 10px; }
+#menuBody section.chips { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 6px 2px 10px; }
 #menuBody section.chips > h3 { grid-column: 1 / -1; margin-bottom: 0; }
-#menuBody section.chips > label, #menuBody section.chips > button { min-height: 44px; gap: 8px; padding: 0 10px; font-size: 14px; background: var(--soft); border-radius: 12px; }
+#menuBody section.chips > label, #menuBody section.chips > button { min-height: 44px; gap: 8px; padding: 0 10px; font-size: 14px; background: var(--soft); border-radius: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #menuBody section.chips > label > input { display: none; }
 #menuBody section.chips > label:has(input:checked), #menuBody section.chips > button.on { background: var(--cyan-soft); color: var(--blue-deep); box-shadow: inset 0 0 0 1.5px rgba(22, 193, 220, .5); }
 #menuBody section.chips > label:has(input:checked)::before, #menuBody section.chips > button.on::before { background: var(--blue); }
@@ -292,7 +300,8 @@ dialog.sheet[open] { display: flex; flex-direction: column; animation: slideIn .
 #menuBody label > input, #menuBody label > select { order: 2; margin-left: auto; }
 .menu-text { display: none; }
 #menuBody .menu-text { display: inline; }
-#menuBody #komiLabel > #komi { margin-left: 0; width: 76px; }
+#menuBody #komiLabel { flex-wrap: wrap; gap: 6px 10px; }
+#menuBody #komiLabel > #komi { margin-left: 0; width: 68px; }
 #menuBody input[type=checkbox] { width: 20px; height: 20px; }
 #menuBody #openSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
 #menuBody #saveSgf { --i: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4'/></svg>"); }
@@ -674,23 +683,26 @@ button.primary:hover { background: var(--blue-deep); }
 #scoreLines { display: grid; gap: 3px; font-size: 14px; font-variant-numeric: tabular-nums; }
 #scoreHint { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
 .sb-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
-/* portrait (phones, tablets): board, win-rate bar right under it, tool buttons in the space left */
+/* portrait (phones, tablets): board, win-rate bar right under it, tool buttons pinned at the bottom */
 @media (orientation: portrait) {
-  body { grid-template-rows: auto auto minmax(0, 1fr); overflow-y: auto; }   /* scrolls only if a very short screen still overflows */
-  .main { display: flex; flex-direction: column; padding: 0; gap: 0; }
+  body { grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; overscroll-behavior: none; }
+  body.bankq { grid-template-rows: auto auto minmax(0, 1fr); }   /* 문제 은행: 하단 고정 액션 버튼 위 공간 확보 */
+  .main { display: flex; flex-direction: column; min-height: 0; padding: 0; gap: 0; overflow: hidden; }
+  body:not(.playing):not(.xp-open):not(.bankq) .main { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
   .brand span:last-child { display: none; }
-  /* one row on a phone: the top bar wrapped visits/s onto a second line on a 360px phone or with the phone's text
-     made larger (user report 2026-10-05); it no longer wraps, the gaps are tighter and visits/s gives way first */
-  .menubar { flex-wrap: nowrap; gap: 6px; padding: 8px 10px; }
+  /* one row fixed height on a phone: toggling or widening visits/s never changes bar height or shifts board/title */
+  .menubar { flex-wrap: nowrap; gap: 6px; padding: 6px 10px; height: 46px; min-height: 46px; max-height: 46px; overflow: hidden; }
   .brand { margin-right: 0; }
-  #vps:not(:empty) { font-size: 12px; padding: 5px 8px; min-width: 0; flex: 0 1 96px; overflow: hidden; text-overflow: ellipsis; }
-  .center { order: 1; }
+  #saveMine:not([hidden]) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #vps:not(:empty) { display: inline-block; text-align: center; font-size: 11.5px; line-height: 1.25; padding: 5px 6px;
+    width: 102px; min-width: 102px; max-width: 102px; flex: 0 0 102px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .center { order: 1; flex: none; }
   .left { order: 2; padding: 8px 8px 0; }
   #capBox, #graphBox, .comment, .right { display: none; }
   /* 연구 (학습방): no explanation box under the board on a phone — the board keeps its full size and the 승률 막대·변화도·그래프
      work as for any game (user 2026-11-13 "바둑판 고정시키고 설명란도 생기게 하지않게 해 … 예전처럼 돌려놔"; the box of
      2026-11-07/08 shrank the board and showed the analysis text there) */
-  #statBox { flex: none; height: 72px; }
+  #statBox { flex: none; height: 72px; min-height: 0; }
   .graph-open #graphBox { display: block; flex: none; height: 130px; margin-top: 8px; }
   .bar-off #statBox { display: none; }
   .bar-off.graph-open #graphBox { margin-top: 0; }
@@ -876,7 +888,7 @@ button.primary:hover { background: var(--blue-deep); }
 }
 @media print {
   @page { size: A4; margin: 12mm; }
-  html, body.review-open { height: auto !important; overflow: visible !important; display: block !important; background: #fff !important; }
+  html, body.review-open { position: static !important; height: auto !important; overflow: visible !important; display: block !important; background: #fff !important; }
   body.review-open > *:not(#reviewDoc) { display: none !important; }
   #reviewDoc { position: static !important; overflow: visible !important; background: #fff !important; }
   .rv-bar, .rv-go { display: none !important; }
@@ -917,11 +929,18 @@ button.primary:hover { background: var(--blue-deep); }
   .stone-seg i.b, .stone-seg i.bw::before, .gi-stone.b { box-shadow: 0 0 0 1px rgba(255, 255, 255, .22); }   /* 흑돌이 어두운 바탕에 묻히지 않게 */
 }
 
+@media (orientation: portrait) and (max-height: 740px) {
+  body:not(.playing) #statBox { height: 60px; }
+  body:not(.playing).graph-open #graphBox { height: 96px; margin-top: 6px; }
+  body:not(.playing).tree-open #treeBox { height: 96px; }
+  body:not(.playing) .rb-bars { height: 68px; }
+}
 /* 온라인 대국실 UI (시안 5번 적용 · AI분석 보기 켜면 승률 막대+그래프 표시, 소리 탑재 없음) */
 #gmPanel, #gmMobTop, #gmMobBot, #gmMobDock, #gmTopMeta { display: none; }
-#gmTopMeta { align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--soft); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
+#gmTopMeta { align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--soft); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #gmTopMeta b { color: var(--ink); font-weight: 700; }
-body.playing #gmTopMeta { display: inline-flex; }
+body.playing #gmTopMeta { display: block; flex: 0 1 auto; min-width: 0; }
+body.playing #vps:empty { display: inline-block; visibility: hidden; padding: 5px 12px; border-radius: 999px; }
 body.playing #clocks { display: none !important; }
 body.playing .menubar #fileMenu, body.playing .menubar #boardMenu, body.playing .menubar #viewMenu,
 body.playing .menubar #newGame, body.playing .menubar #strengthOpen, body.playing .menubar #strengthLevel,
@@ -944,15 +963,15 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
 .gm-pname { display: flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 750; color: var(--ink); min-width: 0; }
 .gm-pname > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gm-ptag { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--panel); color: var(--muted); flex: none; }
-.gm-pmeta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gm-pmeta { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; min-height: 16px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gm-pips { display: inline-flex; gap: 3px; align-items: center; }
 .gm-pip { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; display: inline-block; }
 .gm-pip.used { opacity: .25; background: var(--muted); }
-.gm-pright { text-align: right; flex: none; min-width: 70px; }
-.gm-ptime { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -.02em; color: var(--ink); }
-.gm-ptime.sm { font-size: 13px; color: var(--muted); }
+.gm-pright { text-align: right; flex: none; min-width: 82px; }
+.gm-ptime { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 24px; min-height: 24px; letter-spacing: -.02em; color: var(--ink); white-space: nowrap; }
+.gm-ptime.sm { font-size: 13px; color: var(--muted); line-height: 24px; min-height: 24px; white-space: nowrap; }
 .gm-pcard.low .gm-ptime { color: var(--bad); }
-.gm-pstate { font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.gm-pstate { font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 2px; white-space: nowrap; line-height: 15px; min-height: 15px; }
 .gm-pcard.turn .gm-pstate { color: var(--blue); }
 .gm-pcard.low .gm-pstate { color: var(--bad); }
 
@@ -964,45 +983,72 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
 #gmMsg:empty { display: none; }
 
 @media (orientation: landscape) {
+  body.playing .menubar { flex-wrap: nowrap; overflow: hidden; height: 50px; min-height: 50px; max-height: 50px; }
   body.playing #err { display: none !important; }
   body.playing .toolbar { display: none !important; }
   body.playing .main { grid-template-columns: minmax(0, 1fr) clamp(296px, 27vw, 360px) !important; grid-template-rows: auto minmax(0, 1fr) !important; }
+  body.playing.playing-an .main { grid-template-rows: fit-content(68%) minmax(0, 1fr) !important; }
   body.playing .center { grid-column: 1 !important; grid-row: 1 / -1 !important; }
-  body.playing .right { grid-column: 2 !important; grid-row: 1 !important; display: flex !important; flex-direction: column; overflow: visible; }
+  body.playing .right { grid-column: 2 !important; grid-row: 1 !important; display: flex !important; flex-direction: column; min-height: 0; overflow: visible; }
+  body.playing.playing-an .right { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
   body.playing .right > :not(#gmPanel) { display: none !important; }
   body.playing #gmPanel { display: flex; flex-direction: column; gap: 10px; }
   body.playing:not(.playing-an) .left { display: none !important; }
-  body.playing.playing-an .left { display: flex !important; grid-column: 2 !important; grid-row: 2 !important; min-height: 0 !important; gap: 10px; }
+  body.playing.playing-an .left { display: flex !important; grid-column: 2 !important; grid-row: 2 !important; min-height: 0 !important; gap: 10px; overflow: hidden; }
   body.playing.playing-an .left > :not(#statBox):not(#graphBox) { display: none !important; }
   body.playing.playing-an #statBox { display: block !important; flex: none !important; height: 68px !important; min-height: 68px !important; }
   body.playing.playing-an #graphBox { display: block !important; flex: 1 1 0 !important; min-height: 76px !important; }
 }
 @media (orientation: landscape) and (max-height: 520px) {
-  body.playing .right { overflow-y: auto !important; min-height: 0 !important; }
+  body.playing .menubar { height: 40px; min-height: 40px; max-height: 40px; }
+  body.playing .main { grid-template-columns: minmax(0, 1fr) clamp(246px, 39vw, 310px) !important; grid-template-rows: minmax(0, 1fr) !important; padding: 6px !important; gap: 6px !important; }
+  body.playing.playing-an .main { grid-template-rows: fit-content(66%) minmax(0, 1fr) !important; }
+  body.playing .right { overflow-y: auto !important; overflow-x: hidden !important; min-height: 0 !important; overscroll-behavior: contain; }
+  body.playing #gmPanel { gap: 5px; }
+  body.playing .gm-kicker { display: none; }
+  body.playing .gm-card { padding: 6px 8px; gap: 4px; border-radius: 12px; }
+  body.playing .gm-pcard { padding: 4px 7px; border-radius: 9px; gap: 6px; }
+  body.playing .gm-pname { font-size: 12.5px; }
+  body.playing .gm-pmeta { font-size: 11px; line-height: 13px; min-height: 13px; }
+  body.playing .gm-pright { min-width: 66px; }
+  body.playing .gm-ptime, body.playing .gm-ptime.sm { font-size: 15px; line-height: 17px; min-height: 17px; }
+  body.playing .gm-ptime.sm { font-size: 11.5px; }
+  body.playing .gm-pstate { font-size: 10.5px; line-height: 13px; min-height: 13px; margin-top: 1px; }
+  body.playing .gm-grid { gap: 4px; }
+  body.playing .gm-grid button, body.playing #gmStopBtn, body.playing #gmConfirmBtn { min-height: 26px; padding: 2px 6px; font-size: 11.5px; border-radius: 9px; gap: 4px; }
+  body.playing .gm-grid button svg, body.playing #gmStopBtn svg { width: 13px; height: 13px; }
+  body.playing.playing-an .left { gap: 5px !important; min-height: 0 !important; overflow: hidden !important; }
+  body.playing.playing-an #statBox { height: 48px !important; min-height: 48px !important; }
+  body.playing.playing-an #graphBox { min-height: 44px !important; }
 }
 
 @media (orientation: portrait) {
-  body.playing #gmTopMeta { max-width: 72vw; font-size: 12px; padding: 3px 9px; }
+  body.playing .menubar .spacer { display: none; }
+  body.playing #gmTopMeta { flex: 1 1 0 !important; min-width: 0 !important; max-width: none !important; font-size: 12px; padding: 4px 9px; }
+  body.playing #vps:empty { display: inline-block; visibility: hidden; width: 102px; min-width: 102px; max-width: 102px; flex: 0 0 102px; padding: 5px 6px; }
   body.playing #err { padding: 6px 14px; font-size: 12.5px; border-radius: 999px; }
   body.playing #gmPanel { display: none !important; }
-  body.playing #gmMobTop, body.playing #gmMobBot { display: block; width: 100%; padding: 6px 8px 0; }
-  body.playing #gmMobTop { order: 0; padding: 6px 8px 6px; }
-  body.playing .center { order: 1; }
-  body.playing #gmMobBot { order: 2; padding: 6px 8px 0; display: grid; gap: 6px; }
-  body.playing .left { order: 3; padding: 6px 8px 0; }
+  body.playing #gmMobTop, body.playing #gmMobBot { display: block; width: 100%; flex: none; }
+  body.playing #gmMobTop { order: 0; padding: 5px 8px 4px; }
+  body.playing .center { order: 1; flex: none; }
+  body.playing:not(.playing-an) .center { flex: 1 1 0; min-height: 0; }
+  body.playing #gmMobBot { order: 2; padding: 4px 8px 0; }
+  body.playing .left { order: 3; }
   body.playing:not(.playing-an) .left { display: none !important; }
-  body.playing.playing-an .left { display: flex !important; }
+  body.playing.playing-an .left { display: flex !important; flex-direction: column; flex: 1 1 0; min-height: 0; gap: 6px; padding: 6px 8px 4px; overflow: hidden; }
   body.playing.playing-an .left > :not(#statBox):not(#graphBox) { display: none !important; }
-  body.playing.playing-an #statBox { display: block !important; flex: none; height: 64px; }
-  body.playing.playing-an #graphBox { display: block !important; flex: none; height: 110px; margin-top: 6px; }
-  .gm-pcard.mob { padding: 7px 11px; border-radius: 13px; }
-  .gm-pcard.mob .gm-ptime { font-size: 18px; }
-  body.playing .toolbar { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  body.playing.playing-an #statBox { display: block !important; flex: none; height: 58px; min-height: 0 !important; }
+  body.playing.playing-an #graphBox { display: block !important; flex: 1 1 0; height: auto; min-height: 54px !important; max-height: 110px; margin-top: 0; }
+  .gm-pcard.mob { padding: 6px 11px; min-height: 52px; border-radius: 13px; }
+  .gm-pcard.mob .gm-ptime { font-size: 18px; line-height: 21px; min-height: 21px; }
+  .gm-pcard.mob .gm-ptime.sm { font-size: 12.5px; line-height: 21px; min-height: 21px; }
+  body.playing .toolbar { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; padding-top: 4px; }
   body.playing .toolbar > :not(#gmMobDock):not(#menuOpen):not(.error) { display: none !important; }
   body.playing #gmMobDock { display: contents !important; }
   body.playing #gmMobDock button { min-height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; padding: 4px; }
   body.playing #menuOpen { grid-column: auto !important; order: 5 !important; border-radius: 12px; }
-  #gmMobConfirmBtn { width: 100%; min-height: 40px; border-radius: 12px; font-size: 13.5px; }
+  #gmMobConfirmBtn { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 35;
+    min-height: 44px; border-radius: 14px; font-size: 14px; font-weight: 700; box-shadow: 0 10px 28px -6px rgba(44, 92, 246, .55); }
 }
 
 #gmEndDlg { width: min(410px, calc(100vw - 24px)); text-align: center; }
@@ -7576,12 +7622,18 @@ function layout() {
   // portrait: as wide as the screen, leaving room for the win-rate bar and what is under it: the buttons, a message
   // line, the 오답노트 answer bar. Measured, not assumed (user report 2026-09-28: a fixed 110 px cut the bottom off on a
   // phone whose buttons plus a message were taller; the bars' ResizeObserver lays out again when they grow).
-  const gmMobH = document.body.classList.contains("playing")
+  const playingNow = document.body.classList.contains("playing");
+  const playingAn = playingNow && document.body.classList.contains("playing-an");
+  const availH = Math.floor(document.body.clientHeight || (visualViewport ? visualViewport.height : innerHeight));
+  const gmMobH = playingNow
     ? ($("gmMobTop") ? $("gmMobTop").offsetHeight : 0) + ($("gmMobBot") ? $("gmMobBot").offsetHeight : 0)
     : 0;
+  const statH0 = $("statBox").offsetHeight || 58;
+  const leftH = playingAn ? (statH0 + (availH >= 740 ? 96 : 68) + 16) : document.querySelector(".left").offsetHeight;
+  const rightH = playingNow ? 0 : (xpShown() ? XP_MIN_LIST : document.querySelector(".right").offsetHeight);
   const side = matchMedia("(orientation: portrait)").matches
-    ? Math.max(160, Math.min(document.documentElement.clientWidth, innerHeight - bankBarRoom() - gmMobH - document.querySelector(".menubar").offsetHeight
-        - document.querySelector(".left").offsetHeight - (xpShown() ? XP_MIN_LIST : document.querySelector(".right").offsetHeight) - document.querySelector(".toolbar").offsetHeight - 2))
+    ? Math.max(160, Math.min(document.documentElement.clientWidth, availH - bankBarRoom() - gmMobH - document.querySelector(".menubar").offsetHeight
+        - leftH - rightH - document.querySelector(".toolbar").offsetHeight - 2))
     : Math.min(bw, bh);
   const k = dpr();
   const view = quiz && quiz.view;
@@ -7592,7 +7644,15 @@ function layout() {
   [graphW, graphH] = fitBox($("graphBox")); graphCtx = sizeCanvas(graphCv, graphW, graphH);
   if (getComputedStyle($("miniBox")).display !== "none") {
     const [mw, mh] = fitBox($("miniBox"));
-    miniG = geometry(Math.floor(Math.max(60, Math.min(mw - 8, mh - 12)) * k), false, k); miniCtx = sizeCanvasDevice(miniCv, miniG.size);
+    const ms = Math.floor(Math.min(mw - 8, mh - 12));
+    if (ms >= 36) {
+      $("mini").hidden = false;
+      miniG = geometry(Math.floor(ms * k), false, k);
+      miniCtx = sizeCanvasDevice(miniCv, miniG.size);
+    } else {
+      $("mini").hidden = true;
+      miniCtx = null;
+    }
   } else miniCtx = null;
   snapToPixels(boardCv); if (miniCtx) snapToPixels(miniCv);
   render();   // right away: resizing cleared the canvases, drawing a frame later shows them blank (flicker)
@@ -7640,10 +7700,11 @@ function fitEditRow() {
 }
 const sizeObserver = new ResizeObserver(() => {
   requestAnimationFrame(() => { fitVps(); fitEditRow(); });   // next frame: hiding it here would resize the bar inside this callback
-  const s = [innerWidth, innerHeight, dpr(), ...bars.map(b => b.offsetHeight)].join("x");
+  const s = [innerWidth, document.body.clientHeight, dpr(), ...bars.map(b => b.offsetHeight),
+             $("gmMobTop")?.offsetHeight || 0, $("gmMobBot")?.offsetHeight || 0].join("x");
   if (s !== lastSize) { lastSize = s; layout(); }
 });
-[document.documentElement, ...bars].forEach(el => sizeObserver.observe(el));
+[document.documentElement, document.body, ...bars, $("gmMobTop"), $("gmMobBot")].filter(Boolean).forEach(el => sizeObserver.observe(el));
 // The graph takes the height the game-info card leaves, which changes with the record (names, result, comment):
 // refit only the graph, or its old canvas is cut off or leaves a gap.
 new ResizeObserver(() => {
