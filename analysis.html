@@ -1709,56 +1709,148 @@ function yieldLocal(reason) {   // another 내 기기 screen opened in this brow
   $("conn").textContent = "내 기기 · 다른 창에서 분석 중";
   $("err").textContent = "다른 창에서 내 기기 분석을 열어 이 창의 엔진을 껐습니다. 이 창에서 계속하려면 새로고침하세요.";
 }
+const CAN_BIN_DEFLATE = typeof DecompressionStream === "function";
+const clientCid = (() => {
+  try {
+    const a = new Uint8Array(12);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+    else for (let i = 0; i < a.length; i++) a[i] = (Math.random() * 256) | 0;
+    return Array.from(a, b => b.toString(16).padStart(2, "0")).join("");
+  } catch { return String(Math.random()).slice(2, 14); }
+})();
+function unpackOwn8(b64) {
+  const raw = atob(b64), out = new Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = ((raw.charCodeAt(i) << 24) >> 24) / 100;
+  return out;
+}
+function openBinDecoder(onObj) {
+  const ds = new DecompressionStream("deflate-raw");
+  const writer = ds.writable.getWriter(), reader = ds.readable.getReader(), dec = new TextDecoder();
+  let buf = new Uint8Array(0), closed = false;
+  (async () => {
+    try {
+      while (!closed) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        if (value && value.byteLength) {
+          const next = new Uint8Array(buf.length + value.byteLength);
+          next.set(buf); next.set(value, buf.length); buf = next;
+          while (buf.length >= 4) {
+            const len = ((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) >>> 0;
+            if (buf.length < 4 + len) break;
+            const body = dec.decode(buf.subarray(4, 4 + len));
+            buf = buf.length > 4 + len ? buf.slice(4 + len) : new Uint8Array(0);
+            onObj(JSON.parse(body));
+          }
+        }
+      }
+    } catch { /* 연결 종료 시 중단 */ }
+  })();
+  return {
+    push: ab => { if (!closed) writer.write(new Uint8Array(ab)).catch(() => {}); },
+    close: () => { closed = true; writer.abort().catch(() => {}); },
+  };
+}
 let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message of any kind from the GPU
 // 2026-10-10: pingAt = the first ping since heardAt; retryWait = the wait before the next try after this one
-// (2 s, then 4, 8, 16, at most 30); gpuGone = the website says this GPU has ended: no more tries.
-let pingAt = 0, retryWait = 2000, gpuGone = false;
+// (1 s, then 2, 4, 8, 16, at most 20); gpuGone = the website says this GPU has ended: no more tries.
+let pingAt = 0, retryWait = 1000, gpuGone = false;
+let bridgeResumable = false, bridgeBflow = false, pendingResume = {auto: null, strength: null}, lastClients = 1;
+let netSlow = false, binDrop = null;
+function setNetSlow(on) {
+  on = !!on;
+  if (netSlow === on) return;
+  netSlow = on;
+  if (bridgeBflow) send({action: "net", slow: netSlow});
+}
 function connect() {
   if (watchLocal) { $("conn").textContent = "회원의 내 기기 화면"; return; }
   if (localMode) { if (!ws && !localYielded) connectLocal(); return; }
   if (!token) { openWithoutGpu(); return; }
   clearTimeout(retryTimer);
   const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
-  const sock = new WebSocket(base + "/ws?t=" + encodeURIComponent(token) + (viewOnly ? "&view=1" : ""));   // view: not counted as a device
+  const qp = ["t=" + encodeURIComponent(token)];
+  if (viewOnly) qp.push("view=1");
+  else qp.push("bundle=1", "cid=" + encodeURIComponent(clientCid));
+  if (CAN_BIN_DEFLATE) qp.push("bin=1");
+  qp.push("own8=1");
+  const sock = new WebSocket(base + "/ws?" + qp.join("&"));
+  if (CAN_BIN_DEFLATE) sock.binaryType = "arraybuffer";
   ws = sock; heardAt = performance.now();
+  let flow = false;
+  const handleObj = msg => {
+    if ("hello" in msg) {
+      flow = !!msg.flow; bridgeResumable = !!msg.resume; bridgeBflow = !!msg.bflow;
+      if (bridgeBflow && netSlow) send({action: "net", slow: true});
+    }
+    if (Array.isArray(msg.bundle)) {
+      try {
+        for (const item of msg.bundle) if (item && typeof item === "object") {
+          if (item.own8 && !item.ownership) item.ownership = unpackOwn8(item.own8);
+          onMessage(item);
+        }
+      } finally { if (msg.bseq && sock.readyState === 1) sock.send(`{"back":${Number(msg.bseq)}}`); }
+      return;
+    }
+    if (msg.own8 && !msg.ownership) msg.ownership = unpackOwn8(msg.own8);
+    try { onMessage(msg); } finally { if (flow && msg.seq && sock.readyState === 1) sock.send(`{"ack":${Number(msg.seq)}}`); }
+  };
+  const binDec = CAN_BIN_DEFLATE ? openBinDecoder(handleObj) : null;
+  binDrop = binDec ? () => binDec.close() : null;
   sock.onopen = () => {
     synced = false;   // until the bridge says which board this device joins
-    retryWait = 2000;
+    bridgeBflow = false;
+    retryWait = 1000;
     $("dot").classList.add("on"); $("conn").textContent = "GPU 연결됨"; $("err").textContent = "";
-    send({id: "ver", action: "query_version"}); ping();
+    send({id: "ver", action: "query_version"});
+    ping();
     if (pendingKifu) setTimeout(() => { if (pendingKifu && !bridgeSync) openMineKifu(pendingKifu); }, 4000);   // an old bridge: no hello
-    if (analyzing) requestLive();
+    if (analyzing) requestLive(true);
   };
-  sock.onclose = () => { if (ws === sock) lost(); };
+  sock.onclose = () => { if (binDec) binDec.close(); if (ws === sock) lost(); };
   // flow (2026-11-06, webbridge.py top): a bridge whose hello has "flow" sends at most that many partial reports
   // ("seq") until they are acked, so on a slow network the newest arrives instead of a queue of old ones. Acked
   // after handling: a phone that draws slowly gets fewer too. Straight on the socket: not use, and the admin view acks too.
-  let flow = false;
   sock.onmessage = ev => {
     heardAt = performance.now();
-    const msg = JSON.parse(ev.data);
-    if ("hello" in msg) flow = !!msg.flow;
-    try { onMessage(msg); } finally { if (flow && msg.seq && sock.readyState === 1) sock.send(`{"ack":${Number(msg.seq)}}`); }
+    if (typeof ev.data === "string") return handleObj(JSON.parse(ev.data));
+    if (binDec) binDec.push(ev.data);
   };
 }
 // The connection is gone, or silent: a phone waking up or switching Wi-Fi/LTE can leave a socket that looks open
 // but never delivers again, and the browser may take minutes to notice. Drop it and connect again.
 function lost() {
   const old = ws; ws = null;
+  if (binDrop) { try { binDrop(); } catch {} binDrop = null; }
   if (old) { old.onopen = old.onclose = old.onmessage = null; try { old.close(); } catch { /* already closed */ } }
   $("dot").classList.remove("on"); $("conn").textContent = "끊김 · 다시 연결 중";
+  const keepStrength = bridgeResumable && !gpuGone && !batchMode && !!strengthId && queries.has(strengthId);
   const strengthWas = !!strengthId;
-  if (strengthId) { queries.delete(strengthId); strengthId = null; strengthButton(); strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '대국 리포트'를 눌러 이어서 분석하세요.", true); }
-  if (autoId) { queries.delete(autoId); autoId = null; autoButton(); resumeAuto = root; }   // its search ended with the old connection; it goes on after the hello
+  if (keepStrength) {
+    pendingResume.strength = strengthId;
+    strengthMsg("연결이 잠깐 끊겨 다시 연결 중입니다… (진행 중인 대국 리포트는 계속 이어집니다)");
+  } else if (strengthId) {
+    pendingResume.strength = null;
+    queries.delete(strengthId); strengthId = null; strengthButton();
+    strengthMsg("GPU 연결이 끊겨 분석이 멈췄습니다. 다시 연결되면 '대국 리포트'를 눌러 이어서 분석하세요.", true);
+  }
+  const keepAuto = bridgeResumable && !gpuGone && !batchMode && !!autoId && queries.has(autoId);
+  if (keepAuto) {
+    pendingResume.auto = {id: autoId, root};
+  } else if (autoId) {
+    pendingResume.auto = null;
+    queries.delete(autoId); autoId = null; autoButton(); resumeAuto = root;   // its search ended with the old connection; it goes on after the hello
+  }
   if (batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); if (q) q.batch(false); }
-  if (resumeAuto === root && !strengthWas) { if (mineDirtyAt) mineAutoSave(true); }   // a '다 끝나면' plan waits for the 자동분석 to go on
-  else finishCheck(false);   // the analysis it was waiting for died with the connection
+  if (resumeAuto === root && !strengthWas && !keepAuto) { if (mineDirtyAt) mineAutoSave(true); }   // a '다 끝나면' plan waits for the 자동분석 to go on
+  else if (!keepStrength && !keepAuto) finishCheck(false);   // the analysis it was waiting for died with the connection
   clearTimeout(retryTimer);
   if (gpuGone) gpuEnded();
-  else { retryTimer = setTimeout(connect, retryWait); retryWait = Math.min(retryWait * 2, 30000); }
+  else { retryTimer = setTimeout(connect, retryWait); retryWait = Math.min(retryWait * 2, 20000); }
   if (recheckGpu) recheckGpu();   // the GPU's address may have changed (tunnel restarted)
 }
 function gpuEnded() {   // the website says the GPU has ended (watchGpu): stop trying to connect
+  pendingResume = {auto: null, strength: null};
   $("dot").classList.remove("on"); $("conn").textContent = "GPU 종료됨"; $("err").textContent = "GPU가 종료되어 다시 연결하지 않습니다";
 }
 // #view=1: an admin watching a member's screen (admin page "화면 보기"). Nothing goes to the GPU but pings — no board
@@ -1791,13 +1883,15 @@ function send(obj) {
   return false;
 }
 function ping() { if (send({action: "ping", t: performance.now()}) && !(pingAt > heardAt)) pingAt = performance.now(); }
-setInterval(() => {   // pings every 5 s; no open for 12 s, or nothing for 12 s with a ping unanswered = a dead connection
+const netQuietMs = () => (netSlow || autoId || strengthId) ? 28000 : 12000;
+const netPingWaitMs = () => (netSlow || autoId || strengthId) ? 10000 : 4000;
+setInterval(() => {   // pings every 5 s; 느린 회선·일괄 분석 중에는 끊김 판정을 28초/10초로 완화
   if (localMode) return;   // this device's own engine: nothing to lose (a slow CPU batch may hold its answer for seconds)
   const now = performance.now();
-  if (ws && ws.readyState !== 1 && now - heardAt > 12000) return lost();
+  if (ws && ws.readyState !== 1 && now - heardAt > netQuietMs()) return lost();
   // Only after a ping (2026-10-10): a tab hidden long runs this once a minute, so 12 s of silence there was every tick
-  // and it reconnected every few minutes. On screen it is as before: the first unanswered ping is 10 s old by then.
-  if (ws && pingAt > heardAt && now - pingAt >= 4000 && now - heardAt > 12000) return lost();
+  // and it reconnected every few minutes.
+  if (ws && pingAt > heardAt && now - pingAt >= netPingWaitMs() && now - heardAt > netQuietMs()) return lost();
   ping();
 }, 5000);
 function checkNow() {   // back on screen / back online: find out at once instead of waiting for the next ping
@@ -1805,7 +1899,7 @@ function checkNow() {   // back on screen / back online: find out at once instea
   if (!ws) { if (!gpuGone) connect(); return; }   // also ends the wait between tries
   if (ws.readyState !== 1) return;
   const asked = performance.now(); ping();
-  setTimeout(() => { if (ws && ws.readyState === 1 && heardAt < asked) lost(); }, 4000);
+  setTimeout(() => { if (ws && ws.readyState === 1 && heardAt < asked) lost(); }, netPingWaitMs());
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkNow(); });
 addEventListener("online", checkNow);
@@ -1818,6 +1912,8 @@ document.addEventListener("visibilitychange", () => { shownAt = performance.now(
 function slowNet(ms, sentAt) {
   if (viewOnly || batchMode || document.hidden || sentAt < shownAt) return;
   if (ms > SLOW_MS) { slowRun++; fastRun = 0; } else if (ms < FAST_MS) { fastRun++; slowRun = 0; } else { slowRun = fastRun = 0; }
+  if (slowRun >= SLOW_RUN || ms > 900) setNetSlow(true);
+  else if (fastRun >= SLOW_RUN) setNetSlow(false);
   if (slowRun >= SLOW_RUN && !slowClosed) slowShow(true);
   else if (fastRun >= SLOW_RUN) slowShow(false);
   $("conn").classList.toggle("slow", slowRun >= SLOW_RUN || (!!$("slowNote") && $("slowNote").classList.contains("on")));
@@ -1878,9 +1974,17 @@ function baseQuery() {
           initialStones: [...root.setup.B.map(([x, y]) => ["B", gtp(x, y)]), ...root.setup.W.map(([x, y]) => ["W", gtp(x, y)])],
           includeOwnership: $("showOwner").checked};
 }
-function requestLive() {
+let liveTimer = 0, lastLiveAt = 0;
+function requestLive(immediate = false) {
+  clearTimeout(liveTimer); liveTimer = 0;
   if (liveId) { send({id: "t" + (++qn), action: "terminate", terminateId: liveId}); queries.delete(liveId); liveId = null; }
   if (!analyzing || quiz) return;   // solving a 오답노트 problem: no live search (it would give the answer away)
+  const now = performance.now();
+  if (!immediate && (now - lastLiveAt) < 180) {   // 연속 수순 이동 연타 시 마지막 국면만 전송(0.1초 보고 주기 불변)
+    liveTimer = setTimeout(() => { liveTimer = 0; requestLive(true); }, 130);
+    return;
+  }
+  lastLiveAt = now;
   const pda = pdaAt(cur);
   liveId = "q" + (++qn) + (pda ? "~" + pda : "");   // the PDA rides in the id, so other devices' copies (peerQuery) carry it too
   // fresh: no analysis of this position on this screen yet (none of its own, 자동분석's, a saved one's or another
@@ -1900,10 +2004,12 @@ function store(node, msg, id) {
   if (pda) {   // searched with a PDA: shown for that turn only, never mixed into the graph, 자동분석, 대국 리포트 or SGF
     msg.pda = pda;
     const old = node.pdaAn;
+    if (msg.isDuringSearch && !msg.ownership && $("showOwner").checked && old && old.ownership) msg.ownership = old.ownership;
     if (!old || old.pda !== pda || node.paid === id || msg.rootInfo.visits >= old.rootInfo.visits) { node.pdaAn = msg; node.paid = id; }
     return;
   }
   const old = node.analysis;
+  if (msg.isDuringSearch && !msg.ownership && $("showOwner").checked && old && old.ownership) msg.ownership = old.ownership;
   if (!old || node.aid === id || msg.rootInfo.visits >= old.rootInfo.visits) {
     const was = !!old && old.rootInfo.visits >= levelVisits();
     if (modelName) msg.model = modelName;   // 복기 리포트 says which model analysed the game (KGM in the SGF, 2026-11-16)
@@ -1918,6 +2024,7 @@ function onMessage(msg) {
     if (msg.model) modelName = msg.model;
     if (msg.device) $("conn").textContent = `내 기기 · ${msg.device === "webgpu" ? "그래픽" : "CPU"}`;
     else {   // "GPU 연결됨 · " gives way on a small tablet held sideways; the green dot already says it (2026-10-16)
+      if (Number(msg.clients) > 0) lastClients = Number(msg.clients);
       const ms = Math.round(performance.now() - msg.pong), n = Number(msg.clients) > 1 ? ` · 기기 ${Number(msg.clients)}대` : "";
       $("conn").innerHTML = `<span class="conn-word">GPU 연결됨 · </span>${ms} ms${n}`;
       slowNet(ms, msg.pong); reportPing(ms, msg.pong);
@@ -1945,7 +2052,28 @@ function onMessage(msg) {
     if (pendingKifu) openMineKifu(pendingKifu);                     // #kifu=: after the shared board, so it replaces it
     else if (freshStudy) newStudyBoard();                           // 학습방 → 새 연구: likewise, an empty board
     else if (freshTree) newTreeBoard();                             // 학습방 → 수순 탐색: likewise
-    else if (analyzing && !msg.live) requestLive();                 // the device that ran the analysis has left
+    else if (analyzing && !msg.live) requestLive(true);             // the device that ran the analysis has left
+    const resumedSet = Array.isArray(msg.resumed) ? new Set(msg.resumed) : null;
+    if (pendingResume.strength) {
+      const sid = pendingResume.strength; pendingResume.strength = null;
+      if (resumedSet && resumedSet.has(sid) && strengthId === sid) {
+        const q = queries.get(sid);
+        if (q) strengthMsg(`주 변화 ${q.line.length - 1}수를 분석하는 중… ${q.done}/${q.todo} · 창을 닫아도 계속 분석합니다`);
+      } else {
+        const wasRev = reviewAfter;
+        queries.delete(sid); if (strengthId === sid) { strengthId = null; strengthButton(); }
+        if (!quiz && root.children.length) { reviewAfter = wasRev; openStrength(false); }
+        else { reviewAfter = false; finishCheck(false); }
+      }
+    }
+    if (pendingResume.auto) {
+      const pa = pendingResume.auto; pendingResume.auto = null;
+      if (!(resumedSet && resumedSet.has(pa.id) && autoId === pa.id)) {
+        queries.delete(pa.id); if (autoId === pa.id) { autoId = null; autoButton(); }
+        if (pa.root === root && !quiz) { startAuto(false); if (!autoId) finishCheck(true); }
+        else finishCheck(false);
+      }
+    }
     if (resumeAuto) {   // 자동분석 was cut off with the connection: it goes on from the moves not analysed yet (2026-10-10)
       const was = resumeAuto; resumeAuto = null;
       if (was === root && !autoId && !quiz) { startAuto(false); if (!autoId) finishCheck(true); }   // nothing left: it is done
@@ -1959,7 +2087,7 @@ function onMessage(msg) {
     return;
   }
   if ("liveTaken" in msg) { if (liveId === msg.liveTaken) { queries.delete(liveId); liveId = null; } return; }
-  if ("liveLeft" in msg) { if (analyzing) requestLive(); return; }
+  if ("liveLeft" in msg) { if (analyzing) requestLive(true); return; }
   if (msg.id === "peer") {   // another device's result: same board, so it belongs to the node with those moves
     if (/:b\d+$/.test(msg.peerQuery || "") || /^[xv]\d/.test(msg.peerQuery || "")) return;   // 여러 기보 분석: other games, not this board; 수순 탐색's table: not the board's analysis
     const node = msg.rootInfo && nodeByMoves(msg.peerMoves || "");
@@ -1985,6 +2113,10 @@ function onMessage(msg) {
   if (q.line) {  // auto analysis / strength estimate: one response per turn
     const node = q.line[msg.turnNumber];
     if (node) store(node, msg, msg.id);
+    if (q.doneSet) {
+      if (q.doneSet.has(msg.turnNumber)) { schedule(); return; }
+      q.doneSet.add(msg.turnNumber);
+    }
     if (q.strength) strengthStep(q);
     else if (q.batch) { q.done++; q.tell("progress", {done: q.done, todo: q.todo}); if (q.done >= q.todo) { instantLearn(q.inst); batchEnd(true); } }
     else {
@@ -2172,13 +2304,14 @@ function startAuto(again = false) {
   autoDone = 0; autoId = "a" + (++qn); autoRetried = false; workAt = performance.now();
   if (again) for (const i of turns) autoLine[i].aid = autoId;   // 재분석: the new results replace the old ones
   const lq = levelQuery(turns.length);
-  queries.set(autoId, {line: autoLine, todo: turns.length, inst: lq.inst});
+  queries.set(autoId, {line: autoLine, todo: turns.length, doneSet: new Set(), inst: lq.inst});
   send({...baseQuery(), includeOwnership: false, id: autoId, moves: movesOf(autoLine[autoLine.length - 1]),
         analyzeTurns: turns, ...lq.query});
   autoButton();
 }
 function stopAuto() {
   const q = autoId && queries.get(autoId);
+  if (pendingResume.auto?.id === autoId) pendingResume.auto = null;
   if (q && autoDone < q.todo) send({id: "t" + (++qn), action: "terminate", terminateId: autoId});
   queries.delete(autoId); autoId = null; autoButton();
   if (q) finishCheck(autoDone >= q.todo);
@@ -2202,7 +2335,7 @@ function goTo(node) {
   }
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
-  if (!applyingRemote) { requestLive(); publish(); }   // following another device: it runs the analysis
+  if (!applyingRemote) { requestLive(!!(game && game.root === root)); publish(); }   // 대국 착수는 즉시, 수순 탐색 연타는 디바운스
   if (xp) { xpEvalSync(); xpUpdate(); }
   schedule();
 }
@@ -2220,7 +2353,7 @@ function setAnalyzing(on) {
   if (xp) xpEvalSync();   // 수순 탐색's table search runs with 분석 시작 only
   if (!on && $("vps").textContent) $("vps").textContent = "0 visits/s";   // stopped: not the last speed (user request 2026-09-29)
 }
-$("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(); if (xp) xpEvalSync(); publish(); schedule(); };
+$("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(true); if (xp) xpEvalSync(); publish(); schedule(); };
 const runAuto = () => startAuto(mainLine().every(analysed));   // everything analysed at this level = 재분석
 $("autoAnalyze").onclick = () => {
   if (autoId) return stopAuto();
@@ -3136,7 +3269,7 @@ function publish() {
     // unsent: a socket gone silent takes the record without a word, so it counts as sent once a later ping is answered
     if (sgf !== lastSgf) { st.sgf = sgf; lastSgf = sgf; unsent = performance.now(); }
     send({action: "state", state: st});
-  }, 100);
+  }, lastClients > 1 ? 100 : 1200);
 }
 function applyState(st) {
   if (!st) return;
@@ -3898,10 +4031,12 @@ let mineDirtyAt = 0, mineSaveTimer = null, mineSaveDue = 0, mineSaving = null;
 function mineDirty(soon = true) {   // soon: a position newly analysed (20 s); else one analysed deeper (1 min)
   if (!mineId || mineRoot !== root || batchMode || viewOnly || quiz) return;
   mineDirtyAt = Date.now();
-  const due = mineDirtyAt + (soon ? 20000 : 60000);
+  if (autoId || strengthId) return;   // 자동분석·대국 리포트 중에는 끝난 뒤 한 번에 저장해 업링크를 막지 않음
+  const waitMs = netSlow ? (soon ? 60000 : 180000) : (soon ? 20000 : 60000);
+  const due = mineDirtyAt + waitMs;
   if (mineSaveTimer && mineSaveDue <= due) return;   // an earlier save is already coming
   clearTimeout(mineSaveTimer); mineSaveDue = due;
-  mineSaveTimer = setTimeout(() => mineAutoSave(false), due - Date.now());
+  mineSaveTimer = setTimeout(() => mineAutoSave(false), Math.max(0, due - Date.now()));
 }
 async function mineAutoSave(say) {   // say: tell the member it was saved (not for the quiet 20 s saves)
   clearTimeout(mineSaveTimer); mineSaveTimer = null;
@@ -5626,6 +5761,7 @@ function moveGrade(n) {   // {grade, points} for an analysed move, or null
 }
 function stopStrength() {
   const was = strengthId; reviewAfter = false;
+  if (pendingResume.strength === strengthId) pendingResume.strength = null;
   if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
   queries.delete(strengthId); strengthId = null; strengthButton();
   if (was) finishCheck(false);
@@ -5647,7 +5783,7 @@ function openStrength(again = false) {
   if (!turns.length) return renderStrength();
   strengthId = "s" + (++qn); workAt = performance.now();
   if (again) for (const i of turns) line[i].aid = strengthId;   // 다시 분석: the new results replace the old ones
-  const lq = levelQuery(turns.length), q = {line, strength: true, todo: turns.length, done: 0, t0: performance.now(), inst: lq.inst};
+  const lq = levelQuery(turns.length), q = {line, strength: true, todo: turns.length, done: 0, doneSet: new Set(), t0: performance.now(), inst: lq.inst};
   queries.set(strengthId, q);
   if (!send({...baseQuery(), includeOwnership: false, id: strengthId, moves: movesOf(line[line.length - 1]),
              analyzeTurns: turns, ...lq.query})) {
@@ -7563,7 +7699,7 @@ async function watchGpu() {
       : site.sb.from("gpu_sessions").select(cols).eq("web_token", token)).limit(1).maybeSingle();
     if (!s) { $("gpuMeter").hidden = true; booting = false; return; }   // not logged in on this browser, or not this member's GPU
     const joinable = mine && s.status === "ready" && GPU_URL.test(s.web_url || "") && s.web_token;
-    if (first && joinable) { location.replace(`analysis.html?v=${Date.now()}#u=${encodeURIComponent(s.web_url)}&t=${encodeURIComponent(s.web_token)}`); return; }
+    if (first && joinable) { first = false; joinBootedGpu(s.web_url, s.web_token); return tick(); }
     if (mine && ["creating", "booting", "setup"].includes(s.status)) booting = canJoin;
     if (booting && joinable) { booting = false; first = false; joinBootedGpu(s.web_url, s.web_token); return tick(); }
     first = false;

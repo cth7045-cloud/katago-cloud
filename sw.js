@@ -10,8 +10,14 @@ font:16px/1.6 'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;text-al
 <p style="color:#687082;margin:0 0 20px">연결되면 다시 시도하세요. 켜 둔 GPU는 10분 동안 입력이 없으면 스스로 꺼집니다.</p>
 <button onclick="location.reload()" style="font:inherit;font-weight:600;border:0;border-radius:999px;padding:10px 22px;background:#2c5cf6;color:#fff">다시 시도</button></div>`;
 
+const ASSET_CACHE = "kgv-assets-v1";
+const cacheableAsset = path => (path.includes("/assets/") || path.includes("/icons/"));
+
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (ev) => ev.waitUntil(self.clients.claim()));
+self.addEventListener("activate", (ev) => ev.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k.startsWith("kgv-assets-") && k !== ASSET_CACHE) await caches.delete(k);
+  await self.clients.claim();
+})()));
 // The analysis screen is served cross-origin isolated (2026-10-05): only such a page may run 내 기기로 분석's engine on
 // several CPU cores (WebAssembly threads), about 3x the visits of one core. The static host sends no such headers, so
 // they are added here; a browser that does not know "credentialless" (Safari) just stays on one core.
@@ -25,6 +31,17 @@ function isolated(res) {   // the page, and the engine's worker script (an isola
 self.addEventListener("fetch", (ev) => {
   const path = new URL(ev.request.url).pathname;
   if (ev.request.destination === "worker" && path.endsWith("/localengine.js")) { ev.respondWith(fetch(ev.request).then(isolated)); return; }
+  if (ev.request.method === "GET" && cacheableAsset(path)) {
+    ev.respondWith((async () => {
+      const cache = await caches.open(ASSET_CACHE);
+      const hit = await cache.match(ev.request);
+      if (hit) return hit;
+      const res = await fetch(ev.request);
+      if (res && res.ok && res.type === "basic") cache.put(ev.request, res.clone());
+      return res;
+    })());
+    return;
+  }
   if (ev.request.mode !== "navigate") return;   // files, API calls, the GPU connection: untouched
   const analysis = path.endsWith("/analysis.html");
   ev.respondWith(fetch(ev.request).then((res) => analysis ? isolated(res) : res)
