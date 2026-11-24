@@ -1042,11 +1042,10 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
   .gm-pcard.mob { padding: 6px 11px; min-height: 52px; border-radius: 13px; }
   .gm-pcard.mob .gm-ptime { font-size: 18px; line-height: 21px; min-height: 21px; }
   .gm-pcard.mob .gm-ptime.sm { font-size: 12.5px; line-height: 21px; min-height: 21px; }
-  body.playing .toolbar { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; padding-top: 4px; }
-  body.playing .toolbar > :not(#gmMobDock):not(#menuOpen):not(.error) { display: none !important; }
-  body.playing #gmMobDock { display: contents !important; }
-  body.playing #gmMobDock button { min-height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; padding: 4px; }
-  body.playing #menuOpen { grid-column: auto !important; order: 5 !important; border-radius: 12px; }
+  body.playing .toolbar { grid-template-columns: minmax(0, 1fr) !important; padding-top: 4px; }
+  body.playing .toolbar > :not(#gmMobDock):not(.error) { display: none !important; }
+  body.playing #gmMobDock { display: flex !important; gap: 6px; width: 100%; min-width: 0; }
+  body.playing #gmMobDock button { flex: 1 1 0; width: auto; min-width: 0; min-height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; letter-spacing: -.02em; padding: 4px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #gmMobConfirmBtn { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 35;
     min-height: 44px; border-radius: 14px; font-size: 14px; font-weight: 700; box-shadow: 0 10px 28px -6px rgba(44, 92, 246, .55); }
 }
@@ -1477,6 +1476,7 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
     <button id="gmMobScore" type="button">계가</button>
     <button id="gmMobConfirmToggle" type="button">착수확인</button>
     <button id="gmMobResign" type="button" class="pink">기권</button>
+    <button id="gmMobStop" type="button">대국 중지</button>
   </div>
   <button id="menuOpen" aria-haspopup="dialog">☰ 메뉴</button>
 </footer>
@@ -2903,7 +2903,7 @@ $("gmConfirmBtn").onclick = $("gmMobConfirmBtn").onclick = () => {
   syncGameUi();
 };
 $("gmResignBtn").onclick = $("gmMobResign").onclick = () => $("gameResign").click();
-$("gmStopBtn").onclick = () => $("newGame").click();
+$("gmStopBtn").onclick = $("gmMobStop").onclick = () => $("newGame").click();
 $("gmEndReview").onclick = () => { $("gmEndDlg").close(); $("reviewOpen").click(); };
 $("gmEndNew").onclick = () => { $("gmEndDlg").close(); $("newGame").click(); };
 $("gmEndStay").onclick = () => $("gmEndDlg").close();
