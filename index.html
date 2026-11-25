@@ -2763,9 +2763,15 @@ window.kgvLang?.picker($("langSel")); window.kgvLang?.picker($("langAuth"));   /
 // 꾸미기: the analysis screen reads the same storage (kgv.skin) when it opens, and an open one follows a change here.
 // Each look is a small picture of the analysis screen's own board (assets/skins/preview, taken from analysis.html
 // with that look, 2026-11-09), and 착수음 plays once when chosen (the same sound as the analysis screen's).
-const SKIN_OPTS = {"board": [["yzy", "기본 나무"], ["light", "밝은 나무"], ["dark", "진한 나무"], ["fine", "가는 결 나무"], ["orange", "주황 나무"], ["glow", "빛 받은 판"], ["oak", "참나무 (실제 나무)"], ["bamboo", "밝은 결 (실제 나무)"], ["cherry", "체리 (실제 나무)"], ["flat", "단색"]], "stone": [["yzy", "기본"], ["glass", "유리"], ["soft", "부드러운 광택"], ["jade", "옥빛"], ["3d", "3D 조개돌"], ["flat", "평면"]], "sound": [["off", "끄기"], ["wood", "딱 (나무판)"], ["soft", "톡 (부드럽게)"]]};
+const SKIN_OPTS = {"board": [["yzy", "기본 나무"], ["light", "밝은 나무"], ["dark", "진한 나무"], ["fine", "가는 결 나무"], ["orange", "주황 나무"], ["glow", "빛 받은 판"], ["oak", "참나무 (실제 나무)"], ["bamboo", "밝은 결 (실제 나무)"], ["cherry", "체리 (실제 나무)"], ["flat", "단색"]], "stone": [["yzy", "기본"], ["glass", "유리"], ["soft", "부드러운 광택"], ["jade", "옥빛"], ["3d", "3D 조개돌"], ["flat", "평면"]], "sound": [["off", "끄기"], ["on", "켜기"]]};
 const SKIN_DEF = { board: "yzy", stone: "yzy", sound: "off" }, SKIN_EL = { board: "skinBoard", stone: "skinStone", sound: "skinSound" };
-function readSkin() { try { return { ...SKIN_DEF, ...(JSON.parse(localStorage.getItem("kgv.skin") || "{}") || {}) }; } catch { return { ...SKIN_DEF }; } }
+function readSkin() {
+  try {
+    const v = { ...SKIN_DEF, ...(JSON.parse(localStorage.getItem("kgv.skin") || "{}") || {}) };
+    if (v.sound && v.sound !== "off") v.sound = "on";
+    return v;
+  } catch { return { ...SKIN_DEF }; }
+}
 for (const k of ["board", "stone", "sound"]) {
   $(SKIN_EL[k]).innerHTML = SKIN_OPTS[k].map(([v, t]) => k === "sound"
     ? `<button type="button" role="radio" data-v="${v}">${esc(t.replace(/ \(.*\)$/, ""))}</button>`
@@ -2785,23 +2791,26 @@ function showSkin() {
   }
   $("skinNote").textContent = names.join(" · ");
 }
-let skinAudio = null;
-function stoneSound(kind) {   // = analysis.html stoneSound: a short knock (noise through a filter + a low body)
+let skinAudio = null, skinBuf = null, skinBufLoad = null;
+function stoneSound(kind) {   // = analysis.html stoneSound: plays the user's trimmed stone sample
   if (kind === "off") return;
   try {
     skinAudio ||= new (window.AudioContext || window.webkitAudioContext)();
     if (skinAudio.state === "suspended") skinAudio.resume();
-    const A = skinAudio, t = A.currentTime + .01, wood = kind === "wood";
-    const freq = wood ? 1900 : 900, vol = wood ? .7 : .45, len = wood ? .07 : .1, body = wood ? 210 : 150;
-    const n = A.createBuffer(1, Math.ceil(A.sampleRate * len), A.sampleRate), d = n.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
-    const src = A.createBufferSource(); src.buffer = n;
-    const f = A.createBiquadFilter(); f.type = wood ? "bandpass" : "lowpass"; f.frequency.value = freq; f.Q.value = wood ? 1.4 : .7;
-    const gn = A.createGain(); gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(.001, t + len);
-    src.connect(f).connect(gn).connect(A.destination); src.start(t); src.stop(t + len);
-    const o = A.createOscillator(), og = A.createGain(); o.frequency.setValueAtTime(body, t); o.frequency.exponentialRampToValueAtTime(body * .6, t + len);
-    og.gain.setValueAtTime(vol * .5, t); og.gain.exponentialRampToValueAtTime(.001, t + len);
-    o.connect(og).connect(A.destination); o.start(t); o.stop(t + len);
+    const play = (buf) => {
+      if (!buf || !skinAudio) return;
+      const src = skinAudio.createBufferSource();
+      src.buffer = buf;
+      src.connect(skinAudio.destination);
+      src.start(skinAudio.currentTime + .005);
+    };
+    if (skinBuf) { play(skinBuf); return; }
+    skinBufLoad ||= fetch("assets/sounds/stone.mp3")
+      .then(r => r.ok ? r.arrayBuffer() : null)
+      .then(b => b ? skinAudio.decodeAudioData(b) : null)
+      .then(buf => { if (buf) skinBuf = buf; else skinBufLoad = null; return buf; })
+      .catch(() => { skinBufLoad = null; return null; });
+    skinBufLoad.then(buf => { if (buf) play(buf); });
   } catch { /* no audio on this device */ }
 }
 showSkin();

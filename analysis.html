@@ -1596,6 +1596,7 @@ let freshTree = hashParams.has("tree");   // 학습방 → 수순 탐색 (see th
 // 꾸미기 (바둑판 무늬·돌 모양·돌 소리), see makeWood/stoneSound; here, before anything can draw or move
 const SKIN = {board: "yzy", stone: "yzy", sound: "off"};
 try { Object.assign(SKIN, JSON.parse(localStorage.getItem("kgv.skin") || "{}")); } catch { /* storage blocked */ }
+if (SKIN.sound && SKIN.sound !== "off") SKIN.sound = "on";
 const xp = freshTree ? {src: "", cache: new Map(), raw: new Map(), node: null, seq: null, data: null, timer: 0, lastAt: 0,
   q: "", found: new Map(), findTimer: 0, shown: []} : null;
 let xpEval = null;   // {node, id, key}: the AI's search of the table's moves (see xpEvalSync)
@@ -6879,28 +6880,84 @@ function makeWood(kind) {   // a seamless 1024px grain tile: vertical rings that
   }
   return c;
 }
-let audioCtx = null;
-function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: a short knock (noise through a filter + a low body), a few clicks when stones are taken
+const SOUND_BASE = GPU_HOST.test(location.hostname) ? "https://katago-cloud.onrender.com/assets/sounds/" : "assets/sounds/";
+let audioCtx = null, soundComp = null;
+const soundRaw = {}, soundBuf = {};
+function soundPrefetchKey(key) {
+  return soundRaw[key] ||= fetch(`${SOUND_BASE}${key}.mp3`)
+    .then(r => r.ok ? r.arrayBuffer() : null)
+    .then(b => { if (!b) delete soundRaw[key]; return b; })
+    .catch(() => { delete soundRaw[key]; return null; });
+}
+function soundPrefetch() {
+  if (SKIN.sound === "off") return;
+  soundPrefetchKey("stone");
+  soundPrefetchKey("capture");
+}
+function soundDecode(key) {
+  if (!audioCtx) return Promise.resolve(null);
+  return soundBuf[key] ||= soundPrefetchKey(key)
+    .then(b => b ? audioCtx.decodeAudioData(b.slice(0)) : null)
+    .then(buf => { if (!buf) delete soundBuf[key]; return buf; })
+    .catch(() => { delete soundBuf[key]; return null; });
+}
+function ensureSoundComp(A) {
+  if (soundComp && soundComp.context === A) return soundComp;
+  const c = A.createDynamicsCompressor();
+  c.threshold.value = -8;
+  c.knee.value = 12;
+  c.ratio.value = 4;
+  c.attack.value = 0.002;
+  c.release.value = 0.08;
+  c.connect(A.destination);
+  return (soundComp = c);
+}
+function scheduleStoneAudio(A, sBuf, cBuf, captured, t0) {
+  const dest = ensureSoundComp(A);
+  const playClip = (buf, when, gain, rate) => {
+    const src = A.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const gn = A.createGain();
+    gn.gain.setValueAtTime(gain, when);
+    src.connect(gn).connect(dest);
+    src.start(when);
+  };
+  if (sBuf) playClip(sBuf, t0, 0.94 + Math.random() * 0.08, 0.985 + Math.random() * 0.03);
+  if (captured > 0 && cBuf) {
+    const n = Math.max(1, Math.floor(captured));
+    const hits = n <= 5 ? n : Math.min(18, Math.round(5 + (n - 5) * 0.85));
+    const step = Math.max(0.024, 0.064 - Math.min(n, 16) * 0.0025);
+    const baseVol = Math.min(0.95, 0.52 + Math.log2(n) * 0.11);
+    const pitchDrop = Math.min(n, 15) * 0.004;
+    let off = 0.105;
+    for (let i = 0; i < hits; i++) {
+      const env = hits === 1 ? 1 : (0.82 + 0.22 * Math.sin(Math.PI * (i + 0.5) / hits));
+      const rate = 0.92 + Math.random() * 0.20 - pitchDrop;
+      playClip(cBuf, t0 + off, baseVol * env, rate);
+      if (n >= 6 && (i === Math.floor(hits * 0.35) || (n >= 10 && i === Math.floor(hits * 0.65)))) {
+        playClip(cBuf, t0 + off + 0.011, baseVol * 0.45, 0.95 + Math.random() * 0.16 - pitchDrop);
+      }
+      const tailMul = i >= hits - 2 ? 1.25 : 1.0;
+      off += step * (0.82 + Math.random() * 0.36) * tailMul;
+    }
+  }
+}
+function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: user stone sample + proportional capture clatter
   if (SKIN.sound === "off" || document.hidden) return;
   try {
     audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
-    const A = audioCtx, t0 = A.currentTime + .01, wood = SKIN.sound === "wood";
-    const knock = (t, freq, vol, len, body) => {
-      const n = A.createBuffer(1, Math.ceil(A.sampleRate * len), A.sampleRate), d = n.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
-      const src = A.createBufferSource(); src.buffer = n;
-      const f = A.createBiquadFilter(); f.type = wood ? "bandpass" : "lowpass"; f.frequency.value = freq; f.Q.value = wood ? 1.4 : .7;
-      const gn = A.createGain(); gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(.001, t + len);
-      src.connect(f).connect(gn).connect(A.destination); src.start(t); src.stop(t + len);
-      if (body) {
-        const o = A.createOscillator(), og = A.createGain(); o.frequency.setValueAtTime(body, t); o.frequency.exponentialRampToValueAtTime(body * .6, t + len);
-        og.gain.setValueAtTime(vol * .5, t); og.gain.exponentialRampToValueAtTime(.001, t + len);
-        o.connect(og).connect(A.destination); o.start(t); o.stop(t + len);
-      }
-    };
-    knock(t0, wood ? 1900 : 900, wood ? .7 : .45, wood ? .07 : .1, wood ? 210 : 150);
-    for (let i = 0; i < Math.min(captured, 4); i++) knock(t0 + .12 + i * .06, 3200, .22, .035, 0);
+    const A = audioCtx, cap = Math.max(0, Number(captured) || 0);
+    const needCap = cap > 0;
+    const pStone = soundDecode("stone");
+    const pCap = needCap ? soundDecode("capture") : Promise.resolve(null);
+    const startedAt = performance.now();
+    Promise.all([pStone, pCap]).then(([sBuf, cBuf]) => {
+      if (SKIN.sound === "off" || document.hidden) return;
+      if (performance.now() - startedAt > 250) return;
+      scheduleStoneAudio(A, sBuf, cBuf, cap, A.currentTime + 0.005);
+    });
   } catch { /* no audio on this device */ }
 }
 // 꾸미기 is chosen on the website (내 정보 › 설정 › 꾸미기, 2026-11-08) and kept in this browser (kgv.skin); this screen
@@ -6916,9 +6973,11 @@ addEventListener("storage", ev => {
   if (ev.key !== "kgv.skin") return;
   Object.assign(SKIN, {board: "yzy", stone: "yzy", sound: "off"});
   try { Object.assign(SKIN, JSON.parse(ev.newValue || "{}")); } catch { /* not ours */ }
-  boardPattern = null; applySkinMenu(); layout(); schedule();
+  if (SKIN.sound && SKIN.sound !== "off") SKIN.sound = "on";
+  boardPattern = null; applySkinMenu(); soundPrefetch(); layout(); schedule();
 });
 applySkinMenu();
+soundPrefetch();
 
 // ------------------------------------------------------------------ board renderer (BoardRenderer.java)
 // Like YZY (which draws in physical pixels, Utils: g.scale(1/javaScaleFactor)), the boards are
