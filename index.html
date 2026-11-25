@@ -1143,7 +1143,7 @@ function dashShow() {
   if (pill) {
     $("livePillText").innerHTML = `${esc(s.gpu_name || "GPU")} · ${ready ? `${min}분 <span>· ${free ? "무료" : won(s.charged_krw)}</span>` : esc(gpuState)}`;
     const go = $("livePillGo");
-    if (ready) { go.href = $("openAnalysis").href; go.textContent = "분석 화면"; go.target = standalone ? "" : "_blank"; }
+    if (ready) { go.href = $("openAnalysis").href; go.textContent = "분석 화면"; go.target = appWindow ? "" : "_blank"; }
     else { go.href = "#gpu"; go.textContent = "보기"; go.removeAttribute("target"); }
   }
 }
@@ -3084,9 +3084,11 @@ $("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg"
 // sw.js makes the site installable and shows the notifications above; it caches nothing (every page comes from the
 // network as before). Installed, the site opens without the address bar, so pages that used to open in a new tab
 // open in the same window (on iPhone a new tab would be Safari, which is not logged in).
+const inPcApp = typeof window.kgcAppSync === "function";
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-function openPage(url) { if (standalone) location.href = url; else window.open(url, "_blank", "noopener"); }
-if (standalone) for (const el of [$("openAnalysis"), $("dashOpen"), ...document.querySelectorAll("[data-analysis-link]")]) el.removeAttribute("target");
+const appWindow = standalone || inPcApp;
+function openPage(url) { if (appWindow) location.href = url; else window.open(url, "_blank", "noopener"); }
+if (appWindow) for (const el of [$("openAnalysis"), $("dashOpen"), ...document.querySelectorAll("[data-analysis-link]")]) el.removeAttribute("target");
 // 내 기기로 분석 (user request 2026-10-05): 시작 prepares KataGo on this device right here, shown the way a rented GPU's
 // setup is (model download → engine start and a test run → ready), then 분석 화면 열기 like a GPU's. That screen starts
 // its own engine from the stored model (a page cannot hand its worker to the next one), told whether the graphics
@@ -3196,7 +3198,7 @@ $("localStop").onclick = () => {
   endLocal(); if (localSession()) { endLocalSession(); toast("내 기기 분석을 종료했습니다."); }
   $("localCard").classList.add("hidden"); $("localCard").classList.remove("is-ready"); $("deviceCard").classList.remove("hidden");
 };
-$("localOpen").onclick = () => { if (gpuBlocksLocal()) { stopLocalForGpu(); return false; } if (!standalone) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
+$("localOpen").onclick = () => { if (gpuBlocksLocal()) { stopLocalForGpu(); return false; } if (!appWindow) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
 let installing = false;  // the member said yes in the install window; the browser is still installing
@@ -3224,7 +3226,6 @@ function installHow() {
 }
 // 윈도우 PC 앱 (katagovast pcsync, 2026-10-07): on a Windows computer the install card offers the app instead of the
 // home-screen install — the site in an app window, with 타이젬 기보 자동 동기화. Inside that app nothing is offered.
-const inPcApp = typeof window.kgcAppSync === "function";
 const windowsPc = /Windows NT/.test(ua) && !/Windows Phone/.test(ua);
 const PC_APP = { file: "download/KataGoCloud.exe", version: "0.2.5" };   // a new app: replace the file, KataGoCloud.json and this version
 document.querySelectorAll("[data-pcapp]").forEach((el) => {

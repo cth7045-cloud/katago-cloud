@@ -1014,7 +1014,7 @@ showTab(location.hash.slice(1));
 addEventListener("hashchange", () => showTab(location.hash.slice(1)));   // a notification tap opens #charges
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;   // the installed app (as index.html)
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || typeof window.kgcAppSync === "function";   // the installed / PC app (as index.html)
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
 const PAGE = 10, pages = { session: 1, ledger: 1, speed: 1 }, lists = { session: [], ledger: [], speed: [] };
 const render = { session: null, ledger: null, speed: null };
