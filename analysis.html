@@ -538,13 +538,21 @@ body.quiz .menubar > :not(.brand):not(.spacer):not(#vps):not(#connStatus):not(#g
 .gd-komi { display: flex; gap: 6px; min-width: 0; }
 .gd-row .gd-komi select { width: auto; flex: none; }
 .gd-komi input[type=number] { flex: 1; min-width: 0; }
+.gd-row-time { align-items: start; }
+.gd-row-time > span { padding-top: 9px; }
+.gd-time { display: grid; gap: 8px; min-width: 0; }
+.gd-time-opts { display: flex; gap: 6px; min-width: 0; }
+.gd-tf { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; }
+.gd-tf > span { font-size: 11.5px; font-weight: 600; color: var(--muted); padding-left: 4px; }
+.gd-tf > select { min-width: 0; width: 100%; padding: 4px 4px 4px 8px; }
+#gdTimeMode button { font-size: 12.5px; white-space: nowrap; }
 .seg { display: flex; background: var(--soft); border-radius: 999px; padding: 3px; gap: 2px; }
 .seg button { flex: 1; min-width: 0; background: transparent; min-height: 34px; color: var(--muted); padding: 4px 8px; white-space: normal; line-height: 1.2; word-break: keep-all; }
 .seg button:hover { background: rgba(255, 255, 255, .6); }
 .seg button.on { background: var(--panel); color: var(--ink); box-shadow: 0 2px 8px rgba(23, 26, 34, .1); }
 .gd-note { margin: 0; color: var(--muted); font-size: 13px; }
 .gd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-@media (max-width: 380px) { .gd-row { gap: 8px; } .seg button { padding: 4px 2px; } }
+@media (max-width: 400px) { .gd-row { gap: 8px; } .seg button { padding: 4px 2px; } #gdTimeMode button { font-size: 11.5px; padding: 4px 2px; } .gd-time-opts { gap: 4px; } .gd-tf > select { padding: 4px 2px 4px 6px; font-size: 13px; } }
 button.primary { background: var(--blue); color: #fff; box-shadow: 0 8px 20px -10px rgba(44, 92, 246, .7); }
 button.primary:hover { background: var(--blue-deep); }
 
@@ -1259,7 +1267,14 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
       <input type="number" class="gd-value" min="1" step="1" value="3" aria-label="백 AI 세기 값">
       <select class="gd-mode" aria-label="백 AI 세기 기준"><option value="time">초당 한 수</option><option value="visits">visits당 한 수</option></select></div></div>
     <div class="gd-row"><span>초반 무작위</span><select id="gdRandom"><option value="0">없음 (항상 최선수)</option><option value="10">10수까지 상위 후보 중 무작위</option><option value="20">20수까지 상위 후보 중 무작위</option><option value="40">40수까지 상위 후보 중 무작위</option></select></div>
-    <div class="gd-row"><span>시간</span><select id="gdTime" aria-label="대국 시간"><option value="">없음</option><option value="300/30/3">5분 + 초읽기 30초 3회</option><option value="600/30/3">10분 + 초읽기 30초 3회</option><option value="1200/30/3">20분 + 초읽기 30초 3회</option><option value="1800/40/3">30분 + 초읽기 40초 3회</option><option value="0/30/3">초읽기만 30초 3회</option><option value="0/60/3">초읽기만 1분 3회</option><option value="600/0/0">10분 (초읽기 없음)</option></select></div>
+    <div class="gd-row gd-row-time"><span>시간</span><div class="gd-time">
+      <div class="seg" id="gdTimeMode"><button type="button" data-v="none" class="on">없음</button><button type="button" data-v="byo">초읽기</button><button type="button" data-v="fischer">피셔</button><button type="button" data-v="absolute">타임아웃</button></div>
+      <div class="gd-time-opts" id="gdTimeOpts" hidden>
+        <label class="gd-tf" id="gdTimeMainWrap"><span>시간</span><select id="gdTimeMain" aria-label="기본 시간"><option value="300">5분</option><option value="600" selected>10분</option><option value="1200">20분</option><option value="1800">30분</option><option value="3600">1시간</option></select></label>
+        <label class="gd-tf" id="gdTimeSecWrap"><span id="gdTimeSecLbl">초</span><select id="gdTimeSec" aria-label="초읽기 또는 추가 초"><option value="10">10초</option><option value="15">15초</option><option value="20">20초</option><option value="30" selected>30초</option><option value="60">1분</option></select></label>
+        <label class="gd-tf" id="gdTimePerWrap"><span>회</span><select id="gdTimePer" aria-label="초읽기 횟수"><option value="1">1회</option><option value="3" selected>3회</option><option value="5">5회</option></select></label>
+      </div>
+    </div></div>
     <div class="gd-row"><span>AI 기권</span><div class="gd-resign"><label class="check"><input type="checkbox" id="gdResign" checked> 사용</label></div></div>
     <div class="gd-row"><span>AI분석 보기</span><div class="gd-checks"><label class="check"><input type="checkbox" id="gdShowB"> 흑 차례</label><label class="check"><input type="checkbox" id="gdShowW"> 백 차례</label><label class="check"><input type="checkbox" id="gdShowWr"> 승률만</label></div></div>
     <p class="gd-note" id="gdNote"></p>
@@ -2381,6 +2396,7 @@ function goTo(node) {
   }
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
+  clockOnTurn();
   if (!applyingRemote) { requestLive(!!(game && game.root === root)); publish(); }   // 대국 착수는 즉시, 수순 탐색 연타는 디바운스
   if (xp) { xpEvalSync(); xpUpdate(); }
   schedule();
@@ -2480,21 +2496,29 @@ let gmConfirmOn = false, gmPending = null, gmHoverXY = null, gmLastSyncKey = "";
 try { gmConfirmOn = localStorage.getItem("kgv.confirmMove") === "1"; } catch {}
 
 function gmFormatClock(c, s, activeTurn) {
-  if (!c) return { main: "시간 없음", cls: "gm-ptime sm", low: false, pips: "" };
+  if (!c) return { main: "시간 없음", cls: "gm-ptime sm", low: false, pips: "", meta: "" };
   const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
   const isTurn = c.side === s && activeTurn;
+  if (c.mode === "fischer") {
+    const secTxt = c.inc === 60 ? "1분" : `${c.inc}초`;
+    return { main: mmss(Math.ceil(c.left[s])), cls: "gm-ptime", low: isTurn && c.left[s] <= 10, pips: "", meta: ` · 피셔 +${secTxt}` };
+  }
+  if (c.mode === "absolute") {
+    return { main: mmss(Math.ceil(c.left[s])), cls: "gm-ptime", low: isTurn && c.left[s] <= 10, pips: "", meta: " · 타임아웃" };
+  }
   const maxP = c.perMax || 0;
   let pips = "";
   if (maxP > 0 && c.byo) {
     for (let i = 0; i < maxP; i++) pips += `<span class="gm-pip${i >= c.per[s] ? " used" : ""}"></span>`;
   }
+  const meta = maxP > 0 && c.byo ? ` · ${c.per[s]}회` : "";
   if (c.left[s] > 0) {
     const low = isTurn && !c.per[s] && c.left[s] <= 10;
-    return { main: mmss(Math.ceil(c.left[s])), cls: "gm-ptime", low, pips };
+    return { main: mmss(Math.ceil(c.left[s])), cls: "gm-ptime", low, pips, meta };
   }
   const now = isTurn ? Math.max(0, Math.ceil(c.byo - c.used)) : c.byo;
   const low = isTurn && (c.byo - c.used <= 10);
-  return { main: `0:${String(now).padStart(2, "0")}`, cls: "gm-ptime", low, pips };
+  return { main: mmss(now), cls: "gm-ptime", low, pips, meta };
 }
 
 function gmRenderPlayerCard(side, roleTag, name, mob) {
@@ -2502,7 +2526,6 @@ function gmRenderPlayerCard(side, roleTag, name, mob) {
   const isTurn = !!(game && game.root === root && !scoring && cur.toPlay === side);
   const clk = gmFormatClock(c, side, isTurn);
   const caps = cur.caps[side] || 0;
-  const byoLeft = c && c.perMax > 0 && c.byo ? ` · ${c.per[side]}회` : "";
   const stText = !isTurn ? "대기" : game && game.ai[side] ? "AI 생각 중…" : "착수 차례";
   const pipHtml = clk.pips ? `<span class="gm-pips">${clk.pips}</span>` : "";
   return `<div class="gm-pcard${mob ? " mob" : ""}${isTurn ? " turn" : ""}${clk.low ? " low" : ""}">
@@ -2510,7 +2533,7 @@ function gmRenderPlayerCard(side, roleTag, name, mob) {
       <i class="gm-pstone ${side.toLowerCase()}"></i>
       <div class="gm-pinfo">
         <div class="gm-pname"><b>${escHtml(name)}</b><span class="gm-ptag">${escHtml(roleTag)}</span></div>
-        <div class="gm-pmeta"><span>사석 ${caps}</span>${pipHtml}${byoLeft ? `<span>${escHtml(byoLeft)}</span>` : ""}</div>
+        <div class="gm-pmeta"><span>사석 ${caps}</span>${pipHtml}${clk.meta ? `<span>${escHtml(clk.meta)}</span>` : ""}</div>
       </div>
     </div>
     <div class="gm-pright">
@@ -2714,27 +2737,70 @@ $("scoreRecord").onclick = () => {
 // when the last period runs out; an AI moves at the latest when its share of the time is used (its own 세팅 can make it
 // move sooner): main time / the moves it still expects to play (+ a third of a period), or 60% of a period in byo-yomi.
 function makeClock(v) {
-  const m = /^(\d+)\/(\d+)\/(\d+)$/.exec(v || ""); if (!m) return null;
+  const s = v || "", now = performance.now();
+  let m = /^fischer:(\d+)\/(\d+)$/.exec(s);
+  if (m) {
+    const [main, inc] = [+m[1], +m[2]];
+    if (main <= 0 || inc <= 0) return null;
+    return {mode: "fischer", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+  }
+  m = /^absolute:(\d+)$/.exec(s);
+  if (m) {
+    const main = +m[1];
+    if (main <= 0) return null;
+    return {mode: "absolute", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+  }
+  m = /^(?:byo:)?(\d+)\/(\d+)\/(\d+)$/.exec(s);
+  if (!m) return null;
   const [main, byo, per] = [+m[1], +m[2], +m[3]];
-  return {left: {B: main, W: main}, per: {B: per, W: per}, perMax: per, byo, used: 0, side: null, last: performance.now(), budget: null};
+  if (byo > 0 && per > 0) return {mode: "byo", left: {B: main, W: main}, per: {B: per, W: per}, perMax: per, byo, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+  if (main > 0) return {mode: "absolute", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+  return null;
 }
 function aiBudget(c, s) {
-  const movesLeft = Math.max(8, (N * N * .7 - cur.depth) / 2), byo = c.per[s] > 0 ? c.byo : 0;
+  const movesLeft = Math.max(8, (N * N * .7 - cur.depth) / 2);
+  if (c.mode === "fischer") return Math.max(.5, Math.min(c.left[s] / movesLeft + c.inc * .8, Math.max(.5, c.left[s] - 1)));
+  if (c.mode === "absolute") return Math.max(.5, Math.min(c.left[s] / movesLeft, Math.max(.5, c.left[s] - 1)));
+  const byo = c.per[s] > 0 ? c.byo : 0;
   if (c.left[s] <= 0) return Math.max(.5, byo * .6);
   return Math.max(.5, Math.min(c.left[s] / movesLeft + byo / 3, c.left[s] + (byo ? byo * .6 : -1)));
 }
 function clockText(c, s) {
   const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  if (c.mode === "fischer") return mmss(Math.ceil(c.left[s])) + ` +${c.inc === 60 ? "1분" : c.inc + "초"}`;
+  if (c.mode === "absolute") return mmss(Math.ceil(c.left[s]));
   if (c.left[s] > 0) return mmss(Math.ceil(c.left[s])) + (c.per[s] > 0 && c.byo ? ` +${c.byo}초×${c.per[s]}` : "");
   const now = c.side === s ? Math.max(0, Math.ceil(c.byo - c.used)) : c.byo;
   return `초읽기 ${now}초 · ${c.per[s]}회`;
+}
+function clockOnTurn() {
+  const c = game && game.root === root && game.clock;
+  if (!c || scoring) return;
+  const now = performance.now();
+  if (c.side === null) {
+    c.side = cur.toPlay; c.depth = cur.depth; c.used = 0; c.last = now;
+    c.budget = game.ai[c.side] ? aiBudget(c, c.side) : null;
+    drawClocks();
+    return;
+  }
+  if (cur.toPlay !== c.side) {
+    const prev = c.side, dt = Math.max(0, (now - c.last) / 1000);
+    if (c.left[prev] > 0) c.left[prev] = Math.max(c.mode === "byo" ? 0 : 0.1, c.left[prev] - dt);
+    if (c.mode === "fischer" && cur.depth > c.depth) c.left[prev] += c.inc;
+    c.side = cur.toPlay; c.depth = cur.depth; c.used = 0; c.last = now;
+    c.budget = game.ai[c.side] ? aiBudget(c, c.side) : null;
+    drawClocks();
+  } else {
+    c.depth = cur.depth;
+  }
 }
 function drawClocks() {
   const c = game && game.root === root && game.clock;
   $("clocks").hidden = !c || document.body.classList.contains("playing");
   if (c) {
     for (const s of ["B", "W"]) {
-      const el = $("clock" + s), low = c.side === s && (c.left[s] <= 0 ? c.byo - c.used <= 10 : c.left[s] <= 10 && !c.per[s]);
+      const el = $("clock" + s);
+      const low = c.side === s && (c.mode === "byo" ? (c.left[s] <= 0 ? c.byo - c.used <= 10 : c.left[s] <= 10 && !c.per[s]) : c.left[s] <= 10);
       el.textContent = `${colorName(s)} ${clockText(c, s)}`;
       el.classList.toggle("turn", c.side === s); el.classList.toggle("low", low);
     }
@@ -2747,10 +2813,16 @@ function timeUp(s) {
 }
 setInterval(() => {
   const c = game && game.clock; if (!c) { $("clocks").hidden = true; syncGameUi(); return; }
-  const now = performance.now(), dt = (now - c.last) / 1000; c.last = now;
-  if (scoring || game.root !== root) return drawClocks();   // counting: the clocks stop
+  if (scoring || game.root !== root) { c.last = performance.now(); return drawClocks(); }   // counting: the clocks stop
+  if (cur.toPlay !== c.side) { clockOnTurn(); return; }
+  const now = performance.now(), dt = Math.max(0, (now - c.last) / 1000); c.last = now;
   const s = cur.toPlay;
-  if (s !== c.side) { c.side = s; c.used = 0; c.budget = game.ai[s] ? aiBudget(c, s) : null; }   // a move was played
+  if (c.mode === "fischer" || c.mode === "absolute") {
+    c.left[s] -= dt;
+    if (c.left[s] <= 0) { c.left[s] = 0; return timeUp(s); }
+    drawClocks();
+    return;
+  }
   if (c.left[s] > 0) { c.left[s] -= dt; if (c.left[s] < 0) { c.used = -c.left[s]; c.left[s] = 0; } }
   else c.used += dt;
   if (c.left[s] <= 0) {
@@ -2817,14 +2889,28 @@ setInterval(() => {
 // AI대국 window
 const segValue = id => $(id).querySelector(".on").dataset.v;
 const GAME_FORM = "kgv.gameForm";
+const MAIN_OPTS = [300, 600, 1200, 1800, 3600], SEC_OPTS = [10, 15, 20, 30, 60], PER_OPTS = [1, 3, 5];
+const nearestOpt = (arr, v) => arr.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a, arr[0]);
+function timeFormValue() {
+  const m = segValue("gdTimeMode");
+  if (m === "none") return "";
+  if (m === "fischer") return `fischer:${$("gdTimeMain").value}/${$("gdTimeSec").value}`;
+  if (m === "absolute") return `absolute:${$("gdTimeMain").value}`;
+  return `byo:${$("gdTimeMain").value}/${$("gdTimeSec").value}/${$("gdTimePer").value}`;
+}
 function gameForm() {
   const vsHuman = segValue("gdKind") === "human", fresh = segValue("gdFrom") === "new";
   for (const el of $("gameDlg").querySelectorAll("[data-for]")) el.hidden = !(el.dataset.for === "human" ? vsHuman : fresh);
   $("gdAi2").hidden = vsHuman;
   $("gdAi1").querySelector("span").textContent = vsHuman ? "AI세팅" : "흑 AI세팅";
+  const tm = segValue("gdTimeMode");
+  $("gdTimeOpts").hidden = tm === "none";
+  $("gdTimeSecWrap").hidden = tm === "absolute";
+  $("gdTimePerWrap").hidden = tm !== "byo";
+  $("gdTimeSecLbl").textContent = tm === "fischer" ? "추가 초" : "초";
   $("gdNote").textContent = fresh ? "지금 기보는 지워지고 새 판에서 시작합니다." : `지금 보고 있는 ${cur.depth}수부터 이어서 둡니다.`;
 }
-for (const id of ["gdKind", "gdFrom", "gdColor"]) $(id).addEventListener("click", ev => {
+for (const id of ["gdKind", "gdFrom", "gdColor", "gdTimeMode"]) $(id).addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
   $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
   if (id === "gdKind") $("gdShowB").checked = $("gdShowW").checked = b.dataset.v === "ai";   // playing yourself: no hints by default
@@ -2840,16 +2926,38 @@ $("gdSize").onchange = () => {
 function aiRule(row) { return {mode: row.querySelector(".gd-mode").value, value: Math.max(1, parseFloat(row.querySelector(".gd-value").value) || 1)}; }
 function saveGameForm() {
   const f = {kind: segValue("gdKind"), color: segValue("gdColor"), ai1: aiRule($("gdAi1")), ai2: aiRule($("gdAi2")), random: $("gdRandom").value,
-             resign: $("gdResign").checked, time: $("gdTime").value, showWr: $("gdShowWr").checked};
+             resign: $("gdResign").checked, time: timeFormValue(), timeMode: segValue("gdTimeMode"),
+             timeMain: $("gdTimeMain").value, timeSec: $("gdTimeSec").value, timePer: $("gdTimePer").value, showWr: $("gdShowWr").checked};
   try { localStorage.setItem(GAME_FORM, JSON.stringify(f)); } catch { /* storage blocked */ }
 }
 function loadGameForm() {
   let f = null; try { f = JSON.parse(localStorage.getItem(GAME_FORM) || "null"); } catch { /* storage blocked */ }
   if (!f) return;
-  const pickSeg = (id, v) => $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === v));
+  const pickSeg = (id, v) => {
+    if (!v || !$(id).querySelector(`button[data-v="${v}"]`)) return;
+    $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.v === v));
+  };
   pickSeg("gdKind", f.kind); pickSeg("gdColor", f.color);
   for (const [row, r] of [[$("gdAi1"), f.ai1], [$("gdAi2"), f.ai2]]) if (r) { row.querySelector(".gd-mode").value = r.mode; row.querySelector(".gd-value").value = r.value; }
-  $("gdRandom").value = f.random; $("gdTime").value = f.time || "";
+  if (f.random != null && $("gdRandom").querySelector(`option[value="${f.random}"]`)) $("gdRandom").value = String(f.random);
+  let tm = f.timeMode, tMain = +f.timeMain || 600, tSec = +f.timeSec || 30, tPer = +f.timePer || 3;
+  if (!tm || !["none", "byo", "fischer", "absolute"].includes(tm)) {
+    const raw = f.time || "";
+    let m;
+    if (!raw) tm = "none";
+    else if ((m = /^fischer:(\d+)\/(\d+)$/.exec(raw))) { tm = "fischer"; tMain = +m[1]; tSec = +m[2]; }
+    else if ((m = /^absolute:(\d+)$/.exec(raw))) { tm = "absolute"; tMain = +m[1]; }
+    else if ((m = /^(?:byo:)?(\d+)\/(\d+)\/(\d+)$/.exec(raw))) {
+      const [main, sec, per] = [+m[1], +m[2], +m[3]];
+      if (sec > 0 && per > 0) { tm = "byo"; tMain = main || 300; tSec = sec; tPer = per; }
+      else if (main > 0) { tm = "absolute"; tMain = main; }
+      else tm = "none";
+    } else tm = "none";
+  }
+  pickSeg("gdTimeMode", tm);
+  $("gdTimeMain").value = String(nearestOpt(MAIN_OPTS, tMain));
+  $("gdTimeSec").value = String(nearestOpt(SEC_OPTS, tSec));
+  $("gdTimePer").value = String(nearestOpt(PER_OPTS, tPer));
   $("gdResign").checked = Array.isArray(f.resign) ? !!f.resign[0] : f.resign !== false;   // older saves kept [on, move, count, wr]
   $("gdShowB").checked = $("gdShowW").checked = f.kind === "ai";
   $("gdShowWr").checked = !!f.showWr;
@@ -2878,10 +2986,10 @@ $("gdGo").onclick = () => {
     goTo(root);
   }
   game = {kind, root, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked, wr: $("gdShowWr").checked}, random: +$("gdRandom").value,
-          resign: $("gdResign").checked, low: {B: 0, W: 0}, clock: makeClock($("gdTime").value)};
+          resign: $("gdResign").checked, low: {B: 0, W: 0}, clock: makeClock(timeFormValue())};
   saveGameForm(); $("gameDlg").close();
   if (!analyzing) setAnalyzing(true);
-  reachedAt = performance.now(); requestLive(); publish(); gameButton(); schedule();
+  reachedAt = performance.now(); clockOnTurn(); requestLive(); publish(); gameButton(); schedule();
   $("err").textContent = vsHuman ? `AI 대국 시작 · 나는 ${colorName(mine)}` : "AI끼리 대국을 시작했습니다";
   syncGameUi();
 };
