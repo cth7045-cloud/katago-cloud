@@ -2889,8 +2889,13 @@ setInterval(() => {
 // AI대국 window
 const segValue = id => $(id).querySelector(".on").dataset.v;
 const GAME_FORM = "kgv.gameForm";
-const MAIN_OPTS = [300, 600, 1200, 1800, 3600], SEC_OPTS = [10, 15, 20, 30, 60], PER_OPTS = [1, 3, 5];
+const MAIN_OPTS = [300, 600, 1200, 1800, 3600], MAIN_BYO_OPTS = [0, 300, 600, 1200, 1800, 3600], SEC_OPTS = [10, 15, 20, 30, 60], PER_OPTS = [1, 3, 5];
 const nearestOpt = (arr, v) => arr.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a, arr[0]);
+function syncTimeMainOpts(tm) {
+  const sel = $("gdTimeMain"), opt0 = sel.querySelector('option[value="0"]');
+  if (tm === "byo") { if (!opt0) sel.prepend(new Option("0분", "0")); }
+  else if (opt0) { if (sel.value === "0") sel.value = "300"; opt0.remove(); }
+}
 function timeFormValue() {
   const m = segValue("gdTimeMode");
   if (m === "none") return "";
@@ -2904,6 +2909,7 @@ function gameForm() {
   $("gdAi2").hidden = vsHuman;
   $("gdAi1").querySelector("span").textContent = vsHuman ? "AI세팅" : "흑 AI세팅";
   const tm = segValue("gdTimeMode");
+  syncTimeMainOpts(tm);
   $("gdTimeOpts").hidden = tm === "none";
   $("gdTimeSecWrap").hidden = tm === "absolute";
   $("gdTimePerWrap").hidden = tm !== "byo";
@@ -2940,7 +2946,7 @@ function loadGameForm() {
   pickSeg("gdKind", f.kind); pickSeg("gdColor", f.color);
   for (const [row, r] of [[$("gdAi1"), f.ai1], [$("gdAi2"), f.ai2]]) if (r) { row.querySelector(".gd-mode").value = r.mode; row.querySelector(".gd-value").value = r.value; }
   if (f.random != null && $("gdRandom").querySelector(`option[value="${f.random}"]`)) $("gdRandom").value = String(f.random);
-  let tm = f.timeMode, tMain = +f.timeMain || 600, tSec = +f.timeSec || 30, tPer = +f.timePer || 3;
+  let tm = f.timeMode, tMain = f.timeMain != null && f.timeMain !== "" && Number.isFinite(+f.timeMain) ? +f.timeMain : 600, tSec = +f.timeSec || 30, tPer = +f.timePer || 3;
   if (!tm || !["none", "byo", "fischer", "absolute"].includes(tm)) {
     const raw = f.time || "";
     let m;
@@ -2949,13 +2955,14 @@ function loadGameForm() {
     else if ((m = /^absolute:(\d+)$/.exec(raw))) { tm = "absolute"; tMain = +m[1]; }
     else if ((m = /^(?:byo:)?(\d+)\/(\d+)\/(\d+)$/.exec(raw))) {
       const [main, sec, per] = [+m[1], +m[2], +m[3]];
-      if (sec > 0 && per > 0) { tm = "byo"; tMain = main || 300; tSec = sec; tPer = per; }
+      if (sec > 0 && per > 0) { tm = "byo"; tMain = main; tSec = sec; tPer = per; }
       else if (main > 0) { tm = "absolute"; tMain = main; }
       else tm = "none";
     } else tm = "none";
   }
   pickSeg("gdTimeMode", tm);
-  $("gdTimeMain").value = String(nearestOpt(MAIN_OPTS, tMain));
+  syncTimeMainOpts(tm);
+  $("gdTimeMain").value = String(nearestOpt(tm === "byo" ? MAIN_BYO_OPTS : MAIN_OPTS, tMain));
   $("gdTimeSec").value = String(nearestOpt(SEC_OPTS, tSec));
   $("gdTimePer").value = String(nearestOpt(PER_OPTS, tPer));
   $("gdResign").checked = Array.isArray(f.resign) ? !!f.resign[0] : f.resign !== false;   // older saves kept [on, move, count, wr]
