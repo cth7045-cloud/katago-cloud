@@ -2747,19 +2747,17 @@ const VOICE_KEYS = ["byo_start", "byo_5", "byo_4", "byo_3", "byo_2", "byo_1", "s
 const VOICE_BASE = GPU_HOST.test(location.hostname) ? "https://katago-cloud.onrender.com/assets/voice/" : "assets/voice/";
 const voiceBufs = new Map(), voiceLoads = new Map();
 let voiceCur = null, voiceToken = 0;
+function ensureAudioCtx() {
+  audioCtx ||= new (window.AudioContext || window.webkitAudioContext)({latencyHint: "interactive"});
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
 function voiceCtx() {
   if (!gmVoiceOn) return null;
-  try {
-    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-    return audioCtx;
-  } catch { return null; }
+  try { return ensureAudioCtx(); } catch { return null; }
 }
 function voiceUnlock() {
-  try {
-    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-  } catch {}
+  try { ensureAudioCtx(); } catch {}
 }
 function voiceLoad(key) {
   if (voiceBufs.has(key)) return Promise.resolve(voiceBufs.get(key));
@@ -6882,9 +6880,9 @@ function makeWood(kind) {   // a seamless 1024px grain tile: vertical rings that
 }
 const SOUND_BASE = GPU_HOST.test(location.hostname) ? "https://katago-cloud.onrender.com/assets/sounds/" : "assets/sounds/";
 let audioCtx = null, soundComp = null;
-const soundRaw = {}, soundBuf = {};
+const soundRaw = {}, soundBuf = {}, soundReady = {};
 function soundPrefetchKey(key) {
-  return soundRaw[key] ||= fetch(`${SOUND_BASE}${key}.mp3`)
+  return soundRaw[key] ||= fetch(`${SOUND_BASE}${key}.wav`)
     .then(r => r.ok ? r.arrayBuffer() : null)
     .then(b => { if (!b) delete soundRaw[key]; return b; })
     .catch(() => { delete soundRaw[key]; return null; });
@@ -6898,9 +6896,20 @@ function soundDecode(key) {
   if (!audioCtx) return Promise.resolve(null);
   return soundBuf[key] ||= soundPrefetchKey(key)
     .then(b => b ? audioCtx.decodeAudioData(b.slice(0)) : null)
-    .then(buf => { if (!buf) delete soundBuf[key]; return buf; })
+    .then(buf => { if (buf) soundReady[key] = buf; else delete soundBuf[key]; return buf; })
     .catch(() => { delete soundBuf[key]; return null; });
 }
+function soundWarmup() {
+  if (SKIN.sound === "off") return;
+  try {
+    const A = ensureAudioCtx();
+    if (!soundReady.stone) soundDecode("stone");
+    if (!soundReady.capture) soundDecode("capture");
+    void A;
+  } catch {}
+}
+document.addEventListener("pointerdown", soundWarmup, {capture: true, passive: true});
+document.addEventListener("keydown", soundWarmup, {capture: true, passive: true});
 function ensureSoundComp(A) {
   if (soundComp && soundComp.context === A) return soundComp;
   const c = A.createDynamicsCompressor();
@@ -6912,19 +6921,20 @@ function ensureSoundComp(A) {
   c.connect(A.destination);
   return (soundComp = c);
 }
-function scheduleStoneAudio(A, sBuf, cBuf, captured, t0) {
-  const dest = ensureSoundComp(A);
-  const playClip = (buf, when, gain, rate) => {
+function scheduleStoneAudio(A, sBuf, cBuf, captured, immediate = true) {
+  const playClip = (buf, when, gain, rate, dest) => {
     const src = A.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
     const gn = A.createGain();
-    gn.gain.setValueAtTime(gain, when);
+    gn.gain.value = gain;
     src.connect(gn).connect(dest);
     src.start(when);
   };
-  if (sBuf) playClip(sBuf, t0, 0.94 + Math.random() * 0.08, 0.985 + Math.random() * 0.03);
+  if (sBuf) playClip(sBuf, immediate ? 0 : A.currentTime, 0.94 + Math.random() * 0.08, 0.985 + Math.random() * 0.03, A.destination);
   if (captured > 0 && cBuf) {
+    const t0 = A.currentTime;
+    const capDest = captured >= 2 ? ensureSoundComp(A) : A.destination;
     const n = Math.max(1, Math.floor(captured));
     const hits = n <= 5 ? n : Math.min(18, Math.round(5 + (n - 5) * 0.85));
     const step = Math.max(0.024, 0.064 - Math.min(n, 16) * 0.0025);
@@ -6934,29 +6944,30 @@ function scheduleStoneAudio(A, sBuf, cBuf, captured, t0) {
     for (let i = 0; i < hits; i++) {
       const env = hits === 1 ? 1 : (0.82 + 0.22 * Math.sin(Math.PI * (i + 0.5) / hits));
       const rate = 0.92 + Math.random() * 0.20 - pitchDrop;
-      playClip(cBuf, t0 + off, baseVol * env, rate);
+      playClip(cBuf, t0 + off, baseVol * env, rate, capDest);
       if (n >= 6 && (i === Math.floor(hits * 0.35) || (n >= 10 && i === Math.floor(hits * 0.65)))) {
-        playClip(cBuf, t0 + off + 0.011, baseVol * 0.45, 0.95 + Math.random() * 0.16 - pitchDrop);
+        playClip(cBuf, t0 + off + 0.011, baseVol * 0.45, 0.95 + Math.random() * 0.16 - pitchDrop, capDest);
       }
       const tailMul = i >= hits - 2 ? 1.25 : 1.0;
       off += step * (0.82 + Math.random() * 0.36) * tailMul;
     }
   }
 }
-function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: user stone sample + proportional capture clatter
+function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: zero-latency sync stone playback + proportional capture clatter
   if (SKIN.sound === "off" || document.hidden) return;
   try {
-    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    const A = audioCtx, cap = Math.max(0, Number(captured) || 0);
-    const needCap = cap > 0;
+    const A = ensureAudioCtx(), cap = Math.max(0, Number(captured) || 0);
+    if (soundReady.stone && (!cap || soundReady.capture)) {
+      scheduleStoneAudio(A, soundReady.stone, soundReady.capture || null, cap, true);
+      return;
+    }
     const pStone = soundDecode("stone");
-    const pCap = needCap ? soundDecode("capture") : Promise.resolve(null);
+    const pCap = cap > 0 ? soundDecode("capture") : Promise.resolve(null);
     const startedAt = performance.now();
     Promise.all([pStone, pCap]).then(([sBuf, cBuf]) => {
       if (SKIN.sound === "off" || document.hidden) return;
       if (performance.now() - startedAt > 250) return;
-      scheduleStoneAudio(A, sBuf, cBuf, cap, A.currentTime + 0.005);
+      scheduleStoneAudio(A, sBuf, cBuf, cap, true);
     });
   } catch { /* no audio on this device */ }
 }

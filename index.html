@@ -2791,28 +2791,34 @@ function showSkin() {
   }
   $("skinNote").textContent = names.join(" · ");
 }
-let skinAudio = null, skinBuf = null, skinBufLoad = null;
-function stoneSound(kind) {   // = analysis.html stoneSound: plays the user's trimmed stone sample
+let skinAudio = null, skinRaw = null, skinBuf = null, skinBufLoad = null;
+function prefetchSkinSound() {
+  return skinRaw ||= fetch("assets/sounds/stone.wav")
+    .then(r => r.ok ? r.arrayBuffer() : null)
+    .then(b => { if (!b) skinRaw = null; return b; })
+    .catch(() => { skinRaw = null; return null; });
+}
+function stoneSound(kind) {   // = analysis.html stoneSound: zero-latency sync stone sample
   if (kind === "off") return;
   try {
-    skinAudio ||= new (window.AudioContext || window.webkitAudioContext)();
+    skinAudio ||= new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
     if (skinAudio.state === "suspended") skinAudio.resume();
     const play = (buf) => {
       if (!buf || !skinAudio) return;
       const src = skinAudio.createBufferSource();
       src.buffer = buf;
       src.connect(skinAudio.destination);
-      src.start(skinAudio.currentTime + .005);
+      src.start(0);
     };
     if (skinBuf) { play(skinBuf); return; }
-    skinBufLoad ||= fetch("assets/sounds/stone.mp3")
-      .then(r => r.ok ? r.arrayBuffer() : null)
-      .then(b => b ? skinAudio.decodeAudioData(b) : null)
+    skinBufLoad ||= prefetchSkinSound()
+      .then(b => b ? skinAudio.decodeAudioData(b.slice(0)) : null)
       .then(buf => { if (buf) skinBuf = buf; else skinBufLoad = null; return buf; })
       .catch(() => { skinBufLoad = null; return null; });
     skinBufLoad.then(buf => { if (buf) play(buf); });
   } catch { /* no audio on this device */ }
 }
+if (readSkin().sound !== "off") prefetchSkinSound();
 showSkin();
 kcTheme.onChange(showTheme); showTheme();
 $("nameForm").onsubmit = (ev) => {
