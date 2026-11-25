@@ -944,10 +944,13 @@ button.primary:hover { background: var(--blue-deep); }
   body:not(.playing) .rb-bars { height: 68px; }
 }
 /* 온라인 대국실 UI (시안 5번 적용 · AI분석 보기 켜면 승률 막대+그래프 표시, 소리 탑재 없음) */
-#gmPanel, #gmMobTop, #gmMobBot, #gmMobDock, #gmTopMeta { display: none; }
+#gmPanel, #gmMobTop, #gmMobBot, #gmMobDock, #gmTopMeta, #gmVoiceBtn { display: none; }
 #gmTopMeta { align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--soft); font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #gmTopMeta b { color: var(--ink); font-weight: 700; }
 body.playing #gmTopMeta { display: block; flex: 0 1 auto; min-width: 0; }
+body.playing #gmVoiceBtn:not([hidden]) { display: inline-grid; place-items: center; width: 32px; height: 32px; min-height: 32px; flex: 0 0 32px; padding: 0; border-radius: 50%; background: var(--soft); color: var(--muted); }
+body.playing #gmVoiceBtn.on { color: var(--blue); background: var(--cyan-soft); }
+body.playing #gmVoiceBtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 body.playing #vps:empty { display: inline-block; visibility: hidden; padding: 5px 12px; border-radius: 999px; }
 body.playing #clocks { display: none !important; }
 body.playing .menubar #fileMenu, body.playing .menubar #boardMenu, body.playing .menubar #viewMenu,
@@ -1153,6 +1156,7 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
   <button id="reviewOpen" title="실수·악수마다 AI 참고도를 붙인 문서">복기 리포트</button>
   <button id="saveMine" hidden title="이 기보를 분석값과 함께 내 계정에 저장">내 기보 저장</button>
   <span class="spacer"></span>
+  <button id="gmVoiceBtn" type="button" hidden aria-label="초읽기 음성 켜기/끄기" title="초읽기 음성 켜기/끄기"></button>
   <span class="status" id="vps"></span>
   <span class="status" id="gpuMeter" hidden><span id="gpuUse"></span><button id="gpuStop" class="pink">GPU 종료</button><button id="localStop" class="pink" hidden title="내 기기 분석 종료">종료</button></span>
   <span class="status" id="connStatus"><span class="dot" id="dot"></span><span id="conn">연결 중…</span></span>
@@ -2559,6 +2563,7 @@ function syncGameUi() {
   if ($("gmMobTop")) $("gmMobTop").hidden = !active;
   if ($("gmMobBot")) $("gmMobBot").hidden = !active;
   if ($("gmMobDock")) $("gmMobDock").hidden = !active;
+  syncVoiceBtn(active);
   if (!active) return;
 
   const info = root.info || {};
@@ -2632,6 +2637,7 @@ const DEAD_OWN = .4, SPLIT_OWN = .5;
 function startScoring() {
   if (quiz || viewOnly) return;
   if (scoring) return closeScoring();
+  voiceStop();
   scoring = {node: cur, own: null, dead: new Set(), id: "o" + (++qn), waiting: true};
   queries.set(scoring.id, {score: true});
   // a plain search (no PDA) of this position with ownership; a few hundred visits settle the dead stones
@@ -2733,28 +2739,139 @@ $("scoreRecord").onclick = () => {
   if (root.info.RE && root.info.RE !== re && !confirm(`기보의 결과(${resultText(root.info.RE)})를 ${resultText(re)}${eulo(resultText(re))} 바꿀까요?`)) return;
   root.info.RE = re; publish(); closeScoring(); $("err").textContent = `결과를 ${resultText(re)}${eulo(resultText(re))} 기록했습니다`;
 };
-// ---- 대국 시계 (user request 2026-10-05): main time + byo-yomi for both sides of an AI대국. The member loses on time
-// when the last period runs out; an AI moves at the latest when its share of the time is used (its own 세팅 can make it
-// move sooner): main time / the moves it still expects to play (+ a third of a period), or 60% of a period in byo-yomi.
+// ---- 대국 시계 · 초읽기 음성 (5801 수빈): main time / byo-yomi / Fischer / timeout + countdown audio
+let gmVoiceOn = true;
+try { gmVoiceOn = localStorage.getItem("kgv.gmVoice") !== "0"; } catch {}
+const VOICE_KEYS = ["byo_start", "byo_5", "byo_4", "byo_3", "byo_2", "byo_1", "sec10", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "timeout"];
+const VOICE_BASE = GPU_HOST.test(location.hostname) ? "https://katago-cloud.onrender.com/assets/voice/" : "assets/voice/";
+const voiceBufs = new Map(), voiceLoads = new Map();
+let voiceCur = null, voiceToken = 0;
+function voiceCtx() {
+  if (!gmVoiceOn) return null;
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+    return audioCtx;
+  } catch { return null; }
+}
+function voiceUnlock() {
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  } catch {}
+}
+function voiceLoad(key) {
+  if (voiceBufs.has(key)) return Promise.resolve(voiceBufs.get(key));
+  if (voiceLoads.has(key)) return voiceLoads.get(key);
+  const A = voiceCtx();
+  if (!A) return Promise.resolve(null);
+  const p = fetch(`${VOICE_BASE}${key}.mp3`).then(r => {
+    if (!r.ok) throw new Error(r.status);
+    return r.arrayBuffer();
+  }).then(ab => A.decodeAudioData(ab)).then(buf => {
+    voiceBufs.set(key, buf); voiceLoads.delete(key); return buf;
+  }).catch(() => { voiceLoads.delete(key); return null; });
+  voiceLoads.set(key, p);
+  return p;
+}
+function voicePreload() { voiceUnlock(); VOICE_KEYS.forEach(voiceLoad); }
+function voiceStop() {
+  voiceToken++;
+  if (voiceCur && voiceCur.src) {
+    try { voiceCur.src.onended = null; voiceCur.src.stop(); voiceCur.src.disconnect(); } catch {}
+  }
+  voiceCur = null;
+}
+function voicePlaySeq(keys, opts = {}) {
+  const {announce = false, interrupt = true} = opts;
+  if (!gmVoiceOn || document.hidden || !keys || !keys.length) return;
+  if (!interrupt && voiceCur && voiceCur.announce) return;
+  const A = voiceCtx();
+  if (!A) return;
+  voiceStop();
+  const myTok = voiceToken, tStart = performance.now(), singleShort = !announce && keys.length === 1;
+  const step = async (idx) => {
+    if (myTok !== voiceToken || !gmVoiceOn || document.hidden || idx >= keys.length) {
+      if (myTok === voiceToken) voiceCur = null;
+      return;
+    }
+    const key = keys[idx];
+    let buf = voiceBufs.get(key);
+    if (!buf) {
+      buf = await voiceLoad(key);
+      if (myTok !== voiceToken || !gmVoiceOn || document.hidden) return;
+      if (singleShort && performance.now() - tStart > 500) { voiceCur = null; return; }
+    }
+    if (!buf || A.state === "closed") { step(idx + 1); return; }
+    if (A.state === "suspended") await A.resume().catch(() => {});
+    if (myTok !== voiceToken) return;
+    try {
+      const src = A.createBufferSource();
+      src.buffer = buf; src.connect(A.destination);
+      voiceCur = {src, token: myTok, announce};
+      src.onended = () => {
+        try { src.disconnect(); } catch {}
+        if (myTok === voiceToken) step(idx + 1);
+      };
+      src.start(0);
+    } catch { if (myTok === voiceToken) voiceCur = null; }
+  };
+  step(0);
+}
+const VOICE_SVG_ON = '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const VOICE_SVG_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>';
+function syncVoiceBtn(active) {
+  const b = $("gmVoiceBtn"); if (!b) return;
+  const show = !!(active && game && game.clock);
+  b.hidden = !show;
+  if (!show) return;
+  b.classList.toggle("on", gmVoiceOn);
+  b.setAttribute("aria-pressed", String(gmVoiceOn));
+  b.title = gmVoiceOn ? "초읽기 음성 끄기" : "초읽기 음성 켜기";
+  const svg = gmVoiceOn ? VOICE_SVG_ON : VOICE_SVG_OFF;
+  if (b.innerHTML !== svg) b.innerHTML = svg;
+}
+$("gmVoiceBtn").onclick = () => {
+  gmVoiceOn = !gmVoiceOn;
+  try { localStorage.setItem("kgv.gmVoice", gmVoiceOn ? "1" : "0"); } catch {}
+  if (gmVoiceOn) voicePreload(); else voiceStop();
+  syncVoiceBtn(!!(game && game.root === root && !quiz));
+};
+function announceByoEnter(c, s) {
+  if (c.byoAnnounced[s]) return;
+  c.byoAnnounced[s] = true; c.lastVoiceSec = null;
+  const seq = c.byo >= 15 ? ["byo_start", `byo_${Math.min(5, Math.max(1, c.per[s]))}`] : ["byo_start"];
+  voicePlaySeq(seq, {announce: true});
+}
+function checkCountVoice(c, rem) {
+  const sec = Math.ceil(rem);
+  if (sec > 10 || sec < 1 || sec === c.lastVoiceSec) return;
+  c.lastVoiceSec = sec;
+  if (sec === 10) {
+    if (c.mode !== "byo" || c.byo > 10) voicePlaySeq(["sec10"], {interrupt: true});
+    return;
+  }
+  voicePlaySeq([`c${10 - sec}`], {interrupt: sec <= 5});
+}
 function makeClock(v) {
   const s = v || "", now = performance.now();
   let m = /^fischer:(\d+)\/(\d+)$/.exec(s);
   if (m) {
     const [main, inc] = [+m[1], +m[2]];
     if (main <= 0 || inc <= 0) return null;
-    return {mode: "fischer", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+    return {mode: "fischer", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc, used: 0, side: null, depth: cur.depth, last: now, budget: null, byoAnnounced: {B: false, W: false}, lastVoiceSec: null};
   }
   m = /^absolute:(\d+)$/.exec(s);
   if (m) {
     const main = +m[1];
     if (main <= 0) return null;
-    return {mode: "absolute", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+    return {mode: "absolute", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null, byoAnnounced: {B: false, W: false}, lastVoiceSec: null};
   }
   m = /^(?:byo:)?(\d+)\/(\d+)\/(\d+)$/.exec(s);
   if (!m) return null;
   const [main, byo, per] = [+m[1], +m[2], +m[3]];
-  if (byo > 0 && per > 0) return {mode: "byo", left: {B: main, W: main}, per: {B: per, W: per}, perMax: per, byo, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null};
-  if (main > 0) return {mode: "absolute", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null};
+  if (byo > 0 && per > 0) return {mode: "byo", left: {B: main, W: main}, per: {B: per, W: per}, perMax: per, byo, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null, byoAnnounced: {B: false, W: false}, lastVoiceSec: null};
+  if (main > 0) return {mode: "absolute", left: {B: main, W: main}, per: {B: 0, W: 0}, perMax: 0, byo: 0, inc: 0, used: 0, side: null, depth: cur.depth, last: now, budget: null, byoAnnounced: {B: false, W: false}, lastVoiceSec: null};
   return null;
 }
 function aiBudget(c, s) {
@@ -2778,18 +2895,21 @@ function clockOnTurn() {
   if (!c || scoring) return;
   const now = performance.now();
   if (c.side === null) {
-    c.side = cur.toPlay; c.depth = cur.depth; c.used = 0; c.last = now;
+    c.side = cur.toPlay; c.depth = cur.depth; c.used = 0; c.last = now; c.lastVoiceSec = null;
     c.budget = game.ai[c.side] ? aiBudget(c, c.side) : null;
     drawClocks();
+    if (c.mode === "byo" && c.left[c.side] <= 0) announceByoEnter(c, c.side);
     return;
   }
   if (cur.toPlay !== c.side) {
+    voiceStop();
     const prev = c.side, dt = Math.max(0, (now - c.last) / 1000);
     if (c.left[prev] > 0) c.left[prev] = Math.max(c.mode === "byo" ? 0 : 0.1, c.left[prev] - dt);
     if (c.mode === "fischer" && cur.depth > c.depth) c.left[prev] += c.inc;
-    c.side = cur.toPlay; c.depth = cur.depth; c.used = 0; c.last = now;
+    c.side = cur.toPlay; c.depth = cur.depth; c.used = 0; c.last = now; c.lastVoiceSec = null;
     c.budget = game.ai[c.side] ? aiBudget(c, c.side) : null;
     drawClocks();
+    if (c.mode === "byo" && c.left[c.side] <= 0) announceByoEnter(c, c.side);
   } else {
     c.depth = cur.depth;
   }
@@ -2808,8 +2928,9 @@ function drawClocks() {
   syncGameUi();
 }
 function timeUp(s) {
+  voicePlaySeq(["c10", "timeout"], {announce: true, interrupt: true});
   root.info.RE = other(s) + "+T"; publish();
-  stopGame(`${colorName(s)}의 시간이 다 됐습니다 · ${resultText(root.info.RE)}`, true);
+  stopGame(`${colorName(s)}의 시간이 다 됐습니다 · ${resultText(root.info.RE)}`, true, true);
 }
 setInterval(() => {
   const c = game && game.clock; if (!c) { $("clocks").hidden = true; syncGameUi(); return; }
@@ -2820,17 +2941,25 @@ setInterval(() => {
   if (c.mode === "fischer" || c.mode === "absolute") {
     c.left[s] -= dt;
     if (c.left[s] <= 0) { c.left[s] = 0; return timeUp(s); }
+    if (c.left[s] <= 10) checkCountVoice(c, c.left[s]);
     drawClocks();
     return;
   }
   if (c.left[s] > 0) { c.left[s] -= dt; if (c.left[s] < 0) { c.used = -c.left[s]; c.left[s] = 0; } }
   else c.used += dt;
   if (c.left[s] <= 0) {
+    if (!c.byoAnnounced[s]) announceByoEnter(c, s);
     if (c.per[s] <= 0 || !c.byo) return timeUp(s);
-    while (c.used >= c.byo) { c.per[s]--; c.used -= c.byo; if (c.per[s] <= 0) return timeUp(s); }
+    let exhausted = false;
+    while (c.used >= c.byo) { c.per[s]--; c.used -= c.byo; exhausted = true; if (c.per[s] <= 0) return timeUp(s); }
+    if (exhausted) {
+      c.lastVoiceSec = null;
+      voicePlaySeq(["c10", `byo_${Math.min(5, c.per[s])}`], {announce: true});
+    }
+    checkCountVoice(c, c.byo - c.used);
   }
   drawClocks();
-}, 250);
+}, 100);
 $("gameResign").onclick = () => {
   const side = humanSide(); if (!side) return;
   if (!confirm(`${colorName(side)}이 돌을 던집니다(기권). 대국을 끝낼까요?`)) return;
@@ -2838,7 +2967,8 @@ $("gameResign").onclick = () => {
   root.info.RE = other(side) + "+R"; publish();
   stopGame(`${colorName(side)}이 돌을 던졌습니다 · ${resultText(root.info.RE)}`, true);
 };
-function stopGame(message, ended) {
+function stopGame(message, ended, keepVoice) {
+  if (!keepVoice) voiceStop();
   const re = root.info.RE, pb = root.info.PB || "흑", pw = root.info.PW || "백", movesCnt = cur.depth;
   game = null; gmPending = null; gmHoverXY = null; gameButton();
   if (message) $("err").textContent = message;
@@ -2996,6 +3126,7 @@ $("gdGo").onclick = () => {
           resign: $("gdResign").checked, low: {B: 0, W: 0}, clock: makeClock(timeFormValue())};
   saveGameForm(); $("gameDlg").close();
   if (!analyzing) setAnalyzing(true);
+  if (game.clock) voicePreload();
   reachedAt = performance.now(); clockOnTurn(); requestLive(); publish(); gameButton(); schedule();
   $("err").textContent = vsHuman ? `AI 대국 시작 · 나는 ${colorName(mine)}` : "AI끼리 대국을 시작했습니다";
   syncGameUi();
@@ -7158,7 +7289,10 @@ boardCv.addEventListener("mouseleave", () => { if (hover || gmHoverXY) { hover =
 //   3-finger touchpad taps for itself, and a right click is YZY / Lizzie's "back" too.
 let lastPointer = "mouse", mdown = false, playedUp = 0;   // playedUp: when a release last played
 document.addEventListener("pointerdown", ev => { lastPointer = ev.pointerType; }, true);
-boardCv.addEventListener("pointerdown", ev => { if (ev.pointerType === "mouse" && ev.button === 0) { mdown = true; playedUp = 0; } });
+boardCv.addEventListener("pointerdown", ev => {
+  if (game && game.clock) voiceUnlock();
+  if (ev.pointerType === "mouse" && ev.button === 0) { mdown = true; playedUp = 0; }
+});
 addEventListener("pointerup", ev => {
   if (!mdown || ev.pointerType !== "mouse") return;
   mdown = false;
