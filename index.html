@@ -634,6 +634,11 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
 
       <div class="group-t">보안</div>
       <div class="list">
+        <!-- 이메일 확인 (2026-11-26, 사용자 "b로"): 가입 확인 메일 없이 가입한 회원이 원하면 확인 — 메일을 보낼 수 있을 때(MAIL_ON)만 보임 -->
+        <div class="item hidden" id="emailItem">
+          <span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span class="grow">이메일 확인<span class="item-note" id="emailNote"></span></span>
+          <button type="button" class="quiet" id="emailSend">확인 메일 받기</button>
+        </div>
         <!-- Google 계정 연동 (2026-11-26): link or unlink; the only way in cannot be unlinked -->
         <div class="item hidden" id="googleItem">
           <span class="ic" style="background:var(--soft)" aria-hidden="true"><svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.9 6.1C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.2-13.5-10l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg></span><span class="grow">Google 계정<span class="item-note" id="googleNote"></span></span>
@@ -958,7 +963,8 @@ if (!IN_PC_APP) fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: S
   if (q.get("error_description")) {
     const code = q.get("error_code") || "", why = q.get("error_description");
     const msg = /identity_already_exists|already.*linked/i.test(code + why) ? "이 Google 계정은 이미 다른 회원 계정에 연결되어 있습니다."
-      : /access_denied/i.test(q.get("error") || "") ? "" : `Google 로그인에 실패했습니다: ${why}`;
+      : /otp_expired|link is invalid|has expired/i.test(code + why) ? "메일의 링크가 만료되었거나 이미 쓰였습니다. 메일을 다시 받아 주세요."
+      : /access_denied/i.test(q.get("error") || "") ? "" : `로그인에 실패했습니다: ${why}`;
     history.replaceState(null, "", location.pathname);
     lsSet("kgv.gTerms", null); lsSet("kgv.gLink", null);
     if (msg) { setTimeout(() => { $("authError").textContent = msg; }, 0); setTimeout(() => profile && toast(msg, true), 1500); }   // after setMode() below
@@ -995,6 +1001,7 @@ $("googleLink").onclick = async () => {
       if (error) throw error;
       toast("Google 계정 연결을 해제했습니다.");
     } else {
+      if (MAIL_ON && !emailOk) { toast("이메일 확인을 먼저 해 주세요.", true); return; }   // B (2026-11-26): only a confirmed address takes more ways in
       lsSet("kgv.gLink", "1");
       const { error } = await sb.auth.linkIdentity({ provider: "google", options: { redirectTo: backUrl() } });
       if (error) { lsSet("kgv.gLink", null); throw error; }
@@ -1009,12 +1016,53 @@ $("googleLink").onclick = async () => {
 // after signing in: back from Google 연결 → 내 정보; then the terms (2026-11-26)
 async function afterLogin() {
   await showGoogle();
+  await checkEmail();
   if (lsGet("kgv.gLink")) {
     lsSet("kgv.gLink", null);
     if (googleId) { location.hash = "#me"; toast("Google 계정을 연결했습니다."); }
   }
   await checkTerms();
 }
+
+// ------------------------------------------------------------------ 이메일 확인 (사용자 2026-11-26 "b로 하고 이상한 이메일 3개는 일단 놔두자")
+// Everyone who joined before sign-up mails (mailer_autoconfirm) counts as confirmed in Supabase without ever having been
+// asked. They keep using the site as before; 내 정보 › 이메일 확인 mails them a sign-in link, and a session that came in
+// through a link sent to the address (JWT amr otp·magiclink·recovery·email/signup) records it (DB confirm_my_email). Also
+// confirmed: a Google account of the same address, a real sign-up confirmation. Until then Google 연결 waits, and the
+// admin's member list shows who is confirmed (refunds). MAIL_ON: once mail sending (SMTP) is set up, with RESET_MAIL.
+const MAIL_ON = false;
+let emailOk = null;
+const MAIL_PROOF = ["otp", "magiclink", "recovery", "email/signup", "email_change"];
+function jwtAmr(token) {
+  try { return (JSON.parse(atob(String(token).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).amr || []).map((a) => a.method); }
+  catch { return []; }
+}
+async function checkEmail() {
+  const s = (await sb.auth.getSession()).data.session;
+  const viaMail = jwtAmr(s?.access_token).some((m) => MAIL_PROOF.includes(m)), before = !!profile?.email_verified_at;
+  const { data, error } = await sb.rpc(viaMail ? "confirm_my_email" : "my_email_verified");
+  if (error) return;
+  emailOk = !!data;
+  if (viaMail && emailOk && !before) toast("이메일을 확인했습니다.");
+  showEmail();
+}
+function showEmail() {
+  $("emailItem").classList.toggle("hidden", !MAIL_ON || emailOk == null);
+  $("emailNote").textContent = emailOk ? "확인됨" : "확인 안 됨";
+  $("emailSend").classList.toggle("hidden", !!emailOk);
+}
+$("emailSend").onclick = async () => {
+  const b = $("emailSend");
+  b.disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email: profile.email, options: { shouldCreateUser: false, emailRedirectTo: backUrl() } });
+  if (error) {
+    b.disabled = false;
+    toast(/security purposes|rate limit|too many/i.test(error.message) ? "잠시 뒤에 다시 받아 주세요." : String(error.message), true);
+    return;
+  }
+  toast("확인 메일을 보냈습니다. 메일의 링크를 눌러 주세요.");
+  setTimeout(() => { b.disabled = false; }, 60e3);   // Supabase sends one a minute
+};
 
 // ------------------------------------------------------------------ 이용약관 동의 (사용자 2026-11-26 "2번 먼저 하자")
 // policy.html. A member whose agreed version (profiles.terms_version) is below TERMS_VERSION confirms 만 14세 and the terms

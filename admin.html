@@ -1080,10 +1080,15 @@ async function load() {
     $("kFundsSub").textContent = funds?.totalKrw != null ? `$${Number(funds.usd).toFixed(2)}` : "관리자 GPU는 여기서 나갑니다";
     $("kMembers").textContent = won(plain.reduce((a, m) => a + Number(m.balance_krw || 0), 0));
     $("kMembersSub").textContent = `회원 ${plain.length}명`;
-    $("memberRows").innerHTML = d.members.map((m) => `<tr><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
-      `<td class="muted small">${esc(m.email)}</td><td class="num">${op(m) && funds?.totalKrw != null
+    $("memberRows").innerHTML = d.members.map((m) => `<tr data-id="${esc(m.id)}"><td>${esc(m.name || "")}${m.is_admin ? ' <span class="pill">관리자</span>' : ""}</td>` +
+      `<td class="muted small">${esc(m.email)} <span class="pill good ev-ok hidden" title="메일 링크·Google로 주소를 확인한 회원">확인</span></td><td class="num">${op(m) && funds?.totalKrw != null
         ? `<span title="Vast 잔액">${won(funds.totalKrw)}</span>` : won(m.balance_krw)}</td>` +
       `<td>${when(m.created_at)}</td></tr>`).join("");
+    // 이메일 확인 (2026-11-26): who proved the address (mail link, Google) — check this before a refund
+    sb.rpc("admin_email_verified").then(({ data }) => {
+      const ok = new Set(data || []);
+      document.querySelectorAll("#memberRows tr[data-id]").forEach((tr) => tr.querySelector(".ev-ok")?.classList.toggle("hidden", !ok.has(tr.dataset.id)));
+    });
     // Vast's real charge per session vs what the member paid (admins pay cost, so they have no margin)
     const rate = Number(s.usd_krw), admins = new Set(d.members.filter(op).map((m) => m.id));
     const cost = (x) => x.vast_cost_usd == null ? null : Math.round(Number(x.vast_cost_usd) * rate);
