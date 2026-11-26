@@ -350,6 +350,16 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 /* 가입: 만 14세 확인 · 로그인: 비밀번호 찾기 (2026-11-21) */
 .auth-card label.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .auth-card label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
+/* Google 로그인 (2026-11-26) */
+.oauth { display: grid; gap: 12px; margin-top: 2px; }
+.oauth .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.oauth .or::before, .oauth .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.g-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); box-shadow: none; }
+.g-btn:hover { background: var(--soft); }
+#googleLink { white-space: nowrap; flex: none; }
+.g-logo { width: 18px; height: 18px; flex: none; }
+.ic .g-logo { width: 17px; height: 17px; }
 .auth-card .link-btn { background: none; border: 0; box-shadow: none; padding: 2px 0; min-height: 0; color: var(--muted); font-weight: 600; font-size: 13.5px; justify-self: start; cursor: pointer; }
 /* 요금 안내 표 (pricing.html, 2026-11-21) */
 .price-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); margin: 8px 0 14px; }
