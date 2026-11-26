@@ -2395,16 +2395,17 @@ const komiText = (k = komi()) => k < 0 ? `역덤 ${-k}` : `덤 ${k}`;
 function goTo(node) {
   if (!node) return;
   if (scoring && node !== scoring.node) closeScoring();
+  let soundSyncMs = 0;
   if (SKIN.sound !== "off" && node.parent === cur && node.move && !node.move.pass && !applyingRemote) {   // 돌 소리: one move forward (a stone put down, ▶, the AI's move); not jumps
     let a = 0, b = 0; for (let i = 0; i < node.grid.length; i++) { if (cur.grid[i]) a++; if (node.grid[i]) b++; }
-    stoneSound(Math.max(0, a + 1 - b));
+    soundSyncMs = stoneSound(Math.max(0, a + 1 - b)) || 0;
   }
   cur = node; selectedPv = null; hover = null; touchCursor = null;   // a pinned cursor belongs to the old position
   reachedAt = performance.now();                                     // AI moves: thinking time starts now
   clockOnTurn();
   if (!applyingRemote) { requestLive(!!(game && game.root === root)); publish(); }   // 대국 착수는 즉시, 수순 탐색 연타는 디바운스
   if (xp) { xpEvalSync(); xpUpdate(); }
-  schedule();
+  schedule(soundSyncMs, soundSyncMs === 0);
 }
 function step(k) {
   if (k === 1 && xp && !cur.children.length && !quiz && !game) { xpStepTop(); return; }   // 수순 탐색: past the moves on the board, the most played one
@@ -6879,7 +6880,7 @@ function makeWood(kind) {   // a seamless 1024px grain tile: vertical rings that
   return c;
 }
 const SOUND_BASE = GPU_HOST.test(location.hostname) ? "https://katago-cloud.onrender.com/assets/sounds/" : "assets/sounds/";
-let audioCtx = null, soundComp = null;
+let audioCtx = null, soundComp = null, lastSoundAt = 0;
 const soundRaw = {}, soundBuf = {}, soundReady = {};
 function soundPrefetchKey(key) {
   return soundRaw[key] ||= fetch(`${SOUND_BASE}${key}.wav`)
@@ -6887,10 +6888,15 @@ function soundPrefetchKey(key) {
     .then(b => { if (!b) delete soundRaw[key]; return b; })
     .catch(() => { delete soundRaw[key]; return null; });
 }
-function soundPrefetch() {
+function soundPredecode() {
   if (SKIN.sound === "off") return;
   soundPrefetchKey("stone");
   soundPrefetchKey("capture");
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)({latencyHint: "interactive"});
+    if (!soundReady.stone) soundDecode("stone");
+    if (!soundReady.capture) soundDecode("capture");
+  } catch {}
 }
 function soundDecode(key) {
   if (!audioCtx) return Promise.resolve(null);
@@ -6902,14 +6908,29 @@ function soundDecode(key) {
 function soundWarmup() {
   if (SKIN.sound === "off") return;
   try {
-    const A = ensureAudioCtx();
+    ensureAudioCtx();
     if (!soundReady.stone) soundDecode("stone");
     if (!soundReady.capture) soundDecode("capture");
-    void A;
   } catch {}
 }
 document.addEventListener("pointerdown", soundWarmup, {capture: true, passive: true});
+document.addEventListener("touchstart", soundWarmup, {capture: true, passive: true});
 document.addEventListener("keydown", soundWarmup, {capture: true, passive: true});
+function audioOutputDelayMs(A) {
+  let sec = 0;
+  if (Number.isFinite(A.baseLatency) && A.baseLatency > 0) sec += A.baseLatency;
+  if (Number.isFinite(A.outputLatency) && A.outputLatency > 0) sec += A.outputLatency;
+  if (typeof A.getOutputTimestamp === "function") {
+    try {
+      const ts = A.getOutputTimestamp();
+      if (ts && ts.contextTime > 0 && A.currentTime >= ts.contextTime) {
+        const diff = A.currentTime - ts.contextTime;
+        if (diff > sec && diff < 0.25) sec = diff;
+      }
+    } catch {}
+  }
+  return sec > 0 ? sec * 1000 : 35;
+}
 function ensureSoundComp(A) {
   if (soundComp && soundComp.context === A) return soundComp;
   const c = A.createDynamicsCompressor();
@@ -6953,13 +6974,15 @@ function scheduleStoneAudio(A, sBuf, cBuf, captured, immediate = true) {
     }
   }
 }
-function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: zero-latency sync stone playback + proportional capture clatter
-  if (SKIN.sound === "off" || document.hidden) return;
+function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: zero-latency sync stone + hardware-latency A/V sync delay return
+  if (SKIN.sound === "off" || document.hidden) return 0;
   try {
     const A = ensureAudioCtx(), cap = Math.max(0, Number(captured) || 0);
     if (soundReady.stone && (!cap || soundReady.capture)) {
       scheduleStoneAudio(A, soundReady.stone, soundReady.capture || null, cap, true);
-      return;
+      const now = performance.now(), rapid = (now - lastSoundAt) < 90;
+      lastSoundAt = now;
+      return rapid ? 0 : Math.round(Math.max(0, Math.min(90, audioOutputDelayMs(A) - 6)));
     }
     const pStone = soundDecode("stone");
     const pCap = cap > 0 ? soundDecode("capture") : Promise.resolve(null);
@@ -6970,6 +6993,7 @@ function stoneSound(captured = 0) {   // 꾸미기 › 돌 소리: zero-latency 
       scheduleStoneAudio(A, sBuf, cBuf, cap, true);
     });
   } catch { /* no audio on this device */ }
+  return 0;
 }
 // 꾸미기 is chosen on the website (내 정보 › 설정 › 꾸미기, 2026-11-08) and kept in this browser (kgv.skin); this screen
 // only reads it, and follows a change made there while it is open (another tab: the storage event).
@@ -6985,10 +7009,10 @@ addEventListener("storage", ev => {
   Object.assign(SKIN, {board: "yzy", stone: "yzy", sound: "off"});
   try { Object.assign(SKIN, JSON.parse(ev.newValue || "{}")); } catch { /* not ours */ }
   if (SKIN.sound && SKIN.sound !== "off") SKIN.sound = "on";
-  boardPattern = null; applySkinMenu(); soundPrefetch(); layout(); schedule();
+  boardPattern = null; applySkinMenu(); soundPredecode(); layout(); schedule();
 });
 applySkinMenu();
-soundPrefetch();
+soundPredecode();
 
 // ------------------------------------------------------------------ board renderer (BoardRenderer.java)
 // Like YZY (which draws in physical pixels, Utils: g.scale(1/javaScaleFactor)), the boards are
@@ -7977,10 +8001,23 @@ function layout() {
   render();   // right away: resizing cleared the canvases, drawing a frame later shows them blank (flicker)
 }
 window.addEventListener("scroll", () => requestAnimationFrame(() => snapToPixels(boardCv)), {passive: true});
-let pending = false;
-function schedule() {
-  if (pending) return; pending = true;
-  requestAnimationFrame(() => { pending = false; render(); });
+let pending = false, pendingRaf = 0, syncTimer = 0, syncHoldUntil = 0;
+function schedule(delayMs = 0, force = false) {
+  if (delayMs > 0) {
+    if (syncTimer) clearTimeout(syncTimer);
+    if (pendingRaf) { cancelAnimationFrame(pendingRaf); pendingRaf = 0; pending = false; }
+    syncHoldUntil = performance.now() + delayMs;
+    syncTimer = setTimeout(() => {
+      syncTimer = 0; syncHoldUntil = 0;
+      render();
+    }, delayMs);
+    return;
+  }
+  if (!force && syncTimer && performance.now() < syncHoldUntil) return;
+  if (syncTimer) { clearTimeout(syncTimer); syncTimer = 0; syncHoldUntil = 0; }
+  if (pending) return;
+  pending = true;
+  pendingRaf = requestAnimationFrame(() => { pending = false; pendingRaf = 0; render(); });
 }
 function render() {
   if (boardG && boardG.n !== N) { layout(); return; }   // the board size changed: its lines and margins are laid out anew
