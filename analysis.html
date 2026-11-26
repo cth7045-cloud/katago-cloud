@@ -1531,12 +1531,13 @@ const other = c => c === "B" ? "W" : "B";
 const T = Math.trunc;
 
 // ------------------------------------------------------------------ game tree
+const genBid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 function makeRoot(setup = {B: [], W: []}, toPlay = "B", size = N) {
   setSize(size);
   const grid = new Int8Array(N * N), num = new Int16Array(N * N);
   for (const [x, y] of setup.B) grid[idx(x, y)] = 1;
   for (const [x, y] of setup.W) grid[idx(x, y)] = 2;
-  return {parent: null, children: [], move: null, grid, num, caps: {B: 0, W: 0}, ko: -1, toPlay, depth: 0, setup, analysis: null, comment: "", info: {}};
+  return {parent: null, children: [], move: null, grid, num, caps: {B: 0, W: 0}, ko: -1, toPlay, depth: 0, setup, analysis: null, comment: "", info: {}, bid: genBid()};
 }
 function neighbors(i) { const x = i % N, y = (i / N) | 0, out = []; if (x > 0) out.push(i - 1); if (x < N - 1) out.push(i + 1); if (y > 0) out.push(i - N); if (y < N - 1) out.push(i + N); return out; }
 function groupAt(grid, i) {
@@ -1844,7 +1845,12 @@ let heardAt = 0, retryTimer = 0, recheckGpu = null;   // heardAt: last message o
 // (1 s, then 2, 4, 8, 16, at most 20); gpuGone = the website says this GPU has ended: no more tries.
 let pingAt = 0, retryWait = 1000, gpuGone = false;
 let bridgeResumable = false, bridgeBflow = false, pendingResume = {auto: null, strength: null}, lastClients = 1;
+let bridgeBoardMem = false, bridgeBoardFinish = false, boardJob = null, boardJobMeta = null, pendingBoardFinish = null, pendingReviewOnCache = false;
 let netSlow = false, binDrop = null;
+const boardJobRunning = (kind = null) => !!(boardJob && (boardJob.status === "running" || boardJob.status === "finishing") && (!kind || boardJob.kind === kind) && (!boardJob.bid || boardJob.bid === root.bid));
+const autoActive = () => !!(autoId || boardJobRunning("auto"));
+const strengthActive = () => !!(strengthId || boardJobRunning("strength"));
+const analysisRunning = () => !!(autoId || strengthId || boardJobRunning());
 function setNetSlow(on) {
   on = !!on;
   if (netSlow === on) return;
@@ -1859,6 +1865,7 @@ function connect() {
   const base = remoteGpu ? remoteGpu.replace(/^https/, "wss") : (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
   const qp = ["t=" + encodeURIComponent(token)];
   if (viewOnly) qp.push("view=1");
+  else if (batchMode) qp.push("batch=1", "bundle=1", "cid=" + encodeURIComponent(clientCid));
   else qp.push("bundle=1", "cid=" + encodeURIComponent(clientCid));
   if (CAN_BIN_DEFLATE) qp.push("bin=1");
   qp.push("own8=1");
@@ -1869,6 +1876,7 @@ function connect() {
   const handleObj = msg => {
     if ("hello" in msg) {
       flow = !!msg.flow; bridgeResumable = !!msg.resume; bridgeBflow = !!msg.bflow;
+      bridgeBoardMem = !!msg.boardMem; bridgeBoardFinish = !!msg.boardFinish;
       if (bridgeBflow && netSlow) send({action: "net", slow: true});
     }
     if (Array.isArray(msg.bundle)) {
@@ -1887,7 +1895,7 @@ function connect() {
   binDrop = binDec ? () => binDec.close() : null;
   sock.onopen = () => {
     synced = false;   // until the bridge says which board this device joins
-    bridgeBflow = false;
+    bridgeBflow = false; bridgeBoardMem = false; bridgeBoardFinish = false; pendingReviewOnCache = false;
     retryWait = 1000;
     $("dot").classList.add("on"); $("conn").textContent = "GPU 연결됨"; $("err").textContent = "";
     send({id: "ver", action: "query_version"});
@@ -1931,7 +1939,7 @@ function lost() {
   }
   if (batchQ) { const q = queries.get(batchQ); queries.delete(batchQ); if (q) q.batch(false); }
   if (resumeAuto === root && !strengthWas && !keepAuto) { if (mineDirtyAt) mineAutoSave(true); }   // a '다 끝나면' plan waits for the 자동분석 to go on
-  else if (!keepStrength && !keepAuto) finishCheck(false);   // the analysis it was waiting for died with the connection
+  else if (!keepStrength && !keepAuto && !boardJobRunning()) finishCheck(false);   // the analysis it was waiting for died with the connection
   clearTimeout(retryTimer);
   if (gpuGone) gpuEnded();
   else { retryTimer = setTimeout(connect, retryWait); retryWait = Math.min(retryWait * 2, 20000); }
@@ -1971,8 +1979,8 @@ function send(obj) {
   return false;
 }
 function ping() { if (send({action: "ping", t: performance.now()}) && !(pingAt > heardAt)) pingAt = performance.now(); }
-const netQuietMs = () => (netSlow || autoId || strengthId) ? 28000 : 12000;
-const netPingWaitMs = () => (netSlow || autoId || strengthId) ? 10000 : 4000;
+const netQuietMs = () => (netSlow || analysisRunning()) ? 28000 : 12000;
+const netPingWaitMs = () => (netSlow || analysisRunning()) ? 10000 : 4000;
 setInterval(() => {   // pings every 5 s; 느린 회선·일괄 분석 중에는 끊김 판정을 28초/10초로 완화
   if (localMode) return;   // this device's own engine: nothing to lose (a slow CPU batch may hold its answer for seconds)
   const now = performance.now();
@@ -2087,7 +2095,7 @@ function requestLive(immediate = false) {
         firstReportDuringSearchAfter: 0.05, priority: 10, ...(pda ? {overrideSettings: {playoutDoublingAdvantage: pda}} : {}),
         ...(bridgeSync ? {live: true} : {})});
 }
-function store(node, msg, id) {
+function store(node, msg, id, quiet = false) {
   const m = /~(-?[0-9.]+)$/.exec(id || ""), pda = m ? +m[1] : 0;
   if (pda) {   // searched with a PDA: shown for that turn only, never mixed into the graph, 자동분석, 대국 리포트 or SGF
     msg.pda = pda;
@@ -2100,11 +2108,89 @@ function store(node, msg, id) {
   if (msg.isDuringSearch && !msg.ownership && $("showOwner").checked && old && old.ownership) msg.ownership = old.ownership;
   if (!old || node.aid === id || msg.rootInfo.visits >= old.rootInfo.visits) {
     const was = !!old && old.rootInfo.visits >= levelVisits();
-    if (modelName) msg.model = modelName;   // 복기 리포트 says which model analysed the game (KGM in the SGF, 2026-11-16)
+    if (!msg.model && modelName) msg.model = modelName;   // 복기 리포트 says which model analysed the game (KGM in the SGF, 2026-11-16)
     node.analysis = msg; node.aid = id;
-    if (!old || (!was && msg.rootInfo.visits >= levelVisits())) mineDirty();   // a position newly analysed: 자동 저장
-    else if (msg.rootInfo.visits > old.rootInfo.visits) mineDirty(false);         // analysed deeper: 자동 저장 within a minute
+    if (!quiet) {
+      if (!old || (!was && msg.rootInfo.visits >= levelVisits())) mineDirty();   // a position newly analysed: 자동 저장
+      else if (msg.rootInfo.visits > old.rootInfo.visits) mineDirty(false);         // analysed deeper: 자동 저장 within a minute
+    }
   }
+}
+function finishPlanNotice(kind, p) {
+  if (!p) return "";
+  const what = [p.kifu && "저장", p.notes && (p.stop ? "오답노트 후보 모두 담기" : "오답노트 목록 열기"), p.stop && "GPU 끄기"].filter(Boolean).join(" → ");
+  if (!what) return "";
+  const jong = (what.charCodeAt(what.length - 1) - 0xAC00) % 28 > 0;
+  return `${kind === "strength" ? "대국 리포트가" : "자동분석이"} 끝나면 ${what}${jong ? "을" : "를"} 합니다`;
+}
+function applyBoardCache(cache, bid = null) {
+  if (quiz || batchMode || !cache || typeof cache !== "object") return;
+  if (bid && root.bid && bid !== root.bid) return;
+  for (const [k, an] of Object.entries(cache)) {
+    const node = nodeByMoves(k);
+    if (!node || !an?.rootInfo) continue;
+    const old = node.analysis;
+    if (!old || an.rootInfo.visits >= (old.rootInfo?.visits || 0)) node.analysis = an;
+  }
+  autoButton(); strengthButton();
+  if ($("strengthDlg").open && !strengthActive()) renderStrength();
+  schedule();
+}
+function applyBoardJob(snap, fromHello = false) {
+  if (!snap || typeof snap !== "object") { boardJob = null; autoButton(); strengthButton(); return; }
+  if (snap.bid && snap.bid !== root.bid) {
+    if (snap.status !== "running" && snap.status !== "finishing") return;
+    return;   // another board's job: never bind to the wrong game
+  }
+  const prev = boardJob;
+  boardJob = snap;
+  reviewAfter = !!((snap.status === "running" || snap.status === "finishing") && snap.review);
+  autoButton(); strengthButton();
+  const wasRunning = !!(prev && (prev.status === "running" || prev.status === "finishing"));
+  if (snap.status === "running") {
+    if (fromHello && snap.finishSummary) $("err").textContent = finishPlanNotice(snap.kind, snap.finishSummary);
+    if (snap.kind === "strength") strengthProgressUi();
+    return;
+  }
+  if (snap.status === "finishing") {
+    $("err").textContent = "분석이 끝나 저장하는 중…";
+    return;
+  }
+  if (snap.status === "done") {
+    if (boardJobMeta && boardJobMeta.jobId === snap.jobId) { instantLearn(boardJobMeta.inst); boardJobMeta = null; }
+    if (snap.finishResult) {
+      pendingBoardFinish = null;
+      const fr = snap.finishResult;
+      if (fr.savedId) { mineId = fr.savedId; mineRoot = root; mineTitle = fr.title || mineTitle; mineDirtyAt = 0; }
+      if (!fr.ok) $("err").textContent = (fr.text || "저장하지 못했습니다") + (snap.finishSummary?.stop ? " · GPU는 켜 둡니다" : "");
+      else {
+        if (fr.text) $("err").textContent = fr.text;
+        if (fr.stopped && recheckGpu) recheckGpu();
+        if (fr.openNotes && wasRunning) $("addNote").onclick();
+      }
+      return;
+    }
+    const pf = pendingBoardFinish && pendingBoardFinish.root === root ? pendingBoardFinish : null;
+    pendingBoardFinish = null;
+    if (wasRunning && snap.kind === "strength") {
+      renderStrength();
+      if (snap.review) openReview();
+      else if (!$("strengthDlg").open) $("err").textContent = STRENGTH_DONE;
+    } else if (fromHello && snap.kind === "strength" && !pf) {
+      if ($("strengthDlg").open) renderStrength();
+      else $("err").textContent = STRENGTH_DONE;
+    }
+    if (pf) runFinishPlan(pf);
+    else if (wasRunning) finishCheck(true);
+    return;
+  }
+  boardJobMeta = null; pendingBoardFinish = null;
+  if (snap.status === "error") {
+    const msg = "엔진 오류로 분석이 멈췄습니다" + (snap.error ? ": " + snap.error : ".");
+    $("err").textContent = msg;
+    if (snap.kind === "strength") strengthMsg("엔진 오류로 분석이 멈췄습니다. '대국 리포트'를 눌러 이어서 분석하세요.", true);
+  }
+  if (wasRunning) finishCheck(false);
 }
 function onMessage(msg) {
   if ("pong" in msg) {
@@ -2121,7 +2207,7 @@ function onMessage(msg) {
   }
   if (batchMode && "hello" in msg) { bridgeBatch = msg.batch || 0; return; }   // 기보 분석 on the GPU: this bridge can run it (1) or runs one (its id)
   if (batchMode && ("batchAccepted" in msg || "batchRefused" in msg)) { if (onBatchAnswer) onBatchAnswer(msg); return; }
-  if (batchMode && ("state" in msg || "liveTaken" in msg || "liveLeft" in msg || msg.id === "peer")) return;   // not on the shared board
+  if (batchMode && ("state" in msg || "liveTaken" in msg || "liveLeft" in msg || "boardCache" in msg || "boardJob" in msg || "boardTurn" in msg || "boardJobError" in msg || msg.id === "peer")) return;   // not on the shared board
   if ("hello" in msg) {   // (bridges before 2026-09-26 never send it: then each device keeps its own board)
     bridgeSync = true;
     if (msg.state && onMirror) onMirror(msg.state);   // the last copy of the member's screen, for an admin watching
@@ -2135,12 +2221,38 @@ function onMessage(msg) {
       finally { applyingRemote = false; }
       schedule();
     } else if (shared) applyState(msg.state);   // e.g. the phone opening shows the laptop's board
+    if (bridgeBoardMem && !root.bid) root.bid = genBid();
+    // Same 내 기보 already active on GPU RAM: keep GPU state & cached/running analysis instead of reloading stale DB row
+    if (pendingKifu && !String(pendingKifu).startsWith("pub:") && shared && msg.state.mine && msg.state.mine.id === pendingKifu && !keepMine) {
+      pendingKifu = null;
+      if (hashParams.get("review") === "1") { hashParams.delete("review"); pendingReviewOnCache = true; }
+    }
     synced = true;
-    if (!shared || keepMine) { lastSgf = null; publish(); }        // first device: its board becomes the shared one
+    if (!shared || keepMine) { lastSgf = null; publishNow(); boardAnSeed(false); }        // first device: its board becomes the shared one
     if (pendingKifu) openMineKifu(pendingKifu);                     // #kifu=: after the shared board, so it replaces it
     else if (freshStudy) newStudyBoard();                           // 학습방 → 새 연구: likewise, an empty board
     else if (freshTree) newTreeBoard();                             // 학습방 → 수순 탐색: likewise
-    else if (analyzing && !msg.live) requestLive(true);             // the device that ran the analysis has left
+    else {
+      if (msg.boardCache) applyBoardCache(msg.boardCache, msg.state?.bid || root.bid);
+      if (analyzing && !msg.live) requestLive(true);                // the device that ran the analysis has left
+    }
+    if (msg.boardJob && !pendingKifu && !freshStudy && !freshTree) {
+      applyBoardJob(msg.boardJob, true);
+      if (pendingReviewOnCache) {
+        pendingReviewOnCache = false;
+        if (boardJobRunning("strength")) { reviewAfter = true; send({action: "boardReview", review: true}); strengthButton(); }
+        else if (reportMoves().length >= 6) openReview();
+      }
+    } else {
+      if (!msg.boardJob && boardJob && (boardJob.status === "running" || boardJob.status === "finishing")) {
+        boardJob = null; autoButton(); strengthButton();
+      }
+      if (pendingReviewOnCache) {
+        pendingReviewOnCache = false;
+        if (reportMoves().length >= 6) openReview();
+      }
+    }
+    if (msg.anDirty && mineId && mineRoot === root && !analysisRunning() && !pendingKifu) mineDirty(true);
     const resumedSet = Array.isArray(msg.resumed) ? new Set(msg.resumed) : null;
     if (pendingResume.strength) {
       const sid = pendingResume.strength; pendingResume.strength = null;
@@ -2167,6 +2279,38 @@ function onMessage(msg) {
       if (was === root && !autoId && !quiz) { startAuto(false); if (!autoId) finishCheck(true); }   // nothing left: it is done
       else finishCheck(false);
     }
+    return;
+  }
+  if ("boardCache" in msg) {
+    applyBoardCache(msg.boardCache, msg.bid);
+    return;
+  }
+  if ("boardTurn" in msg) {
+    const bt = msg.boardTurn;
+    if (!quiz && !batchMode && bt && (!bt.bid || bt.bid === root.bid)) {
+      const node = nodeByMoves(bt.moves || "");
+      const aid = "bj:" + bt.jobId;
+      if (node && msg.rootInfo) {
+        if (bt.again && node.aid !== aid) node.aid = aid;
+        store(node, msg, aid, true);
+      }
+      if (!boardJob || boardJob.jobId !== bt.jobId) {
+        boardJob = {jobId: bt.jobId, bid: bt.bid, kind: bt.kind, status: "running", done: bt.done, todo: bt.todo, again: !!bt.again};
+      } else {
+        boardJob.done = bt.done; boardJob.todo = bt.todo;
+      }
+      workAt = performance.now();
+      if (bt.kind === "auto") autoButton();
+      else if (bt.kind === "strength") strengthProgressUi();
+      schedule();
+    }
+    return;
+  }
+  if ("boardJob" in msg) { applyBoardJob(msg.boardJob, false); return; }
+  if ("boardJobError" in msg) {
+    pendingBoardFinish = null;
+    if ($("saveDlg").open) { $("saveMsg").textContent = msg.boardJobError; $("saveMsg").classList.add("bad"); }
+    else $("err").textContent = msg.boardJobError;
     return;
   }
   if ("state" in msg) {
@@ -2260,7 +2404,7 @@ function queryFailed(id) {
 let speedAt = -Infinity;
 function reportSpeed(vps, ms, visits) {
   if (!token || viewOnly || batchMode || GPU_HOST.test(location.hostname)) return;
-  if (ms < 5000 || visits < 500 || autoId || strengthId || batchQ || performance.now() - speedAt < 10000) return;
+  if (ms < 5000 || visits < 500 || analysisRunning() || batchQ || performance.now() - speedAt < 10000) return;
   speedAt = performance.now();
   import("./app.js").then(({ sb }) => sb.rpc("report_speed", { p_token: token, p_vps: vps })).catch(() => {});
 }
@@ -2342,7 +2486,7 @@ $("customLvlCancel").onclick = () => $("customLvlDlg").close();
 $("customLvlDlg").addEventListener("close", () => { customThen = null; levelButtons(); });
 function setLevel(l) {
   level = l; try { localStorage.setItem("kgv.level", level); } catch { /* storage blocked */ }
-  levelButtons(); if (!autoId) autoButton(); schedule();
+  levelButtons(); if (!autoActive()) autoButton(); schedule();
   if ($("saveDlg").open) saveDoChanged();   // the save window's 먼저 자동분석 counts the moves for this level
 }
 document.querySelectorAll(".lvl").forEach(g => g.addEventListener("click", ev => {
@@ -2375,10 +2519,12 @@ document.addEventListener("keydown", ev => { if (ev.key === "Escape") $("levelPo
 window.addEventListener("resize", () => { $("levelPop").hidden = true; });
 levelButtons();
 function autoButton() {   // 자동분석 n/N while running, 재분석 once the whole line is analysed at this level
-  const q = autoId && queries.get(autoId);
+  const bj = boardJobRunning("auto") ? boardJob : null;
+  const q = bj || (autoId && queries.get(autoId));
+  const done = bj ? bj.done : autoDone;
   $("autoAnalyze").classList.toggle("on", !!q);
   // the count on a line of its own on a phone held upright, where the button is a quarter of the width (2026-10-10)
-  if (q) $("autoAnalyze").innerHTML = `■ 자동분석 취소 <span class="count">${autoDone}/${q.todo}</span>`;
+  if (q) $("autoAnalyze").innerHTML = `■ 자동분석 취소 <span class="count">${done}/${q.todo}</span>`;
   else $("autoAnalyze").textContent = mainLine().every(analysed) ? "재분석" : "자동분석";
   $("autoAnalyze").title = q ? "누르면 자동분석을 멈춥니다. 이미 분석된 수의 결과는 남습니다." : "";
 }
@@ -2386,9 +2532,22 @@ function autoButton() {   // 자동분석 n/N while running, 재분석 once the 
 // studied is analysed only once it is made the main line with 주 변화로 지정 (user request 2026-10-03). 대국 리포트 too.
 function mainLine() { return lineThrough(root); }
 function startAuto(again = false) {
+  if (autoActive()) return;
   autoLine = mainLine();
   const turns = autoLine.map((_, i) => i).filter(i => again || !analysed(autoLine[i]));
   if (!turns.length) return;
+  if (bridgeBoardMem && !localMode && !batchMode && !quiz && ws && ws.readyState === 1) {
+    publishNow();
+    const lq = levelQuery(turns.length), jobId = genBid();
+    if (again) for (const i of turns) autoLine[i].aid = "bj:" + jobId;
+    boardJobMeta = {jobId, inst: lq.inst, t0: performance.now()};
+    boardJob = {jobId, bid: root.bid, kind: "auto", status: "running", done: 0, todo: turns.length, turns, again, review: false, level, visits: level === "instant" ? null : levelVisits(), finishSummary: null};
+    workAt = performance.now();
+    send({action: "boardAuto", jobId, bid: root.bid, kind: "auto", again, review: false, level, visits: level === "instant" ? null : levelVisits(),
+          query: {...baseQuery(), includeOwnership: false, moves: movesOf(autoLine[autoLine.length - 1]), analyzeTurns: turns, ...lq.query}});
+    autoButton();
+    return;
+  }
   autoDone = 0; autoId = "a" + (++qn); autoRetried = false; workAt = performance.now();
   if (again) for (const i of turns) autoLine[i].aid = autoId;   // 재분석: the new results replace the old ones
   const lq = levelQuery(turns.length);
@@ -2398,6 +2557,7 @@ function startAuto(again = false) {
   autoButton();
 }
 function stopAuto() {
+  if (boardJobRunning("auto")) { send({action: "boardAutoStop"}); return; }
   const q = autoId && queries.get(autoId);
   if (pendingResume.auto?.id === autoId) pendingResume.auto = null;
   if (q && autoDone < q.todo) send({id: "t" + (++qn), action: "terminate", terminateId: autoId});
@@ -2446,7 +2606,8 @@ function setAnalyzing(on) {
 $("analyze").onclick = () => { if (quiz) return; setAnalyzing(!analyzing); requestLive(true); if (xp) xpEvalSync(); publish(); schedule(); };
 const runAuto = () => startAuto(mainLine().every(analysed));   // everything analysed at this level = 재분석
 $("autoAnalyze").onclick = () => {
-  if (autoId) return stopAuto();
+  if (autoActive()) return stopAuto();
+  if (analysisRunning()) { $("err").textContent = "이미 다른 분석이 진행 중입니다"; return; }
   levelPop($("autoAnalyze"), mainLine().every(analysed) ? "재분석 세기" : "자동분석 세기", runAuto);
 };
 $("first").onclick = () => goTo(root);
@@ -3190,7 +3351,7 @@ $("nums").onclick = () => {
   $("nums").dataset.mode = mode; $("nums").textContent = label; $("nums").classList.toggle("on", !!mode); schedule();
 };
 $("coords").onclick = () => { $("coords").classList.toggle("on"); layout(); };
-function emptyBoard() { if (+$("handicap").value) setKomi(6.5); $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); }
+function emptyBoard() { if (+$("handicap").value) setKomi(6.5); $("handicap").value = handicapShown = "0"; root = makeRoot(); goTo(root); publishNow(); boardAnSeed(true); }
 $("resetBoard").onclick = () => { if (confirm("바둑판을 초기화할까요? (현재 기보는 사라집니다)")) { emptyBoard(); $("err").textContent = "바둑판을 초기화했습니다"; } };
 async function newStudyBoard() {   // 학습방 → 새 연구 on the GPU: the shared board's game is kept first if it is in 내 기보 / 학습방
   freshStudy = false;
@@ -3226,7 +3387,7 @@ $("handicap").onchange = () => {
   handicapShown = $("handicap").value;
   const n = +handicapShown; root = handicapRoot(n);
   setKomi(komiForHandicap(n));
-  clearAnalysis(root); goTo(root);
+  clearAnalysis(root); goTo(root); publishNow(); boardAnSeed(true);
 };
 // 판 크기: a new empty board of that size (asks first when there are moves), keeping the typed game info
 function newSize(n) {
@@ -3235,7 +3396,7 @@ function newSize(n) {
   if ($("handicap").value !== had) setKomi(komiForHandicap(0));   // 9x9 has no 6~9 stone handicap: back to 호선
   handicapShown = $("handicap").value;
   root = handicapRoot(+handicapShown); root.info = info;
-  goTo(root);
+  goTo(root); publishNow(); boardAnSeed(true);
 }
 $("boardSize").onchange = () => {
   const n = +$("boardSize").value;
@@ -3250,7 +3411,7 @@ $("deleteNode").onclick = () => {
 };
 function komiChanged() {   // old results used the old komi; a negative number typed in flips 덤 <-> 역덤
   if (parseFloat($("komi").value) < 0) setKomi(komi());
-  clearAnalysis(root); requestLive(); publish(); schedule();
+  clearAnalysis(root); root.bid = genBid(); requestLive(); publishNow(); boardAnSeed(true); schedule();
 }
 $("komi").onchange = $("komiSign").onchange = komiChanged;
 $("showOwner").onchange = () => { requestLive(); schedule(); };
@@ -3500,6 +3661,7 @@ function loadSgf(text, mainLineOnly = false) {  // Fox commentary records: main 
   let sn = /^\d{1,3}(\.\d{1,3}){0,999}$/.test((first.KGS || [""])[0]) ? root : null;
   for (const i of sn ? first.KGS[0].split(".") : []) sn = sn && sn.children[+i];
   if (sn && sn !== root) { root.startNode = sn; if (!batchMode) goTo(sn); }
+  if (!applyingRemote && !batchMode) { publishNow(); boardAnSeed(false); }
   $("err").textContent = skipped ? `둘 수 없는 수 ${skipped}개를 건너뛰었습니다` : "";
 }
 // 사석 before the record starts (사진으로 배치 입력, user request 2026-10-07): KGP[흑:백] on the root (our own property,
@@ -3570,20 +3732,40 @@ function toSgf(withAnalysis = true, upTo = null, marks = null) {   // upTo: only
   return head + body(root) + ")";
 }
 // ------------------------------------------------------------------ shared board (one per account, through the bridge)
-// A device publishes what it shows (record without analysis + position + analysis on/off); the others follow.
+// A device publishes what it shows (record without analysis + position + analysis on/off + board id/mine metadata); the others follow.
 // The record is merged into the existing tree, so nodes keep their analysis and a running 대국 리포트/자동분석 is not lost.
-function publish() {
-  if (!bridgeSync || viewOnly || applyingRemote || quiz) return;   // a 오답노트 problem is this device's alone
+const mineMeta = () => mineId && mineRoot === root ? {id: mineId, title: mineTitle, folder: mineFolder || null, study: mineStudy || null, branch: mineBranch || null, pub: !!minePub} : null;
+function boardAnSeed(reset = false) {
+  if (!bridgeBoardMem || batchMode || viewOnly || quiz || !(ws && ws.readyState === 1)) return;
+  const entries = [];
+  const walk = (n, path) => {
+    if (n.analysis && n.analysis.rootInfo && n.analysis.rootInfo.visits > 0) {
+      entries.push([path.join(" "), {rootInfo: n.analysis.rootInfo, moveInfos: (n.analysis.moveInfos || []).slice(0, 20), ...(n.analysis.model ? {model: n.analysis.model} : {})}]);
+    }
+    for (const ch of n.children) walk(ch, [...path, ch.move.c + (ch.move.pass ? "pass" : gtp(ch.move.x, ch.move.y))]);
+  };
+  walk(root, []);
+  if (!entries.length) { if (reset) send({action: "boardAn", bid: root.bid, reset: true}); return; }
+  for (let i = 0; i < entries.length; i += 200) {
+    send({action: "boardAn", bid: root.bid, reset: reset && i === 0, items: Object.fromEntries(entries.slice(i, i + 200))});
+  }
+}
+const publishNow = () => publish(true);
+function publish(immediate = false) {
+  if (!bridgeSync || viewOnly || applyingRemote || quiz || batchMode) return;   // a 오답노트 problem is this device's alone
   if (!synced) { if (toSgf(false) !== lastSgf) unsent = performance.now(); return; }   // connected, before the hello: merged and sent then
-  clearTimeout(pubTimer);
-  pubTimer = setTimeout(() => {
-    if (quiz) return;
-    const st = {path: pathTo(cur).slice(1).map(n => n.parent.children.indexOf(n)), analyzing};
+  clearTimeout(pubTimer); pubTimer = 0;
+  const flush = () => {
+    pubTimer = 0;
+    if (quiz || batchMode) return;
+    const st = {path: pathTo(cur).slice(1).map(n => n.parent.children.indexOf(n)), analyzing, bid: root.bid, mine: mineMeta()};
     const sgf = toSgf(false);
     // unsent: a socket gone silent takes the record without a word, so it counts as sent once a later ping is answered
     if (sgf !== lastSgf) { st.sgf = sgf; lastSgf = sgf; unsent = performance.now(); }
     send({action: "state", state: st});
-  }, lastClients > 1 ? 100 : 1200);
+  };
+  if (immediate) flush();
+  else pubTimer = setTimeout(flush, lastClients > 1 ? 100 : 1200);
 }
 function applyState(st) {
   if (!st) return;
@@ -3593,6 +3775,18 @@ function applyState(st) {
     if (typeof st.sgf === "string" && st.sgf !== lastSgf) {
       try { mergeSgf(st.sgf); } catch (err) { $("err").textContent = "다른 기기의 기보를 읽지 못했습니다: " + err.message; }
       lastSgf = st.sgf;
+    }
+    if (typeof st.bid === "string" && st.bid) root.bid = st.bid;
+    if ("mine" in st) {
+      const m = st.mine;
+      if (m && m.id) {
+        mineId = m.id; mineRoot = root; mineTitle = m.title || ""; mineFolder = m.folder || null;
+        mineStudy = STUDY[m.study] ? m.study : null; mineBranch = mineStudy && m.branch || null; minePub = !!(mineStudy && m.pub);
+        document.body.classList.toggle("study-open", !!mineStudy);
+      } else if (mineRoot === root) {
+        mineId = null; mineStudy = null; mineBranch = null; minePub = false;
+        document.body.classList.toggle("study-open", false);
+      }
     }
     if (Array.isArray(st.path)) { let n = root; for (const i of st.path) { if (!n.children[i]) break; n = n.children[i]; } goTo(n); }
     if (typeof st.analyzing === "boolean" && st.analyzing !== analyzing) setAnalyzing(st.analyzing);
@@ -4242,11 +4436,12 @@ function saveDoChanged() {
   $("saveDoKifuHint").textContent = saveStudy() ? `수순·변화도와 분석값을 학습방 '${studyLabel(saveStudy(), saveBranch())} 연구'에 저장합니다.` : "기보와 분석값을 내 기보에 저장합니다.";
   // 먼저 자동분석: the level buttons show while it is ticked; nothing left at this level = nothing to wait for
   const todo = autoTodo(), box0 = $("saveDoAuto"), autoOn = !$("saveDoAutoRow").hidden && box0.checked && canAutoFirst();
-  const running = autoId ? "자동분석" : strengthId ? "대국 리포트" : "", rq = queries.get(autoId || strengthId);
+  const running = autoActive() ? "자동분석" : strengthActive() ? "대국 리포트" : "", rq = boardJobRunning() ? boardJob : queries.get(autoId || strengthId);
   box0.parentElement.classList.toggle("off", box0.disabled);
   $("saveLevel").hidden = !autoOn;
+  const finReserved = !!(boardJobRunning() && boardJob.finishSummary);
   $("saveDoAutoHint").textContent = box0.disabled ? "GPU에 연결돼 있지 않아 지금은 자동분석을 할 수 없습니다. 연결된 뒤 다시 누르세요."
-    : running ? (box0.checked ? `지금 ${running} 중입니다${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}. 끝난 뒤 저장합니다. 끄면 지금까지 분석된 그대로 바로 저장합니다.`
+    : running ? (box0.checked ? `지금 ${running} 중입니다${rq ? ` (${rq.done ?? autoDone}/${rq.todo})` : ""}. 끝난 뒤 저장합니다${finReserved ? " (저장·종료 예약됨)" : ""}. 끄면 지금까지 분석된 그대로 바로 저장합니다.`
                               : `지금 ${running} 중입니다. 켜면 끝난 뒤 저장합니다.`)
     : !autoOn ? "저장하기 전에 이 기보를 자동분석합니다. 세기를 고를 수 있습니다."
     : todo ? (level === "instant" ? `${todo}수를 즉시 분석한 뒤 저장합니다. 이미 분석된 수는 건너뜁니다.`
@@ -4266,7 +4461,7 @@ function saveDoChanged() {
   $("saveGo").textContent = (auto ? "분석 후 " : wait ? "끝나면 " : "") + (kifu ? (again ? "덮어쓰기" : "저장") : "만들기");
   const then = ($("saveDoKifu").checked ? "저장하고 " : "") + ($("saveDoNotes").checked ? "오답노트 후보를 모두 담은 뒤 " : "");
   $("saveDoStopHint").textContent = wait
-    ? `${auto || autoId ? "자동분석이" : "대국 리포트가"} 끝나면 ${then}GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
+    ? `${auto || autoActive() ? "자동분석이" : "대국 리포트가"} 끝나면 ${then}GPU를 끕니다. 분석을 취소하면 저장도 끄기도 하지 않습니다.`
     : `${then}GPU를 끄고 삭제해 요금을 멈춥니다.`;
   $("saveGo").disabled = !["Kifu", "Notes"].some(k => $("saveDo" + k).checked);
 }
@@ -4280,6 +4475,37 @@ $("saveDo").addEventListener("change", () => {
 $("saveCancel").onclick = () => $("saveDlg").close();
 $("saveForm").onsubmit = ev => { ev.preventDefault(); saveMine(false); };
 $("saveAsNew").onclick = () => saveMine(true);
+function boardFinishPayload({kifu, notes, title, asNew, folder, study, branch, pub, stop, turns}) {
+  const line = lineThrough(root), turnSet = new Set(Array.isArray(turns) ? turns : []);
+  const marks = new Map();
+  for (const i of turnSet) if (line[i]) marks.set(line[i], `\u0001${i}\u0002`);
+  const cut = (v, n) => v ? String(v).slice(0, n) : null;
+  let analyzedBase = 0;
+  (function walk(n) { if (!marks.has(n) && n.analysis && n.analysis.rootInfo) analyzedBase++; n.children.forEach(walk); })(root);
+  const have = {};
+  line.forEach((n, i) => { if (!marks.has(n) && n.analysis && n.analysis.rootInfo) have[i] = packAnalysis(n.analysis); });
+  const texts = line.map(n => toSgf(false, n));
+  let nf = {side: "", level: "normal"};
+  try { nf = {...nf, ...JSON.parse(localStorage.getItem("kgv.noteForm") || "{}")}; } catch {}
+  const notesLevel = NOTE_LEVELS[nf.level] ? nf.level : "normal";
+  const update = !asNew && mineId && mineRoot === root && !study === !mineStudy && (!study || !!pub === minePub);
+  const game = {
+    template: toSgf(true, null, marks),
+    meta: {title, black: cut(root.info.PB, 100), white: cut(root.info.PW, 100), result: cut(root.info.RE, 60),
+           game_date: cut(root.info.DT, 40), moves: Math.max(0, line.length - 1), size: N, analyzedBase},
+    line: line.map((n, i) => i ? {c: n.move.c, p: noteMove(n), t: texts[i].slice(texts[i - 1].length - 1, -1)} : {toPlay: root.toPlay}),
+    have, noteHead: texts[0].slice(0, -1),
+    keyHead: `${N !== 19 ? N + "|" : ""}${queryKomi()}|${JSON.stringify(root.setup)}|${root.toPlay}|`,
+    notesSide: nf.side === "B" || nf.side === "W" ? nf.side : "",
+  };
+  const plan = {
+    kifu: !!kifu, notes: !!notes, notesLevel: notes ? notesLevel : null, stop: !!stop,
+    title, mine: update ? mineId : null, asNew: !!asNew,
+    folder: folder || null, study: study || null, branch: branch || null, pub: !!pub,
+    preview: study ? studyPreview() : null,
+  };
+  return {plan, game};
+}
 async function saveMine(asNew) {
   const c = await mineClient(); if (!c) return;
   const kifu = $("saveDoKifu").checked, notes = $("saveDoNotes").checked, stop = $("saveDoStop").checked && gpuOn();
@@ -4291,6 +4517,17 @@ async function saveMine(asNew) {
   if (auto || ((stop || waitRunning()) && analysisRunning())) {   // save (and add the mistakes) when the analysis ends; 다 끝나면: then the GPU goes off
     if (auto) startAuto(false);
     if (!analysisRunning()) { say("자동분석을 시작하지 못했습니다. GPU 연결을 확인하세요.", true); return; }
+    if (bridgeBoardMem && bridgeBoardFinish && boardJobRunning()) {
+      const bf = boardFinishPayload({kifu, notes, title, asNew, folder, study, branch, pub, stop, turns: boardJob.turns});
+      finishPlan = null;
+      pendingBoardFinish = {kifu, notes, title, asNew, root, folder, study, branch, pub, stop};
+      boardJob.finishSummary = {kifu, notes, stop, title, study};
+      publishNow();
+      send({action: "boardFinish", bid: root.bid, finish: bf});
+      $("saveDlg").close();
+      $("err").textContent = finishPlanNotice(boardJob.kind, bf.plan);
+      return;
+    }
     finishPlan = {kifu, notes, title, asNew, root, folder, study, branch, pub, stop};
     $("saveDlg").close();
     const what = [kifu && "저장", notes && (stop ? "오답노트 후보 모두 담기" : "오답노트 목록 열기"), stop && "GPU 끄기"].filter(Boolean).join(" → ");
@@ -4330,6 +4567,7 @@ async function putMine(c, title, asNew, folder = null, study = null, branch = nu
   if (error) return /100(판|개)/.test(error.message) ? error.message : "저장하지 못했습니다: " + error.message;
   mineId = saved.id; mineRoot = root; mineTitle = title; mineFolder = folder; mineStudy = study; mineBranch = study && branch; minePub = !!study && !!pub;
   mineDirtyAt = 0;   // 자동 저장: nothing left to write
+  if (bridgeBoardMem) send({action: "state", state: {mine: mineMeta(), anDirty: false}});
   const fname = folder && (mineFolders.find(f => f.id === folder) || {}).name;
   $("err").textContent = study ? `${pub ? "공개 연구" : "내 연구"} '${studyLabel(study, branch)} 연구'에 ${update ? "덮어썼습니다" : "저장했습니다"}`
     : (fname ? `'${fname}' 분류 · ` : "") + (update ? "내 기보를 덮어썼습니다" : "내 기보에 저장했습니다");
@@ -4345,7 +4583,7 @@ let mineDirtyAt = 0, mineSaveTimer = null, mineSaveDue = 0, mineSaving = null;
 function mineDirty(soon = true) {   // soon: a position newly analysed (20 s); else one analysed deeper (1 min)
   if (!mineId || mineRoot !== root || batchMode || viewOnly || quiz) return;
   mineDirtyAt = Date.now();
-  if (autoId || strengthId) return;   // 자동분석·대국 리포트 중에는 끝난 뒤 한 번에 저장해 업링크를 막지 않음
+  if (analysisRunning()) return;   // 자동분석·대국 리포트 중에는 끝난 뒤 한 번에 저장해 업링크를 막지 않음
   const waitMs = netSlow ? (soon ? 60000 : 180000) : (soon ? 20000 : 60000);
   const due = mineDirtyAt + waitMs;
   if (mineSaveTimer && mineSaveDue <= due) return;   // an earlier save is already coming
@@ -4364,18 +4602,18 @@ async function mineAutoSave(say) {   // say: tell the member it was saved (not f
       if (!row) { $("err").textContent = "기보가 너무 커서(분석 포함 2MB 초과) 분석을 자동 저장하지 못했습니다. 필요 없는 변화도를 지운 뒤 내 기보 저장을 누르세요."; return; }
       const {error} = await c.from("saved_kifu").update(row).eq("id", id);
       if (error) { $("err").textContent = `분석을 ${mineWhere()}에 자동 저장하지 못했습니다: ` + error.message; return; }
-      if (mineDirtyAt === at) mineDirtyAt = 0; else if (!mineSaveTimer) mineDirty(false);
+      if (mineDirtyAt === at) { mineDirtyAt = 0; if (bridgeBoardMem) send({action: "state", state: {mine: mineMeta(), anDirty: false}}); }
+      else if (!mineSaveTimer) mineDirty(false);
       $("err").textContent = say ? `분석을 ${mineWhere()} '${title}'에 저장했습니다`
         : `분석 자동 저장됨 · ${new Date().toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"})}`;
     } catch (err) { $("err").textContent = `분석을 ${mineWhere()}에 자동 저장하지 못했습니다: ` + err.message; }
   })();
   try { await mineSaving; } finally { mineSaving = null; }
 }
-addEventListener("pagehide", () => { if (mineDirtyAt) mineAutoSave(false); });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && mineDirtyAt) mineAutoSave(false); });
+addEventListener("pagehide", () => { if (pubTimer) publishNow(); if (mineDirtyAt) mineAutoSave(false); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { if (pubTimer) publishNow(); if (mineDirtyAt) mineAutoSave(false); } });
 // '다 끝나면 GPU 끄기' in the save window: now, after the 오답노트 window, or once 자동분석 / 대국 리포트 ends.
 let finishPlan = null;
-const analysisRunning = () => !!(autoId || strengthId);
 const gpuOn = () => !$("gpuMeter").hidden && !$("gpuStop").hidden;   // this member's own GPU, running (watchGpu)
 function finishCheck(ok) {   // an analysis ended (ok: it ran to the end; not ok: cancelled or cut off)
   if (mineDirtyAt && !analysisRunning() && !(ok && finishPlan && finishPlan.kifu)) mineAutoSave(true);   // 자동 저장 (the plan saves it itself)
@@ -4592,7 +4830,7 @@ if (batchMode) addEventListener("message", ev => {
 const KEEP_STALE = 5 * 60000, KEEP_HIDDEN = 30 * 60000;
 document.addEventListener("visibilitychange", () => { hiddenAt = document.hidden ? performance.now() : 0; });
 setInterval(() => {
-  if (!(autoId || strengthId || batchQ)) return;
+  if (!(analysisRunning() || batchQ)) return;
   const now = performance.now();
   if (now - workAt > KEEP_STALE || (hiddenAt && now - hiddenAt > KEEP_HIDDEN)) return;
   send({id: "keep", action: "query_version"});
@@ -4695,6 +4933,7 @@ async function openMineKifu(id) {
     return true;
   }
   mineId = k.id; mineRoot = root; mineTitle = k.title; mineFolder = k.folder_id; mineStudy = STUDY[k.study] ? k.study : null; mineBranch = mineStudy && k.study_folder_id || null; minePub = !!(mineStudy && k.public_study);
+  if (!applyingRemote && !batchMode) publishNow();
   // the preview again on every open (a study saved before 미리보기, by a tab from before, or before it followed the
   // 시작 국면): one small write, the game itself is unchanged so its 저장 time stays
   if (mineStudy) c.from("saved_kifu").update({preview: studyPreview()}).eq("id", k.id).then(() => {}, () => {});
@@ -6078,6 +6317,7 @@ function moveGrade(n) {   // {grade, points} for an analysed move, or null
   return {grade, points};
 }
 function stopStrength() {
+  if (boardJobRunning("strength")) { reviewAfter = false; send({action: "boardAutoStop"}); return; }
   const was = strengthId; reviewAfter = false;
   if (pendingResume.strength === strengthId) pendingResume.strength = null;
   if (strengthId) send({id: "t" + (++qn), action: "terminate", terminateId: strengthId});
@@ -6085,20 +6325,49 @@ function stopStrength() {
   if (was) finishCheck(false);
 }
 // The estimate keeps running with its window closed; the button shows how far it is.
-function strengthButton(q) {
+function strengthButton(q = null) {
+  if (!q) {
+    if (boardJobRunning("strength")) q = boardJob;
+    else if (strengthId) q = queries.get(strengthId);
+  }
   $("strengthOpen").textContent = q ? `대국 리포트 ${q.done}/${q.todo}` : "대국 리포트"; $("strengthOpen").classList.toggle("on", !!q);
   $("reviewOpen").textContent = q && reviewAfter ? `복기 리포트 ${q.done}/${q.todo}` : "복기 리포트"; $("reviewOpen").classList.toggle("on", !!(q && reviewAfter));
   $("strengthCancel").hidden = !q;
+}
+function strengthProgressUi() {
+  const q = boardJobRunning("strength") ? boardJob : null;
+  if (!q) return;
+  const t0 = boardJobMeta && boardJobMeta.jobId === q.jobId ? boardJobMeta.t0
+    : (q.startedAt ? performance.now() - Math.max(0, Date.now() / 1000 - q.startedAt) * 1000 : null);
+  const sec = t0 !== null ? (performance.now() - t0) / 1000 : 0;
+  const left = q.done >= 3 && sec > 0 ? Math.ceil(sec / q.done * (q.todo - q.done)) : null;
+  const totalMoves = Math.max(0, mainLine().length - 1);
+  strengthMsg(`주 변화 ${totalMoves}수를 분석하는 중… ${q.done}/${q.todo}` + (left !== null ? ` · 약 ${left}초 남음` : "") + " · 창을 닫아도 계속 분석합니다");
+  strengthButton(q);
 }
 const STRENGTH_DONE = "대국 리포트 분석이 끝났습니다. '대국 리포트'를 누르면 결과를 볼 수 있습니다.";
 function openStrength(again = false) {
   if ($("err").textContent === STRENGTH_DONE) $("err").textContent = "";   // the result is being looked at (or redone)
   if (!$("strengthDlg").open) $("strengthDlg").showModal();
-  if (strengthId) return;   // still analysing: the progress message is up to date
+  if (strengthActive()) { if (boardJobRunning("strength")) strengthProgressUi(); return; }   // still analysing: the progress message is up to date
+  if (autoActive()) { $("strengthCards").innerHTML = ""; strengthMsg("자동분석이 진행 중입니다. 끝난 뒤 누르세요."); return; }
   const line = lineThrough(root);
   if (line.length < 2) { $("strengthCards").innerHTML = ""; strengthMsg("기보에 수가 없습니다. 기보를 열거나 수를 둔 뒤 다시 누르세요."); return; }
   const turns = line.map((_, i) => i).filter(i => again || !analysed(line[i]));
   if (!turns.length) return renderStrength();
+  if (bridgeBoardMem && !localMode && !batchMode && !quiz && ws && ws.readyState === 1) {
+    publishNow();
+    const lq = levelQuery(turns.length), jobId = genBid();
+    if (again) for (const i of turns) line[i].aid = "bj:" + jobId;
+    boardJobMeta = {jobId, inst: lq.inst, t0: performance.now()};
+    boardJob = {jobId, bid: root.bid, kind: "strength", status: "running", done: 0, todo: turns.length, turns, again, review: reviewAfter, level, visits: level === "instant" ? null : levelVisits(), finishSummary: null, startedAt: Date.now() / 1000};
+    workAt = performance.now();
+    send({action: "boardAuto", jobId, bid: root.bid, kind: "strength", again, review: reviewAfter, level, visits: level === "instant" ? null : levelVisits(),
+          query: {...baseQuery(), includeOwnership: false, moves: movesOf(line[line.length - 1]), analyzeTurns: turns, ...lq.query}});
+    $("strengthCards").innerHTML = ""; $("strengthRedo").disabled = true;
+    strengthProgressUi();
+    return;
+  }
   strengthId = "s" + (++qn); workAt = performance.now();
   if (again) for (const i of turns) line[i].aid = strengthId;   // 다시 분석: the new results replace the old ones
   const lq = levelQuery(turns.length), q = {line, strength: true, todo: turns.length, done: 0, doneSet: new Set(), t0: performance.now(), inst: lq.inst};
@@ -6134,7 +6403,7 @@ function renderStrength() {
     $("strengthCards").innerHTML = "";
     strengthMsg(`분석된 수가 ${total}수뿐이라 리포트를 만들 수 없습니다. 최소 6수가 필요합니다.`, true); return;
   }
-  strengthMsg(""); $("strengthRedo").disabled = !!strengthId;   // a result is up: it can be analysed again
+  strengthMsg(""); $("strengthRedo").disabled = strengthActive();   // a result is up: it can be analysed again
   const pct = (k, n) => n ? Math.round(k / n * 100) : 0;
   const avg = xs => xs.length ? (xs.reduce((a, x) => a + x.points, 0) / xs.length).toFixed(1) : "—";
   const card = (xs, side, name, cls, img) => {
@@ -6207,18 +6476,18 @@ $("rbChart").onclick = ev => { const b = ev.target.closest("button[data-g]"); if
 $("rbClose").onclick = closeReport;
 $("strengthOpen").onclick = () => {
   const line = lineThrough(root);   // every move already analysed (any strength): the report right away, '다시 분석' redoes it
-  if (!strengthId && line.length > 1 && line.every(n => n.analysis && n.analysis.rootInfo)) {
+  if (!strengthActive() && line.length > 1 && line.every(n => n.analysis && n.analysis.rootInfo)) {
     if ($("err").textContent === STRENGTH_DONE) $("err").textContent = "";
     if (!$("strengthDlg").open) $("strengthDlg").showModal();
     return renderStrength();
   }
-  if (strengthId || isPortrait()) return openStrength();   // running: just show how far it is
+  if (strengthActive() || isPortrait()) return openStrength();   // running: just show how far it is
   levelPop($("strengthOpen"), "대국 리포트 세기", () => openStrength());
 };
 $("strengthClose").onclick = () => $("strengthDlg").close();
 $("strengthRedo").onclick = () => openStrength(true);
 $("strengthCancel").onclick = () => {   // the moves analysed so far keep their results; pressing 대국 리포트 again goes on from there
-  if (!strengthId) return;
+  if (!strengthActive()) return;
   stopStrength(); renderStrength();
   if ($("strengthCards").innerHTML) strengthMsg("분석을 취소했습니다. 지금까지 분석된 수만으로 만든 리포트입니다. '대국 리포트'를 다시 누르면 남은 수를 이어서 분석합니다.");
   else strengthMsg("분석을 취소했습니다. '대국 리포트'를 다시 누르면 남은 수를 이어서 분석합니다.");
@@ -6758,7 +7027,7 @@ addEventListener("popstate", ev => {
 $("reviewOpen").onclick = () => {
   const line = lineThrough(root);
   if (line.length > 1 && line.every(n => n.analysis && n.analysis.rootInfo)) return openReview();
-  if (strengthId) { reviewAfter = true; strengthButton(queries.get(strengthId)); return openStrength(); }   // already analysing
+  if (strengthActive()) { reviewAfter = true; if (boardJobRunning("strength")) send({action: "boardReview", review: true}); strengthButton(); return openStrength(); }   // already analysing
   if (viewOnly || !(ws && ws.readyState === 1)) return openReview();
   const go = () => { reviewAfter = true; openStrength(); };
   if (isPortrait()) return go();
