@@ -1948,7 +1948,7 @@ async function loadCharges() {
   chargeRows = Object.fromEntries(rows.map((r) => [r.id, r]));
   $("chargeCount").hidden = !open.length; $("chargeCount").textContent = open.length;
   $("chargePending").innerHTML = open.map((r) => `<div class="charge-item"><span class="amt">${won(r.amount_krw)}</span>` +
-    `<span class="req"><b>${esc(r.name || r.email)}</b><span class="muted small">입금자명 <b>${esc(r.depositor)}</b>${depOther(r)} · ${when(r.created_at)} · 지금 잔액 ${won(r.balance_krw)}</span></span>` +
+    `<span class="req"><b>${esc(r.name || r.email)}</b><span class="muted small">입금자명 <b>${esc(r.depositor)}</b>${depOther(r)}${r.adult_ok_at ? "" : ' <span class="pill" title="만 19세 이상·법정대리인 동의 체크 기록이 없는 요청(체크가 생기기 전 화면에서 보낸 것)">동의 기록 없음</span>'} · ${when(r.created_at)} · 지금 잔액 ${won(r.balance_krw)}</span></span>` +
     `<span class="btns"><button class="primary" type="button" data-ok="${r.id}">승인</button><button class="danger" type="button" data-no="${r.id}">거절</button></span>` +
     `<input class="memo" data-memo="${r.id}" maxlength="200" placeholder="회원에게 보낼 메모 (비워도 됨)" value="${esc(memoDraft[r.id] ?? "")}"></div>`).join("")
     || `<p class="muted small" style="margin:0">확인 중인 요청이 없습니다.</p>`;

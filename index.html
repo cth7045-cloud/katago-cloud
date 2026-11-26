@@ -2935,7 +2935,7 @@ $("chargeForm").onsubmit = async (ev) => {
   // asked here, while the tap still counts (browsers allow the prompt only right after one)
   const asked = pushOk && Notification.permission === "default" ? Notification.requestPermission().catch(() => "default") : null;
   try {
-    const { error } = await sb.rpc("charge_request", { p_amount: amount, p_depositor: depositor });
+    const { error } = await sb.rpc("charge_request", { p_amount: amount, p_depositor: depositor, p_adult: true });   // p_adult: the 만 19세 box, kept with the request (DB 20261126c)
     if (error) throw error;
     api("/charge/notify", {}).catch(() => {});   // the admin's phone; the server retries every minute if this fails
     if (asked) await asked;
