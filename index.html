@@ -57,6 +57,9 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
           <label class="field">이메일<input id="email" type="email" autocomplete="email" required></label>
           <label class="field">비밀번호<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
           <label class="check age-check hidden" id="ageField"><input type="checkbox" id="ageOk"> 만 14세 이상입니다</label>
+          <!-- 이용약관 동의 (2026-11-26): 가입할 때 필수, 동의한 판은 profiles.terms_version -->
+          <label class="check agree hidden" id="agreeField"><input type="checkbox" id="agreeOk"> 이용약관에 동의하고 개인정보 처리방침을 확인했습니다</label>
+          <p class="small agree-links hidden" id="agreeLinks"><a href="policy.html#terms" target="_blank" rel="noopener">이용약관</a> · <a href="policy.html#privacy" target="_blank" rel="noopener">개인정보 처리방침</a></p>
           <button class="primary" id="authButton" type="submit">로그인</button>
           <div class="error" id="authError"></div>
           <button type="button" class="link-btn hidden" id="forgotPw">비밀번호를 잊으셨나요?</button>
@@ -626,6 +629,7 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
         <a class="item" href="guide.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/></svg></span><span class="grow">사용 가이드</span><span class="chev" aria-hidden="true">›</span></a>
         <a class="item" href="pricing.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c-.4-1-1.6-1.6-3-1.6-1.7 0-3 .9-3 2.1s1.3 1.8 3 2.1 3 .9 3 2.1-1.3 2.1-3 2.1c-1.4 0-2.6-.6-3-1.6"/></svg></span><span class="grow">요금 안내</span><span class="chev" aria-hidden="true">›</span></a>
         <a class="item" href="licenses.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg></span><span class="grow">오픈소스 고지</span><span class="chev" aria-hidden="true">›</span></a>
+        <a class="item" href="policy.html"><span class="ic" style="background:var(--soft);color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="grow">이용약관·개인정보 처리방침</span><span class="chev" aria-hidden="true">›</span></a>
       </div>
 
       <div class="group-t">보안</div>
@@ -806,13 +810,18 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     </form>
   </dialog>
 
-  <!-- a Google sign-up skips the form's 만 14세 box: a new account made from the 로그인 tab asks here (2026-11-26) -->
-  <dialog id="ageDlg" class="sheet" aria-label="만 14세 확인">
+  <!-- 약관 동의 (2026-11-26): 동의한 판(profiles.terms_version)이 TERMS_VERSION보다 낮은 회원 — 약관이 생기기 전 회원,
+       로그인 탭에서 Google로 새로 가입한 사람(가입 양식의 만 14세·약관 체크를 거치지 않음) -->
+  <dialog id="termsDlg" class="sheet" aria-label="약관 동의">
     <div class="stack">
-      <h2 style="margin:0">만 14세 이상인가요?</h2>
-      <p class="muted small" style="margin:0">만 14세 이상만 가입할 수 있습니다.</p>
-      <button class="primary" type="button" id="ageYes">만 14세 이상입니다</button>
-      <button type="button" id="ageNo">아니요</button>
+      <h2 style="margin:0">약관 동의</h2>
+      <p class="muted small" style="margin:0">KataGo Cloud를 이용하려면 아래 내용에 동의해 주세요.</p>
+      <p class="small" style="margin:0"><a href="policy.html#terms" target="_blank" rel="noopener">이용약관</a> · <a href="policy.html#privacy" target="_blank" rel="noopener">개인정보 처리방침</a> · <a href="policy.html#refund" target="_blank" rel="noopener">환불 규정</a></p>
+      <label class="check agree"><input type="checkbox" id="termsAge"> 만 14세 이상입니다</label>
+      <label class="check agree"><input type="checkbox" id="termsOk"> 이용약관에 동의하고 개인정보 처리방침을 확인했습니다</label>
+      <div class="error" id="termsError"></div>
+      <button class="primary" type="button" id="termsYes" disabled>동의하고 계속</button>
+      <button type="button" id="termsNo">동의하지 않음</button>
     </div>
   </dialog>
 
@@ -820,6 +829,8 @@ try { if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k))) 
     <div class="wrap">
       <a href="guide.html">사용 가이드</a>
       <a href="pricing.html">요금 안내</a>
+      <a href="policy.html#terms">이용약관</a>
+      <a href="policy.html#privacy"><b>개인정보 처리방침</b></a>
       <a href="licenses.html">오픈소스 고지</a>
       <span class="grow"></span>
       <span class="muted">© 2026 KataGo Cloud</span>
@@ -877,6 +888,8 @@ function setMode(m) {
   $("nameField").classList.toggle("hidden", m === "login");
   $("realName").required = m === "signup";   // a hidden required field would block signing in
   $("ageField").classList.toggle("hidden", m === "login"); $("ageOk").required = m === "signup";   // 만 14세 이상 (2026-11-21)
+  $("agreeField").classList.toggle("hidden", m === "login"); $("agreeOk").required = m === "signup";   // 이용약관 (2026-11-26)
+  $("agreeLinks").classList.toggle("hidden", m === "login");
   $("forgotPw").classList.toggle("hidden", m !== "login" || !RESET_MAIL);
   $("authButton").textContent = m === "login" ? "로그인" : "회원가입";
   $("password").autocomplete = m === "login" ? "current-password" : "new-password";
@@ -891,7 +904,8 @@ $("authForm").onsubmit = async (ev) => {
   try {
     if (mode === "signup") {
       if (!$("ageOk").checked) { $("authError").textContent = "만 14세 이상만 가입할 수 있습니다."; return; }
-      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name: $("realName").value.trim() } } });
+      if (!$("agreeOk").checked) { $("authError").textContent = "이용약관에 동의해야 가입할 수 있습니다."; return; }
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name: $("realName").value.trim(), terms: TERMS_VERSION } } });
       if (error) throw error;
       if (!data.session) { $("authError").textContent = "가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인하세요."; return; }
     } else {
@@ -946,14 +960,15 @@ if (!IN_PC_APP) fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: S
     const msg = /identity_already_exists|already.*linked/i.test(code + why) ? "이 Google 계정은 이미 다른 회원 계정에 연결되어 있습니다."
       : /access_denied/i.test(q.get("error") || "") ? "" : `Google 로그인에 실패했습니다: ${why}`;
     history.replaceState(null, "", location.pathname);
-    lsSet("kgv.gAge", null); lsSet("kgv.gLink", null);
+    lsSet("kgv.gTerms", null); lsSet("kgv.gLink", null);
     if (msg) { setTimeout(() => { $("authError").textContent = msg; }, 0); setTimeout(() => profile && toast(msg, true), 1500); }   // after setMode() below
   }
 }
 $("googleBtn").onclick = async () => {
   $("authError").textContent = "";
   if (mode === "signup" && !$("ageOk").checked) { $("authError").textContent = "만 14세 이상만 가입할 수 있습니다."; return; }
-  lsSet("kgv.gAge", mode === "signup" ? "1" : "0");
+  if (mode === "signup" && !$("agreeOk").checked) { $("authError").textContent = "이용약관에 동의해야 가입할 수 있습니다."; return; }
+  lsSet("kgv.gTerms", mode === "signup" ? String(TERMS_VERSION) : null);   // agreed on the 회원가입 tab: recorded when back
   $("googleBtn").disabled = true;
   const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: backUrl() } });
   if (error) { $("googleBtn").disabled = false; $("authError").textContent = String(error.message || error); }
@@ -991,26 +1006,52 @@ $("googleLink").onclick = async () => {
   }
   b.disabled = false; showGoogle();
 };
-// after Google: back from 연결 → 내 정보; a brand-new account made from the 로그인 tab confirms 만 14세 once
-async function afterGoogle() {
+// after signing in: back from Google 연결 → 내 정보; then the terms (2026-11-26)
+async function afterLogin() {
   await showGoogle();
   if (lsGet("kgv.gLink")) {
     lsSet("kgv.gLink", null);
     if (googleId) { location.hash = "#me"; toast("Google 계정을 연결했습니다."); }
   }
-  const age = lsGet("kgv.gAge"); lsSet("kgv.gAge", null);
-  if (age !== "0" || hasPw) return;
-  const u = (await sb.auth.getUser()).data.user;
-  if (u && Date.now() - new Date(u.created_at).getTime() < 10 * 60e3) $("ageDlg").showModal();
+  await checkTerms();
 }
-$("ageDlg").addEventListener("cancel", (ev) => ev.preventDefault());   // answer one of the two
-$("ageYes").onclick = () => $("ageDlg").close();
-$("ageNo").onclick = async () => {
-  $("ageNo").disabled = true;
-  try { await api("/me/delete", {}); } catch {}
-  $("ageDlg").close(); $("ageNo").disabled = false;
+
+// ------------------------------------------------------------------ 이용약관 동의 (사용자 2026-11-26 "2번 먼저 하자")
+// policy.html. A member whose agreed version (profiles.terms_version) is below TERMS_VERSION confirms 만 14세 and the terms
+// once: members from before the terms, and Google sign-ups from the 로그인 tab. E-mail sign-ups agree on the form (metadata
+// terms → handle_new_user), Google sign-ups from the 회원가입 tab too (kgv.gTerms, recorded here). Raise TERMS_VERSION only
+// for a change members must agree to again.
+const TERMS_VERSION = 1;
+let termsNew = false;   // a Google account made just now: 동의하지 않음 removes it again
+async function agreeTerms() {
+  const { data, error } = await sb.rpc("agree_terms", { p_version: TERMS_VERSION });
+  if (error) return false;
+  if (profile) profile.terms_version = Number(data) || TERMS_VERSION;
+  return true;
+}
+async function checkTerms() {
+  if (!profile || (Number(profile.terms_version) || 0) >= TERMS_VERSION) return;
+  if (lsGet("kgv.gTerms") === String(TERMS_VERSION)) { lsSet("kgv.gTerms", null); if (await agreeTerms()) return; }
+  const u = (await sb.auth.getUser()).data.user, ids = u?.identities || [];
+  termsNew = !!u && !ids.some((i) => i.provider === "email") && Date.now() - new Date(u.created_at).getTime() < 10 * 60e3;
+  $("termsAge").checked = $("termsOk").checked = false; $("termsYes").disabled = true; $("termsError").textContent = "";
+  if (!$("termsDlg").open) $("termsDlg").showModal();
+}
+$("termsDlg").addEventListener("cancel", (ev) => ev.preventDefault());   // answer one of the two
+for (const id of ["termsAge", "termsOk"]) $(id).onchange = () => { $("termsYes").disabled = !($("termsAge").checked && $("termsOk").checked); };
+$("termsYes").onclick = async () => {
+  $("termsYes").disabled = true;
+  if (await agreeTerms()) { $("termsDlg").close(); return; }
+  $("termsError").textContent = "동의를 저장하지 못했습니다. 다시 눌러 주세요.";
+  $("termsYes").disabled = false;
+};
+$("termsNo").onclick = async () => {
+  $("termsNo").disabled = true;
+  if (termsNew) { try { await api("/me/delete", {}); } catch {} }
+  $("termsDlg").close(); $("termsNo").disabled = false;
   await sb.auth.signOut();
-  $("authError").textContent = "만 14세 이상만 가입할 수 있습니다.";
+  $("authError").textContent = termsNew ? "이용약관에 동의해야 가입할 수 있습니다."
+    : "이용약관에 동의해야 서비스를 이용할 수 있습니다. 탈퇴나 환불은 이용약관의 문의처로 요청해 주세요.";
 };
 
 let entered = false;
@@ -1037,7 +1078,7 @@ async function enter() {
   swap(() => { document.body.classList.add("authed"); $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); showPage(); });
   $("bootFail")?.remove();
   await refresh();
-  loadOffers(); loadMine(); loadNotesCard(); resumeBatch(); afterGoogle().catch(() => {});
+  loadOffers(); loadMine(); loadNotesCard(); resumeBatch(); afterLogin().catch(() => {});
   if (curPage === "libraryView" && !libLoaded) libShow();   // opened at #library: showPage ran before the profile
   if (location.hash.startsWith("#study/bank")) loadBank();
   else if (location.hash === "#study") bankData().catch(() => {});
@@ -2954,7 +2995,8 @@ $("pwForm").onsubmit = (ev) => {
 $("leaveForm").onsubmit = (ev) => {
   ev.preventDefault();
   $("leaveError").textContent = "";
-  const left = profile?.balance_krw > 0 ? `\n남은 잔액 ${won(profile.balance_krw)}은 운영자에게 넘어가며 돌려받을 수 없습니다. 환불이 필요하면 탈퇴하기 전에 관리자에게 요청하세요.` : "";
+  // 남은 잔액 (2026-11-26 환불 규정): 유료 충전분은 탈퇴 뒤에도 문의하면 돌려받지만, 탈퇴 전에 요청하는 것이 가장 빠르다
+  const left = profile?.balance_krw > 0 ? `\n남은 잔액 ${won(profile.balance_krw)}은 탈퇴하면 이 계정에서 쓸 수 없습니다. 유료로 충전한 금액의 환불은 탈퇴하기 전에 요청하는 것이 가장 빠릅니다(환불 규정).` : "";
   if (!confirm(`정말 탈퇴할까요? 이 계정으로 다시 로그인할 수 없습니다.${left}`)) return;
   busy(ev.target, async () => {
     try {

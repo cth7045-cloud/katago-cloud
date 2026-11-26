@@ -46,9 +46,10 @@
   if (lang === "ko") return;
 
   // dictionaries, before the page's own scripts run
-  const v = "20261121b";
+  const v = "20261126a";
   document.write(`<script src="${base}i18n/${lang}.js?v=${v}"><\/script>`);
   if (me && me.hasAttribute("data-names")) document.write(`<script src="${base}i18n/names-${lang}.js?v=${v}"><\/script>`);
   if (me && me.hasAttribute("data-guide")) document.write(`<script src="${base}i18n/guide-${lang}.js?v=${v}"><\/script>`);
+  if (me && me.hasAttribute("data-policy")) document.write(`<script src="${base}i18n/policy-${lang}.js?v=${v}"><\/script>`);   // 이용약관 문단 (2026-11-26)
   document.write(`<script src="${base}i18n-run.js?v=${v}"><\/script>`);   // the translator, after the dictionaries
 })();

@@ -350,6 +350,10 @@ a.brand:hover { text-decoration: none; opacity: .75; }
 /* 가입: 만 14세 확인 · 로그인: 비밀번호 찾기 (2026-11-21) */
 .auth-card label.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .auth-card label.check input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--blue); }
+/* 이용약관 동의 (2026-11-26): 가입 양식·동의 창 */
+label.check.agree { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; line-height: 1.45; }
+label.check.agree input { width: 18px; height: 18px; min-height: 0; margin: 1px 0 0; flex: none; accent-color: var(--blue); }
+.agree-links { margin: -6px 0 0 28px; color: var(--muted); }
 /* Google 로그인 (2026-11-26) */
 .oauth { display: grid; gap: 12px; margin-top: 2px; }
 .oauth .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
@@ -395,7 +399,7 @@ button.quiet.shared { color: var(--good); }
 .legal .toc a { display: block; padding: 6px 12px; border-radius: 10px; color: var(--muted); font-weight: 600; }
 .legal .toc a:hover { background: var(--soft); color: var(--ink); text-decoration: none; }
 .legal .toc a.on { background: var(--cyan-soft); color: var(--blue-deep); }
-.legal article { max-width: 760px; }
+.legal article { max-width: 760px; min-width: 0; }   /* min-width 0: a wide table scrolls inside .table-wrap instead of widening the page (2026-11-26) */
 .legal h1 { font-size: clamp(30px, 4.2vw, 44px); font-weight: 800; letter-spacing: -.04em; line-height: 1.1; margin: 0 0 12px; }
 .legal h2 { font-size: 24px; font-weight: 800; letter-spacing: -.03em; margin: 44px 0 10px; scroll-margin-top: 76px; }
 .legal h3 { font-size: 17px; font-weight: 750; letter-spacing: -.02em; margin: 24px 0 6px; }
@@ -407,6 +411,7 @@ button.quiet.shared { color: var(--good); }
 .legal .meta { color: var(--muted); font-size: 14px; }
 .legal .table-wrap { margin: 6px 0 14px; }
 .legal table td { white-space: normal; vertical-align: top; font-size: 14px; }
+.legal table td:first-child { word-break: keep-all; min-width: 5.5em; }   /* "Google로 가입" 같은 구분 칸이 글자 중간에서 끊기지 않게 (2026-11-26) */
 .legal .lic { margin: 0 0 12px; padding: 16px 18px; border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); }
 .legal .lic h3 { margin: 0 0 4px; }
 .legal .lic p { margin: 0 0 4px; font-size: 14px; }
