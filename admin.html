@@ -1936,6 +1936,9 @@ $("formerRows").onclick = async (ev) => {
 };
 // ------------------------------------------------------------------ 충전 요청 (2026-09-30)
 const CSTATE = { approved: ["승인", "good"], rejected: ["거절", "bad"], canceled: ["회원이 취소", ""], expired: ["만료", ""] };
+// 입금자명이 회원 이름과 다르면 (사용자 2026-11-26): 부모님 계좌 등 — 승인 전에 확인 (미성년자 충전 취소 대비)
+const nameKey = (x) => String(x || "").replace(/\s+/g, "").toLowerCase();
+const depOther = (r) => r.depositor && nameKey(r.depositor) !== nameKey(r.name) ? ' <span class="pill warn" title="입금자명이 회원 이름과 다릅니다. 승인 전에 본인 계좌인지(미성년자면 부모님 동의) 확인하세요.">이름 다름</span>' : "";
 let chargeRows = {}, accountDirty = false, memoDraft = {};   // memoDraft: typed but not saved yet (the list redraws every 15s)
 async function loadCharges() {
   if (document.activeElement?.dataset?.memo) return;   // don't redraw under the admin's fingers
@@ -1945,13 +1948,13 @@ async function loadCharges() {
   chargeRows = Object.fromEntries(rows.map((r) => [r.id, r]));
   $("chargeCount").hidden = !open.length; $("chargeCount").textContent = open.length;
   $("chargePending").innerHTML = open.map((r) => `<div class="charge-item"><span class="amt">${won(r.amount_krw)}</span>` +
-    `<span class="req"><b>${esc(r.name || r.email)}</b><span class="muted small">입금자명 <b>${esc(r.depositor)}</b> · ${when(r.created_at)} · 지금 잔액 ${won(r.balance_krw)}</span></span>` +
+    `<span class="req"><b>${esc(r.name || r.email)}</b><span class="muted small">입금자명 <b>${esc(r.depositor)}</b>${depOther(r)} · ${when(r.created_at)} · 지금 잔액 ${won(r.balance_krw)}</span></span>` +
     `<span class="btns"><button class="primary" type="button" data-ok="${r.id}">승인</button><button class="danger" type="button" data-no="${r.id}">거절</button></span>` +
     `<input class="memo" data-memo="${r.id}" maxlength="200" placeholder="회원에게 보낼 메모 (비워도 됨)" value="${esc(memoDraft[r.id] ?? "")}"></div>`).join("")
     || `<p class="muted small" style="margin:0">확인 중인 요청이 없습니다.</p>`;
   $("chargeDone").innerHTML = done.slice(0, 30).map((r) => {
     const [label, tone] = CSTATE[r.status] || [r.status, ""];
-    return `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || r.email)}</td><td>${esc(r.depositor)}</td><td class="num">${won(r.amount_krw)}</td>` +
+    return `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || r.email)}</td><td>${esc(r.depositor)}${depOther(r)}</td><td class="num">${won(r.amount_krw)}</td>` +
       `<td><span class="pill ${tone}">${label}</span></td>` +
       `<td class="memo-cell">${r.reason ? `<span class="small">${esc(r.reason)}</span> ` : ""}<button type="button" class="quiet" data-edit="${r.id}">${r.reason ? "고치기" : "메모"}</button></td></tr>`;
   }).join("") || `<tr><td colspan="6" class="muted">없음</td></tr>`;
@@ -1962,7 +1965,7 @@ $("chargePending").onclick = async (ev) => {
   const approve = !!b.dataset.ok, r = chargeRows[Number(b.dataset.ok || b.dataset.no)]; if (!r) return;
   const name = r.name || r.email;
   const memo = (memoDraft[r.id] ?? "").trim(), memoLine = memo ? `\n회원에게 보낼 메모: ${memo}` : "\n회원에게 보낼 메모: 없음";
-  if (approve) { if (!confirm(`${name} 님의 ${won(r.amount_krw)} 충전을 승인할까요?\n입금자명: ${r.depositor}${memoLine}\n승인하면 잔액에 바로 들어갑니다.`)) return; }
+  if (approve) { if (!confirm(`${name} 님의 ${won(r.amount_krw)} 충전을 승인할까요?\n입금자명: ${r.depositor}${depOther(r) ? " (회원 이름과 다름 — 본인 계좌·부모님 동의를 확인했나요?)" : ""}${memoLine}\n승인하면 잔액에 바로 들어갑니다.`)) return; }
   else if (!confirm(`${name} 님의 ${won(r.amount_krw)} 요청을 거절할까요?${memoLine}`)) return;
   for (const x of b.parentElement.children) x.disabled = true;
   const { data, error } = await sb.rpc("admin_charge_decide", { p_id: r.id, p_approve: approve, p_reason: memo || null });
