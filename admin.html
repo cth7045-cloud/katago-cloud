@@ -1014,7 +1014,23 @@ showTab(location.hash.slice(1));
 addEventListener("hashchange", () => showTab(location.hash.slice(1)));   // a notification tap opens #charges
 
 const ACTIVE = ["creating", "booting", "setup", "ready", "stopping"];
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || typeof window.kgcAppSync === "function";   // the installed / PC app (as index.html)
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const inPcApp = typeof window.kgcAppSync === "function";
+function openPcWindow(url) {
+  const x = screen.availLeft || 0, y = screen.availTop || 0;
+  const w = screen.availWidth || screen.width || 1920, h = screen.availHeight || screen.height || 1080;
+  const win = window.open(url, "_blank", `left=${x},top=${y},width=${w},height=${h},resizable=yes,scrollbars=yes`);
+  if (win) { try { win.moveTo(x, y); win.resizeTo(w, h); win.focus(); } catch {} }
+  return win;
+}
+if (inPcApp) {
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest('a[href^="analysis.html"]');
+    if (!a) return;
+    ev.preventDefault();
+    openPcWindow(a.href);
+  });
+}
 // long lists show 10 rows a page, with page numbers like a search result (‹ 1 2 3 4 5 ›)
 const PAGE = 10, pages = { session: 1, ledger: 1, speed: 1 }, lists = { session: [], ledger: [], speed: [] };
 const render = { session: null, ledger: null, speed: null };
@@ -1782,9 +1798,11 @@ async function showBankDrafts() {
   }).join("");
 }
 $("bkDrafts").onclick = (ev) => { const b = ev.target.closest("[data-draft]"); if (b) openAnalysis(`bank=${encodeURIComponent(b.dataset.draft)}&draft=${encodeURIComponent(b.dataset.o)}`); };
-function openAnalysis(hash) {   // the analysis screen in a new tab (in the installed app: this window)
+function openAnalysis(hash) {   // the analysis screen in a new tab (in the installed app: this window; in PC app: full-size new window)
   const url = `analysis.html?v=${Date.now()}#${hash}`;
-  if (standalone) location.href = url; else window.open(url, "_blank", "noopener");
+  if (standalone) location.href = url;
+  else if (inPcApp) openPcWindow(url);
+  else window.open(url, "_blank", "noopener");
 }
 $("bkGo").onclick = () => openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&k=${Math.max(1, Math.floor(+$("bkNo").value || 1))}&edit=1`);
 $("bkAdd").onclick = () => openAnalysis(`bank=${encodeURIComponent($("bkBook").value)}&add=1`);

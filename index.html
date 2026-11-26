@@ -1342,7 +1342,7 @@ function dashShow() {
   if (pill) {
     $("livePillText").innerHTML = `${esc(s.gpu_name || "GPU")} · ${ready ? `${min}분 <span>· ${free ? "무료" : won(s.charged_krw)}</span>` : esc(gpuState)}`;
     const go = $("livePillGo");
-    if (ready) { go.href = $("openAnalysis").href; go.textContent = "분석 화면"; go.target = appWindow ? "" : "_blank"; }
+    if (ready) { go.href = $("openAnalysis").href; go.textContent = "분석 화면"; go.target = standalone ? "" : "_blank"; }
     else { go.href = "#gpu"; go.textContent = "보기"; go.removeAttribute("target"); }
   }
 }
@@ -3302,9 +3302,30 @@ $("shareDlg").addEventListener("click", (ev) => { if (ev.target === $("shareDlg"
 // open in the same window (on iPhone a new tab would be Safari, which is not logged in).
 const inPcApp = typeof window.kgcAppSync === "function";
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const appWindow = standalone || inPcApp;
-function openPage(url) { if (appWindow) location.href = url; else window.open(url, "_blank", "noopener"); }
-if (appWindow) for (const el of [$("openAnalysis"), $("dashOpen"), ...document.querySelectorAll("[data-analysis-link]")]) el.removeAttribute("target");
+function openPcWindow(url) {
+  const x = screen.availLeft || 0, y = screen.availTop || 0;
+  const w = screen.availWidth || screen.width || 1920, h = screen.availHeight || screen.height || 1080;
+  const win = window.open(url, "_blank", `left=${x},top=${y},width=${w},height=${h},resizable=yes,scrollbars=yes`);
+  if (win) { try { win.moveTo(x, y); win.resizeTo(w, h); win.focus(); } catch {} }
+  return win;
+}
+function openPage(url) {
+  if (standalone) location.href = url;
+  else if (inPcApp) openPcWindow(url);
+  else window.open(url, "_blank", "noopener");
+}
+if (standalone) for (const el of [$("openAnalysis"), $("dashOpen"), ...document.querySelectorAll("[data-analysis-link]")]) el.removeAttribute("target");
+if (inPcApp) {
+  for (const el of [$("openAnalysis"), $("dashOpen"), $("livePillGo"), $("shareView"), ...document.querySelectorAll("[data-analysis-link]")]) {
+    if (!el) continue;
+    el.addEventListener("click", (ev) => {
+      const href = el.getAttribute("href") || "";
+      if (!href || href.startsWith("#")) return;
+      ev.preventDefault();
+      openPcWindow(el.href);
+    });
+  }
+}
 // 내 기기로 분석 (user request 2026-10-05): 시작 prepares KataGo on this device right here, shown the way a rented GPU's
 // setup is (model download → engine start and a test run → ready), then 분석 화면 열기 like a GPU's. That screen starts
 // its own engine from the stored model (a page cannot hand its worker to the next one), told whether the graphics
@@ -3414,7 +3435,7 @@ $("localStop").onclick = () => {
   endLocal(); if (localSession()) { endLocalSession(); toast("내 기기 분석을 종료했습니다."); }
   $("localCard").classList.add("hidden"); $("localCard").classList.remove("is-ready"); $("deviceCard").classList.remove("hidden");
 };
-$("localOpen").onclick = () => { if (gpuBlocksLocal()) { stopLocalForGpu(); return false; } if (!appWindow) { window.open($("localOpen").href, "_blank", "noopener"); return false; } };
+$("localOpen").onclick = () => { if (gpuBlocksLocal()) { stopLocalForGpu(); return false; } if (!standalone) { openPage($("localOpen").href); return false; } };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 let installEvent = null;
 let installing = false;  // the member said yes in the install window; the browser is still installing

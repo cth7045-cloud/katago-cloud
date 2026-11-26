@@ -1585,6 +1585,28 @@ let scoring = null;   // 계가 on screen: {node, own, dead: Set of points, id, 
 
 // ------------------------------------------------------------------ engine connection
 const hashParams = new URLSearchParams(location.hash.slice(1));
+const pcPopup = !!window.opener && !matchMedia("(display-mode: standalone)").matches;
+function openPcWindow(url) {
+  const x = screen.availLeft || 0, y = screen.availTop || 0;
+  const w = screen.availWidth || screen.width || 1920, h = screen.availHeight || screen.height || 1080;
+  const win = window.open(url, "_blank", `left=${x},top=${y},width=${w},height=${h},resizable=yes,scrollbars=yes`);
+  if (win) { try { win.moveTo(x, y); win.resizeTo(w, h); win.focus(); } catch {} }
+  return win;
+}
+if (pcPopup) {
+  const fitPopup = () => {
+    try {
+      const ax = screen.availLeft || 0, ay = screen.availTop || 0;
+      const aw = screen.availWidth || screen.width, ah = screen.availHeight || screen.height;
+      if (aw && ah && (outerWidth < aw - 20 || outerHeight < ah - 20 || Math.abs(screenX - ax) > 12 || Math.abs(screenY - ay) > 12)) {
+        window.moveTo(ax, ay);
+        window.resizeTo(aw, ah);
+      }
+    } catch {}
+  };
+  fitPopup();
+  setTimeout(fitPopup, 120);
+}
 const recordMode = hashParams.get("record") === "1";   // 내 기보 → 기보 추가: an empty board to record a game on, no GPU
 // 학습방 연구 (DB 20261009a, user request 2026-10-09): the member's own 정석·포석 research, saved like a game of 내 기보
 // (same rows, 자동 저장, 공유) with saved_kifu.study = its topic, and listed in the website's 학습방 instead of 내 기보.
@@ -5984,11 +6006,15 @@ function drawXpMarks(ctx, G) {   // every recorded next move, numbered 1, 2, 3 �
 // 열기 (user 2026-10-24 "새 탭에서 여는데 위에 링크가 안보이게 평소 기보 열 때 처럼"): like the website's own game links — the
 // installed app opens it in this window (a new tab there shows the browser's address bar), a browser in a new tab. Back
 // in the app comes to a fresh 수순 탐색 page: the moves on the board are kept for it (sessionStorage) and played again.
-const xpStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || typeof window.kgcAppSync === "function";
+const xpStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 function xpOpen(id) {
   const keep = new URLSearchParams(location.hash.slice(1)), link = ["u", "t", "local"].filter(k => keep.has(k)).map(k => `${k}=${encodeURIComponent(keep.get(k))}&`).join("");
   const url = `analysis.html?v=${Date.now()}#${link}pub=${id}&p=${xp.seq || ""}`;
-  if (!xpStandalone()) { window.open(url, "_blank", "noopener"); return; }
+  if (!xpStandalone()) {
+    if (pcPopup || typeof window.kgcAppSync === "function") openPcWindow(url);
+    else window.open(url, "_blank", "noopener");
+    return;
+  }
   try { sessionStorage.setItem("kgv.xpBack", JSON.stringify({seq: xpSeq(cur) || "", src: xp.src})); } catch { /* storage blocked */ }
   location.href = url;
 }
@@ -7931,7 +7957,7 @@ $("menuBody").addEventListener("click", ev => { const b = ev.target.closest("but
 // either): the logo, marked "‹", leads back to the start page. It was a separate '‹ 홈' button until 2026-10-16.
 // The service worker (sw.js, caches nothing) is the website's; the GPU's own page has none.
 if (!GPU_HOST.test(location.hostname)) {
-  if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || typeof window.kgcAppSync === "function") {
+  if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) {
     const brand = document.querySelector(".menubar .brand");
     brand.classList.add("home"); brand.title = "처음 화면으로"; brand.setAttribute("role", "link"); brand.tabIndex = 0;
     brand.onclick = () => { location.href = "./"; };
@@ -7946,7 +7972,7 @@ if (!GPU_HOST.test(location.hostname)) {
   let t = 0;
   const probe = css => { const d = document.createElement("div"); d.style.cssText = "position:fixed;visibility:hidden;left:0;top:0;width:1px;" + css; document.body.append(d); const h = d.getBoundingClientRect().height; d.remove(); return Math.round(h); };
   const show = () => {
-    const m = window.kgcAppSync ? "PC 앱" : matchMedia("(display-mode: standalone)").matches ? "앱" : "브라우저";
+    const m = window.kgcAppSync ? "PC 앱" : pcPopup ? "PC 앱(새 창)" : matchMedia("(display-mode: standalone)").matches ? "앱" : "브라우저";
     $("err").textContent = `화면 진단 · ${m} · 창 ${innerWidth}×${innerHeight} · 보이는 영역 ${visualViewport ? Math.round(visualViewport.height) : "-"} · 100dvh ${probe("height:100dvh")} · 100vh ${probe("height:100vh")}` +
       ` · 화면 ${screen.width}×${screen.height}(사용 가능 ${screen.availHeight}) · 배율 ${devicePixelRatio} · 아래 여백 ${probe("height:env(safe-area-inset-bottom)")} · 페이지 높이 ${document.body.getBoundingClientRect().height}` +
       ` · 아래줄 끝 ${Math.round(document.querySelector(".toolbar").getBoundingClientRect().bottom)}`;
