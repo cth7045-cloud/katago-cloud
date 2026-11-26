@@ -798,8 +798,25 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 2px; color: #687082; font-size: 12.5px; }
 .rv-legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .rv-legend .a::before { background: rgba(23, 26, 34, .2); } .rv-legend .l::before { height: 3px; vertical-align: 3px; background: #2c5cf6; }
-.rv-legend .m::before { border-radius: 50%; background: #f07a2a; } .rv-legend .k::before { border-radius: 50%; background: #e0484d; }
+.rv-legend .m::before { border-radius: 50%; background: #f07a2a; } .rv-legend .k::before { border-radius: 50%; background: #e0484d; } .rv-legend .ai::before { border-radius: 50%; background: #1f9d55; }
 .rv-sum, .rv-list { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rv-toc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.rv-page .rv-toc-card { display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 0; margin: 0; padding: 6px 6px 7px; border: 1px solid #e6e9f2; border-radius: 9px; background: #fff; color: #171a22; text-align: left; font: inherit; cursor: pointer; box-shadow: none; transition: border-color .12s, box-shadow .12s; }
+.rv-page .rv-toc-card:hover { background: #f8faff; border-color: #b7c5f7; box-shadow: 0 3px 10px rgba(23, 26, 34, .08); }
+.rv-toc-top { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: #171a22; font-variant-numeric: tabular-nums; }
+.rv-toc-loss { font-size: 11px; font-weight: 800; } .rv-toc-loss.mistake { color: #d4621a; } .rv-toc-loss.blunder { color: #d0393e; }
+.rv-toc-foot { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 11.5px; font-weight: 600; color: #3a4050; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rv-toc-foot .mistake { color: #d4621a; font-weight: 700; } .rv-toc-foot .blunder { color: #d0393e; font-weight: 700; }
+.rv-toc-foot .rv-st { width: 10px; height: 10px; margin-right: 4px; }
+.rv-mini { display: block; width: 100%; height: auto; border-radius: 5px; }
+.rv-mini .rv-wood { fill: #ebcb8b; }
+.rv-mini line { stroke: #6e5530; stroke-width: .7; } .rv-mini line.e { stroke-width: 1.25; stroke: #5a4322; }
+.rv-mini .rv-star { fill: #5a4322; }
+.rv-mini .rv-b { fill: #1b1b1b; } .rv-mini .rv-w { fill: #fbfbfb; stroke: #2b2b2b; stroke-width: .7; }
+.rv-mini .rv-m-ring { fill: none; stroke-width: 2.2; } .rv-mini .rv-m-ring.mistake { stroke: #f07a2a; } .rv-mini .rv-m-ring.blunder { stroke: #e0484d; stroke-width: 2.3; }
+.rv-mini .rv-m-ai { fill: rgba(31, 157, 85, .2); stroke: #1f9d55; stroke-width: 1.9; }
+.rv-mini .rv-m-aidot { fill: #1f9d55; }
+.rv-mini .rv-m-dot.b { fill: #fff; } .rv-mini .rv-m-dot.w { fill: #1b1b1b; }
 .rv-sum th, .rv-sum td, .rv-list th, .rv-list td { padding: 8px 10px; border-bottom: 1px solid #e8ebf2; text-align: left; }
 .rv-sum th { font-size: 14px; } .rv-sum td:first-child, .rv-list th { color: #687082; font-weight: 600; font-size: 13px; }
 .rv-sum td.mistake, .rv-list td.mistake { color: #d4621a; font-weight: 700; } .rv-sum td.blunder, .rv-list td.blunder { color: #d0393e; font-weight: 700; }
@@ -855,7 +872,9 @@ button.primary:hover { background: var(--blue-deep); }
 .rv-pdf .rv-page { width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; font-size: 14px; }
 .rv-pdf .rv-page h1 { font-size: 34px; }
 .rv-pdf .rv-go { display: none !important; }
-.rv-pdf .rv-page > div:not(.rv-figs):not(.rv-legend):not(.rv-players), .rv-pdf .rv-page > section { display: flow-root; }
+.rv-pdf .rv-page > div:not(.rv-figs):not(.rv-legend):not(.rv-players):not(.rv-toc), .rv-pdf .rv-page > section { display: flow-root; }
+.rv-pdf .rv-toc { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 10px !important; }
+.rv-pdf .rv-toc + .rv-toc { margin-top: 10px; }
 .rv-pdf .rv-figs, .rv-pdf .rv-figs.n2, .rv-pdf .rv-figs.n3 { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) !important; gap: 14px !important; }
 .rv-pdf .rv-figs.whole { grid-template-columns: 1fr 1fr !important; gap: 20px !important; }
 .rv-pdf .rv-main { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) !important; gap: 20px !important; }
@@ -888,6 +907,9 @@ button.primary:hover { background: var(--blue-deep); }
   .rv-bar .seg { min-width: 140px; }
   .rv-bar .seg button { white-space: nowrap; flex: 0 0 auto; }
   .rv-stages th, .rv-stages td { padding: 7px 3px; font-size: 12.5px; } .rv-stages th { font-size: 12px; }
+  .rv-toc { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .rv-page .rv-toc-card { padding: 5px 5px 6px; gap: 4px; }
+  .rv-toc-top, .rv-toc-foot { font-size: 11px; }
   .rv-bar button { padding: 5px 11px; }
 }
 @media (prefers-color-scheme: dark) {
@@ -903,7 +925,8 @@ button.primary:hover { background: var(--blue-deep); }
   .rv-pages { padding: 0 !important; }
   .rv-page { width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border-radius: 0 !important; font-size: 10.5pt; }
   .rv-page + .rv-page { break-before: page; }
-  .rv-scene, .rv-fig, .rv-sum, .rv-graph, .rv-list tr { break-inside: avoid; }
+  .rv-scene, .rv-fig, .rv-sum, .rv-graph, .rv-list tr, .rv-toc-card { break-inside: avoid; }
+  .rv-toc { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 8px !important; }
   .rv-figs, .rv-figs.n2, .rv-figs.n3 { grid-template-columns: 1.5fr 1fr 1fr !important; }
   .rv-figs.whole { grid-template-columns: 1fr 1fr !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -6624,6 +6647,32 @@ function rvBoard(grid, stones, crop) {
   for (const [i, ring] of top) { const x = i % N, y = (i / N) | 0; if (x >= x0 && x <= x1 && y >= y0 && y <= y1) g += `<circle cx="${X(x)}" cy="${Y(y)}" r="${S * .56}" class="rv-ring ${ring}"/>`; }
   return {svg: g + "</svg>", notes};
 }
+function rvMiniBoard(grid, playedXY, color, grade, bestXY) {   // tiny full-board thumbnail for cover 4-col TOC
+  const S = 166 / Math.max(1, N - 1), P = 9, W = P * 2 + (N - 1) * S;
+  const X = x => P + x * S, Y = y => P + y * S;
+  let g = `<svg class="rv-mini" viewBox="0 0 ${W.toFixed(1)} ${W.toFixed(1)}" role="img"><rect width="${W.toFixed(1)}" height="${W.toFixed(1)}" rx="5" class="rv-wood"/>`;
+  for (let x = 0; x < N; x++) g += `<line x1="${X(x).toFixed(1)}" y1="${P}" x2="${X(x).toFixed(1)}" y2="${(W - P).toFixed(1)}"${x === 0 || x === N - 1 ? ' class="e"' : ""}/>`;
+  for (let y = 0; y < N; y++) g += `<line x1="${P}" y1="${Y(y).toFixed(1)}" x2="${(W - P).toFixed(1)}" y2="${Y(y).toFixed(1)}"${y === 0 || y === N - 1 ? ' class="e"' : ""}/>`;
+  const [lo, mid, hi] = starLines();
+  const stars = N === 19 ? [lo, mid, hi].flatMap(a => [lo, mid, hi].map(b => [a, b])) : [[lo, lo], [lo, hi], [hi, lo], [hi, hi], [mid, mid]];
+  for (const [sx, sy] of stars) g += `<circle cx="${X(sx).toFixed(1)}" cy="${Y(sy).toFixed(1)}" r="1.4" class="rv-star"/>`;
+  const rStone = S * .46;
+  for (let i = 0; i < N * N; i++) {
+    const c = grid[i]; if (!c) continue;
+    g += `<circle cx="${X(i % N).toFixed(1)}" cy="${Y((i / N) | 0).toFixed(1)}" r="${rStone.toFixed(2)}" class="${c === 1 ? "rv-b" : "rv-w"}"/>`;
+  }
+  if (playedXY) {
+    const cx = X(playedXY[0]).toFixed(1), cy = Y(playedXY[1]).toFixed(1);
+    g += `<circle cx="${cx}" cy="${cy}" r="${(S * .63).toFixed(2)}" class="rv-m-ring ${grade}"/>`;
+    g += `<circle cx="${cx}" cy="${cy}" r="${(S * .17).toFixed(2)}" class="rv-m-dot ${color === "B" ? "b" : "w"}"/>`;
+  }
+  if (bestXY && (!playedXY || bestXY[0] !== playedXY[0] || bestXY[1] !== playedXY[1])) {
+    const ax = X(bestXY[0]).toFixed(1), ay = Y(bestXY[1]).toFixed(1);
+    g += `<circle cx="${ax}" cy="${ay}" r="${(S * .45).toFixed(2)}" class="rv-m-ai"/>`;
+    g += `<circle cx="${ax}" cy="${ay}" r="${(S * .16).toFixed(2)}" class="rv-m-aidot"/>`;
+  }
+  return g + "</svg>";
+}
 function rvScenes() {   // the main line's 실수·악수: [{n, grade, loss}]
   const out = [];
   for (const n of lineThrough(root)) {
@@ -6880,10 +6929,13 @@ function rvCover(line, scenes, tricks = [], kt = () => 0) {
       `가장 큰 손해는 ${r.worst.n.depth}수째 (${Math.max(0, r.worst.loss.points).toFixed(1)}집)입니다.`] : ["실수·악수가 없습니다."];
     return `<p><b>${escHtml(side)}</b> ${said.map(t => `<span>${escHtml(t)}</span>`).join(" ")}</p>`;
   }).join("");
-  const list = scenes.length ? `<table class="rv-list"><thead><tr><th>장면</th><th>수</th><th></th><th>등급</th><th>손해</th><th>실전</th><th>AI</th></tr></thead><tbody>` +
+  const list = scenes.length ? `<div class="rv-legend"><span class="m">실수</span><span class="k">악수</span><span class="ai">AI 추천</span></div><div class="rv-toc">` +
     scenes.map((s, k) => { const best = candidates(s.n.parent)[0];
-      return `<tr data-to="${k + 1}"><td>${k + 1}</td><td>${s.n.depth}</td><td><i class="rv-st ${s.n.move.c === "B" ? "b" : "w"}"></i></td><td class="${s.grade}">${rvGradeLabel(s.grade)}</td>` +
-        `<td>${escHtml(`${Math.max(0, s.loss.points).toFixed(1)}집`)}</td><td>${noteMove(s.n)}</td><td>${best ? best.move : "—"}</td></tr>`; }).join("") + `</tbody></table>`
+      const playedXY = parseGtp(noteMove(s.n)), bestXY = best && best.move !== "pass" ? parseGtp(best.move) : null;
+      return `<button type="button" class="rv-toc-card" data-to="${k + 1}">` +
+        `<div class="rv-toc-top"><span>#${k + 1}</span><span class="rv-toc-loss ${s.grade}">−${Math.max(0, s.loss.points).toFixed(1)}집</span></div>` +
+        rvMiniBoard(s.n.grid, playedXY, s.n.move.c, s.grade, bestXY) +
+        `<div class="rv-toc-foot"><span><i class="rv-st ${s.n.move.c === "B" ? "b" : "w"}"></i>${s.n.depth}수</span><span class="${s.grade}">${rvGradeLabel(s.grade)}</span></div></button>`; }).join("") + `</div>`
     : `<p class="rv-none">실수·악수가 없습니다.</p>`;
   return `<div class="rv-page rv-cover"><div class="rv-kicker">KataGo Cloud</div><h1>복기 리포트</h1>` +
     `<div class="rv-players"><span><i class="rv-st b"></i>${escHtml(i.PB || "흑")}</span><em>vs</em><span><i class="rv-st w"></i>${escHtml(i.PW || "백")}</span></div>` +
@@ -6958,6 +7010,10 @@ async function rvPdf() {
     for (const g of box.querySelectorAll(".rv-figs.whole")) {   // the game record: two figures a block
       const figs = [...g.children]; let at = g;
       for (let i = 2; i < figs.length; i += 2) { const h = g.cloneNode(false); figs.slice(i, i + 2).forEach(f => h.appendChild(f)); at = after(at, h); }
+    }
+    for (const g of box.querySelectorAll(".rv-toc")) {   // 4 cards (one row) a block so PDF pages break cleanly between rows
+      const cards = [...g.children]; let at = g;
+      for (let i = 4; i < cards.length; i += 4) { const h = g.cloneNode(false); cards.slice(i, i + 4).forEach(c => h.appendChild(c)); at = after(at, h); }
     }
     for (const lg of box.querySelectorAll(".rv-graph + .rv-legend")) { const w = document.createElement("div"); lg.previousElementSibling.before(w); w.append(lg.previousElementSibling, lg); }
     const blocks = [];
@@ -7037,7 +7093,7 @@ $("rvClose").onclick = leaveReview;
 $("rvPrint").onclick = rvPdf;
 $("rvSide").onclick = ev => { const b = ev.target.closest("button[data-v]"); if (!b || !rvState) return; rvState.side = b.dataset.v; renderReview(); };
 $("rvPages").onclick = ev => {
-  const go = ev.target.closest("button[data-go]"), to = ev.target.closest("tr[data-to]");
+  const go = ev.target.closest("button[data-go]"), to = ev.target.closest("[data-to]");
   if (go && rvState) {   // the scene on the board: the move it is about; Back comes back to the report
     const same = rvState.root === root, n = lineThrough(root)[+go.dataset.go];
     rvKeep = {side: rvState.side, top: $("reviewDoc").scrollTop};
