@@ -1434,7 +1434,7 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
       </section>
     </div>
     <div id="xpBox" aria-label="역대 기보 수순 탐색">
-      <div class="xp-head"><span id="xpNow"></span><div class="lvl" id="xpSrc" role="group" aria-label="기보"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
+      <div class="xp-head"><span id="xpNow"></span><!-- 2026-11-27 사용자 "수순탐색 기보들도 지금 남아있는 기보만": KataGo 실력 측정 대국만(DB 20261127b) → 전체·프로·AI 나눔 숨김 --><div class="lvl" id="xpSrc" role="group" aria-label="기보" style="display:none"><button data-s="" class="on">전체</button><button data-s="pro">프로</button><button data-s="ai">AI</button></div></div>
       <div class="xp-body" id="xpBody">
         <table><thead><tr><th>다음 수</th><th>판</th><th>비율</th><th>승리 비율</th><th>AI</th></tr></thead><tbody id="xpNext"></tbody></table>
         <div class="xp-find" id="xpFindRow" hidden><span class="xp-sub" id="xpGamesHead"></span><input id="xpFind" type="search" placeholder="선수 이름" autocomplete="off" enterkeyhint="search" aria-label="선수 이름으로 찾기"></div>
@@ -6283,7 +6283,7 @@ function xpOpen(id) {
 function xpRestore() {   // back from 열기 in the app: the moves that were on the board
   let back = null; try { back = JSON.parse(sessionStorage.getItem("kgv.xpBack") || "null"); sessionStorage.removeItem("kgv.xpBack"); } catch { /* storage blocked */ }
   if (!back || !/^([a-s]{2}|tt)*$/.test(back.seq || "")) return;
-  if (["", "pro", "ai"].includes(back.src)) { xp.src = back.src; $("xpSrc").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.s === xp.src)); }
+  if ([""].includes(back.src)) { xp.src = back.src; $("xpSrc").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.s === xp.src)); }
   let node = root;
   for (const m of back.seq.match(/../g) || []) { const c = play(node, node.toPlay, xpPair(m)); if (!c) break; node = c; }
   goTo(node);
