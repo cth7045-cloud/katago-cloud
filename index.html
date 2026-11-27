@@ -2529,8 +2529,10 @@ async function libShow() {
     if (seq === libSeq) $("libCards").innerHTML = `<p class="muted lib-cat-msg">불러오지 못했습니다: ${esc(e.message || e)}</p>`;
   }
 }
+// KataGo 이름은 블록 수까지만 (사용자 2026-11-27 "b28 뒤에 붙어있는 이런것들 지워줘": 'KataGo b28 s7797404416' → 'KataGo b28', DB 이름은 그대로)
+const libShort = (name) => String(name || "").replace(/^(KataGo b\d+)\s.*$/, "$1");
 const libName = (name, rank) => !name && rank ? esc(rank)   // 기타 대국: no names, the 단수 only
-  : `${esc(name || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
+  : `${esc(libShort(name) || "?")}${rank ? ` <span class="muted">${esc(rank)}</span>` : ""}`;
 async function loadLibrary(reset) {
   const q = libFindQ(), seq = ++libSeq, latest = !q && libLatest();
   const hit = q && reset ? libFindCache.get(q) : null, fresh = hit && Date.now() - hit.at < 300000 ? hit : null;
