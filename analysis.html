@@ -1010,7 +1010,6 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
 .gm-pcard.low .gm-pstate { color: var(--bad); }
 
 .gm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.gm-grid #gmResignBtn { grid-column: 1 / -1; }   /* 무르기 (2026-11-27) makes five: 기권 gets the last row to itself */
 .gm-grid button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; min-height: 38px; padding: 6px 8px; font-size: 13px; }
 .gm-grid button svg, #gmStopBtn svg, #gmMobDock button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 #gmConfirmBtn, #gmStopBtn { width: 100%; border-radius: 12px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13.5px; }
@@ -1428,7 +1427,6 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
           <button id="gmUndoBtn" type="button"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>무르기</span></button>
           <button id="gmPassBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg><span>한 수 쉼</span></button>
           <button id="gmScoreBtn" type="button" title="지금 국면을 셉니다: AI가 죽은 돌을 판정하고, 돌을 눌러 고칠 수 있습니다"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h4M15 12h1M8 16h8"/></svg><span>계가</span></button>
-          <button id="gmConfirmToggle" type="button"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg><span>착수 확인</span></button>
           <button id="gmResignBtn" type="button" class="pink" title="돌을 던지고 대국을 끝냅니다"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>기권</span></button>
         </div>
         <button id="gmConfirmBtn" type="button" class="primary" hidden></button>
@@ -1520,7 +1518,6 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
     <button id="gmMobUndo" type="button">무르기</button>
     <button id="gmMobPass" type="button">한 수 쉼</button>
     <button id="gmMobScore" type="button">계가</button>
-    <button id="gmMobConfirmToggle" type="button">착수확인</button>
     <button id="gmMobResign" type="button" class="pink">기권</button>
     <button id="gmMobStop" type="button">대국 중지</button>
   </div>
@@ -2716,7 +2713,9 @@ function handicapAllowsResign(mover, moverScore) {   // KataGo guards white; her
 }
 // 착수 확인 · 온라인 대국실 상태 (소리 탑재 없음)
 let gmConfirmOn = false, gmPending = null, gmHoverXY = null, gmLastSyncKey = "";
-try { gmConfirmOn = localStorage.getItem("kgv.confirmMove") === "1"; } catch {}
+// 착수 확인(미리 놓고 한 번 더 눌러 두기)은 2026-11-27에 뺌 — 사용자 "무르기 버튼이 있으니까 착수 확인은 없애도 돼". gmConfirmOn은 늘 false
+// (아래 gmPending·착수 확정 버튼 코드는 켜질 일이 없음), 기기에 남은 설정도 지움.
+try { localStorage.removeItem("kgv.confirmMove"); } catch {}
 
 function gmFormatClock(c, s, activeTurn) {
   if (!c) return { main: "시간 없음", cls: "gm-ptime sm", low: false, pips: "", meta: "" };
@@ -2810,12 +2809,9 @@ function syncGameUi() {
   $("gmPassBtn").hidden = $("gmMobPass").hidden = !hasHuman;
   $("gmUndoBtn").hidden = $("gmMobUndo").hidden = !hasHuman;
   $("gmUndoBtn").disabled = $("gmMobUndo").disabled = !gameUndoTarget();
-  $("gmConfirmToggle").hidden = $("gmMobConfirmToggle").hidden = !hasHuman;
   $("gmResignBtn").hidden = $("gmMobResign").hidden = !hasHuman;
   $("gmScoreBtn").classList.toggle("on", !!scoring);
   $("gmMobScore").classList.toggle("on", !!scoring);
-  $("gmConfirmToggle").classList.toggle("on", gmConfirmOn);
-  $("gmMobConfirmToggle").classList.toggle("on", gmConfirmOn);
 
   const pendTxt = gmPending ? `${gtp(gmPending[0], gmPending[1])} 착수 확정` : "";
   for (const id of ["gmConfirmBtn", "gmMobConfirmBtn"]) {
@@ -3374,11 +3370,6 @@ $("gmPassBtn").onclick = $("gmMobPass").onclick = () => {
   $("pass").click();
 };
 $("gmScoreBtn").onclick = $("gmMobScore").onclick = startScoring;
-$("gmConfirmToggle").onclick = $("gmMobConfirmToggle").onclick = () => {
-  gmConfirmOn = !gmConfirmOn; gmPending = null;
-  try { localStorage.setItem("kgv.confirmMove", gmConfirmOn ? "1" : ""); } catch {}
-  syncGameUi(); schedule();
-};
 $("gmConfirmBtn").onclick = $("gmMobConfirmBtn").onclick = () => {
   if (!gmPending) return;
   const p = gmPending; gmPending = null;
