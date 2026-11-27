@@ -1010,6 +1010,7 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
 .gm-pcard.low .gm-pstate { color: var(--bad); }
 
 .gm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gm-grid #gmResignBtn { grid-column: 1 / -1; }   /* 무르기 (2026-11-27) makes five: 기권 gets the last row to itself */
 .gm-grid button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; min-height: 38px; padding: 6px 8px; font-size: 13px; }
 .gm-grid button svg, #gmStopBtn svg, #gmMobDock button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 #gmConfirmBtn, #gmStopBtn { width: 100%; border-radius: 12px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13.5px; }
@@ -1079,7 +1080,8 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
   body.playing .toolbar { grid-template-columns: minmax(0, 1fr) !important; padding-top: 4px; }
   body.playing .toolbar > :not(#gmMobDock):not(.error) { display: none !important; }
   body.playing #gmMobDock { display: flex !important; gap: 6px; width: 100%; min-width: 0; }
-  body.playing #gmMobDock button { flex: 1 1 0; width: auto; min-width: 0; min-height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; letter-spacing: -.02em; padding: 4px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.playing #gmMobDock button { flex: 1 1 0; width: auto; min-width: 0; min-height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; letter-spacing: -.02em; padding: 4px 2px; white-space: normal; line-height: 1.12; text-align: center; overflow: hidden; }   /* 6 buttons since 무르기 (2026-11-27): a label of two words may take two lines */
+  html:lang(ru) body.playing #gmMobDock button { font-size: 10.5px; letter-spacing: -.04em; }   /* Russian words are long (Подсчёт, Сдаться): smaller, never cut mid-word */
   #gmMobConfirmBtn { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 35;
     min-height: 44px; border-radius: 14px; font-size: 14px; font-weight: 700; box-shadow: 0 10px 28px -6px rgba(44, 92, 246, .55); }
 }
@@ -1423,6 +1425,7 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
       <section class="gm-card" id="gmControlCard">
         <div class="gm-kicker">대국 제어</div>
         <div class="gm-grid">
+          <button id="gmUndoBtn" type="button"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>무르기</span></button>
           <button id="gmPassBtn" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg><span>한 수 쉼</span></button>
           <button id="gmScoreBtn" type="button" title="지금 국면을 셉니다: AI가 죽은 돌을 판정하고, 돌을 눌러 고칠 수 있습니다"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h4M15 12h1M8 16h8"/></svg><span>계가</span></button>
           <button id="gmConfirmToggle" type="button"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg><span>착수 확인</span></button>
@@ -1514,6 +1517,7 @@ body.playing .menubar #reviewOpen, body.playing .menubar #saveMine { display: no
   </details>
   <span class="error" id="err"></span>
   <div id="gmMobDock" hidden>
+    <button id="gmMobUndo" type="button">무르기</button>
     <button id="gmMobPass" type="button">한 수 쉼</button>
     <button id="gmMobScore" type="button">계가</button>
     <button id="gmMobConfirmToggle" type="button">착수확인</button>
@@ -2599,6 +2603,7 @@ const komiText = (k = komi()) => k < 0 ? `역덤 ${-k}` : `덤 ${k}`;
 // ------------------------------------------------------------------ navigation / actions
 function goTo(node) {
   if (!node) return;
+  if (gameLocked() && !gameNav && !applyingRemote && node !== cur && node.parent !== cur) { gameNavNote(); return; }   // AI대국 중: 다음 수만
   if (scoring && node !== scoring.node) closeScoring();
   let soundSyncMs = 0;
   if (SKIN.sound !== "off" && node.parent === cur && node.move && !node.move.pass && !applyingRemote) {   // 돌 소리: one move forward (a stone put down, ▶, the AI's move); not jumps
@@ -2613,6 +2618,7 @@ function goTo(node) {
   schedule(soundSyncMs, soundSyncMs === 0);
 }
 function step(k) {
+  if (gameLocked()) { gameNavNote(); return; }   // AI대국 중: 휠·방향키·오른쪽 클릭·손가락으로 수순을 넘기지 않음
   if (k === 1 && xp && !cur.children.length && !quiz && !game) { xpStepTop(); return; }   // 수순 탐색: past the moves on the board, the most played one
   let n = cur; for (let i = 0; i < Math.abs(k); i++) n = k > 0 ? (n.children[0] || n) : (n.parent || n); goTo(n);
 }
@@ -2648,6 +2654,11 @@ $("pass").onclick = () => goTo(play(cur, cur.toPlay, null));
 // a number of seconds, or of visits. Options follow YZY's new-game windows (random opening, resign rule, which
 // side's candidates show).
 let game = null, reachedAt = performance.now();
+// AI대국 중 (사용자 2026-11-27 "막고, 무르기 버튼을 추가해줘"): 휠·오른쪽 클릭·두/세 손가락·방향키·Home/End·그래프·변화도로
+// 수순을 옮기지 않는다 — 판이 바뀌는 건 다음 수(착수·한 수 쉼·AI의 수)와 무르기뿐. 대국을 마치거나 멈추면 다시 평소대로.
+const gameLocked = () => !!(game && game.root === root && !quiz);
+let gameNav = false;   // 무르기가 판을 옮기는 동안
+function gameNavNote() { $("err").textContent = "대국 중에는 수순을 넘길 수 없습니다"; syncGameUi(); }
 let quiz = null;   // a 오답노트 problem being solved (see the 오답노트 section)
 // game: {kind, root, ai: {B|W: {mode, value}}, show: {B, W}, random, resign (on/off), low: {B, W}}
 const colorName = c => c === "B" ? "흑" : "백";
@@ -2797,6 +2808,8 @@ function syncGameUi() {
   if ($("gmMobBotSlot").innerHTML !== mbBot) $("gmMobBotSlot").innerHTML = mbBot;
 
   $("gmPassBtn").hidden = $("gmMobPass").hidden = !hasHuman;
+  $("gmUndoBtn").hidden = $("gmMobUndo").hidden = !hasHuman;
+  $("gmUndoBtn").disabled = $("gmMobUndo").disabled = !gameUndoTarget();
   $("gmConfirmToggle").hidden = $("gmMobConfirmToggle").hidden = !hasHuman;
   $("gmResignBtn").hidden = $("gmMobResign").hidden = !hasHuman;
   $("gmScoreBtn").classList.toggle("on", !!scoring);
@@ -3328,7 +3341,7 @@ $("gdGo").onclick = () => {
                  DT: new Date().toISOString().slice(0, 10)};
     goTo(root);
   }
-  game = {kind, root, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked, wr: $("gdShowWr").checked}, random: +$("gdRandom").value,
+  game = {kind, root, start: cur, ai, show: {B: $("gdShowB").checked, W: $("gdShowW").checked, wr: $("gdShowWr").checked}, random: +$("gdRandom").value,
           resign: $("gdResign").checked, low: {B: 0, W: 0}, clock: makeClock(timeFormValue())};
   saveGameForm(); $("gameDlg").close();
   if (!analyzing) setAnalyzing(true);
@@ -3336,6 +3349,24 @@ $("gdGo").onclick = () => {
   reachedAt = performance.now(); clockOnTurn(); requestLive(); publish(); gameButton(); schedule();
   $("err").textContent = vsHuman ? `AI 대국 시작 · 나는 ${colorName(mine)}` : "AI끼리 대국을 시작했습니다";
   syncGameUi();
+};
+// 무르기 (사용자 2026-11-27): 사람이 둔 마지막 수 앞으로 — 그 뒤 AI가 둔 수도 함께 — 돌아가 그 사람 차례가 된다. 대국을
+// 시작한 국면보다 앞으로는 안 가고, 무른 수는 기보에서 지운다(가지로 남기지 않음). AI끼리 대국·계가 중에는 없음.
+function gameUndoTarget() {
+  if (!gameLocked() || scoring) return null;
+  for (let n = cur; n.parent && n !== game.start; n = n.parent) if (n.move && !game.ai[n.move.c]) return n.parent;
+  return null;
+}
+$("gmUndoBtn").onclick = $("gmMobUndo").onclick = () => {
+  const to = gameUndoTarget();
+  if (!to) { $("err").textContent = "무를 수가 없습니다"; syncGameUi(); return; }
+  gmPending = null; voiceStop();
+  let k = cur; while (k.parent !== to) k = k.parent;
+  to.children.splice(to.children.indexOf(k), 1);
+  gameNav = true;
+  try { goTo(to); } finally { gameNav = false; }
+  game.low = {B: 0, W: 0};
+  $("err").textContent = "물렀습니다"; syncGameUi();
 };
 $("gmPassBtn").onclick = $("gmMobPass").onclick = () => {
   if (game && game.ai[cur.toPlay]) { $("err").textContent = "AI 차례입니다"; syncGameUi(); return; }
